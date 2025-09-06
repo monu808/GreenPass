@@ -32,72 +32,67 @@ export default function TouristSidebar() {
   const pathname = usePathname();
 
   return (
-    <div className="fixed inset-y-0 left-0 z-50 w-64 glass-sidebar">
+    <div className="fixed inset-y-0 left-0 z-50 w-64 bg-white border-r border-gray-200 shadow-sm">
       <div className="flex flex-col h-full">
         {/* Logo Section */}
-        <div className="flex items-center justify-center h-20 px-6 gradient-bg relative overflow-hidden">
-          <div className="absolute inset-0 bg-gradient-to-br from-primary-600 via-accent-500 to-secondary-600 opacity-90"></div>
-          <div className="relative flex items-center space-x-3">
-            <div className="floating-icon">
-              <Mountain className="h-10 w-10 text-white" />
+        <div className="flex items-center justify-center h-20 px-6 bg-gradient-to-br from-green-600 via-blue-600 to-green-600">
+          <div className="flex items-center space-x-3">
+            <div className="p-2 bg-white/20 rounded-lg">
+              <Mountain className="h-8 w-8 text-white" />
             </div>
             <div className="text-white">
-              <h1 className="text-xl font-serif font-bold">Paradise Tourism</h1>
-              <p className="text-sm opacity-90 font-medium">Jammu & Himachal</p>
+              <h1 className="text-lg font-semibold">Paradise Tourism</h1>
+              <p className="text-sm opacity-90">Jammu & Himachal</p>
             </div>
           </div>
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 px-4 py-8 space-y-3 overflow-y-auto">
+        <nav className="flex-1 px-4 py-6 space-y-2 overflow-y-auto">
           {touristNavItems.map((item) => {
             const isActive = pathname === item.href;
             return (
               <Link
                 key={item.name}
                 href={item.href}
-                className={`group flex items-center space-x-4 px-4 py-4 text-sm font-medium rounded-xl transition-all duration-300 ${
+                className={`group flex items-center space-x-3 px-4 py-3 text-sm font-medium rounded-lg transition-all duration-200 ${
                   isActive
-                    ? 'glass-card-active gradient-text font-semibold transform scale-105'
-                    : 'nav-item text-gray-700 hover:text-primary-600'
+                    ? 'bg-green-50 text-green-700 border-r-2 border-green-600'
+                    : 'text-gray-700 hover:text-green-600 hover:bg-gray-50'
                 }`}
               >
-                <item.icon className={`h-6 w-6 transition-all duration-300 ${
+                <item.icon className={`h-5 w-5 transition-colors duration-200 ${
                   isActive 
-                    ? 'text-primary-600 scale-110' 
-                    : 'text-gray-500 group-hover:text-primary-600 group-hover:scale-110'
+                    ? 'text-green-600' 
+                    : 'text-gray-500 group-hover:text-green-600'
                 }`} />
-                <span className="font-serif">{item.name}</span>
-                {isActive && (
-                  <div className="ml-auto w-2 h-2 rounded-full bg-gradient-to-r from-primary-400 to-accent-400"></div>
-                )}
+                <span>{item.name}</span>
               </Link>
             );
           })}
         </nav>
 
         {/* Weather Widget */}
-        <div className="p-4 m-4 glass-card">
+        <div className="p-4 m-4 bg-gradient-to-br from-blue-50 to-green-50 rounded-lg border border-gray-200">
           <div className="text-center">
-            <h3 className="text-sm font-serif font-semibold gradient-text mb-3">Today's Weather</h3>
-            <div className="flex items-center justify-center space-x-3">
-              <div className="text-3xl floating-element">☀️</div>
+            <div className="flex items-center space-x-2">
+              <div className="text-2xl">☀️</div>
               <div>
-                <p className="text-xl font-bold gradient-text">24°C</p>
-                <p className="text-xs text-gray-600 font-medium">Perfect for exploring!</p>
+                <p className="text-lg font-semibold text-gray-800">24°C</p>
+                <p className="text-xs text-gray-600">Perfect for exploring!</p>
               </div>
             </div>
-            <div className="mt-3 pt-3 border-t border-white/20">
-              <p className="text-xs text-primary-600 font-medium">Clear skies ahead</p>
+            <div className="mt-3 pt-3 border-t border-gray-200">
+              <p className="text-xs text-green-600 font-medium">Clear skies ahead</p>
             </div>
           </div>
         </div>
 
         {/* Footer */}
-        <div className="p-6 border-t border-white/20">
+        <div className="p-4 border-t border-gray-200">
           <div className="text-center text-xs text-gray-600">
-            <p className="font-serif font-medium gradient-text">© 2025 Paradise Tourism</p>
-            <p className="text-primary-600 font-medium mt-1">Sustainable Adventure</p>
+            <p className="font-medium text-gray-800">© 2025 Paradise Tourism</p>
+            <p className="text-green-600 font-medium mt-1">Sustainable Adventure</p>
           </div>
         </div>
       </div>

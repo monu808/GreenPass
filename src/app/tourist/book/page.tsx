@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { Calendar, Users, MapPin, Clock, Star, AlertTriangle, CheckCircle } from 'lucide-react';
 import TouristLayout from '@/components/TouristLayout';
@@ -8,7 +8,7 @@ import { dbService } from '@/lib/databaseService';
 import { useAuth } from '@/contexts/AuthContext';
 import { Destination } from '@/types';
 
-export default function BookDestination() {
+function BookDestinationForm() {
   const { user } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -507,5 +507,22 @@ export default function BookDestination() {
         </form>
       </div>
     </TouristLayout>
+  );
+}
+
+export default function BookDestination() {
+  return (
+    <Suspense fallback={
+      <TouristLayout>
+        <div className="min-h-screen flex items-center justify-center">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600 mx-auto mb-4"></div>
+            <p className="text-gray-600">Loading booking details...</p>
+          </div>
+        </div>
+      </TouristLayout>
+    }>
+      <BookDestinationForm />
+    </Suspense>
   );
 }

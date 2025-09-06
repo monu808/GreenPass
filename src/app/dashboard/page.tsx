@@ -60,19 +60,19 @@ export default function EnhancedDashboard() {
       setStats(dashboardStats);
       
       // Transform destinations data to match interface
-      const transformedDestinations = destinationsData.map(dest => ({
+      const transformedDestinations = destinationsData.map((dest: any) => ({
         id: dest.id,
         name: dest.name,
         location: dest.location,
-        maxCapacity: dest.max_capacity || dest.maxCapacity,
-        currentOccupancy: dest.current_occupancy || dest.currentOccupancy,
+        maxCapacity: dest.max_capacity,
+        currentOccupancy: dest.current_occupancy,
         description: dest.description,
         guidelines: dest.guidelines,
-        isActive: dest.is_active !== undefined ? dest.is_active : dest.isActive,
-        ecologicalSensitivity: dest.ecological_sensitivity || dest.ecologicalSensitivity,
+        isActive: dest.is_active,
+        ecologicalSensitivity: dest.ecological_sensitivity,
         coordinates: {
-          latitude: dest.latitude || dest.coordinates?.latitude,
-          longitude: dest.longitude || dest.coordinates?.longitude
+          latitude: dest.latitude,
+          longitude: dest.longitude
         }
       }));
       
@@ -397,7 +397,7 @@ export default function EnhancedDashboard() {
                         <p className="text-sm font-medium text-gray-900">{alert.title}</p>
                         <p className="text-xs text-gray-600 mt-1">{alert.message}</p>
                         <p className="text-xs text-gray-500 mt-2">
-                          {alert.createdAt ? formatDateTime(alert.createdAt) : 'Recently'}
+                          {(alert as any).created_at ? formatDateTime((alert as any).created_at) : 'Recently'}
                         </p>
                       </div>
                     ))}

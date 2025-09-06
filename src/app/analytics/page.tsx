@@ -87,9 +87,9 @@ export default function AnalyticsPage() {
       // Capacity utilization
       const capacityUtilization = destinations.map(dest => ({
         destination: dest.name,
-        utilization: dest.maxCapacity > 0 ? (dest.currentOccupancy / dest.maxCapacity) * 100 : 0,
-        max: dest.maxCapacity,
-        current: dest.currentOccupancy
+        utilization: dest.max_capacity > 0 ? (dest.current_occupancy / dest.max_capacity) * 100 : 0,
+        max: dest.max_capacity,
+        current: dest.current_occupancy
       }));
 
       setAnalytics({

@@ -101,9 +101,9 @@ class DatabaseService {
 
   async updateTouristStatus(touristId: string, status: Tourist['status']): Promise<boolean> {
     try {
-      const { error } = await supabase
-        .from('tourists')
-        .update({ status } as any)
+      const { error } = await (supabase
+        .from('tourists') as any)
+        .update({ status })
         .eq('id', touristId);
 
       if (error) {
@@ -175,7 +175,7 @@ class DatabaseService {
         return 0;
       }
 
-      return data.reduce((total, tourist) => total + tourist.group_size, 0);
+      return (data as any).reduce((total: number, tourist: any) => total + tourist.group_size, 0);
     } catch (error) {
       console.error('Error in getCurrentOccupancy:', error);
       return 0;
@@ -260,8 +260,8 @@ class DatabaseService {
 
   async updateAlert(alertId: string, updates: Partial<{ isActive: boolean }>): Promise<void> {
     try {
-      const { error } = await supabase
-        .from('alerts')
+      const { error } = await (supabase
+        .from('alerts') as any)
         .update({
           is_active: updates.isActive,
           updated_at: new Date().toISOString()
@@ -279,8 +279,8 @@ class DatabaseService {
 
   async deactivateAlert(alertId: string): Promise<boolean> {
     try {
-      const { error } = await supabase
-        .from('alerts')
+      const { error } = await (supabase
+        .from('alerts') as any)
         .update({ is_active: false })
         .eq('id', alertId);
 

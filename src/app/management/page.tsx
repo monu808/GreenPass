@@ -64,7 +64,16 @@ export default function TouristBookingManagement() {
         dbService.getDestinations()
       ]);
       setTourists(touristData);
-      setDestinations(destinationData);
+      // Transform database properties to component interface
+      const transformedDestinations = destinationData.map((dest: any) => ({
+        ...dest,
+        maxCapacity: dest.max_capacity,
+        currentOccupancy: dest.current_occupancy,
+        isActive: dest.is_active,
+        ecologicalSensitivity: dest.ecological_sensitivity,
+        coordinates: { lat: dest.latitude, lng: dest.longitude }
+      }));
+      setDestinations(transformedDestinations);
       calculateStats(touristData);
     } catch (error) {
       console.error('Error loading data:', error);
@@ -235,7 +244,7 @@ export default function TouristBookingManagement() {
             </div>
             <div class="info-item">
               <div class="label">Status</div>
-              <div class="value">${selectedTourist?.status.charAt(0).toUpperCase() + selectedTourist?.status.slice(1)}</div>
+              <div className="value">{selectedTourist?.status ? selectedTourist.status.charAt(0).toUpperCase() + selectedTourist.status.slice(1) : 'N/A'}</div>
             </div>
             <div class="info-item">
               <div class="label">Check-in Date</div>

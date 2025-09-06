@@ -26,7 +26,7 @@ export default function AuthCallback() {
             .eq('id', data.session.user.id)
             .single();
 
-          if (userData?.is_admin) {
+          if ((userData as any)?.is_admin) {
             router.push('/');
           } else {
             router.push('/');

@@ -512,7 +512,7 @@ export default function MyBookings() {
                                 ))}
                               </ul>
                             ) : (
-                              <p className="text-gray-900">{value}</p>
+                              <p className="text-gray-900">{String(value)}</p>
                             )}
                           </div>
                         ))}

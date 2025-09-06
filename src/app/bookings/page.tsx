@@ -37,7 +37,16 @@ export default function BookingsPage() {
         dbService.getDestinations()
       ]);
       setBookings(touristData);
-      setDestinations(destinationData);
+      // Transform database properties to component interface
+      const transformedDestinations = destinationData.map((dest: any) => ({
+        ...dest,
+        maxCapacity: dest.max_capacity,
+        currentOccupancy: dest.current_occupancy,
+        isActive: dest.is_active,
+        ecologicalSensitivity: dest.ecological_sensitivity,
+        coordinates: { lat: dest.latitude, lng: dest.longitude }
+      }));
+      setDestinations(transformedDestinations);
     } catch (error) {
       console.error('Error loading bookings data:', error);
     } finally {

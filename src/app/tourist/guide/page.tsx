@@ -166,7 +166,7 @@ export default function TravelGuide() {
     {
       id: 'planning',
       title: 'Trip Planning',
-      icon: Calendar,
+      icon: Clock,
       content: (
         <div className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

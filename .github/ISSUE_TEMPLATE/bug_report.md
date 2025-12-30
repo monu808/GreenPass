@@ -1,39 +1,38 @@
 ---
-name: Bug Report
-about: Report a bug to help us improve
-title: '[BUG] '
-labels: bug
+name: Bug report
+about: Create a report to help us improve
+title: ''
+labels: ''
 assignees: ''
+
 ---
 
-## 🐛 Bug Description
-A clear and concise description of the bug.
+**Describe the bug**
+A clear and concise description of what the bug is.
 
-## 📋 Steps to Reproduce
+**To Reproduce**
+Steps to reproduce the behavior:
 1. Go to '...'
-2. Click on '...'
-3. Enter '...'
+2. Click on '....'
+3. Scroll down to '....'
 4. See error
 
-## ✅ Expected Behavior
-What should happen?
+**Expected behavior**
+A clear and concise description of what you expected to happen.
 
-## ❌ Actual Behavior
-What actually happens?
+**Screenshots**
+If applicable, add screenshots to help explain your problem.
 
-## 📸 Screenshots
-If applicable, add screenshots.
+**Desktop (please complete the following information):**
+ - OS: [e.g. iOS]
+ - Browser [e.g. chrome, safari]
+ - Version [e.g. 22]
 
-## 🖥️ Environment
-- **OS**: [e.g., Windows 11, macOS 13, Ubuntu 22.04]
-- **Browser**: [e.g., Chrome 120, Firefox 115, Safari 17]
-- **Node Version**: [e.g., 18.17.0]
-- **npm/yarn Version**: [e.g., npm 9.6.7]
+**Smartphone (please complete the following information):**
+ - Device: [e.g. iPhone6]
+ - OS: [e.g. iOS8.1]
+ - Browser [e.g. stock browser, safari]
+ - Version [e.g. 22]
 
-## 📝 Additional Context
-Any other relevant information.
-
-## ✔️ Checklist
-- [ ] I have searched existing issues to avoid duplicates
-- [ ] I have tested with the latest version
-- [ ] I have provided all required information
+**Additional context**
+Add any other context about the problem here.

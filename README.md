@@ -4,12 +4,6 @@
 
 ### Sustainable Tourism Management System
 
-[![Next.js](https://img.shields.io/badge/Next.js-15. 5.9-black? style=flat&logo=next.js)](https://nextjs.org/)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.0-blue? style=flat&logo=typescript)](https://www.typescriptlang.org/)
-[![Tailwind CSS](https://img.shields.io/badge/Tailwind-4.0-38B2AC?style=flat&logo=tailwind-css)](https://tailwindcss.com/)
-[![Supabase](https://img.shields.io/badge/Supabase-Integrated-3ECF8E?style=flat&logo=supabase)](https://supabase.com/)
-[![License:  MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
-
 *Protecting India's fragile ecosystems through intelligent tourist flow management*
 
 [Features](#-features) • [Demo](#-quick-start) • [Installation](#-installation) • [Documentation](#-usage-guide) • [Contributing](./CONTRIBUTING.md)

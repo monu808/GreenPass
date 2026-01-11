@@ -1,0 +1,75 @@
+Frontend (React/Next)
+     |
+     | 1. Create order
+     ↓
+Backend (Node/Express)
+     |
+     | 2. Razorpay Order API
+     ↓
+Razorpay
+     |
+     | 3. Payment success webhook
+     ↓
+Backend
+     |
+     | 4. Save transaction + verify signature
+     ↓
+Frontend (Success page)
+import Razorpay from "razorpay";
+
+const razorpay = new Razorpay({
+  key_id: process.env.RAZORPAY_KEY_ID,
+  key_secret: process.env.RAZORPAY_KEY_SECRET,
+});
+
+export default async function handler(req, res) {
+  const { amount } = req.body;
+
+  const order = await razorpay.orders.create({
+    amount: amount * 100,
+    currency: "INR",
+    receipt: "greenpass_receipt",
+  });
+
+  res.status(200).json(order);
+}
+const handlePayment = async () => {
+  const res = await fetch("/api/create-order", {
+    method: "POST",
+    body: JSON.stringify({ amount: 200 }),
+    headers: { "Content-Type": "application/json" },
+  });
+
+  const order = await res.json();
+
+  const options = {
+    key: process.env.NEXT_PUBLIC_RAZORPAY_KEY,
+    amount: order.amount,
+    currency: "INR",
+    order_id: order.id,
+    handler: function (response) {
+      console.log("Payment success", response);
+    },
+  };
+
+  const rzp = new window.Razorpay(options);
+  rzp.open();
+};
+import crypto from "crypto";
+
+const body = order_id + "|" + payment_id;
+const expectedSignature = crypto
+  .createHmac("sha256", process.env.RAZORPAY_KEY_SECRET)
+  .update(body)
+  .digest("hex");
+{
+  "userId": "...",
+  "orderId": "...",
+  "paymentId": "...",
+  "amount": 200,
+  "status": "SUCCESS",
+  "createdAt": "..."
+}
+feat: integrate Razorpay payment gateway for GreenPass permits
+
+

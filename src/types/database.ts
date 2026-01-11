@@ -39,6 +39,7 @@ export interface Database {
           pin_code: string;
           id_proof_type: 'aadhaar' | 'pan' | 'passport' | 'driving-license' | 'voter-id';
           id_proof: string;
+          groupName?: string | null;
           nationality: string;
           group_size: number;
           destination_id: string;

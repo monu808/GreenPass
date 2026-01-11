@@ -4,7 +4,21 @@ import React, { useState, useEffect, useRef } from 'react';
 import Layout from '@/components/Layout';
 import { User } from 'lucide-react';
 import { dbService } from '@/lib/databaseService';
-import { generateId, validateEmail, validatePhone, validateIdProof } from '@/lib/utils';
+import { 
+  validateEmail, 
+  validatePhone, 
+  validateIdProof,
+  validateIdProofByType,
+  validateName,
+  validateGroupName,
+  validateDateRange,
+  validateGroupSize,
+  validateAge,
+  validateGender,
+  validateAddress,
+  validatePinCode,
+  sanitizeInput 
+} from '@/lib/utils';
 import type { Database } from '@/types/database';
 
 type Destination = Database['public']['Tables']['destinations']['Row'];
@@ -17,6 +31,12 @@ export default function RegisterTourist() {
     name: '',
     email: '',
     phone: '',
+    age: '',
+    gender: '',
+    address: '',
+    pinCode: '',
+    idProofType: '',
+    group_name: '',
     idProof: '',
     nationality: 'Indian',
     groupSize: 1,
@@ -70,38 +90,122 @@ export default function RegisterTourist() {
   const validateForm = (): boolean => {
     const newErrors: Record<string, string> = {};
 
-    if (!formData.name.trim()) newErrors.name = 'Name is required';
-    if (!formData.email.trim()) newErrors.email = 'Email is required';
-    else if (!validateEmail(formData.email)) newErrors.email = 'Invalid email format';
+    const nameValidation = validateName(formData.name);
+    if (!nameValidation.valid) {
+      newErrors.name = nameValidation.error || 'Invalid name';
+    }
+
+    if (!formData.email.trim()) {
+      newErrors.email = 'Email is required';
+    } else if (!validateEmail(formData.email)) {
+      newErrors.email = 'Please enter a valid email address (e.g., user@example.com)';
+    }
     
-    if (!formData.phone.trim()) newErrors.phone = 'Phone number is required';
-    else if (!validatePhone(formData.phone)) newErrors.phone = 'Invalid phone number';
-    
-    if (!formData.idProof.trim()) newErrors.idProof = 'ID proof is required';
-    else if (!validateIdProof(formData.idProof)) newErrors.idProof = 'ID proof must be 8-20 characters';
-    
-    if (!formData.destination) newErrors.destination = 'Destination is required';
-    if (!formData.checkInDate) newErrors.checkInDate = 'Check-in date is required';
-    if (!formData.checkOutDate) newErrors.checkOutDate = 'Check-out date is required';
+    if (!formData.phone.trim()) {
+      newErrors.phone = 'Phone number is required';
+    } else if (!validatePhone(formData.phone)) {
+      newErrors.phone = 'Please enter a valid phone number (10 digits for Indian mobile, or include country code for international)';
+    }
+
+    const ageValidation = validateAge(formData.age);
+    if (!ageValidation.valid) {
+      newErrors.age = ageValidation.error || 'Invalid age';
+    }
+
+    const genderValidation = validateGender(formData.gender);
+    if (!genderValidation.valid) {
+      newErrors.gender = genderValidation.error || 'Please select a gender';
+    }
+
+    const addressValidation = validateAddress(formData.address);
+    if (!addressValidation.valid) {
+      newErrors.address = addressValidation.error || 'Invalid address';
+    }
+
+    const pinCodeValidation = validatePinCode(formData.pinCode);
+    if (!pinCodeValidation.valid) {
+      newErrors.pinCode = pinCodeValidation.error || 'Invalid PIN code';
+    }
+
+    if (!formData.idProofType) {
+      newErrors.idProofType = 'Please select an ID proof type';
+    }
+
+    if (!formData.idProof.trim()) {
+      newErrors.idProof = 'ID proof number is required';
+    } else if (formData.idProofType) {
+      const idProofValidation = validateIdProofByType(formData.idProof, formData.idProofType);
+      if (!idProofValidation.valid) {
+        newErrors.idProof = idProofValidation.error || 'Invalid ID proof';
+      }
+    }
+    if (formData.group_name.trim()) {
+  const groupNameValidation = validateGroupName(formData.group_name);
+      if (!groupNameValidation.valid) {
+        newErrors.group_name = groupNameValidation.error || 'Invalid group name';
+      }
+    }
+    if (!formData.destination) {
+      newErrors.destination = 'Please select a destination';
+    }
+
+    if (!formData.checkInDate) {
+      newErrors.checkInDate = 'Check-in date is required';
+    }
+    if (!formData.checkOutDate) {
+      newErrors.checkOutDate = 'Check-out date is required';
+    }
     
     if (formData.checkInDate && formData.checkOutDate) {
+      const dateValidation = validateDateRange(formData.checkInDate, formData.checkOutDate, {
+        minAdvanceDays: 1, 
+        maxStayDays: 30    
+      });
+      if (!dateValidation.valid) {
+        newErrors.checkOutDate = dateValidation.error || 'Invalid date range';
+      }
+    } else if (formData.checkInDate) {
+  
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
       const checkIn = new Date(formData.checkInDate);
-      const checkOut = new Date(formData.checkOutDate);
-      if (checkOut <= checkIn) {
-        newErrors.checkOutDate = 'Check-out date must be after check-in date';
+      const tomorrow = new Date(today);
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      
+      if (checkIn < tomorrow) {
+        newErrors.checkInDate = 'Check-in date must be at least 1 day from today';
       }
     }
 
-    if (formData.groupSize < 1 || formData.groupSize > 10) {
-      newErrors.groupSize = 'Group size must be between 1 and 10';
+    const groupSizeValidation = validateGroupSize(formData.groupSize, 10);
+    if (!groupSizeValidation.valid) {
+      newErrors.groupSize = groupSizeValidation.error || 'Invalid group size';
     }
 
-    if (!formData.emergencyContactName.trim()) newErrors.emergencyContactName = 'Emergency contact name is required';
-    if (!formData.emergencyContactPhone.trim()) newErrors.emergencyContactPhone = 'Emergency contact phone is required';
-    if (!formData.emergencyContactRelationship.trim()) newErrors.emergencyContactRelationship = 'Emergency contact relationship is required';
+    const emergencyNameValidation = validateName(formData.emergencyContactName);
+    if (!emergencyNameValidation.valid) {
+      newErrors.emergencyContactName = emergencyNameValidation.error || 'Invalid emergency contact name';
+    }
 
-    // Check capacity
-    if (formData.destination) {
+    if (!formData.emergencyContactPhone.trim()) {
+      newErrors.emergencyContactPhone = 'Emergency contact phone is required';
+    } else if (!validatePhone(formData.emergencyContactPhone)) {
+      newErrors.emergencyContactPhone = 'Please enter a valid emergency contact phone number';
+    }
+
+    if (!formData.emergencyContactRelationship.trim()) {
+      newErrors.emergencyContactRelationship = 'Please select a relationship';
+    }
+
+    if (formData.phone && formData.emergencyContactPhone) {
+      const cleanPhone = formData.phone.replace(/[\s\-\(\)]/g, '');
+      const cleanEmergencyPhone = formData.emergencyContactPhone.replace(/[\s\-\(\)]/g, '');
+      if (cleanPhone === cleanEmergencyPhone) {
+        newErrors.emergencyContactPhone = 'Emergency contact phone must be different from your phone number';
+      }
+    }
+
+    if (formData.destination && !newErrors.groupSize) {
       const destination = destinations.find(d => d.id === formData.destination);
       if (destination) {
         const availableCapacity = destination.max_capacity - destination.current_occupancy;
@@ -115,64 +219,62 @@ export default function RegisterTourist() {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+const handleSubmit = async (e: React.FormEvent) => {
+  e.preventDefault();
+  
+  if (!validateForm() || !destination) {
+    alert('Please fill in all required fields');
+    return;
+  }
+  
+  setSubmitting(true);
+  
+  try {
+    const bookingData = {
+      name: formData.name,
+      email: formData.email,
+      phone: formData.phone,
+      id_proof: formData.idProof,
+      nationality: formData.nationality,
+      group_size: parseInt(formData.groupSize.toString()),
+      destination_id: destination.id,
+      check_in_date: formData.checkInDate,
+      check_out_date: formData.checkOutDate,
+      status: 'pending' as const,
+      emergency_contact_name: formData.emergencyContact.name,
+      emergency_contact_phone: formData.emergencyContact.phone,
+      emergency_contact_relationship: formData.emergencyContact.relationship,
+      user_id: null, // Set to null to avoid foreign key constraint
+      registration_date: new Date().toISOString(),
+      // Add missing required fields with defaults
+      age: 0, // Default age, consider collecting this in the form
+      gender: 'prefer-not-to-say' as const,
+      address: '', // Default empty address, consider collecting this in the form
+      pin_code: '', // Default empty pin code, consider collecting this in the form
+      id_proof_type: 'aadhaar' as const // Default ID proof type, consider deriving from idProof or adding a selector
+    };
     
-    if (!validateForm()) {
-      // Focus on first error field for better accessibility
-      const firstErrorField = Object.keys(errors)[0];
-      const errorElement = document.getElementById(firstErrorField);
-      if (errorElement) {
-        errorElement.focus();
-      }
-      return;
+    console.log('Submitting booking data:', bookingData);
+    console.log('Destination:', destination);
+    
+    const result = await dbService.addTourist(bookingData);
+    
+    if (!result) {
+      throw new Error('Failed to create booking - no result returned');
     }
-
-    setIsSubmitting(true);
-
-    try {
-      const tourist: TouristInsert = {
-        name: formData.name,
-        email: formData.email,
-        phone: formData.phone,
-        id_proof: formData.idProof,
-        nationality: formData.nationality,
-        group_size: formData.groupSize,
-        destination_id: formData.destination,
-        check_in_date: formData.checkInDate,
-        check_out_date: formData.checkOutDate,
-        status: 'pending',
-        emergency_contact_name: formData.emergencyContactName,
-        emergency_contact_phone: formData.emergencyContactPhone,
-        emergency_contact_relationship: formData.emergencyContactRelationship,
-        registration_date: new Date().toISOString().split('T')[0]
-      };
-
-      await dbService.addTourist(tourist);
-      setSubmitSuccess(true);
-      
-      // Reset form
-      setFormData({
-        name: '',
-        email: '',
-        phone: '',
-        idProof: '',
-        nationality: 'Indian',
-        groupSize: 1,
-        destination: '',
-        checkInDate: '',
-        checkOutDate: '',
-        emergencyContactName: '',
-        emergencyContactPhone: '',
-        emergencyContactRelationship: ''
-      });
-
-    } catch (error) {
-      console.error('Registration failed:', error);
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
+    
+    setShowSuccess(true);
+    setTimeout(() => {
+      router.push('/tourist/bookings');
+    }, 3000);
+    
+  } catch (error) {
+    console.error('Error submitting booking:', error);
+    alert('Failed to submit booking. Please try again.');
+  } finally {
+    setSubmitting(false);
+  }
+};
 
   const selectedDestination = destinations.find(d => d.id === formData.destination);
   const availableCapacity = formData.destination && selectedDestination ? 
@@ -250,8 +352,14 @@ export default function RegisterTourist() {
                   aria-label="Full name"
                   aria-required="true"
                   aria-invalid={!!errors.name}
-                  aria-describedby={errors.name ? 'name-error' : undefined}
+                  aria-describedby={errors.name ? 'name-error' : 'name-hint'}
+                  minLength={2}
+                  maxLength={100}
+                  pattern="[a-zA-Z\s.'-]+"
+                  title="Name can only contain letters, spaces, hyphens, apostrophes, and periods"
+                  autoComplete="name"
                 />
+                <p id="name-hint" className="text-gray-500 text-xs mt-1">2-100 characters, letters only</p>
                 {errors.name && <p id="name-error" className="text-red-700 text-xs mt-1" role="alert">{errors.name}</p>}
               </div>
 
@@ -268,12 +376,15 @@ export default function RegisterTourist() {
                   className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-green-500 focus:outline-none focus:border-transparent text-gray-900 ${
                     errors.email ? 'border-red-600' : 'border-gray-300'
                   }`}
-                  placeholder="Enter your email"
+                  placeholder="Enter your email (e.g., user@example.com)"
                   aria-label="Email address"
                   aria-required="true"
                   aria-invalid={!!errors.email}
-                  aria-describedby={errors.email ? 'email-error' : undefined}
+                  aria-describedby={errors.email ? 'email-error' : 'email-hint'}
+                  maxLength={254}
+                  autoComplete="email"
                 />
+                <p id="email-hint" className="text-gray-500 text-xs mt-1">We&apos;ll send confirmation to this email</p>
                 {errors.email && <p id="email-error" className="text-red-700 text-xs mt-1" role="alert">{errors.email}</p>}
               </div>
 
@@ -290,18 +401,163 @@ export default function RegisterTourist() {
                   className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-green-500 focus:outline-none focus:border-transparent text-gray-900 ${
                     errors.phone ? 'border-red-600' : 'border-gray-300'
                   }`}
-                  placeholder="Enter your phone number"
+                  placeholder="e.g., 9876543210 or +91-98765-43210"
                   aria-label="Phone number"
                   aria-required="true"
                   aria-invalid={!!errors.phone}
-                  aria-describedby={errors.phone ? 'phone-error' : undefined}
+                  aria-describedby={errors.phone ? 'phone-error' : 'phone-hint'}
+                  minLength={10}
+                  maxLength={15}
+                  autoComplete="tel"
                 />
+                <p id="phone-hint" className="text-gray-500 text-xs mt-1">Indian mobile: 10 digits starting with 6-9</p>
                 {errors.phone && <p id="phone-error" className="text-red-700 text-xs mt-1" role="alert">{errors.phone}</p>}
               </div>
 
               <div>
+                <label htmlFor="age" className="block text-sm font-medium text-gray-900 mb-1">
+                  Age *
+                </label>
+                <input
+                  type="number"
+                  id="age"
+                  name="age"
+                  value={formData.age}
+                  onChange={handleInputChange}
+                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-green-500 focus:outline-none focus:border-transparent text-gray-900 ${
+                    errors.age ? 'border-red-600' : 'border-gray-300'
+                  }`}
+                  placeholder="Enter your age"
+                  aria-label="Age"
+                  aria-required="true"
+                  aria-invalid={!!errors.age}
+                  aria-describedby={errors.age ? 'age-error' : 'age-hint'}
+                  min={18}
+                  max={120}
+                  step={1}
+                  onKeyDown={(e) => {
+                    if (e.key === '.' || e.key === '-' || e.key === 'e' || e.key === 'E') {
+                      e.preventDefault();
+                    }
+                  }}
+                />
+                <p id="age-hint" className="text-gray-500 text-xs mt-1">Must be 18 years or older</p>
+                {errors.age && <p id="age-error" className="text-red-700 text-xs mt-1" role="alert">{errors.age}</p>}
+              </div>
+
+              <div>
+                <label htmlFor="gender" className="block text-sm font-medium text-gray-900 mb-1">
+                  Gender *
+                </label>
+                <select
+                  id="gender"
+                  name="gender"
+                  value={formData.gender}
+                  onChange={handleInputChange}
+                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-green-500 focus:outline-none focus:border-transparent text-gray-900 ${
+                    errors.gender ? 'border-red-600' : 'border-gray-300'
+                  }`}
+                  aria-label="Gender"
+                  aria-required="true"
+                  aria-invalid={!!errors.gender}
+                  aria-describedby={errors.gender ? 'gender-error' : undefined}
+                >
+                  <option value="">Select gender</option>
+                  <option value="male">Male</option>
+                  <option value="female">Female</option>
+                  <option value="other">Other</option>
+                  <option value="prefer-not-to-say">Prefer not to say</option>
+                </select>
+                {errors.gender && <p id="gender-error" className="text-red-700 text-xs mt-1" role="alert">{errors.gender}</p>}
+              </div>
+
+              <div className="md:col-span-2">
+                <label htmlFor="address" className="block text-sm font-medium text-gray-900 mb-1">
+                  Address *
+                </label>
+                <textarea
+                  id="address"
+                  name="address"
+                  value={formData.address}
+                  onChange={(e) => {
+                    setFormData(prev => ({ ...prev, address: e.target.value }));
+                    if (errors.address) {
+                      setErrors(prev => ({ ...prev, address: '' }));
+                    }
+                  }}
+                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-green-500 focus:outline-none focus:border-transparent text-gray-900 ${
+                    errors.address ? 'border-red-600' : 'border-gray-300'
+                  }`}
+                  placeholder="Enter your complete address (House No., Street, Locality, City, State)"
+                  aria-label="Address"
+                  aria-required="true"
+                  aria-invalid={!!errors.address}
+                  aria-describedby={errors.address ? 'address-error' : 'address-hint'}
+                  rows={3}
+                  minLength={10}
+                  maxLength={500}
+                  autoComplete="street-address"
+                />
+                <p id="address-hint" className="text-gray-500 text-xs mt-1">Enter complete address including house number, street, city, and state</p>
+                {errors.address && <p id="address-error" className="text-red-700 text-xs mt-1" role="alert">{errors.address}</p>}
+              </div>
+
+              <div>
+                <label htmlFor="pinCode" className="block text-sm font-medium text-gray-900 mb-1">
+                  PIN Code *
+                </label>
+                <input
+                  type="text"
+                  id="pinCode"
+                  name="pinCode"
+                  value={formData.pinCode}
+                  onChange={handleInputChange}
+                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-green-500 focus:outline-none focus:border-transparent text-gray-900 ${
+                    errors.pinCode ? 'border-red-600' : 'border-gray-300'
+                  }`}
+                  placeholder="e.g., 110001"
+                  aria-label="PIN code"
+                  aria-required="true"
+                  aria-invalid={!!errors.pinCode}
+                  aria-describedby={errors.pinCode ? 'pinCode-error' : 'pinCode-hint'}
+                  maxLength={6}
+                  pattern="[1-9][0-9]{5}"
+                  autoComplete="postal-code"
+                />
+                <p id="pinCode-hint" className="text-gray-500 text-xs mt-1">6-digit Indian PIN code</p>
+                {errors.pinCode && <p id="pinCode-error" className="text-red-700 text-xs mt-1" role="alert">{errors.pinCode}</p>}
+              </div>
+
+              <div>
+                <label htmlFor="idProofType" className="block text-sm font-medium text-gray-900 mb-1">
+                  Government ID Type *
+                </label>
+                <select
+                  id="idProofType"
+                  name="idProofType"
+                  value={formData.idProofType}
+                  onChange={handleInputChange}
+                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-green-500 focus:outline-none focus:border-transparent text-gray-900 ${
+                    errors.idProofType ? 'border-red-600' : 'border-gray-300'
+                  }`}
+                  aria-label="Government ID type"
+                  aria-required="true"
+                  aria-invalid={!!errors.idProofType}
+                  aria-describedby={errors.idProofType ? 'idProofType-error' : undefined}
+                >
+                  <option value="">Select ID type</option>
+                  <option value="aadhaar">Aadhaar Card</option>
+                  <option value="pan">PAN Card</option>
+                  <option value="passport">Passport</option>
+                  <option value="driving-license">Driving License</option>
+                  <option value="voter-id">Voter ID</option>
+                </select>
+                {errors.idProofType && <p id="idProofType-error" className="text-red-700 text-xs mt-1" role="alert">{errors.idProofType}</p>}
+              </div>
+
+              <div>
                 <label htmlFor="idProof" className="block text-sm font-medium text-gray-900 mb-1">
-                  ID Proof Number *
+                  Government ID Number *
                 </label>
                 <input
                   type="text"
@@ -312,12 +568,31 @@ export default function RegisterTourist() {
                   className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-green-500 focus:outline-none focus:border-transparent text-gray-900 ${
                     errors.idProof ? 'border-red-600' : 'border-gray-300'
                   }`}
-                  placeholder="Aadhaar/Passport/Driving License"
-                  aria-label="ID proof number (Aadhaar, Passport, or Driving License)"
+                  placeholder={
+                    formData.idProofType === 'aadhaar' ? '123456789012' :
+                    formData.idProofType === 'pan' ? 'ABCDE1234F' :
+                    formData.idProofType === 'passport' ? 'A1234567' :
+                    formData.idProofType === 'driving-license' ? 'DL-1420110012345' :
+                    formData.idProofType === 'voter-id' ? 'ABC1234567' :
+                    'Select ID type first'
+                  }
+                  aria-label="Government ID number"
                   aria-required="true"
                   aria-invalid={!!errors.idProof}
-                  aria-describedby={errors.idProof ? 'idProof-error' : undefined}
+                  aria-describedby={errors.idProof ? 'idProof-error' : 'idProof-hint'}
+                  minLength={8}
+                  maxLength={20}
+                  autoComplete="off"
+                  disabled={!formData.idProofType}
                 />
+                <p id="idProof-hint" className="text-gray-500 text-xs mt-1">
+                  {formData.idProofType === 'aadhaar' ? 'Enter 12-digit Aadhaar number' :
+                   formData.idProofType === 'pan' ? 'Enter PAN in format ABCDE1234F' :
+                   formData.idProofType === 'passport' ? 'Enter passport number (e.g., A1234567)' :
+                   formData.idProofType === 'driving-license' ? 'Enter DL number with state code' :
+                   formData.idProofType === 'voter-id' ? 'Enter Voter ID (3 letters + 7 digits)' :
+                   'Select ID type to see format'}
+                </p>
                 {errors.idProof && <p id="idProof-error" className="text-red-700 text-xs mt-1" role="alert">{errors.idProof}</p>}
               </div>
 
@@ -340,6 +615,26 @@ export default function RegisterTourist() {
               </div>
 
               <div>
+                <label htmlFor="group_name" className="block text-sm font-medium text-gray-900 mb-1">
+                  Group Name (Optional)
+                </label>
+                <input
+                  type="text"
+                  id="group_name"
+                  name="group_name"
+                  value={formData.group_name}
+                  onChange={handleInputChange}
+                  className={`w-full px-3 py-2 border rounded-lg ${
+                  errors.group_name ? 'border-red-600' : 'border-gray-300'
+                  }`}
+                  placeholder="e.g., Family Trip, Office Tour"
+                />
+
+                <p id="group_name-hint" className="text-gray-500 text-xs mt-1">Optional: Give your group a name for easy identification</p>
+                {errors.group_name && <p id="group_name-error" className="text-red-700 text-xs mt-1" role="alert">{errors.group_name}</p>}
+              </div>
+
+              <div>
                 <label htmlFor="groupSize" className="block text-sm font-medium text-gray-900 mb-1">
                   Group Size *
                 </label>
@@ -349,6 +644,7 @@ export default function RegisterTourist() {
                   name="groupSize"
                   min="1"
                   max="10"
+                  step="1"
                   value={formData.groupSize}
                   onChange={handleInputChange}
                   className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-green-500 focus:outline-none focus:border-transparent text-gray-900 ${
@@ -357,8 +653,15 @@ export default function RegisterTourist() {
                   aria-label="Group size (1 to 10 people)"
                   aria-required="true"
                   aria-invalid={!!errors.groupSize}
-                  aria-describedby={errors.groupSize ? 'groupSize-error' : undefined}
+                  aria-describedby={errors.groupSize ? 'groupSize-error' : 'groupSize-hint'}
+                  onKeyDown={(e) => {
+                    // Prevent decimal points and non-numeric input
+                    if (e.key === '.' || e.key === '-' || e.key === 'e' || e.key === 'E') {
+                      e.preventDefault();
+                    }
+                  }}
                 />
+                <p id="groupSize-hint" className="text-gray-500 text-xs mt-1">Maximum 10 people per booking</p>
                 {errors.groupSize && <p id="groupSize-error" className="text-red-700 text-xs mt-1" role="alert">{errors.groupSize}</p>}
               </div>
             </div>
@@ -405,15 +708,25 @@ export default function RegisterTourist() {
                   name="checkInDate"
                   value={formData.checkInDate}
                   onChange={handleInputChange}
-                  min={new Date().toISOString().split('T')[0]}
+                  min={(() => {
+                    const tomorrow = new Date();
+                    tomorrow.setDate(tomorrow.getDate() + 1);
+                    return tomorrow.toISOString().split('T')[0];
+                  })()}
+                  max={(() => {
+                    const maxDate = new Date();
+                    maxDate.setFullYear(maxDate.getFullYear() + 1);
+                    return maxDate.toISOString().split('T')[0];
+                  })()}
                   className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-green-500 focus:outline-none focus:border-transparent text-gray-900 ${
                     errors.checkInDate ? 'border-red-600' : 'border-gray-300'
                   }`}
                   aria-label="Check-in date"
                   aria-required="true"
                   aria-invalid={!!errors.checkInDate}
-                  aria-describedby={errors.checkInDate ? 'checkInDate-error' : undefined}
+                  aria-describedby={errors.checkInDate ? 'checkInDate-error' : 'checkInDate-hint'}
                 />
+                <p id="checkInDate-hint" className="text-gray-500 text-xs mt-1">Must be at least 1 day from today</p>
                 {errors.checkInDate && <p id="checkInDate-error" className="text-red-700 text-xs mt-1" role="alert">{errors.checkInDate}</p>}
               </div>
 
@@ -427,15 +740,25 @@ export default function RegisterTourist() {
                   name="checkOutDate"
                   value={formData.checkOutDate}
                   onChange={handleInputChange}
-                  min={formData.checkInDate || new Date().toISOString().split('T')[0]}
+                  min={formData.checkInDate || (() => {
+                    const tomorrow = new Date();
+                    tomorrow.setDate(tomorrow.getDate() + 1);
+                    return tomorrow.toISOString().split('T')[0];
+                  })()}
+                  max={formData.checkInDate ? (() => {
+                    const maxDate = new Date(formData.checkInDate);
+                    maxDate.setDate(maxDate.getDate() + 30);
+                    return maxDate.toISOString().split('T')[0];
+                  })() : undefined}
                   className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-green-500 focus:outline-none focus:border-transparent text-gray-900 ${
                     errors.checkOutDate ? 'border-red-600' : 'border-gray-300'
                   }`}
                   aria-label="Check-out date"
                   aria-required="true"
                   aria-invalid={!!errors.checkOutDate}
-                  aria-describedby={errors.checkOutDate ? 'checkOutDate-error' : undefined}
+                  aria-describedby={errors.checkOutDate ? 'checkOutDate-error' : 'checkOutDate-hint'}
                 />
+                <p id="checkOutDate-hint" className="text-gray-500 text-xs mt-1">Maximum stay: 30 days</p>
                 {errors.checkOutDate && <p id="checkOutDate-error" className="text-red-700 text-xs mt-1" role="alert">{errors.checkOutDate}</p>}
               </div>
 
@@ -477,11 +800,15 @@ export default function RegisterTourist() {
                   className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-green-500 focus:outline-none focus:border-transparent text-gray-900 ${
                     errors.emergencyContactName ? 'border-red-600' : 'border-gray-300'
                   }`}
-                  placeholder="Emergency contact name"
+                  placeholder="Emergency contact full name"
                   aria-label="Emergency contact name"
                   aria-required="true"
                   aria-invalid={!!errors.emergencyContactName}
                   aria-describedby={errors.emergencyContactName ? 'emergencyContactName-error' : undefined}
+                  minLength={2}
+                  maxLength={100}
+                  pattern="[a-zA-Z\s.'-]+"
+                  autoComplete="off"
                 />
                 {errors.emergencyContactName && <p id="emergencyContactName-error" className="text-red-700 text-xs mt-1" role="alert">{errors.emergencyContactName}</p>}
               </div>
@@ -499,12 +826,16 @@ export default function RegisterTourist() {
                   className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-green-500 focus:outline-none focus:border-transparent text-gray-900 ${
                     errors.emergencyContactPhone ? 'border-red-600' : 'border-gray-300'
                   }`}
-                  placeholder="Emergency contact phone"
+                  placeholder="e.g., 9876543210"
                   aria-label="Emergency contact phone number"
                   aria-required="true"
                   aria-invalid={!!errors.emergencyContactPhone}
-                  aria-describedby={errors.emergencyContactPhone ? 'emergencyContactPhone-error' : undefined}
+                  aria-describedby={errors.emergencyContactPhone ? 'emergencyContactPhone-error' : 'emergencyContactPhone-hint'}
+                  minLength={10}
+                  maxLength={15}
+                  autoComplete="off"
                 />
+                <p id="emergencyContactPhone-hint" className="text-gray-500 text-xs mt-1">Must be different from your phone number</p>
                 {errors.emergencyContactPhone && <p id="emergencyContactPhone-error" className="text-red-700 text-xs mt-1" role="alert">{errors.emergencyContactPhone}</p>}
               </div>
 

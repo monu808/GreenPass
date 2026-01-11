@@ -219,91 +219,62 @@ export default function RegisterTourist() {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+const handleSubmit = async (e: React.FormEvent) => {
+  e.preventDefault();
+  
+  if (!validateForm() || !destination) {
+    alert('Please fill in all required fields');
+    return;
+  }
+  
+  setSubmitting(true);
+  
+  try {
+    const bookingData = {
+      name: formData.name,
+      email: formData.email,
+      phone: formData.phone,
+      id_proof: formData.idProof,
+      nationality: formData.nationality,
+      group_size: parseInt(formData.groupSize.toString()),
+      destination_id: destination.id,
+      check_in_date: formData.checkInDate,
+      check_out_date: formData.checkOutDate,
+      status: 'pending' as const,
+      emergency_contact_name: formData.emergencyContact.name,
+      emergency_contact_phone: formData.emergencyContact.phone,
+      emergency_contact_relationship: formData.emergencyContact.relationship,
+      user_id: null, // Set to null to avoid foreign key constraint
+      registration_date: new Date().toISOString(),
+      // Add missing required fields with defaults
+      age: 0, // Default age, consider collecting this in the form
+      gender: 'prefer-not-to-say' as const,
+      address: '', // Default empty address, consider collecting this in the form
+      pin_code: '', // Default empty pin code, consider collecting this in the form
+      id_proof_type: 'aadhaar' as const // Default ID proof type, consider deriving from idProof or adding a selector
+    };
     
-    if (!validateForm()) {
-      // Focus on first error field for better accessibility
-      const firstErrorField = Object.keys(errors)[0];
-      const errorElement = document.getElementById(firstErrorField);
-      if (errorElement) {
-        errorElement.focus();
-      }
-      return;
+    console.log('Submitting booking data:', bookingData);
+    console.log('Destination:', destination);
+    
+    const result = await dbService.addTourist(bookingData);
+    
+    if (!result) {
+      throw new Error('Failed to create booking - no result returned');
     }
-
-    setIsSubmitting(true);
-
-    try {
-      const tourist: TouristInsert = {
-        name: sanitizeInput(formData.name),
-        email: formData.email.trim().toLowerCase(),
-        phone: formData.phone.replace(/[\s\-\(\)]/g, ''),
-
-        age: parseInt(formData.age, 10),
-        gender: formData.gender as 'male' | 'female' | 'other' | 'prefer-not-to-say',
-
-        address: sanitizeInput(formData.address),
-        pin_code: formData.pinCode.trim(),
-
-        id_proof_type: formData.idProofType as
-          | 'aadhaar'
-          | 'pan'
-          | 'passport'
-          | 'driving-license'
-          | 'voter-id',
-
-        id_proof: sanitizeInput(formData.idProof).toUpperCase(),
-
-        group_name: formData.group_name.trim() ? sanitizeInput(formData.group_name) : null,
-        nationality: formData.nationality,
-        group_size: formData.groupSize,
-        destination_id: formData.destination,
-
-        check_in_date: formData.checkInDate,
-        check_out_date: formData.checkOutDate,
-
-        status: 'pending',
-
-        emergency_contact_name: sanitizeInput(formData.emergencyContactName),
-        emergency_contact_phone: formData.emergencyContactPhone.replace(/[\s\-\(\)]/g, ''),
-        emergency_contact_relationship: formData.emergencyContactRelationship,
-
-       registration_date: new Date().toISOString().split('T')[0]
-      };
-
-
-      await dbService.addTourist(tourist);
-      setSubmitSuccess(true);
-      
-      // Reset form
-      setFormData({
-        name: '',
-        email: '',
-        phone: '',
-        age: '',
-        gender: '',
-        address: '',
-        pinCode: '',
-        idProofType: '',
-        group_name: '',
-        idProof: '',
-        nationality: 'Indian',
-        groupSize: 1,
-        destination: '',
-        checkInDate: '',
-        checkOutDate: '',
-        emergencyContactName: '',
-        emergencyContactPhone: '',
-        emergencyContactRelationship: ''
-      });
-
-    } catch (error) {
-      console.error('Registration failed:', error);
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
+    
+    setShowSuccess(true);
+    setTimeout(() => {
+      router.push('/tourist/bookings');
+    }, 3000);
+    
+  } catch (error) {
+    console.error('Error submitting booking:', error);
+    alert('Failed to submit booking. Please try again.');
+  } finally {
+    setSubmitting(false);
+  }
+};
 
   const selectedDestination = destinations.find(d => d.id === formData.destination);
   const availableCapacity = formData.destination && selectedDestination ? 

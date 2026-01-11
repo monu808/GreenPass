@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
+import { useRouter } from 'next/navigation';
 import Layout from '@/components/Layout';
 import { User } from 'lucide-react';
 import { dbService } from '@/lib/databaseService';
@@ -54,6 +55,7 @@ export default function RegisterTourist() {
   
   const formRef = useRef<HTMLFormElement>(null);
   const successButtonRef = useRef<HTMLButtonElement>(null);
+  const router = useRouter();
 
   useEffect(() => {
     const loadDestinations = async () => {
@@ -222,12 +224,14 @@ export default function RegisterTourist() {
 const handleSubmit = async (e: React.FormEvent) => {
   e.preventDefault();
   
-  if (!validateForm() || !destination) {
+  const selectedDestination = destinations.find(d => d.id === formData.destination);
+  
+  if (!validateForm() || !selectedDestination) {
     alert('Please fill in all required fields');
     return;
   }
   
-  setSubmitting(true);
+  setIsSubmitting(true);
   
   try {
     const bookingData = {
@@ -237,13 +241,13 @@ const handleSubmit = async (e: React.FormEvent) => {
       id_proof: formData.idProof,
       nationality: formData.nationality,
       group_size: parseInt(formData.groupSize.toString()),
-      destination_id: destination.id,
+      destination_id: selectedDestination.id,
       check_in_date: formData.checkInDate,
       check_out_date: formData.checkOutDate,
       status: 'pending' as const,
-      emergency_contact_name: formData.emergencyContact.name,
-      emergency_contact_phone: formData.emergencyContact.phone,
-      emergency_contact_relationship: formData.emergencyContact.relationship,
+      emergency_contact_name: formData.emergencyContactName,
+      emergency_contact_phone: formData.emergencyContactPhone,
+      emergency_contact_relationship: formData.emergencyContactRelationship,
       user_id: null, // Set to null to avoid foreign key constraint
       registration_date: new Date().toISOString(),
       // Add missing required fields with defaults
@@ -255,7 +259,7 @@ const handleSubmit = async (e: React.FormEvent) => {
     };
     
     console.log('Submitting booking data:', bookingData);
-    console.log('Destination:', destination);
+    console.log('Destination:', selectedDestination);
     
     const result = await dbService.addTourist(bookingData);
     
@@ -263,7 +267,7 @@ const handleSubmit = async (e: React.FormEvent) => {
       throw new Error('Failed to create booking - no result returned');
     }
     
-    setShowSuccess(true);
+    setSubmitSuccess(true);
     setTimeout(() => {
       router.push('/tourist/bookings');
     }, 3000);
@@ -272,12 +276,12 @@ const handleSubmit = async (e: React.FormEvent) => {
     console.error('Error submitting booking:', error);
     alert('Failed to submit booking. Please try again.');
   } finally {
-    setSubmitting(false);
+    setIsSubmitting(false);
   }
 };
 
   const selectedDestination = destinations.find(d => d.id === formData.destination);
-  const availableCapacity = formData.destination && selectedDestination ? 
+  const availableCapacity = formData.destination && selectedDestination ?
     selectedDestination.max_capacity - selectedDestination.current_occupancy : 0;
 
   if (loading) {

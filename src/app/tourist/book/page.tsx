@@ -136,7 +136,13 @@ function BookDestinationForm() {
         emergency_contact_phone: formData.emergencyContact.phone,
         emergency_contact_relationship: formData.emergencyContact.relationship,
         user_id: null, // Set to null to avoid foreign key constraint
-        registration_date: new Date().toISOString()
+        registration_date: new Date().toISOString(),
+        // Add missing required fields with defaults
+        age: 0, // Default age, consider collecting this in the form
+        gender: 'prefer-not-to-say' as const,
+        address: '', // Default empty address, consider collecting this in the form
+        pin_code: '', // Default empty pin code, consider collecting this in the form
+        id_proof_type: 'aadhaar' as const // Default ID proof type, consider deriving from idProof or adding a selector
       };
       
       console.log('Submitting booking data:', bookingData);

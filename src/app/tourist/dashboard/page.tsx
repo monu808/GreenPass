@@ -46,10 +46,8 @@ export default function TouristDashboard() {
       
       setFeaturedDestinations(featured);
     } catch (error) {
-           } catch (error) {
-      console.error('Error loading tourist data:', error)
+      console.error('Error loading tourist data:', error);
       console.log('Dashboard is using mock data for demonstration');
-     } finally {
     } finally {
       setLoading(false);
     }

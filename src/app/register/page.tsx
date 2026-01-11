@@ -36,7 +36,7 @@ export default function RegisterTourist() {
     address: '',
     pinCode: '',
     idProofType: '',
-    groupname: '',
+    group_name: '',
     idProof: '',
     nationality: 'Indian',
     groupSize: 1,
@@ -139,13 +139,12 @@ export default function RegisterTourist() {
         newErrors.idProof = idProofValidation.error || 'Invalid ID proof';
       }
     }
-    if (formData.groupname.trim()) {
-      const groupNameValidation = validateGroupName(formData.groupname);
+    if (formData.group_name.trim()) {
+  const groupNameValidation = validateGroupName(formData.group_name);
       if (!groupNameValidation.valid) {
-        newErrors.groupname = groupNameValidation.error || 'Invalid group name';
+        newErrors.group_name = groupNameValidation.error || 'Invalid group name';
       }
     }
-
     if (!formData.destination) {
       newErrors.destination = 'Please select a destination';
     }
@@ -239,25 +238,40 @@ export default function RegisterTourist() {
       const tourist: TouristInsert = {
         name: sanitizeInput(formData.name),
         email: formData.email.trim().toLowerCase(),
-        phone: formData.phone.replace(/[\s\-\(\)]/g, ''), 
+        phone: formData.phone.replace(/[\s\-\(\)]/g, ''),
+
         age: parseInt(formData.age, 10),
         gender: formData.gender as 'male' | 'female' | 'other' | 'prefer-not-to-say',
+
         address: sanitizeInput(formData.address),
         pin_code: formData.pinCode.trim(),
-        id_proof_type: formData.idProofType as 'aadhaar' | 'pan' | 'passport' | 'driving-license' | 'voter-id',
+
+        id_proof_type: formData.idProofType as
+          | 'aadhaar'
+          | 'pan'
+          | 'passport'
+          | 'driving-license'
+          | 'voter-id',
+
         id_proof: sanitizeInput(formData.idProof).toUpperCase(),
-        groupName: formData.groupname.trim() ? sanitizeInput(formData.groupname) : null,
+
+        group_name: formData.group_name.trim() ? sanitizeInput(formData.group_name) : null,
         nationality: formData.nationality,
         group_size: formData.groupSize,
         destination_id: formData.destination,
+
         check_in_date: formData.checkInDate,
         check_out_date: formData.checkOutDate,
+
         status: 'pending',
+
         emergency_contact_name: sanitizeInput(formData.emergencyContactName),
         emergency_contact_phone: formData.emergencyContactPhone.replace(/[\s\-\(\)]/g, ''),
         emergency_contact_relationship: formData.emergencyContactRelationship,
-        registration_date: new Date().toISOString().split('T')[0]
+
+       registration_date: new Date().toISOString().split('T')[0]
       };
+
 
       await dbService.addTourist(tourist);
       setSubmitSuccess(true);
@@ -272,7 +286,7 @@ export default function RegisterTourist() {
         address: '',
         pinCode: '',
         idProofType: '',
-        groupname: '',
+        group_name: '',
         idProof: '',
         nationality: 'Indian',
         groupSize: 1,
@@ -630,29 +644,23 @@ export default function RegisterTourist() {
               </div>
 
               <div>
-                <label htmlFor="groupname" className="block text-sm font-medium text-gray-900 mb-1">
+                <label htmlFor="group_name" className="block text-sm font-medium text-gray-900 mb-1">
                   Group Name (Optional)
                 </label>
                 <input
                   type="text"
-                  id="groupname"
-                  name="groupname"
-                  value={formData.groupname}
+                  id="group_name"
+                  name="group_name"
+                  value={formData.group_name}
                   onChange={handleInputChange}
-                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-green-500 focus:outline-none focus:border-transparent text-gray-900 ${
-                    errors.groupname ? 'border-red-600' : 'border-gray-300'
+                  className={`w-full px-3 py-2 border rounded-lg ${
+                  errors.group_name ? 'border-red-600' : 'border-gray-300'
                   }`}
                   placeholder="e.g., Family Trip, Office Tour"
-                  aria-label="Group name (optional)"
-                  aria-required="false"
-                  aria-invalid={!!errors.groupname}
-                  aria-describedby={errors.groupname ? 'groupname-error' : 'groupname-hint'}
-                  minLength={2}
-                  maxLength={100}
-                  autoComplete="off"
                 />
-                <p id="groupname-hint" className="text-gray-500 text-xs mt-1">Optional: Give your group a name for easy identification</p>
-                {errors.groupname && <p id="groupname-error" className="text-red-700 text-xs mt-1" role="alert">{errors.groupname}</p>}
+
+                <p id="group_name-hint" className="text-gray-500 text-xs mt-1">Optional: Give your group a name for easy identification</p>
+                {errors.group_name && <p id="group_name-error" className="text-red-700 text-xs mt-1" role="alert">{errors.group_name}</p>}
               </div>
 
               <div>

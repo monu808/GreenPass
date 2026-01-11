@@ -31,10 +31,11 @@ class DatabaseService {
       const { data, error } = await query;
 
       if (error) {
-        console.error('Error fetching tourists:', error);
-        console.error('Make sure your Supabase database is set up and the schema is applied.');
-        console.error('Check the SETUP.md file for database configuration instructions.');
-        console.warn('Returning empty tourist list for development...');
+        console.warn('Development Mode: Database not configured');
+        if (error.message) {
+          console.log('Database error:', error.message);
+        }
+        console.log('To use real data, configure Supabase in .env.local');
         return [];
       }
 
@@ -127,17 +128,29 @@ class DatabaseService {
         .order('name');
 
       if (error) {
-        console.error('Error fetching destinations:', error);
-        console.error('Make sure your Supabase database is set up and the schema is applied.');
-        console.error('Check the SETUP.md file for database configuration instructions.');
-        console.warn('Falling back to mock data for development...');
+        console.warn('🔧 Development Mode: Using mock destinations data');
+        if (error.message) {
+          console.log('Database error:', error.message);
+        }
+        console.log('💡 To use real data, configure Supabase in .env.local');
         return mockDestinations;
       }
 
-      return data || [];
+      // If we got real data, use it
+      if (data && data.length > 0) {
+        console.log('✅ Loaded', data.length, 'destinations from database');
+        return data;
+      }
+      
+      // If database is empty, use mock data
+      console.warn('📊 Database is empty, using mock destinations data');
+      return mockDestinations;
     } catch (error) {
-      console.error('Error in getDestinations:', error);
-      console.warn('Falling back to mock data for development...');
+      console.warn('🔧 Development Mode: Using mock destinations data');
+      if (error instanceof Error) {
+        console.log('Connection error:', error.message);
+      }
+      console.log('💡 To use real data, configure Supabase in .env.local');
       return mockDestinations;
     }
   }

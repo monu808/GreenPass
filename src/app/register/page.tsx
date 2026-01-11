@@ -139,7 +139,6 @@ export default function RegisterTourist() {
         newErrors.idProof = idProofValidation.error || 'Invalid ID proof';
       }
     }
-    // Group name is optional, but validate if provided
     if (formData.groupname.trim()) {
       const groupNameValidation = validateGroupName(formData.groupname);
       if (!groupNameValidation.valid) {
@@ -167,7 +166,7 @@ export default function RegisterTourist() {
         newErrors.checkOutDate = dateValidation.error || 'Invalid date range';
       }
     } else if (formData.checkInDate) {
-      // Validate check-in date alone
+  
       const today = new Date();
       today.setHours(0, 0, 0, 0);
       const checkIn = new Date(formData.checkInDate);
@@ -237,11 +236,10 @@ export default function RegisterTourist() {
     setIsSubmitting(true);
 
     try {
-      // Sanitize all text inputs before submission
       const tourist: TouristInsert = {
         name: sanitizeInput(formData.name),
         email: formData.email.trim().toLowerCase(),
-        phone: formData.phone.replace(/[\s\-\(\)]/g, ''), // Normalize phone number
+        phone: formData.phone.replace(/[\s\-\(\)]/g, ''), 
         age: parseInt(formData.age, 10),
         gender: formData.gender as 'male' | 'female' | 'other' | 'prefer-not-to-say',
         address: sanitizeInput(formData.address),
@@ -249,7 +247,7 @@ export default function RegisterTourist() {
         id_proof_type: formData.idProofType as 'aadhaar' | 'pan' | 'passport' | 'driving-license' | 'voter-id',
         id_proof: sanitizeInput(formData.idProof).toUpperCase(),
         nationality: formData.nationality,
-        group_name: formData.groupname.trim() ? sanitizeInput(formData.groupname) : undefined,
+        group_Name: formData.groupname.trim() ? sanitizeInput(formData.groupname) : null,
         group_size: formData.groupSize,
         destination_id: formData.destination,
         check_in_date: formData.checkInDate,

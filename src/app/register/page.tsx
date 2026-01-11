@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Layout from '@/components/Layout';
 import { User } from 'lucide-react';
 import { dbService } from '@/lib/databaseService';
@@ -31,6 +31,9 @@ export default function RegisterTourist() {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitSuccess, setSubmitSuccess] = useState(false);
+  
+  const formRef = useRef<HTMLFormElement>(null);
+  const successButtonRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     const loadDestinations = async () => {
@@ -46,6 +49,13 @@ export default function RegisterTourist() {
 
     loadDestinations();
   }, []);
+
+  // Focus on success button when registration succeeds
+  useEffect(() => {
+    if (submitSuccess && successButtonRef.current) {
+      successButtonRef.current.focus();
+    }
+  }, [submitSuccess]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -108,7 +118,15 @@ export default function RegisterTourist() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!validateForm()) return;
+    if (!validateForm()) {
+      // Focus on first error field for better accessibility
+      const firstErrorField = Object.keys(errors)[0];
+      const errorElement = document.getElementById(firstErrorField);
+      if (errorElement) {
+        errorElement.focus();
+      }
+      return;
+    }
 
     setIsSubmitting(true);
 
@@ -163,10 +181,10 @@ export default function RegisterTourist() {
   if (loading) {
     return (
       <Layout>
-        <div className="flex items-center justify-center h-64">
+        <div className="flex items-center justify-center h-64" role="status" aria-live="polite">
           <div className="text-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600 mx-auto"></div>
-            <p className="mt-4 text-gray-600">Loading destinations...</p>
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600 mx-auto" aria-hidden="true"></div>
+            <p className="mt-4 text-gray-700">Loading destinations...</p>
           </div>
         </div>
       </Layout>
@@ -177,20 +195,22 @@ export default function RegisterTourist() {
     return (
       <Layout>
         <div className="max-w-2xl mx-auto">
-          <div className="bg-green-50 border border-green-200 rounded-lg p-6 text-center">
-            <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+          <div className="bg-green-50 border border-green-300 rounded-lg p-6 text-center" role="alert" aria-live="polite">
+            <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4" aria-hidden="true">
               <User className="h-6 w-6 text-green-600" />
             </div>
             <h2 className="text-lg font-semibold text-green-900 mb-2">Registration Successful!</h2>
-            <p className="text-green-700 mb-4">
+            <p className="text-green-800 mb-4">
               Your tourist registration has been submitted successfully. You will receive a confirmation email shortly.
             </p>
-            <p className="text-sm text-green-600 mb-4">
+            <p className="text-sm text-green-700 mb-4">
               Your application is now pending approval. You will be notified once it&apos;s reviewed.
             </p>
             <button
+              ref={successButtonRef}
               onClick={() => setSubmitSuccess(false)}
-              className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors"
+              className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition-colors"
+              aria-label="Register another tourist"
             >
               Register Another Tourist
             </button>
@@ -205,16 +225,16 @@ export default function RegisterTourist() {
       <div className="max-w-4xl mx-auto">
         <div className="mb-6">
           <h1 className="text-2xl font-bold text-gray-900">Tourist Registration</h1>
-          <p className="text-gray-600">Register for visiting ecologically sensitive areas in Jammu & Himachal Pradesh</p>
+          <p className="text-gray-700">Register for visiting ecologically sensitive areas in Jammu & Himachal Pradesh</p>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <form ref={formRef} onSubmit={handleSubmit} className="space-y-6" noValidate aria-label="Tourist registration form">
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
             <h2 className="text-lg font-semibold text-gray-900 mb-4">Personal Information</h2>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
+                <label htmlFor="name" className="block text-sm font-medium text-gray-900 mb-1">
                   Full Name *
                 </label>
                 <input
@@ -223,16 +243,20 @@ export default function RegisterTourist() {
                   name="name"
                   value={formData.name}
                   onChange={handleInputChange}
-                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-gray-900 ${
-                    errors.name ? 'border-red-500' : 'border-gray-300'
+                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-green-500 focus:outline-none focus:border-transparent text-gray-900 ${
+                    errors.name ? 'border-red-600' : 'border-gray-300'
                   }`}
                   placeholder="Enter your full name"
+                  aria-label="Full name"
+                  aria-required="true"
+                  aria-invalid={!!errors.name}
+                  aria-describedby={errors.name ? 'name-error' : undefined}
                 />
-                {errors.name && <p className="text-red-500 text-xs mt-1">{errors.name}</p>}
+                {errors.name && <p id="name-error" className="text-red-700 text-xs mt-1" role="alert">{errors.name}</p>}
               </div>
 
               <div>
-                <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
+                <label htmlFor="email" className="block text-sm font-medium text-gray-900 mb-1">
                   Email Address *
                 </label>
                 <input
@@ -241,16 +265,20 @@ export default function RegisterTourist() {
                   name="email"
                   value={formData.email}
                   onChange={handleInputChange}
-                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-gray-900 ${
-                    errors.email ? 'border-red-500' : 'border-gray-300'
+                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-green-500 focus:outline-none focus:border-transparent text-gray-900 ${
+                    errors.email ? 'border-red-600' : 'border-gray-300'
                   }`}
                   placeholder="Enter your email"
+                  aria-label="Email address"
+                  aria-required="true"
+                  aria-invalid={!!errors.email}
+                  aria-describedby={errors.email ? 'email-error' : undefined}
                 />
-                {errors.email && <p className="text-red-500 text-xs mt-1">{errors.email}</p>}
+                {errors.email && <p id="email-error" className="text-red-700 text-xs mt-1" role="alert">{errors.email}</p>}
               </div>
 
               <div>
-                <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-1">
+                <label htmlFor="phone" className="block text-sm font-medium text-gray-900 mb-1">
                   Phone Number *
                 </label>
                 <input
@@ -259,16 +287,20 @@ export default function RegisterTourist() {
                   name="phone"
                   value={formData.phone}
                   onChange={handleInputChange}
-                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-gray-900 ${
-                    errors.phone ? 'border-red-500' : 'border-gray-300'
+                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-green-500 focus:outline-none focus:border-transparent text-gray-900 ${
+                    errors.phone ? 'border-red-600' : 'border-gray-300'
                   }`}
                   placeholder="Enter your phone number"
+                  aria-label="Phone number"
+                  aria-required="true"
+                  aria-invalid={!!errors.phone}
+                  aria-describedby={errors.phone ? 'phone-error' : undefined}
                 />
-                {errors.phone && <p className="text-red-500 text-xs mt-1">{errors.phone}</p>}
+                {errors.phone && <p id="phone-error" className="text-red-700 text-xs mt-1" role="alert">{errors.phone}</p>}
               </div>
 
               <div>
-                <label htmlFor="idProof" className="block text-sm font-medium text-gray-700 mb-1">
+                <label htmlFor="idProof" className="block text-sm font-medium text-gray-900 mb-1">
                   ID Proof Number *
                 </label>
                 <input
@@ -277,16 +309,20 @@ export default function RegisterTourist() {
                   name="idProof"
                   value={formData.idProof}
                   onChange={handleInputChange}
-                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-gray-900 ${
-                    errors.idProof ? 'border-red-500' : 'border-gray-300'
+                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-green-500 focus:outline-none focus:border-transparent text-gray-900 ${
+                    errors.idProof ? 'border-red-600' : 'border-gray-300'
                   }`}
                   placeholder="Aadhaar/Passport/Driving License"
+                  aria-label="ID proof number (Aadhaar, Passport, or Driving License)"
+                  aria-required="true"
+                  aria-invalid={!!errors.idProof}
+                  aria-describedby={errors.idProof ? 'idProof-error' : undefined}
                 />
-                {errors.idProof && <p className="text-red-500 text-xs mt-1">{errors.idProof}</p>}
+                {errors.idProof && <p id="idProof-error" className="text-red-700 text-xs mt-1" role="alert">{errors.idProof}</p>}
               </div>
 
               <div>
-                <label htmlFor="nationality" className="block text-sm font-medium text-gray-700 mb-1">
+                <label htmlFor="nationality" className="block text-sm font-medium text-gray-900 mb-1">
                   Nationality *
                 </label>
                 <select
@@ -294,7 +330,9 @@ export default function RegisterTourist() {
                   name="nationality"
                   value={formData.nationality}
                   onChange={handleInputChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-gray-900"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:outline-none focus:border-transparent text-gray-900"
+                  aria-label="Nationality"
+                  aria-required="true"
                 >
                   <option value="Indian">Indian</option>
                   <option value="Foreign">Foreign National</option>
@@ -302,7 +340,7 @@ export default function RegisterTourist() {
               </div>
 
               <div>
-                <label htmlFor="groupSize" className="block text-sm font-medium text-gray-700 mb-1">
+                <label htmlFor="groupSize" className="block text-sm font-medium text-gray-900 mb-1">
                   Group Size *
                 </label>
                 <input
@@ -313,11 +351,15 @@ export default function RegisterTourist() {
                   max="10"
                   value={formData.groupSize}
                   onChange={handleInputChange}
-                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-gray-900 ${
-                    errors.groupSize ? 'border-red-500' : 'border-gray-300'
+                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-green-500 focus:outline-none focus:border-transparent text-gray-900 ${
+                    errors.groupSize ? 'border-red-600' : 'border-gray-300'
                   }`}
+                  aria-label="Group size (1 to 10 people)"
+                  aria-required="true"
+                  aria-invalid={!!errors.groupSize}
+                  aria-describedby={errors.groupSize ? 'groupSize-error' : undefined}
                 />
-                {errors.groupSize && <p className="text-red-500 text-xs mt-1">{errors.groupSize}</p>}
+                {errors.groupSize && <p id="groupSize-error" className="text-red-700 text-xs mt-1" role="alert">{errors.groupSize}</p>}
               </div>
             </div>
           </div>
@@ -327,7 +369,7 @@ export default function RegisterTourist() {
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="md:col-span-2">
-                <label htmlFor="destination" className="block text-sm font-medium text-gray-700 mb-1">
+                <label htmlFor="destination" className="block text-sm font-medium text-gray-900 mb-1">
                   Destination *
                 </label>
                 <select
@@ -335,9 +377,13 @@ export default function RegisterTourist() {
                   name="destination"
                   value={formData.destination}
                   onChange={handleInputChange}
-                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-gray-900 ${
-                    errors.destination ? 'border-red-500' : 'border-gray-300'
+                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-green-500 focus:outline-none focus:border-transparent text-gray-900 ${
+                    errors.destination ? 'border-red-600' : 'border-gray-300'
                   }`}
+                  aria-label="Select destination"
+                  aria-required="true"
+                  aria-invalid={!!errors.destination}
+                  aria-describedby={errors.destination ? 'destination-error' : undefined}
                 >
                   <option value="">Select a destination</option>
                   {destinations.filter(d => d.is_active).map(dest => (
@@ -346,11 +392,11 @@ export default function RegisterTourist() {
                     </option>
                   ))}
                 </select>
-                {errors.destination && <p className="text-red-500 text-xs mt-1">{errors.destination}</p>}
+                {errors.destination && <p id="destination-error" className="text-red-700 text-xs mt-1" role="alert">{errors.destination}</p>}
               </div>
 
               <div>
-                <label htmlFor="checkInDate" className="block text-sm font-medium text-gray-700 mb-1">
+                <label htmlFor="checkInDate" className="block text-sm font-medium text-gray-900 mb-1">
                   Check-in Date *
                 </label>
                 <input
@@ -360,15 +406,19 @@ export default function RegisterTourist() {
                   value={formData.checkInDate}
                   onChange={handleInputChange}
                   min={new Date().toISOString().split('T')[0]}
-                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-gray-900 ${
-                    errors.checkInDate ? 'border-red-500' : 'border-gray-300'
+                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-green-500 focus:outline-none focus:border-transparent text-gray-900 ${
+                    errors.checkInDate ? 'border-red-600' : 'border-gray-300'
                   }`}
+                  aria-label="Check-in date"
+                  aria-required="true"
+                  aria-invalid={!!errors.checkInDate}
+                  aria-describedby={errors.checkInDate ? 'checkInDate-error' : undefined}
                 />
-                {errors.checkInDate && <p className="text-red-500 text-xs mt-1">{errors.checkInDate}</p>}
+                {errors.checkInDate && <p id="checkInDate-error" className="text-red-700 text-xs mt-1" role="alert">{errors.checkInDate}</p>}
               </div>
 
               <div>
-                <label htmlFor="checkOutDate" className="block text-sm font-medium text-gray-700 mb-1">
+                <label htmlFor="checkOutDate" className="block text-sm font-medium text-gray-900 mb-1">
                   Check-out Date *
                 </label>
                 <input
@@ -378,24 +428,28 @@ export default function RegisterTourist() {
                   value={formData.checkOutDate}
                   onChange={handleInputChange}
                   min={formData.checkInDate || new Date().toISOString().split('T')[0]}
-                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-gray-900 ${
-                    errors.checkOutDate ? 'border-red-500' : 'border-gray-300'
+                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-green-500 focus:outline-none focus:border-transparent text-gray-900 ${
+                    errors.checkOutDate ? 'border-red-600' : 'border-gray-300'
                   }`}
+                  aria-label="Check-out date"
+                  aria-required="true"
+                  aria-invalid={!!errors.checkOutDate}
+                  aria-describedby={errors.checkOutDate ? 'checkOutDate-error' : undefined}
                 />
-                {errors.checkOutDate && <p className="text-red-500 text-xs mt-1">{errors.checkOutDate}</p>}
+                {errors.checkOutDate && <p id="checkOutDate-error" className="text-red-700 text-xs mt-1" role="alert">{errors.checkOutDate}</p>}
               </div>
 
               {selectedDestination && (
-                <div className="md:col-span-2 p-4 bg-gray-50 rounded-lg">
+                <div className="md:col-span-2 p-4 bg-gray-50 rounded-lg" role="region" aria-label="Selected destination details">
                   <h3 className="font-medium text-gray-900 mb-2">{selectedDestination.name}</h3>
-                  <p className="text-sm text-gray-600 mb-3">{selectedDestination.description}</p>
+                  <p className="text-sm text-gray-700 mb-3">{selectedDestination.description}</p>
                   <div className="flex items-center justify-between mb-3">
-                    <span className="text-sm text-gray-600">Available Capacity:</span>
+                    <span className="text-sm text-gray-700">Available Capacity:</span>
                     <span className="font-medium text-gray-900">{availableCapacity} / {selectedDestination.max_capacity}</span>
                   </div>
                   <div className="space-y-1">
-                    <p className="text-sm font-medium text-gray-700">Guidelines:</p>
-                    <ul className="text-xs text-gray-600 space-y-1">
+                    <p className="text-sm font-medium text-gray-900">Guidelines:</p>
+                    <ul className="text-xs text-gray-700 space-y-1" role="list">
                       {selectedDestination.guidelines.map((guideline, index) => (
                         <li key={index}>• {guideline}</li>
                       ))}
@@ -411,7 +465,7 @@ export default function RegisterTourist() {
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label htmlFor="emergencyContactName" className="block text-sm font-medium text-gray-700 mb-1">
+                <label htmlFor="emergencyContactName" className="block text-sm font-medium text-gray-900 mb-1">
                   Contact Name *
                 </label>
                 <input
@@ -420,16 +474,20 @@ export default function RegisterTourist() {
                   name="emergencyContactName"
                   value={formData.emergencyContactName}
                   onChange={handleInputChange}
-                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-gray-900 ${
-                    errors.emergencyContactName ? 'border-red-500' : 'border-gray-300'
+                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-green-500 focus:outline-none focus:border-transparent text-gray-900 ${
+                    errors.emergencyContactName ? 'border-red-600' : 'border-gray-300'
                   }`}
                   placeholder="Emergency contact name"
+                  aria-label="Emergency contact name"
+                  aria-required="true"
+                  aria-invalid={!!errors.emergencyContactName}
+                  aria-describedby={errors.emergencyContactName ? 'emergencyContactName-error' : undefined}
                 />
-                {errors.emergencyContactName && <p className="text-red-500 text-xs mt-1">{errors.emergencyContactName}</p>}
+                {errors.emergencyContactName && <p id="emergencyContactName-error" className="text-red-700 text-xs mt-1" role="alert">{errors.emergencyContactName}</p>}
               </div>
 
               <div>
-                <label htmlFor="emergencyContactPhone" className="block text-sm font-medium text-gray-700 mb-1">
+                <label htmlFor="emergencyContactPhone" className="block text-sm font-medium text-gray-900 mb-1">
                   Contact Phone *
                 </label>
                 <input
@@ -438,16 +496,20 @@ export default function RegisterTourist() {
                   name="emergencyContactPhone"
                   value={formData.emergencyContactPhone}
                   onChange={handleInputChange}
-                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-gray-900 ${
-                    errors.emergencyContactPhone ? 'border-red-500' : 'border-gray-300'
+                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-green-500 focus:outline-none focus:border-transparent text-gray-900 ${
+                    errors.emergencyContactPhone ? 'border-red-600' : 'border-gray-300'
                   }`}
                   placeholder="Emergency contact phone"
+                  aria-label="Emergency contact phone number"
+                  aria-required="true"
+                  aria-invalid={!!errors.emergencyContactPhone}
+                  aria-describedby={errors.emergencyContactPhone ? 'emergencyContactPhone-error' : undefined}
                 />
-                {errors.emergencyContactPhone && <p className="text-red-500 text-xs mt-1">{errors.emergencyContactPhone}</p>}
+                {errors.emergencyContactPhone && <p id="emergencyContactPhone-error" className="text-red-700 text-xs mt-1" role="alert">{errors.emergencyContactPhone}</p>}
               </div>
 
               <div>
-                <label htmlFor="emergencyContactRelationship" className="block text-sm font-medium text-gray-700 mb-1">
+                <label htmlFor="emergencyContactRelationship" className="block text-sm font-medium text-gray-900 mb-1">
                   Relationship *
                 </label>
                 <select
@@ -455,9 +517,13 @@ export default function RegisterTourist() {
                   name="emergencyContactRelationship"
                   value={formData.emergencyContactRelationship}
                   onChange={handleInputChange}
-                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-gray-900 ${
-                    errors.emergencyContactRelationship ? 'border-red-500' : 'border-gray-300'
+                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-green-500 focus:outline-none focus:border-transparent text-gray-900 ${
+                    errors.emergencyContactRelationship ? 'border-red-600' : 'border-gray-300'
                   }`}
+                  aria-label="Emergency contact relationship"
+                  aria-required="true"
+                  aria-invalid={!!errors.emergencyContactRelationship}
+                  aria-describedby={errors.emergencyContactRelationship ? 'emergencyContactRelationship-error' : undefined}
                 >
                   <option value="">Select relationship</option>
                   <option value="Parent">Parent</option>
@@ -466,7 +532,7 @@ export default function RegisterTourist() {
                   <option value="Friend">Friend</option>
                   <option value="Other">Other</option>
                 </select>
-                {errors.emergencyContactRelationship && <p className="text-red-500 text-xs mt-1">{errors.emergencyContactRelationship}</p>}
+                {errors.emergencyContactRelationship && <p id="emergencyContactRelationship-error" className="text-red-700 text-xs mt-1" role="alert">{errors.emergencyContactRelationship}</p>}
               </div>
             </div>
           </div>
@@ -474,14 +540,16 @@ export default function RegisterTourist() {
           <div className="flex justify-end space-x-4">
             <button
               type="button"
-              className="px-6 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
+              className="px-6 py-2 border border-gray-300 rounded-lg text-gray-900 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-colors"
+              aria-label="Cancel registration"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={isSubmitting}
-              className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              aria-label={isSubmitting ? 'Registering tourist, please wait' : 'Submit tourist registration'}
             >
               {isSubmitting ? 'Registering...' : 'Register Tourist'}
             </button>

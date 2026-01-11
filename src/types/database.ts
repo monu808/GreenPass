@@ -7,7 +7,13 @@ export interface Database {
           name: string;
           email: string;
           phone: string;
+          age: number;
+          gender: 'male' | 'female' | 'other' | 'prefer-not-to-say';
+          address: string;
+          pin_code: string;
+          id_proof_type: 'aadhaar' | 'pan' | 'passport' | 'driving-license' | 'voter-id';
           id_proof: string;
+          groupName: string | null;
           nationality: string;
           group_size: number;
           destination_id: string;
@@ -27,6 +33,11 @@ export interface Database {
           name: string;
           email: string;
           phone: string;
+          age: number;
+          gender: 'male' | 'female' | 'other' | 'prefer-not-to-say';
+          address: string;
+          pin_code: string;
+          id_proof_type: 'aadhaar' | 'pan' | 'passport' | 'driving-license' | 'voter-id';
           id_proof: string;
           nationality: string;
           group_size: number;
@@ -47,6 +58,11 @@ export interface Database {
           name?: string;
           email?: string;
           phone?: string;
+          age?: number;
+          gender?: 'male' | 'female' | 'other' | 'prefer-not-to-say';
+          address?: string;
+          pin_code?: string;
+          id_proof_type?: 'aadhaar' | 'pan' | 'passport' | 'driving-license' | 'voter-id';
           id_proof?: string;
           nationality?: string;
           group_size?: number;

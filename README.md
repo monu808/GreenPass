@@ -10,6 +10,19 @@
 
 ---
 
+## 📑 Table of Contents
+- [About](#-about)
+- [Core Features](#core-features)
+- [Supported Destinations](#supported-destinations)
+- [Tech Stack](#-tech-stack)
+- [Installation](#-installation)
+- [Usage](#-usage)
+- [Contributing](#-contributing)
+- [Roadmap](#-roadmap)
+- [License](#-license)
+- [Support](#-support)
+
+
 ## 🤝 Contributing
 
 **We need your help!** GreenPass is an open-source project tackling real environmental challenges. Whether you're a developer, designer, or tourism enthusiast—your contribution matters.
@@ -25,16 +38,24 @@
 
 ### 🚀 Quick Start for Contributors
 
-1. **Fork & Clone** the repository
-2. **Read** [CONTRIBUTING.md](./CONTRIBUTING.md) and [CODE_OF_CONDUCT.md](./CODE_OF_CONDUCT.md)
-3. **Sync your fork** with upstream regularly:
+🚀 Quick Start for Contributors
+
+1. Fork the repository using the GitHub Fork button
+2. Clone your fork locally:
+   ```bash
+   git clone https://github.com/<your-username>/GreenPass.git
+   cd GreenPass
+   ```
+3. **Read** [CONTRIBUTING.md](./CONTRIBUTING.md) and [CODE_OF_CONDUCT.md](./CODE_OF_CONDUCT.md)
+4. **Sync your fork** with upstream regularly:
    ```bash
    git remote add upstream https://github.com/monu808/GreenPass.git
    git fetch upstream
    git merge upstream/main
    ```
-4. **Create a feature branch**, make changes, and submit a PR
-5. **Report bugs** using our [Issue Template](.github/ISSUE_TEMPLATE/bug_report.md)
+5. **Create a feature branch**, make your changes, and commit them 
+6. **Push The branch** , and open a Pull Request
+6. **Report bugs** using our [Issue Template](.github/ISSUE_TEMPLATE/bug_report.md)
 
 👉 **[Read Full Contributing Guide](./CONTRIBUTING.md)**
 

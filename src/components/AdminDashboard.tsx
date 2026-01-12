@@ -1,19 +1,19 @@
-'use client';
+"use client";
 
-import React, { useState, useEffect } from 'react';
-import Layout from '@/components/Layout';
-import { 
-  Users, 
-  MapPin, 
+import React, { useState, useEffect, useCallback } from "react";
+import Layout from "@/components/Layout";
+import {
+  Users,
+  MapPin,
   AlertTriangle,
   CheckCircle,
   Clock,
-  XCircle
-} from 'lucide-react';
-import { dbService } from '@/lib/databaseService';
-import { weatherService, destinationCoordinates } from '@/lib/weatherService';
-import { getCapacityStatus, formatDateTime } from '@/lib/utils';
-import { DashboardStats, Destination, Alert } from '@/types';
+  XCircle,
+} from "lucide-react";
+import { dbService } from "@/lib/databaseService";
+import { weatherService, destinationCoordinates } from "@/lib/weatherService";
+import { getCapacityStatus, formatDateTime } from "@/lib/utils";
+import { DashboardStats, Destination, Alert } from "@/types";
 
 export default function AdminDashboard() {
   const [stats, setStats] = useState<DashboardStats>({
@@ -24,17 +24,13 @@ export default function AdminDashboard() {
     todayCheckIns: 0,
     todayCheckOuts: 0,
     capacityUtilization: 0,
-    alertsCount: 0
+    alertsCount: 0,
   });
   const [destinations, setDestinations] = useState<Destination[]>([]);
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    loadDashboardData();
-  }, []);
-
-  const loadDashboardData = async () => {
+  const loadDashboardData = useCallback(async () => {
     try {
       const [dashboardStats, destinationsData, alertsData] = await Promise.all([
         dbService.getDashboardStats(),
@@ -45,7 +41,7 @@ export default function AdminDashboard() {
       setStats(dashboardStats);
 
       // Transform destinations data to match interface
-      const transformedDestinations = destinationsData.map(dest => ({
+      const transformedDestinations = destinationsData.map((dest) => ({
         id: dest.id,
         name: dest.name,
         location: dest.location,
@@ -57,21 +53,25 @@ export default function AdminDashboard() {
         ecologicalSensitivity: dest.ecological_sensitivity,
         coordinates: {
           latitude: dest.latitude,
-          longitude: dest.longitude
-        }
+          longitude: dest.longitude,
+        },
       }));
-      
+
       setDestinations(transformedDestinations);
       setAlerts(alertsData);
 
       // Update weather data for all destinations
       updateWeatherData(transformedDestinations);
     } catch (error) {
-      console.error('Error loading dashboard data:', error);
+      console.error("Error loading dashboard data:", error);
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    loadDashboardData();
+  }, [loadDashboardData]);
 
   const updateWeatherData = async (destinations: Destination[]) => {
     for (const destination of destinations) {
@@ -92,23 +92,32 @@ export default function AdminDashboard() {
             const alertCheck = weatherService.shouldGenerateAlert(weatherData);
             if (alertCheck.shouldAlert && alertCheck.reason) {
               await dbService.addAlert({
-                type: 'weather',
+                type: "weather",
                 title: `Weather Alert - ${destination.name}`,
                 message: alertCheck.reason,
-                severity: 'medium',
+                severity: "medium",
                 destinationId: destination.id,
                 isActive: true,
               });
             }
           }
         } catch (error) {
-          console.error(`Error updating weather for ${destination.name}:`, error);
+          console.error(
+            `Error updating weather for ${destination.name}:`,
+            error
+          );
         }
       }
     }
   };
 
-  const StatCard = ({ title, value, icon: Icon, color, subtitle }: {
+  const StatCard = ({
+    title,
+    value,
+    icon: Icon,
+    color,
+    subtitle,
+  }: {
     title: string;
     value: string | number;
     icon: React.ComponentType<{ className?: string }>;
@@ -149,7 +158,8 @@ export default function AdminDashboard() {
               Government Dashboard
             </h1>
             <p className="text-gray-600">
-              Monitor and manage tourist activities across Jammu & Himachal Pradesh
+              Monitor and manage tourist activities across Jammu & Himachal
+              Pradesh
             </p>
           </div>
           <div className="text-sm text-gray-500">
@@ -195,23 +205,43 @@ export default function AdminDashboard() {
             </h2>
             <div className="space-y-4">
               {destinations.slice(0, 5).map((destination) => (
-                <div key={destination.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                <div
+                  key={destination.id}
+                  className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
+                >
                   <div className="flex items-center space-x-3">
                     <MapPin className="h-5 w-5 text-gray-400" />
                     <div>
-                      <p className="font-medium text-gray-900">{destination.name}</p>
-                      <p className="text-sm text-gray-600">{destination.location}</p>
+                      <p className="font-medium text-gray-900">
+                        {destination.name}
+                      </p>
+                      <p className="text-sm text-gray-600">
+                        {destination.location}
+                      </p>
                     </div>
                   </div>
                   <div className="text-right">
-                    <div className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                      getCapacityStatus(destination.currentOccupancy, destination.maxCapacity).status === 'low'
-                        ? 'bg-green-100 text-green-800'
-                        : getCapacityStatus(destination.currentOccupancy, destination.maxCapacity).status === 'medium'
-                        ? 'bg-yellow-100 text-yellow-800'
-                        : 'bg-red-100 text-red-800'
-                    }`}>
-                      {getCapacityStatus(destination.currentOccupancy, destination.maxCapacity).status}
+                    <div
+                      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                        getCapacityStatus(
+                          destination.currentOccupancy,
+                          destination.maxCapacity
+                        ).status === "low"
+                          ? "bg-green-100 text-green-800"
+                          : getCapacityStatus(
+                              destination.currentOccupancy,
+                              destination.maxCapacity
+                            ).status === "medium"
+                          ? "bg-yellow-100 text-yellow-800"
+                          : "bg-red-100 text-red-800"
+                      }`}
+                    >
+                      {
+                        getCapacityStatus(
+                          destination.currentOccupancy,
+                          destination.maxCapacity
+                        ).status
+                      }
                     </div>
                     <p className="text-sm text-gray-600 mt-1">
                       {destination.currentOccupancy}/{destination.maxCapacity}
@@ -230,15 +260,22 @@ export default function AdminDashboard() {
             <div className="space-y-4">
               {alerts.length > 0 ? (
                 alerts.slice(0, 5).map((alert) => (
-                  <div key={alert.id} className="flex items-start space-x-3 p-3 bg-gray-50 rounded-lg">
-                    <div className={`mt-0.5 ${
-                      alert.severity === 'high' ? 'text-red-500' :
-                      alert.severity === 'medium' ? 'text-yellow-500' :
-                      'text-blue-500'
-                    }`}>
-                      {alert.severity === 'high' ? (
+                  <div
+                    key={alert.id}
+                    className="flex items-start space-x-3 p-3 bg-gray-50 rounded-lg"
+                  >
+                    <div
+                      className={`mt-0.5 ${
+                        alert.severity === "high"
+                          ? "text-red-500"
+                          : alert.severity === "medium"
+                          ? "text-yellow-500"
+                          : "text-blue-500"
+                      }`}
+                    >
+                      {alert.severity === "high" ? (
                         <XCircle className="h-5 w-5" />
-                      ) : alert.severity === 'medium' ? (
+                      ) : alert.severity === "medium" ? (
                         <AlertTriangle className="h-5 w-5" />
                       ) : (
                         <CheckCircle className="h-5 w-5" />
@@ -254,7 +291,9 @@ export default function AdminDashboard() {
                   </div>
                 ))
               ) : (
-                <p className="text-gray-500 text-center py-8">No alerts to display</p>
+                <p className="text-gray-500 text-center py-8">
+                  No alerts to display
+                </p>
               )}
             </div>
           </div>

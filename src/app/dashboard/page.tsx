@@ -33,7 +33,8 @@ export default function EnhancedDashboard() {
     todayCheckIns: 0,
     todayCheckOuts: 0,
     capacityUtilization: 0,
-    alertsCount: 0
+    alertsCount: 0,
+    adjustedMaxCapacity: 0
   });
   const [destinations, setDestinations] = useState<Destination[]>([]);
   const [alerts, setAlerts] = useState<Alert[]>([]);

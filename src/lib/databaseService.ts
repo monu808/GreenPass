@@ -452,6 +452,7 @@ class DatabaseService {
         totalTourists: 0,
         currentOccupancy: 0,
         maxCapacity: 0,
+        adjustedMaxCapacity: 0,
         pendingApprovals: 0,
         todayCheckIns: 0,
         todayCheckOuts: 0,

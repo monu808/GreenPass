@@ -40,7 +40,7 @@ export default function BookingsPage() {
         currentOccupancy: dest.current_occupancy,
         isActive: dest.is_active,
         ecologicalSensitivity: dest.ecological_sensitivity,
-        coordinates: { lat: dest.latitude, lng: dest.longitude },
+        coordinates: { latitude: dest.latitude, longitude: dest.longitude },
       }));
       setDestinations(transformedDestinations);
     } catch (error) {

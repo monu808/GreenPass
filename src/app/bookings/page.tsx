@@ -1,40 +1,36 @@
-'use client';
+"use client";
 
-import React, { useState, useEffect } from 'react';
-import Layout from '@/components/Layout';
-import { 
-  Calendar, 
-  Search, 
-  Filter, 
+import React, { useState, useEffect, useCallback } from "react";
+import Layout from "@/components/Layout";
+import {
+  Calendar,
+  Search,
+  Filter,
   MapPin,
   Users,
   Clock,
   CheckCircle,
   XCircle,
   Eye,
-  Plus
-} from 'lucide-react';
-import { dbService } from '@/lib/databaseService';
-import { Tourist, Destination } from '@/types';
+  Plus,
+} from "lucide-react";
+import { dbService } from "@/lib/databaseService";
+import { Tourist, Destination } from "@/types";
 
 export default function BookingsPage() {
   const [bookings, setBookings] = useState<Tourist[]>([]);
   const [destinations, setDestinations] = useState<Destination[]>([]);
   const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState<string>('all');
-  const [destinationFilter, setDestinationFilter] = useState<string>('all');
+  const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [destinationFilter, setDestinationFilter] = useState<string>("all");
 
-  useEffect(() => {
-    loadData();
-  }, []);
-
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     try {
       setLoading(true);
       const [touristData, destinationData] = await Promise.all([
         dbService.getTourists(),
-        dbService.getDestinations()
+        dbService.getDestinations(),
       ]);
       setBookings(touristData);
       // Transform database properties to component interface
@@ -44,63 +40,88 @@ export default function BookingsPage() {
         currentOccupancy: dest.current_occupancy,
         isActive: dest.is_active,
         ecologicalSensitivity: dest.ecological_sensitivity,
-        coordinates: { lat: dest.latitude, lng: dest.longitude }
+        coordinates: { latitude: dest.latitude, longitude: dest.longitude },
       }));
       setDestinations(transformedDestinations);
     } catch (error) {
-      console.error('Error loading bookings data:', error);
+      console.error("Error loading bookings data:", error);
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
 
   const getDestinationName = (destinationId: string) => {
-    const dest = destinations.find(d => d.id === destinationId);
-    return dest ? dest.name : 'Unknown';
+    const dest = destinations.find((d) => d.id === destinationId);
+    return dest ? dest.name : "Unknown";
   };
 
-  const filteredBookings = bookings.filter(booking => {
-    const matchesSearch = booking.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         booking.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         booking.phone.includes(searchTerm);
-    const matchesStatus = statusFilter === 'all' || booking.status === statusFilter;
-    const matchesDestination = destinationFilter === 'all' || booking.destination === destinationFilter;
+  const filteredBookings = bookings.filter((booking) => {
+    const matchesSearch =
+      booking.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      booking.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      booking.phone.includes(searchTerm);
+    const matchesStatus =
+      statusFilter === "all" || booking.status === statusFilter;
+    const matchesDestination =
+      destinationFilter === "all" || booking.destination === destinationFilter;
     return matchesSearch && matchesStatus && matchesDestination;
   });
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'pending': return 'text-yellow-600 bg-yellow-50 border-yellow-200';
-      case 'approved': return 'text-blue-600 bg-blue-50 border-blue-200';
-      case 'checked-in': return 'text-green-600 bg-green-50 border-green-200';
-      case 'checked-out': return 'text-gray-600 bg-gray-50 border-gray-200';
-      case 'cancelled': return 'text-red-600 bg-red-50 border-red-200';
-      default: return 'text-gray-600 bg-gray-50 border-gray-200';
+      case "pending":
+        return "text-yellow-600 bg-yellow-50 border-yellow-200";
+      case "approved":
+        return "text-blue-600 bg-blue-50 border-blue-200";
+      case "checked-in":
+        return "text-green-600 bg-green-50 border-green-200";
+      case "checked-out":
+        return "text-gray-600 bg-gray-50 border-gray-200";
+      case "cancelled":
+        return "text-red-600 bg-red-50 border-red-200";
+      default:
+        return "text-gray-600 bg-gray-50 border-gray-200";
     }
   };
 
   const getStatusIcon = (status: string) => {
     switch (status) {
-      case 'pending': return <Clock className="h-4 w-4" />;
-      case 'approved': return <CheckCircle className="h-4 w-4" />;
-      case 'checked-in': return <CheckCircle className="h-4 w-4" />;
-      case 'checked-out': return <CheckCircle className="h-4 w-4" />;
-      case 'cancelled': return <XCircle className="h-4 w-4" />;
-      default: return <Clock className="h-4 w-4" />;
+      case "pending":
+        return <Clock className="h-4 w-4" />;
+      case "approved":
+        return <CheckCircle className="h-4 w-4" />;
+      case "checked-in":
+        return <CheckCircle className="h-4 w-4" />;
+      case "checked-out":
+        return <CheckCircle className="h-4 w-4" />;
+      case "cancelled":
+        return <XCircle className="h-4 w-4" />;
+      default:
+        return <Clock className="h-4 w-4" />;
     }
   };
 
   const StatusBadge = ({ status }: { status: string }) => (
-    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${getStatusColor(status)}`}>
+    <span
+      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${getStatusColor(
+        status
+      )}`}
+    >
       {getStatusIcon(status)}
-      <span className="ml-1 capitalize">{status.replace('-', ' ')}</span>
+      <span className="ml-1 capitalize">{status.replace("-", " ")}</span>
     </span>
   );
 
   const formatDateRange = (checkIn: Date, checkOut: Date) => {
     const checkInDate = new Date(checkIn);
     const checkOutDate = new Date(checkOut);
-    const nights = Math.ceil((checkOutDate.getTime() - checkInDate.getTime()) / (1000 * 3600 * 24));
+    const nights = Math.ceil(
+      (checkOutDate.getTime() - checkInDate.getTime()) / (1000 * 3600 * 24)
+    );
     return `${checkInDate.toLocaleDateString()} - ${checkOutDate.toLocaleDateString()} (${nights} nights)`;
   };
 
@@ -110,8 +131,12 @@ export default function BookingsPage() {
         {/* Header */}
         <div className="flex justify-between items-center">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">Bookings Management</h1>
-            <p className="text-gray-600">Manage tourist bookings and reservations</p>
+            <h1 className="text-3xl font-bold text-gray-900">
+              Bookings Management
+            </h1>
+            <p className="text-gray-600">
+              Manage tourist bookings and reservations
+            </p>
           </div>
           <div className="flex items-center space-x-4">
             <div className="flex items-center space-x-2 text-sm text-gray-600">
@@ -133,43 +158,43 @@ export default function BookingsPage() {
               <div className="ml-4">
                 <p className="text-sm font-medium text-gray-600">Pending</p>
                 <p className="text-2xl font-bold text-gray-900">
-                  {bookings.filter(b => b.status === 'pending').length}
+                  {bookings.filter((b) => b.status === "pending").length}
                 </p>
               </div>
             </div>
           </div>
-          
+
           <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
             <div className="flex items-center">
               <CheckCircle className="h-8 w-8 text-blue-600" />
               <div className="ml-4">
                 <p className="text-sm font-medium text-gray-600">Approved</p>
                 <p className="text-2xl font-bold text-gray-900">
-                  {bookings.filter(b => b.status === 'approved').length}
+                  {bookings.filter((b) => b.status === "approved").length}
                 </p>
               </div>
             </div>
           </div>
-          
+
           <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
             <div className="flex items-center">
               <Users className="h-8 w-8 text-green-600" />
               <div className="ml-4">
                 <p className="text-sm font-medium text-gray-600">Active</p>
                 <p className="text-2xl font-bold text-gray-900">
-                  {bookings.filter(b => b.status === 'checked-in').length}
+                  {bookings.filter((b) => b.status === "checked-in").length}
                 </p>
               </div>
             </div>
           </div>
-          
+
           <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
             <div className="flex items-center">
               <Calendar className="h-8 w-8 text-gray-600" />
               <div className="ml-4">
                 <p className="text-sm font-medium text-gray-600">Completed</p>
                 <p className="text-2xl font-bold text-gray-900">
-                  {bookings.filter(b => b.status === 'checked-out').length}
+                  {bookings.filter((b) => b.status === "checked-out").length}
                 </p>
               </div>
             </div>
@@ -239,13 +264,27 @@ export default function BookingsPage() {
               <table className="w-full">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Guest</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Destination</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Dates</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Group</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Booking Date</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Guest
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Destination
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Dates
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Group
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Status
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Booking Date
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Actions
+                    </th>
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
@@ -253,26 +292,39 @@ export default function BookingsPage() {
                     <tr key={booking.id} className="hover:bg-gray-50">
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div>
-                          <div className="text-sm font-medium text-gray-900">{booking.name}</div>
-                          <div className="text-sm text-gray-500">{booking.email}</div>
-                          <div className="text-sm text-gray-500">{booking.phone}</div>
+                          <div className="text-sm font-medium text-gray-900">
+                            {booking.name}
+                          </div>
+                          <div className="text-sm text-gray-500">
+                            {booking.email}
+                          </div>
+                          <div className="text-sm text-gray-500">
+                            {booking.phone}
+                          </div>
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center">
                           <MapPin className="h-4 w-4 text-gray-400 mr-2" />
-                          <span className="text-sm text-gray-900">{getDestinationName(booking.destination)}</span>
+                          <span className="text-sm text-gray-900">
+                            {getDestinationName(booking.destination)}
+                          </span>
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm text-gray-900">
-                          {formatDateRange(booking.checkInDate, booking.checkOutDate)}
+                          {formatDateRange(
+                            booking.checkInDate,
+                            booking.checkOutDate
+                          )}
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center">
                           <Users className="h-4 w-4 text-gray-400 mr-2" />
-                          <span className="text-sm text-gray-900">{booking.groupSize}</span>
+                          <span className="text-sm text-gray-900">
+                            {booking.groupSize}
+                          </span>
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
@@ -280,20 +332,31 @@ export default function BookingsPage() {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm text-gray-900">
-                          {new Date(booking.registrationDate).toLocaleDateString()}
+                          {new Date(
+                            booking.registrationDate
+                          ).toLocaleDateString()}
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm">
                         <div className="flex space-x-2">
-                          <button className="text-green-600 hover:text-green-700" title="View Details">
+                          <button
+                            className="text-green-600 hover:text-green-700"
+                            title="View Details"
+                          >
                             <Eye className="h-4 w-4" />
                           </button>
-                          {booking.status === 'pending' && (
+                          {booking.status === "pending" && (
                             <>
-                              <button className="text-blue-600 hover:text-blue-700" title="Approve">
+                              <button
+                                className="text-blue-600 hover:text-blue-700"
+                                title="Approve"
+                              >
                                 <CheckCircle className="h-4 w-4" />
                               </button>
-                              <button className="text-red-600 hover:text-red-700" title="Cancel">
+                              <button
+                                className="text-red-600 hover:text-red-700"
+                                title="Cancel"
+                              >
                                 <XCircle className="h-4 w-4" />
                               </button>
                             </>

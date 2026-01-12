@@ -1,10 +1,10 @@
-'use client';
+"use client";
 
-import React, { useState, useEffect } from 'react';
-import Layout from '@/components/Layout';
-import { 
-  Users, 
-  MapPin, 
+import React, { useState, useEffect, useCallback } from "react";
+import Layout from "@/components/Layout";
+import {
+  Users,
+  MapPin,
   AlertTriangle,
   CheckCircle,
   Clock,
@@ -31,7 +31,7 @@ export default function AdminDashboard() {
     todayCheckIns: 0,
     todayCheckOuts: 0,
     capacityUtilization: 0,
-    alertsCount: 0
+    alertsCount: 0,
   });
   const [destinations, setDestinations] = useState<Destination[]>([]);
   const [alerts, setAlerts] = useState<Alert[]>([]);
@@ -75,7 +75,7 @@ export default function AdminDashboard() {
       setStats(dashboardStats);
 
       // Transform destinations data to match interface
-      const transformedDestinations = destinationsData.map(dest => ({
+      const transformedDestinations = destinationsData.map((dest) => ({
         id: dest.id,
         name: dest.name,
         location: dest.location,
@@ -87,21 +87,25 @@ export default function AdminDashboard() {
         ecologicalSensitivity: dest.ecological_sensitivity,
         coordinates: {
           latitude: dest.latitude,
-          longitude: dest.longitude
-        }
+          longitude: dest.longitude,
+        },
       }));
-      
+
       setDestinations(transformedDestinations);
       setAlerts(alertsData);
 
       // Update weather data for all destinations
       updateWeatherData(transformedDestinations);
     } catch (error) {
-      console.error('Error loading dashboard data:', error);
+      console.error("Error loading dashboard data:", error);
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    loadDashboardData();
+  }, [loadDashboardData]);
 
   const updateWeatherData = async (destinations: Destination[]) => {
     for (const destination of destinations) {
@@ -122,23 +126,32 @@ export default function AdminDashboard() {
             const alertCheck = weatherService.shouldGenerateAlert(weatherData);
             if (alertCheck.shouldAlert && alertCheck.reason) {
               await dbService.addAlert({
-                type: 'weather',
+                type: "weather",
                 title: `Weather Alert - ${destination.name}`,
                 message: alertCheck.reason,
-                severity: 'medium',
+                severity: "medium",
                 destinationId: destination.id,
                 isActive: true,
               });
             }
           }
         } catch (error) {
-          console.error(`Error updating weather for ${destination.name}:`, error);
+          console.error(
+            `Error updating weather for ${destination.name}:`,
+            error
+          );
         }
       }
     }
   };
 
-  const StatCard = ({ title, value, icon: Icon, color, subtitle }: {
+  const StatCard = ({
+    title,
+    value,
+    icon: Icon,
+    color,
+    subtitle,
+  }: {
     title: string;
     value: string | number;
     icon: React.ComponentType<{ className?: string }>;
@@ -179,7 +192,8 @@ export default function AdminDashboard() {
               Government Dashboard
             </h1>
             <p className="text-gray-600">
-              Monitor and manage tourist activities across Jammu & Himachal Pradesh
+              Monitor and manage tourist activities across Jammu & Himachal
+              Pradesh
             </p>
           </div>
           <div className="text-sm text-gray-500">

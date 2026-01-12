@@ -30,12 +30,12 @@ function BookDestinationForm() {
     idProof: '',
     ecoPermitNumber: '',
     groupSize: 1,
-    checkInDate: '',
-    checkOutDate: '',
+    checkInDate: "",
+    checkOutDate: "",
     emergencyContact: {
-      name: '',
-      phone: '',
-      relationship: ''
+      name: "",
+      phone: "",
+      relationship: "",
     },
     specialRequests: '',
     acknowledged: false
@@ -82,11 +82,11 @@ function BookDestinationForm() {
         setEcoAlert(alert);
       }
     } catch (error) {
-      console.error('Error loading destination:', error);
+      console.error("Error loading destination:", error);
     } finally {
       setLoading(false);
     }
-  };
+  }, [destinationId]);
 
   const checkEligibility = async (size: number) => {
     if (!destination) return;
@@ -104,11 +104,11 @@ function BookDestinationForm() {
         ...prev,
         emergencyContact: {
           ...prev.emergencyContact,
-          [field]: value
-        }
+          [field]: value,
+        },
       }));
     } else {
-      setFormData(prev => ({
+      setFormData((prev) => ({
         ...prev,
         [name]: type === 'checkbox' ? checked : value
       }));
@@ -178,7 +178,7 @@ function BookDestinationForm() {
         destination_id: destination.id,
         check_in_date: formData.checkInDate,
         check_out_date: formData.checkOutDate,
-        status: 'pending' as const,
+        status: "pending" as const,
         emergency_contact_name: formData.emergencyContact.name,
         emergency_contact_phone: formData.emergencyContact.phone,
         emergency_contact_relationship: formData.emergencyContact.relationship,
@@ -186,10 +186,10 @@ function BookDestinationForm() {
         registration_date: new Date().toISOString(),
         // Add missing required fields with defaults
         age: 0, // Default age, consider collecting this in the form
-        gender: 'prefer-not-to-say' as const,
-        address: '', // Default empty address, consider collecting this in the form
-        pin_code: '', // Default empty pin code, consider collecting this in the form
-        id_proof_type: 'aadhaar' as const // Default ID proof type, consider deriving from idProof or adding a selector
+        gender: "prefer-not-to-say" as const,
+        address: "", // Default empty address, consider collecting this in the form
+        pin_code: "", // Default empty pin code, consider collecting this in the form
+        id_proof_type: "aadhaar" as const, // Default ID proof type, consider deriving from idProof or adding a selector
       };
       
       console.log('Submitting booking data:', bookingData);
@@ -198,17 +198,17 @@ function BookDestinationForm() {
       const result = await dbService.addTourist(bookingData);
       
       if (!result) {
-        throw new Error('Failed to create booking - no result returned');
+        throw new Error("Failed to create booking - no result returned");
       }
       
       setShowSuccess(true);
       setTimeout(() => {
-        router.push('/tourist/bookings');
+        router.push("/tourist/bookings");
       }, 3000);
       
     } catch (error) {
-      console.error('Error submitting booking:', error);
-      alert('Failed to submit booking. Please try again.');
+      console.error("Error submitting booking:", error);
+      alert("Failed to submit booking. Please try again.");
     } finally {
       setSubmitting(false);
     }
@@ -223,9 +223,9 @@ function BookDestinationForm() {
     if (available > maxPossibleAvailable * 0.3) {
       return { text: 'Great Availability', color: 'text-green-600' };
     } else if (available > 0) {
-      return { text: 'Limited Spots', color: 'text-yellow-600' };
+      return { text: "Limited Spots", color: "text-yellow-600" };
     } else {
-      return { text: 'Fully Booked', color: 'text-red-600' };
+      return { text: "Fully Booked", color: "text-red-600" };
     }
   };
 
@@ -260,13 +260,14 @@ function BookDestinationForm() {
       <TouristLayout>
         <div className="max-w-2xl mx-auto text-center py-12">
           <CheckCircle className="h-16 w-16 text-green-600 mx-auto mb-6" />
-          <h2 className="text-3xl font-bold text-gray-900 mb-4">Booking Submitted Successfully!</h2>
+          <h2 className="text-3xl font-bold text-gray-900 mb-4">
+            Booking Submitted Successfully!
+          </h2>
           <p className="text-lg text-gray-600 mb-6">
-            Your booking request for <strong>{destination.name}</strong> has been submitted and is pending approval.
+            Your booking request for <strong>{destination.name}</strong> has
+            been submitted and is pending approval.
           </p>
-          <p className="text-gray-500">
-            Redirecting to your bookings page...
-          </p>
+          <p className="text-gray-500">Redirecting to your bookings page...</p>
         </div>
       </TouristLayout>
     );
@@ -502,8 +503,10 @@ function BookDestinationForm() {
                   required
                   className="w-full px-4 py-4 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all outline-none appearance-none text-gray-900"
                 >
-                  {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(size => (
-                    <option key={size} value={size}>{size} {size === 1 ? 'Person' : 'People'}</option>
+                  {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((size) => (
+                    <option key={size} value={size}>
+                      {size} {size === 1 ? "Person" : "People"}
+                    </option>
                   ))}
                 </select>
               </div>
@@ -664,16 +667,18 @@ function BookDestinationForm() {
 
 export default function BookDestination() {
   return (
-    <Suspense fallback={
-      <TouristLayout>
-        <div className="min-h-screen flex items-center justify-center">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600 mx-auto mb-4"></div>
-            <p className="text-gray-600">Loading booking details...</p>
+    <Suspense
+      fallback={
+        <TouristLayout>
+          <div className="min-h-screen flex items-center justify-center">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600 mx-auto mb-4"></div>
+              <p className="text-gray-600">Loading booking details...</p>
+            </div>
           </div>
-        </div>
-      </TouristLayout>
-    }>
+        </TouristLayout>
+      }
+    >
       <BookDestinationForm />
     </Suspense>
   );

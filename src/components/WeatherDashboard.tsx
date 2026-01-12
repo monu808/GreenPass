@@ -1,13 +1,13 @@
-'use client';
+"use client";
 
-import React, { useState, useEffect } from 'react';
-import { weatherService, destinationCoordinates } from '@/lib/weatherService';
-import type { WeatherData } from '@/lib/weatherService';
-import { 
-  Cloud, 
-  Sun, 
-  CloudRain, 
-  CloudSnow, 
+import React, { useState, useEffect, useCallback } from "react";
+import { weatherService, destinationCoordinates } from "@/lib/weatherService";
+import type { WeatherData } from "@/lib/weatherService";
+import {
+  Cloud,
+  Sun,
+  CloudRain,
+  CloudSnow,
   CloudLightning,
   Wind,
   Eye,
@@ -16,23 +16,26 @@ import {
   Gauge,
   Zap,
   AlertTriangle,
-  RefreshCw
-} from 'lucide-react';
+  RefreshCw,
+} from "lucide-react";
 
 interface WeatherCardProps {
   destinationId: string;
   destinationName: string;
 }
 
-const WeatherCard: React.FC<WeatherCardProps> = ({ destinationId, destinationName }) => {
+const WeatherCard: React.FC<WeatherCardProps> = ({
+  destinationId,
+  destinationName,
+}) => {
   const [weatherData, setWeatherData] = useState<WeatherData | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchWeatherData = async () => {
+  const fetchWeatherData = useCallback(async () => {
     const coordinates = destinationCoordinates[destinationId];
     if (!coordinates) {
-      setError('Location not found');
+      setError("Location not found");
       return;
     }
 
@@ -45,35 +48,35 @@ const WeatherCard: React.FC<WeatherCardProps> = ({ destinationId, destinationNam
         coordinates.lon,
         coordinates.name || destinationName
       );
-      
+
       if (data) {
         setWeatherData(data);
       } else {
-        setError('Failed to fetch weather data');
+        setError("Failed to fetch weather data");
       }
     } catch (err) {
-      setError('Error fetching weather data');
-      console.error('Weather fetch error:', err);
+      setError("Error fetching weather data");
+      console.error("Weather fetch error:", err);
     } finally {
       setLoading(false);
     }
-  };
+  }, [destinationId, destinationName]);
 
   useEffect(() => {
     fetchWeatherData();
-  }, [destinationId]);
+  }, [fetchWeatherData]);
 
   const getWeatherIcon = (weatherMain: string) => {
     switch (weatherMain.toLowerCase()) {
-      case 'clear':
+      case "clear":
         return <Sun className="h-8 w-8 text-yellow-500" />;
-      case 'clouds':
+      case "clouds":
         return <Cloud className="h-8 w-8 text-gray-500" />;
-      case 'rain':
+      case "rain":
         return <CloudRain className="h-8 w-8 text-blue-500" />;
-      case 'snow':
+      case "snow":
         return <CloudSnow className="h-8 w-8 text-blue-200" />;
-      case 'thunderstorm':
+      case "thunderstorm":
         return <CloudLightning className="h-8 w-8 text-purple-500" />;
       default:
         return <Cloud className="h-8 w-8 text-gray-400" />;
@@ -81,11 +84,11 @@ const WeatherCard: React.FC<WeatherCardProps> = ({ destinationId, destinationNam
   };
 
   const getTemperatureColor = (temp: number) => {
-    if (temp > 35) return 'text-red-600';
-    if (temp > 25) return 'text-orange-500';
-    if (temp > 15) return 'text-green-500';
-    if (temp > 5) return 'text-blue-500';
-    return 'text-blue-700';
+    if (temp > 35) return "text-red-600";
+    if (temp > 25) return "text-orange-500";
+    if (temp > 15) return "text-green-500";
+    if (temp > 5) return "text-blue-500";
+    return "text-blue-700";
   };
 
   if (loading) {
@@ -104,10 +107,14 @@ const WeatherCard: React.FC<WeatherCardProps> = ({ destinationId, destinationNam
       <div className="bg-white rounded-lg shadow-md p-6 border-l-4 border-red-500">
         <div className="flex items-center justify-between">
           <div>
-            <h3 className="text-lg font-semibold text-gray-900">{destinationName}</h3>
-            <p className="text-red-600">{error || 'No weather data available'}</p>
+            <h3 className="text-lg font-semibold text-gray-900">
+              {destinationName}
+            </h3>
+            <p className="text-red-600">
+              {error || "No weather data available"}
+            </p>
           </div>
-          <button 
+          <button
             onClick={fetchWeatherData}
             className="p-2 text-gray-500 hover:text-gray-700"
             disabled={loading}
@@ -122,21 +129,25 @@ const WeatherCard: React.FC<WeatherCardProps> = ({ destinationId, destinationNam
   const alertCheck = weatherService.shouldGenerateAlert(weatherData);
 
   return (
-    <div className={`bg-white rounded-lg shadow-md p-6 border-l-4 ${
-      alertCheck.shouldAlert ? 'border-red-500' : 'border-green-500'
-    }`}>
+    <div
+      className={`bg-white rounded-lg shadow-md p-6 border-l-4 ${
+        alertCheck.shouldAlert ? "border-red-500" : "border-green-500"
+      }`}
+    >
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
         <div>
-          <h3 className="text-lg font-semibold text-gray-900">{destinationName}</h3>
+          <h3 className="text-lg font-semibold text-gray-900">
+            {destinationName}
+          </h3>
           <p className="text-sm text-gray-500">{weatherData.cityName}</p>
         </div>
-        <button 
+        <button
           onClick={fetchWeatherData}
           className="p-2 text-gray-500 hover:text-gray-700"
           disabled={loading}
         >
-          <RefreshCw className={`h-5 w-5 ${loading ? 'animate-spin' : ''}`} />
+          <RefreshCw className={`h-5 w-5 ${loading ? "animate-spin" : ""}`} />
         </button>
       </div>
 
@@ -157,7 +168,11 @@ const WeatherCard: React.FC<WeatherCardProps> = ({ destinationId, destinationNam
       <div className="flex items-center mb-4">
         {getWeatherIcon(weatherData.weatherMain)}
         <div className="ml-4">
-          <div className={`text-3xl font-bold ${getTemperatureColor(weatherData.temperature)}`}>
+          <div
+            className={`text-3xl font-bold ${getTemperatureColor(
+              weatherData.temperature
+            )}`}
+          >
             {weatherData.temperature}°C
           </div>
           <div className="text-gray-600 capitalize">
@@ -172,17 +187,17 @@ const WeatherCard: React.FC<WeatherCardProps> = ({ destinationId, destinationNam
           <Droplets className="h-4 w-4 text-blue-500 mr-2" />
           <span>Humidity: {weatherData.humidity}%</span>
         </div>
-        
+
         <div className="flex items-center">
           <Gauge className="h-4 w-4 text-gray-500 mr-2" />
           <span>Pressure: {weatherData.pressure} hPa</span>
         </div>
-        
+
         <div className="flex items-center">
           <Wind className="h-4 w-4 text-gray-500 mr-2" />
           <span>Wind: {weatherData.windSpeed} m/s</span>
         </div>
-        
+
         <div className="flex items-center">
           <Eye className="h-4 w-4 text-gray-500 mr-2" />
           <span>Visibility: {weatherData.visibility} km</span>
@@ -195,27 +210,28 @@ const WeatherCard: React.FC<WeatherCardProps> = ({ destinationId, destinationNam
             <span>UV Index: {weatherData.uvIndex}</span>
           </div>
         )}
-        
+
         {weatherData.cloudCover !== undefined && (
           <div className="flex items-center">
             <Cloud className="h-4 w-4 text-gray-500 mr-2" />
             <span>Cloud Cover: {weatherData.cloudCover}%</span>
           </div>
         )}
-        
+
         {weatherData.precipitationProbability !== undefined && (
           <div className="flex items-center">
             <CloudRain className="h-4 w-4 text-blue-500 mr-2" />
             <span>Rain Chance: {weatherData.precipitationProbability}%</span>
           </div>
         )}
-        
-        {weatherData.precipitationType && weatherData.precipitationType !== 'None' && (
-          <div className="flex items-center">
-            <Droplets className="h-4 w-4 text-blue-600 mr-2" />
-            <span>Precipitation: {weatherData.precipitationType}</span>
-          </div>
-        )}
+
+        {weatherData.precipitationType &&
+          weatherData.precipitationType !== "None" && (
+            <div className="flex items-center">
+              <Droplets className="h-4 w-4 text-blue-600 mr-2" />
+              <span>Precipitation: {weatherData.precipitationType}</span>
+            </div>
+          )}
       </div>
 
       {/* Powered by Tomorrow.io */}
@@ -230,26 +246,29 @@ const WeatherCard: React.FC<WeatherCardProps> = ({ destinationId, destinationNam
 
 const WeatherDashboard: React.FC = () => {
   const destinations = [
-    { id: 'manali', name: 'Manali' },
-    { id: 'shimla', name: 'Shimla' },
-    { id: 'dharamshala', name: 'Dharamshala' },
-    { id: 'srinagar', name: 'Srinagar' },
-    { id: 'jammu', name: 'Jammu' },
-    { id: 'gulmarg', name: 'Gulmarg' }
+    { id: "manali", name: "Manali" },
+    { id: "shimla", name: "Shimla" },
+    { id: "dharamshala", name: "Dharamshala" },
+    { id: "srinagar", name: "Srinagar" },
+    { id: "jammu", name: "Jammu" },
+    { id: "gulmarg", name: "Gulmarg" },
   ];
 
   return (
     <div className="p-6">
       <div className="mb-6">
-        <h2 className="text-2xl font-bold text-gray-900 mb-2">Weather Dashboard</h2>
+        <h2 className="text-2xl font-bold text-gray-900 mb-2">
+          Weather Dashboard
+        </h2>
         <p className="text-gray-600">
-          Real-time weather monitoring for tourist destinations using Tomorrow.io API
+          Real-time weather monitoring for tourist destinations using
+          Tomorrow.io API
         </p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {destinations.map((destination) => (
-          <WeatherCard 
+          <WeatherCard
             key={destination.id}
             destinationId={destination.id}
             destinationName={destination.name}

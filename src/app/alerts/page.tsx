@@ -1,11 +1,11 @@
-'use client';
+"use client";
 
-import React, { useState, useEffect } from 'react';
-import Layout from '@/components/Layout';
-import { 
-  AlertTriangle, 
-  Search, 
-  Filter, 
+import React, { useState, useEffect, useCallback } from "react";
+import Layout from "@/components/Layout";
+import {
+  AlertTriangle,
+  Search,
+  Filter,
   Plus,
   MapPin,
   Calendar,
@@ -20,29 +20,72 @@ import {
   Zap,
   RefreshCw,
   Play,
-  Pause
-} from 'lucide-react';
-import { dbService } from '@/lib/databaseService';
-import { weatherMonitoringService } from '@/lib/weatherMonitoringService';
-import { Alert, Destination } from '@/types';
+  Pause,
+} from "lucide-react";
+import { dbService } from "@/lib/databaseService";
+import { weatherMonitoringService } from "@/lib/weatherMonitoringService";
+import { Alert, Destination } from "@/types";
 
 export default function AlertsPage() {
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [destinations, setDestinations] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [typeFilter, setTypeFilter] = useState<string>('all');
-  const [severityFilter, setSeverityFilter] = useState<string>('all');
-  const [activeFilter, setActiveFilter] = useState<string>('active'); // Show only active alerts by default
+  const [searchTerm, setSearchTerm] = useState("");
+  const [typeFilter, setTypeFilter] = useState<string>("all");
+  const [severityFilter, setSeverityFilter] = useState<string>("all");
+  const [activeFilter, setActiveFilter] = useState<string>("active"); // Show only active alerts by default
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [isMonitoring, setIsMonitoring] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [autoRefresh, setAutoRefresh] = useState(true);
   const [weatherResult, setWeatherResult] = useState<any>(null);
 
+  const loadData = useCallback(async () => {
+    try {
+      setLoading(true);
+      const [regularAlerts, weatherAlerts, destinationsData] =
+        await Promise.all([
+          dbService.getAlerts(), // Get non-weather alerts from alerts table
+          dbService.getWeatherAlerts(), // Get weather alerts from weather_data table
+          dbService.getDestinations(),
+        ]);
+
+      // Combine regular alerts and weather alerts
+      const allAlerts = [...regularAlerts, ...weatherAlerts];
+
+      // Remove duplicate alerts based on title, message, destination, and type
+      const uniqueAlerts = allAlerts.filter((alert, index, self) => {
+        // Keep only the most recent alert for each unique combination
+        const duplicateIndex = self.findIndex(
+          (a) =>
+            a.title === alert.title &&
+            a.message === alert.message &&
+            a.destinationId === alert.destinationId &&
+            a.type === alert.type
+        );
+        return duplicateIndex === index; // Keep the first occurrence (most recent due to order by created_at desc)
+      });
+
+      const duplicatesRemoved = allAlerts.length - uniqueAlerts.length;
+      if (duplicatesRemoved > 0) {
+        console.log(
+          `🧹 Removed ${duplicatesRemoved} duplicate alerts from display`
+        );
+      }
+
+      setAlerts(uniqueAlerts);
+      setDestinations(destinationsData);
+      setLastUpdated(new Date());
+    } catch (error) {
+      console.error("Error loading alerts data:", error);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     loadData();
-    
+
     // Set up auto-refresh every 30 seconds for alerts page
     const refreshInterval = setInterval(() => {
       if (autoRefresh) {
@@ -56,74 +99,35 @@ export default function AlertsPage() {
     return () => {
       clearInterval(refreshInterval);
     };
-  }, [autoRefresh]);
-
-  const loadData = async () => {
-    try {
-      setLoading(true);
-      const [regularAlerts, weatherAlerts, destinationsData] = await Promise.all([
-        dbService.getAlerts(), // Get non-weather alerts from alerts table
-        dbService.getWeatherAlerts(), // Get weather alerts from weather_data table
-        dbService.getDestinations()
-      ]);
-      
-      // Combine regular alerts and weather alerts
-      const allAlerts = [...regularAlerts, ...weatherAlerts];
-      
-      // Remove duplicate alerts based on title, message, destination, and type
-      const uniqueAlerts = allAlerts.filter((alert, index, self) => {
-        // Keep only the most recent alert for each unique combination
-        const duplicateIndex = self.findIndex(a =>
-          a.title === alert.title &&
-          a.message === alert.message &&
-          a.destinationId === alert.destinationId &&
-          a.type === alert.type
-        );
-        return duplicateIndex === index; // Keep the first occurrence (most recent due to order by created_at desc)
-      });
-      
-      const duplicatesRemoved = allAlerts.length - uniqueAlerts.length;
-      if (duplicatesRemoved > 0) {
-        console.log(`🧹 Removed ${duplicatesRemoved} duplicate alerts from display`);
-      }
-      
-      setAlerts(uniqueAlerts);
-      setDestinations(destinationsData);
-      setLastUpdated(new Date());
-    } catch (error) {
-      console.error('Error loading alerts data:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  }, [autoRefresh, loadData]);
 
   const handleManualWeatherCheck = async () => {
     try {
       setLoading(true);
       setWeatherResult(null);
-      console.log('🔄 Triggering server-side weather check...');
-      
-      const response = await fetch('/api/weather-check', {
-        method: 'POST',
+      console.log("🔄 Triggering server-side weather check...");
+
+      const response = await fetch("/api/weather-check", {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
       });
 
       const result = await response.json();
       setWeatherResult(result);
-      
+
       if (result.success) {
-        console.log('✅ Weather check completed:', result.message);
+        console.log("✅ Weather check completed:", result.message);
         await loadData(); // Refresh alerts
       } else {
-        console.error('❌ Weather check failed:', result.error);
-        alert('Weather check failed: ' + (result.error || 'Unknown error'));
+        console.error("❌ Weather check failed:", result.error);
+        alert("Weather check failed: " + (result.error || "Unknown error"));
       }
     } catch (error) {
-      console.error('❌ Error in manual weather check:', error);
-      setWeatherResult({ error: 'Failed to connect to weather API' });
-      alert('Failed to check weather. Please try again.');
+      console.error("❌ Error in manual weather check:", error);
+      setWeatherResult({ error: "Failed to connect to weather API" });
+      alert("Failed to check weather. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -139,50 +143,67 @@ export default function AlertsPage() {
       await dbService.updateAlert(alertId, { isActive: !isActive });
       await loadData(); // Reload data
     } catch (error) {
-      console.error('Error toggling alert:', error);
-      alert('Failed to update alert. Please try again.');
+      console.error("Error toggling alert:", error);
+      alert("Failed to update alert. Please try again.");
     }
   };
 
   const getDestinationName = (destinationId?: string) => {
-    if (!destinationId) return 'All Destinations';
-    const dest = destinations.find(d => d.id === destinationId);
-    return dest ? dest.name : 'Unknown';
+    if (!destinationId) return "All Destinations";
+    const dest = destinations.find((d) => d.id === destinationId);
+    return dest ? dest.name : "Unknown";
   };
 
-  const filteredAlerts = alerts.filter(alert => {
-    const matchesSearch = alert.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         alert.message.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesType = typeFilter === 'all' || alert.type === typeFilter;
-    const matchesSeverity = severityFilter === 'all' || alert.severity === severityFilter;
-    const matchesActive = activeFilter === 'all' || 
-                         (activeFilter === 'active' && alert.isActive) ||
-                         (activeFilter === 'inactive' && !alert.isActive);
+  const filteredAlerts = alerts.filter((alert) => {
+    const matchesSearch =
+      alert.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      alert.message.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesType = typeFilter === "all" || alert.type === typeFilter;
+    const matchesSeverity =
+      severityFilter === "all" || alert.severity === severityFilter;
+    const matchesActive =
+      activeFilter === "all" ||
+      (activeFilter === "active" && alert.isActive) ||
+      (activeFilter === "inactive" && !alert.isActive);
     return matchesSearch && matchesType && matchesSeverity && matchesActive;
   });
 
   const getSeverityColor = (severity: string) => {
     switch (severity) {
-      case 'low': return 'text-green-600 bg-green-50 border-green-200';
-      case 'medium': return 'text-yellow-600 bg-yellow-50 border-yellow-200';
-      case 'high': return 'text-orange-600 bg-orange-50 border-orange-200';
-      case 'critical': return 'text-red-600 bg-red-50 border-red-200';
-      default: return 'text-gray-600 bg-gray-50 border-gray-200';
+      case "low":
+        return "text-green-600 bg-green-50 border-green-200";
+      case "medium":
+        return "text-yellow-600 bg-yellow-50 border-yellow-200";
+      case "high":
+        return "text-orange-600 bg-orange-50 border-orange-200";
+      case "critical":
+        return "text-red-600 bg-red-50 border-red-200";
+      default:
+        return "text-gray-600 bg-gray-50 border-gray-200";
     }
   };
 
   const getTypeIcon = (type: string) => {
     switch (type) {
-      case 'weather': return <Cloud className="h-4 w-4" />;
-      case 'capacity': return <Users className="h-4 w-4" />;
-      case 'emergency': return <Zap className="h-4 w-4" />;
-      case 'maintenance': return <Settings className="h-4 w-4" />;
-      default: return <AlertTriangle className="h-4 w-4" />;
+      case "weather":
+        return <Cloud className="h-4 w-4" />;
+      case "capacity":
+        return <Users className="h-4 w-4" />;
+      case "emergency":
+        return <Zap className="h-4 w-4" />;
+      case "maintenance":
+        return <Settings className="h-4 w-4" />;
+      default:
+        return <AlertTriangle className="h-4 w-4" />;
     }
   };
 
   const SeverityBadge = ({ severity }: { severity: string }) => (
-    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${getSeverityColor(severity)}`}>
+    <span
+      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${getSeverityColor(
+        severity
+      )}`}
+    >
       {severity.toUpperCase()}
     </span>
   );
@@ -196,12 +217,12 @@ export default function AlertsPage() {
 
   const CreateAlertModal = ({ onClose }: { onClose: () => void }) => {
     const [formData, setFormData] = useState({
-      type: 'weather',
-      title: '',
-      message: '',
-      severity: 'medium',
-      destinationId: '',
-      isActive: true
+      type: "weather",
+      title: "",
+      message: "",
+      severity: "medium",
+      destinationId: "",
+      isActive: true,
     });
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -213,13 +234,13 @@ export default function AlertsPage() {
           message: formData.message,
           severity: formData.severity as any,
           destinationId: formData.destinationId || undefined,
-          isActive: formData.isActive
+          isActive: formData.isActive,
         });
         await loadData();
         onClose();
       } catch (error) {
-        console.error('Error creating alert:', error);
-        alert('Failed to create alert. Please try again.');
+        console.error("Error creating alert:", error);
+        alert("Failed to create alert. Please try again.");
       }
     };
 
@@ -227,14 +248,20 @@ export default function AlertsPage() {
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
         <div className="bg-white rounded-lg max-w-md w-full">
           <div className="p-6">
-            <h2 className="text-xl font-bold text-gray-900 mb-4">Create New Alert</h2>
-            
+            <h2 className="text-xl font-bold text-gray-900 mb-4">
+              Create New Alert
+            </h2>
+
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Type</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Type
+                </label>
                 <select
                   value={formData.type}
-                  onChange={(e) => setFormData(prev => ({ ...prev, type: e.target.value }))}
+                  onChange={(e) =>
+                    setFormData((prev) => ({ ...prev, type: e.target.value }))
+                  }
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
                   required
                 >
@@ -246,21 +273,32 @@ export default function AlertsPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Title</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Title
+                </label>
                 <input
                   type="text"
                   value={formData.title}
-                  onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
+                  onChange={(e) =>
+                    setFormData((prev) => ({ ...prev, title: e.target.value }))
+                  }
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
                   required
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Message</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Message
+                </label>
                 <textarea
                   value={formData.message}
-                  onChange={(e) => setFormData(prev => ({ ...prev, message: e.target.value }))}
+                  onChange={(e) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      message: e.target.value,
+                    }))
+                  }
                   rows={3}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
                   required
@@ -268,10 +306,17 @@ export default function AlertsPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Severity</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Severity
+                </label>
                 <select
                   value={formData.severity}
-                  onChange={(e) => setFormData(prev => ({ ...prev, severity: e.target.value }))}
+                  onChange={(e) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      severity: e.target.value,
+                    }))
+                  }
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
                   required
                 >
@@ -283,10 +328,17 @@ export default function AlertsPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Destination</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Destination
+                </label>
                 <select
                   value={formData.destinationId}
-                  onChange={(e) => setFormData(prev => ({ ...prev, destinationId: e.target.value }))}
+                  onChange={(e) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      destinationId: e.target.value,
+                    }))
+                  }
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
                 >
                   <option value="">All Destinations</option>
@@ -303,10 +355,18 @@ export default function AlertsPage() {
                   type="checkbox"
                   id="isActive"
                   checked={formData.isActive}
-                  onChange={(e) => setFormData(prev => ({ ...prev, isActive: e.target.checked }))}
+                  onChange={(e) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      isActive: e.target.checked,
+                    }))
+                  }
                   className="rounded border-gray-300 text-green-600 focus:ring-green-500"
                 />
-                <label htmlFor="isActive" className="ml-2 text-sm text-gray-700">
+                <label
+                  htmlFor="isActive"
+                  className="ml-2 text-sm text-gray-700"
+                >
                   Active alert
                 </label>
               </div>
@@ -339,7 +399,9 @@ export default function AlertsPage() {
         {/* Header */}
         <div className="flex justify-between items-center">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">Alerts Management</h1>
+            <h1 className="text-3xl font-bold text-gray-900">
+              Alerts Management
+            </h1>
             <p className="text-gray-600">Monitor and manage system alerts</p>
             {lastUpdated && (
               <p className="text-sm text-gray-500 mt-1">
@@ -363,7 +425,9 @@ export default function AlertsPage() {
               className="flex items-center px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
               title="Check weather now and generate alerts"
             >
-              <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+              <RefreshCw
+                className={`h-4 w-4 mr-2 ${loading ? "animate-spin" : ""}`}
+              />
               Check Weather Now
             </button>
 
@@ -380,9 +444,11 @@ export default function AlertsPage() {
 
             <div className="flex items-center space-x-2 text-sm text-gray-600">
               <AlertTriangle className="h-4 w-4" />
-              <span>{alerts.filter(a => a.isActive).length} active alerts</span>
+              <span>
+                {alerts.filter((a) => a.isActive).length} active alerts
+              </span>
             </div>
-            <button 
+            <button
               onClick={() => setShowCreateModal(true)}
               className="flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
             >
@@ -400,42 +466,54 @@ export default function AlertsPage() {
               <div className="ml-4">
                 <p className="text-sm font-medium text-gray-600">Critical</p>
                 <p className="text-2xl font-bold text-gray-900">
-                  {alerts.filter(a => a.severity === 'critical' && a.isActive).length}
+                  {
+                    alerts.filter(
+                      (a) => a.severity === "critical" && a.isActive
+                    ).length
+                  }
                 </p>
               </div>
             </div>
           </div>
-          
+
           <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
             <div className="flex items-center">
               <AlertTriangle className="h-8 w-8 text-orange-600" />
               <div className="ml-4">
                 <p className="text-sm font-medium text-gray-600">High</p>
                 <p className="text-2xl font-bold text-gray-900">
-                  {alerts.filter(a => a.severity === 'high' && a.isActive).length}
+                  {
+                    alerts.filter((a) => a.severity === "high" && a.isActive)
+                      .length
+                  }
                 </p>
               </div>
             </div>
           </div>
-          
+
           <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
             <div className="flex items-center">
               <AlertTriangle className="h-8 w-8 text-yellow-600" />
               <div className="ml-4">
                 <p className="text-sm font-medium text-gray-600">Medium</p>
                 <p className="text-2xl font-bold text-gray-900">
-                  {alerts.filter(a => a.severity === 'medium' && a.isActive).length}
+                  {
+                    alerts.filter((a) => a.severity === "medium" && a.isActive)
+                      .length
+                  }
                 </p>
               </div>
             </div>
           </div>
-          
+
           <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
             <div className="flex items-center">
               <CheckCircle className="h-8 w-8 text-green-600" />
               <div className="ml-4">
                 <p className="text-sm font-medium text-gray-600">Total</p>
-                <p className="text-2xl font-bold text-gray-900">{alerts.length}</p>
+                <p className="text-2xl font-bold text-gray-900">
+                  {alerts.length}
+                </p>
               </div>
             </div>
           </div>
@@ -443,7 +521,13 @@ export default function AlertsPage() {
 
         {/* Weather Check Results */}
         {weatherResult && (
-          <div className={`p-4 rounded-lg border ${weatherResult.success ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'}`}>
+          <div
+            className={`p-4 rounded-lg border ${
+              weatherResult.success
+                ? "bg-green-50 border-green-200"
+                : "bg-red-50 border-red-200"
+            }`}
+          >
             <div className="flex items-start">
               {weatherResult.success ? (
                 <CheckCircle className="h-5 w-5 text-green-500 mt-0.5 mr-3" />
@@ -451,28 +535,42 @@ export default function AlertsPage() {
                 <XCircle className="h-5 w-5 text-red-500 mt-0.5 mr-3" />
               )}
               <div className="flex-1">
-                <h3 className={`font-medium ${weatherResult.success ? 'text-green-800' : 'text-red-800'}`}>
-                  Weather Check {weatherResult.success ? 'Completed' : 'Failed'}
+                <h3
+                  className={`font-medium ${
+                    weatherResult.success ? "text-green-800" : "text-red-800"
+                  }`}
+                >
+                  Weather Check {weatherResult.success ? "Completed" : "Failed"}
                 </h3>
-                <p className={`text-sm mt-1 ${weatherResult.success ? 'text-green-700' : 'text-red-700'}`}>
-                  {weatherResult.success ? weatherResult.message : weatherResult.error}
+                <p
+                  className={`text-sm mt-1 ${
+                    weatherResult.success ? "text-green-700" : "text-red-700"
+                  }`}
+                >
+                  {weatherResult.success
+                    ? weatherResult.message
+                    : weatherResult.error}
                 </p>
                 {weatherResult.success && (
                   <div className="mt-2 text-sm text-green-600">
                     <p>• Destinations checked: {weatherResult.destinations}</p>
                     <p>• Alerts generated: {weatherResult.alertsGenerated}</p>
-                    {weatherResult.alerts && weatherResult.alerts.length > 0 && (
-                      <div className="mt-1">
-                        <p>• New alerts:</p>
-                        <ul className="ml-4 list-disc">
-                          {weatherResult.alerts.map((alert: any, index: number) => (
-                            <li key={index} className="text-xs">
-                              {alert.destination} - {alert.severity.toUpperCase()}
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
+                    {weatherResult.alerts &&
+                      weatherResult.alerts.length > 0 && (
+                        <div className="mt-1">
+                          <p>• New alerts:</p>
+                          <ul className="ml-4 list-disc">
+                            {weatherResult.alerts.map(
+                              (alert: any, index: number) => (
+                                <li key={index} className="text-xs">
+                                  {alert.destination} -{" "}
+                                  {alert.severity.toUpperCase()}
+                                </li>
+                              )
+                            )}
+                          </ul>
+                        </div>
+                      )}
                   </div>
                 )}
                 <p className="text-xs text-gray-500 mt-2">
@@ -561,13 +659,16 @@ export default function AlertsPage() {
               <div
                 key={alert.id}
                 className={`bg-white rounded-lg shadow-sm border-l-4 p-6 ${
-                  alert.isActive 
-                    ? alert.severity === 'critical' ? 'border-l-red-500' :
-                      alert.severity === 'high' ? 'border-l-orange-500' :
-                      alert.severity === 'medium' ? 'border-l-yellow-500' :
-                      'border-l-green-500'
-                    : 'border-l-gray-300'
-                } ${!alert.isActive ? 'opacity-60' : ''}`}
+                  alert.isActive
+                    ? alert.severity === "critical"
+                      ? "border-l-red-500"
+                      : alert.severity === "high"
+                      ? "border-l-orange-500"
+                      : alert.severity === "medium"
+                      ? "border-l-yellow-500"
+                      : "border-l-green-500"
+                    : "border-l-gray-300"
+                } ${!alert.isActive ? "opacity-60" : ""}`}
               >
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
@@ -580,10 +681,12 @@ export default function AlertsPage() {
                         </span>
                       )}
                     </div>
-                    
-                    <h3 className="text-lg font-semibold text-gray-900 mb-2">{alert.title}</h3>
+
+                    <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                      {alert.title}
+                    </h3>
                     <p className="text-gray-700 mb-3">{alert.message}</p>
-                    
+
                     <div className="flex items-center space-x-4 text-sm text-gray-500">
                       <div className="flex items-center">
                         <MapPin className="h-4 w-4 mr-1" />
@@ -595,23 +698,35 @@ export default function AlertsPage() {
                       </div>
                     </div>
                   </div>
-                  
+
                   <div className="flex items-center space-x-2 ml-4">
                     <button
-                      onClick={() => handleToggleAlert(alert.id, alert.isActive)}
+                      onClick={() =>
+                        handleToggleAlert(alert.id, alert.isActive)
+                      }
                       className={`p-2 rounded-lg ${
-                        alert.isActive 
-                          ? 'text-red-600 hover:bg-red-50' 
-                          : 'text-green-600 hover:bg-green-50'
+                        alert.isActive
+                          ? "text-red-600 hover:bg-red-50"
+                          : "text-green-600 hover:bg-green-50"
                       }`}
-                      title={alert.isActive ? 'Deactivate' : 'Activate'}
+                      title={alert.isActive ? "Deactivate" : "Activate"}
                     >
-                      {alert.isActive ? <XCircle className="h-4 w-4" /> : <CheckCircle className="h-4 w-4" />}
+                      {alert.isActive ? (
+                        <XCircle className="h-4 w-4" />
+                      ) : (
+                        <CheckCircle className="h-4 w-4" />
+                      )}
                     </button>
-                    <button className="p-2 text-gray-600 hover:bg-gray-50 rounded-lg" title="Edit">
+                    <button
+                      className="p-2 text-gray-600 hover:bg-gray-50 rounded-lg"
+                      title="Edit"
+                    >
                       <Edit className="h-4 w-4" />
                     </button>
-                    <button className="p-2 text-red-600 hover:bg-red-50 rounded-lg" title="Delete">
+                    <button
+                      className="p-2 text-red-600 hover:bg-red-50 rounded-lg"
+                      title="Delete"
+                    >
                       <Trash2 className="h-4 w-4" />
                     </button>
                   </div>

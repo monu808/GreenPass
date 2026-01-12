@@ -1,18 +1,11 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
-import {
-  MapPin,
-  Star,
-  Users,
-  Heart,
-  Camera,
-  Calendar,
-  Navigation,
-} from "lucide-react";
-import TouristLayout from "@/components/TouristLayout";
-import { dbService } from "@/lib/databaseService";
-import { Destination } from "@/types";
+import React, { useState, useEffect } from 'react';
+import { MapPin, Star, Users, Heart, Camera, Calendar, Navigation } from 'lucide-react';
+import TouristLayout from '@/components/TouristLayout';
+import { dbService } from '@/lib/databaseService';
+import { policyEngine } from '@/lib/ecologicalPolicyEngine';
+import { Destination } from '@/types';
 
 export default function TouristDestinations() {
   const [destinations, setDestinations] = useState<Destination[]>([]);
@@ -82,44 +75,63 @@ export default function TouristDestinations() {
     }
   };
 
-  useEffect(() => {
-    loadDestinations();
-  }, []);
+  const filterDestinations = () => {
+    let filtered = destinations;
+
+    // Apply search filter
+    if (searchTerm) {
+      filtered = filtered.filter(dest => 
+        dest.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        dest.location.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    }
+
+    // Apply category filter
+    switch (selectedFilter) {
+      case 'available':
+        filtered = filtered.filter(dest => {
+          const adjustedCapacity = policyEngine.getAdjustedCapacity(dest);
+          return dest.currentOccupancy < adjustedCapacity * 0.8;
+        });
+        break;
+      case 'popular':
+        filtered = filtered.filter(dest => {
+          const adjustedCapacity = policyEngine.getAdjustedCapacity(dest);
+          return dest.currentOccupancy > adjustedCapacity * 0.5;
+        });
+        break;
+    }
 
   useEffect(() => {
     filterDestinations();
   }, [filterDestinations]);
 
   const getAvailabilityStatus = (destination: Destination) => {
-    const occupancyRate =
-      destination.currentOccupancy / destination.maxCapacity;
-    if (occupancyRate < 0.6)
-      return {
-        text: "Great Availability",
-        color: "text-green-600 bg-green-100",
-      };
-    if (occupancyRate < 0.8)
-      return { text: "Limited Spots", color: "text-yellow-600 bg-yellow-100" };
-    return { text: "Almost Full", color: "text-red-600 bg-red-100" };
+    const adjustedCapacity = policyEngine.getAdjustedCapacity(destination);
+    const occupancyRate = destination.currentOccupancy / adjustedCapacity;
+    if (occupancyRate < 0.6) return { text: 'Great Availability', color: 'text-green-600 bg-green-100' };
+    if (occupancyRate < 0.8) return { text: 'Limited Spots', color: 'text-yellow-600 bg-yellow-100' };
+    return { text: 'Almost Full', color: 'text-red-600 bg-red-100' };
   };
 
-  const getEcoSensitivityIcon = (level: string) => {
+  const getEcoSensitivityInfo = (level: string) => {
     switch (level) {
-      case "low":
-        return "🌱";
-      case "medium":
-        return "🍃";
-      case "high":
-        return "🌿";
-      case "critical":
-        return "🌲";
-      default:
-        return "🌱";
+      case 'low': return { icon: '🌱', label: 'Low Sensitivity', color: 'text-green-600' };
+      case 'medium': return { icon: '🍃', label: 'Medium Sensitivity', color: 'text-yellow-600' };
+      case 'high': return { icon: '🌿', label: 'High Sensitivity', color: 'text-orange-600' };
+      case 'critical': return { icon: '🌲', label: 'Critical Area', color: 'text-red-600' };
+      default: return { icon: '🌱', label: 'Eco-friendly', color: 'text-green-600' };
     }
   };
 
   const DestinationCard = ({ destination }: { destination: Destination }) => {
-    const availability = getAvailabilityStatus(destination);
+    const adjustedCapacity = policyEngine.getAdjustedCapacity(destination);
+    const occupancyRate = destination.currentOccupancy / adjustedCapacity;
+    const isOverCapacity = occupancyRate > 1;
+    const availability = isOverCapacity ? { text: 'Over Capacity', color: 'text-white bg-red-600' } :
+                        occupancyRate < 0.6 ? { text: 'Great Availability', color: 'text-green-600 bg-green-100' } :
+                        occupancyRate < 0.8 ? { text: 'Limited Spots', color: 'text-yellow-600 bg-yellow-100' } :
+                        { text: 'Almost Full', color: 'text-red-600 bg-red-100' };
 
     return (
       <div className="bg-white rounded-2xl overflow-hidden shadow-lg border border-gray-100 hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
@@ -127,17 +139,12 @@ export default function TouristDestinations() {
         <div className="h-56 bg-gradient-to-br from-green-400 via-blue-500 to-purple-600 relative">
           <div className="absolute inset-0 bg-black bg-opacity-20"></div>
           <div className="absolute top-4 right-4 flex space-x-2">
-            <button className="bg-white bg-opacity-90 rounded-full p-2 hover:bg-opacity-100 transition-all">
+            <button className="bg-white bg-opacity-90 rounded-full p-2 hover:bg-opacity-100 transition-all shadow-sm">
               <Heart className="h-4 w-4 text-gray-600" />
-            </button>
-            <button className="bg-white bg-opacity-90 rounded-full p-2 hover:bg-opacity-100 transition-all">
-              <Camera className="h-4 w-4 text-gray-600" />
             </button>
           </div>
           <div className="absolute bottom-4 left-4">
-            <div
-              className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${availability.color}`}
-            >
+            <div className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${availability.color} shadow-sm`}>
               {availability.text}
             </div>
           </div>
@@ -158,65 +165,54 @@ export default function TouristDestinations() {
             <div className="text-right">
               <div className="flex items-center space-x-1 mb-1">
                 <Star className="h-4 w-4 text-yellow-400 fill-current" />
-                <span className="text-sm font-medium">
-                  4.{Math.floor(Math.random() * 5) + 3}
-                </span>
+                <span className="text-sm font-medium">4.5</span>
               </div>
-              <span className="text-xs text-gray-500">
-                {getEcoSensitivityIcon(destination.ecologicalSensitivity)}{" "}
-                Eco-friendly
-              </span>
             </div>
           </div>
 
           {/* Description */}
-          <p className="text-gray-600 text-sm mb-4 line-clamp-3">
+          <p className="text-gray-600 text-sm mb-4 line-clamp-2">
             {destination.description}
           </p>
 
           {/* Capacity Info */}
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center text-sm text-gray-500">
-              <Users className="h-4 w-4 mr-1" />
-              <span>
-                {destination.currentOccupancy}/{destination.maxCapacity}{" "}
-                visitors
+          <div className="flex flex-col space-y-2 mb-4">
+            <div className="flex items-center justify-between text-sm">
+              <div className="flex items-center text-gray-500">
+                <Users className="h-4 w-4 mr-1" />
+                <span>{destination.currentOccupancy}/{adjustedCapacity}</span>
+              </div>
+              <span className={`font-medium ${
+                isOverCapacity ? 'text-red-700 font-bold' :
+                occupancyRate < 0.6 ? 'text-green-600' :
+                occupancyRate < 0.8 ? 'text-yellow-600' : 'text-red-600'
+              }`}>
+                {isOverCapacity ? 'Over Capacity' : `${Math.round(occupancyRate * 100)}% Full`}
               </span>
             </div>
-            <div className="w-24 h-2 bg-gray-200 rounded-full overflow-hidden">
-              <div
-                className={`h-full transition-all ${
-                  destination.currentOccupancy / destination.maxCapacity < 0.6
-                    ? "bg-green-500"
-                    : destination.currentOccupancy / destination.maxCapacity <
-                      0.8
-                    ? "bg-yellow-500"
-                    : "bg-red-500"
+            <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
+              <div 
+                className={`h-full transition-all duration-500 ${
+                  occupancyRate < 0.6 ? 'bg-green-500' :
+                  occupancyRate < 0.8 ? 'bg-yellow-500' : 'bg-red-500'
                 }`}
-                style={{
-                  width: `${
-                    (destination.currentOccupancy / destination.maxCapacity) *
-                    100
-                  }%`,
-                }}
+                style={{ width: `${Math.min(100, occupancyRate * 100)}%` }}
               ></div>
             </div>
           </div>
 
           {/* Action Buttons */}
           <div className="flex space-x-3">
-            <button
-              onClick={() =>
-                (window.location.href = `/tourist/book?destination=${destination.id}`)
-              }
-              className="flex-1 bg-gradient-to-r from-green-600 to-blue-600 text-white py-3 px-4 rounded-xl font-medium hover:from-green-700 hover:to-blue-700 transition-colors flex items-center justify-center"
+            <button 
+              onClick={() => window.location.href = `/tourist/book?destination=${destination.id}`}
+              className="flex-1 bg-gradient-to-r from-green-600 to-blue-600 text-white py-3 px-4 rounded-xl font-medium hover:from-green-700 hover:to-blue-700 transition-all hover:shadow-md active:scale-95 flex items-center justify-center"
             >
               <Calendar className="h-4 w-4 mr-2" />
               Book Now
             </button>
             <button className="flex-1 border border-gray-300 text-gray-700 py-3 px-4 rounded-xl font-medium hover:bg-gray-50 transition-colors flex items-center justify-center">
               <Navigation className="h-4 w-4 mr-2" />
-              Get Directions
+              Directions
             </button>
           </div>
         </div>

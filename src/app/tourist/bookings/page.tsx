@@ -8,10 +8,10 @@ import {
   Clock, 
   Users, 
   Phone, 
-  Mail,
-  CreditCard,
-  CheckCircle,
-  XCircle,
+  Mail, 
+  CreditCard, 
+  CheckCircle, 
+  XCircle, 
   AlertCircle,
   Eye,
   Edit,
@@ -51,7 +51,7 @@ interface Booking {
   image: string;
 }
 
-export default function MyBookings() {
+export default function TouristBookings() {
   const [activeTab, setActiveTab] = useState<string>('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState<string>('date');
@@ -269,20 +269,20 @@ export default function MyBookings() {
                 placeholder="Search bookings..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900"
               />
             </div>
             <div className="flex gap-3">
               <select
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value)}
-                className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 bg-white"
               >
                 <option value="date">Sort by Date</option>
                 <option value="amount">Sort by Amount</option>
                 <option value="name">Sort by Name</option>
               </select>
-              <button className="flex items-center px-4 py-2 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50">
+              <button className="flex items-center px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
                 <Filter className="h-4 w-4 mr-2" />
                 Filter
               </button>
@@ -402,8 +402,8 @@ export default function MyBookings() {
 
         {/* Booking Details Modal */}
         {selectedBooking && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+          <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-300">
+            <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto transform animate-in zoom-in-95 duration-300">
               <div className="p-6">
                 <div className="flex items-center justify-between mb-6">
                   <h2 className="text-2xl font-bold text-gray-900">Booking Details</h2>

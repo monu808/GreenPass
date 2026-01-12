@@ -67,6 +67,7 @@ export interface DashboardStats {
   totalTourists: number;
   currentOccupancy: number;
   maxCapacity: number;
+  adjustedMaxCapacity: number;
   pendingApprovals: number;
   todayCheckIns: number;
   todayCheckOuts: number;

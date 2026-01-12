@@ -86,7 +86,7 @@ function BookDestinationForm() {
     } finally {
       setLoading(false);
     }
-  }, [destinationId]);
+  };
 
   const checkEligibility = async (size: number) => {
     if (!destination) return;

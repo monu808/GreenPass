@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { MapPin, Star, Users, Heart, Camera, Calendar, Navigation } from 'lucide-react';
 import TouristLayout from '@/components/TouristLayout';
 import { dbService } from '@/lib/databaseService';
@@ -17,35 +17,6 @@ export default function TouristDestinations() {
   const [selectedFilter, setSelectedFilter] = useState<
     "all" | "available" | "popular"
   >("all");
-
-  const filterDestinations = useCallback(() => {
-    let filtered = destinations;
-
-    // Apply search filter
-    if (searchTerm) {
-      filtered = filtered.filter(
-        (dest) =>
-          dest.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          dest.location.toLowerCase().includes(searchTerm.toLowerCase())
-      );
-    }
-
-    // Apply category filter
-    switch (selectedFilter) {
-      case "available":
-        filtered = filtered.filter(
-          (dest) => dest.currentOccupancy < dest.maxCapacity * 0.8
-        );
-        break;
-      case "popular":
-        filtered = filtered.filter(
-          (dest) => dest.currentOccupancy > dest.maxCapacity * 0.5
-        );
-        break;
-    }
-
-    setFilteredDestinations(filtered);
-  }, [destinations, searchTerm, selectedFilter]);
 
   const loadDestinations = async () => {
     try {
@@ -75,7 +46,7 @@ export default function TouristDestinations() {
     }
   };
 
-  const filterDestinations = () => {
+  const filterDestinations = useCallback(() => {
     let filtered = destinations;
 
     // Apply search filter
@@ -101,6 +72,9 @@ export default function TouristDestinations() {
         });
         break;
     }
+
+    setFilteredDestinations(filtered);
+  }, [destinations, searchTerm, selectedFilter]);
 
   useEffect(() => {
     filterDestinations();

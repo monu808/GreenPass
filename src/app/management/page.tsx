@@ -618,9 +618,9 @@ export default function TouristBookingManagement() {
                 <option value="all">All Status</option>
                 <option value="pending">Pending</option>
                 <option value="approved">Approved</option>
-                <option value="rejected">Cancelled</option>
-                <option value="checked_in">Checked In</option>
-                <option value="checked_out">Checked Out</option>
+                <option value="cancelled">Cancelled</option>
+                <option value="checked-in">Checked In</option>
+                <option value="checked-out">Checked Out</option>
               </select>
 
               <select

@@ -1,5 +1,6 @@
 'use client';
 
+
 import React, { useState, useEffect, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { Calendar, Users, MapPin, Clock, Star, AlertTriangle, CheckCircle } from 'lucide-react';
@@ -8,17 +9,18 @@ import { dbService } from '@/lib/databaseService';
 import { useAuth } from '@/contexts/AuthContext';
 import { Destination } from '@/types';
 
+
 function BookDestinationForm() {
   const { user } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
   const destinationId = searchParams.get('destination');
-  
+
+
   const [destination, setDestination] = useState<Destination | null>(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
-  
   const [formData, setFormData] = useState({
     name: user?.user_metadata?.name || user?.email || '',
     email: user?.email || '',
@@ -35,6 +37,8 @@ function BookDestinationForm() {
     },
     specialRequests: ''
   });
+  const [dateError, setDateError] = useState<string | null>(null);
+
 
   useEffect(() => {
     if (destinationId) {
@@ -42,11 +46,12 @@ function BookDestinationForm() {
     }
   }, [destinationId]);
 
+
   const loadDestination = async () => {
     try {
       const destinations = await dbService.getDestinations();
       const found = destinations.find(d => d.id === destinationId);
-      
+     
       if (found) {
         setDestination({
           id: found.id,
@@ -71,9 +76,9 @@ function BookDestinationForm() {
     }
   };
 
+
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
-    
     if (name.startsWith('emergencyContact.')) {
       const field = name.split('.')[1];
       setFormData(prev => ({
@@ -89,37 +94,61 @@ function BookDestinationForm() {
         [name]: value
       }));
     }
+
+
+    // Date validation on change
+    if (name === 'checkInDate' || name === 'checkOutDate') {
+      const checkIn = name === 'checkInDate' ? value : (name === 'checkOutDate' ? formData.checkInDate : '');
+      const checkOut = name === 'checkOutDate' ? value : (name === 'checkInDate' ? formData.checkOutDate : '');
+      if (checkIn && checkOut) {
+        if (checkIn >= checkOut) {
+          setDateError('Check-in date must be before check-out date.');
+        } else {
+          setDateError(null);
+        }
+      } else {
+        setDateError(null);
+      }
+    }
   };
+
 
   const validateForm = () => {
     const required = ['name', 'email', 'phone', 'nationality', 'idProof', 'checkInDate', 'checkOutDate'];
     const emergencyRequired = ['name', 'phone', 'relationship'];
-    
     for (const field of required) {
       if (!formData[field as keyof typeof formData]) {
         return false;
       }
     }
-    
     for (const field of emergencyRequired) {
       if (!formData.emergencyContact[field as keyof typeof formData.emergencyContact]) {
         return false;
       }
     }
-    
+    // Date validation
+    if (formData.checkInDate && formData.checkOutDate) {
+      if (formData.checkInDate >= formData.checkOutDate) {
+        setDateError('Check-in date must be before check-out date.');
+        return false;
+      }
+    }
+    setDateError(null);
     return true;
   };
 
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
     if (!validateForm() || !destination) {
+      if (dateError) {
+        // Already set by validateForm
+        return;
+      }
       alert('Please fill in all required fields');
       return;
     }
-    
     setSubmitting(true);
-    
     try {
       const bookingData = {
         name: formData.name,
@@ -144,21 +173,16 @@ function BookDestinationForm() {
         pin_code: '', // Default empty pin code, consider collecting this in the form
         id_proof_type: 'aadhaar' as const // Default ID proof type, consider deriving from idProof or adding a selector
       };
-      
       console.log('Submitting booking data:', bookingData);
       console.log('Destination:', destination);
-      
       const result = await dbService.addTourist(bookingData);
-      
       if (!result) {
         throw new Error('Failed to create booking - no result returned');
       }
-      
       setShowSuccess(true);
       setTimeout(() => {
         router.push('/tourist/bookings');
       }, 3000);
-      
     } catch (error) {
       console.error('Error submitting booking:', error);
       alert('Failed to submit booking. Please try again.');
@@ -167,9 +191,10 @@ function BookDestinationForm() {
     }
   };
 
+
   const getAvailabilityStatus = () => {
     if (!destination) return { text: '', color: '' };
-    
+   
     const available = destination.maxCapacity - destination.currentOccupancy;
     if (available > destination.maxCapacity * 0.3) {
       return { text: 'Great Availability', color: 'text-green-600' };
@@ -179,6 +204,7 @@ function BookDestinationForm() {
       return { text: 'Fully Booked', color: 'text-red-600' };
     }
   };
+
 
   if (loading) {
     return (
@@ -190,12 +216,13 @@ function BookDestinationForm() {
     );
   }
 
+
   if (!destination) {
     return (
       <TouristLayout>
         <div className="text-center py-12">
           <h2 className="text-2xl font-bold text-gray-900 mb-4">Destination Not Found</h2>
-          <button 
+          <button
             onClick={() => router.push('/tourist/destinations')}
             className="bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700"
           >
@@ -205,6 +232,7 @@ function BookDestinationForm() {
       </TouristLayout>
     );
   }
+
 
   if (showSuccess) {
     return (
@@ -223,7 +251,9 @@ function BookDestinationForm() {
     );
   }
 
+
   const availability = getAvailabilityStatus();
+
 
   return (
     <TouristLayout>
@@ -248,7 +278,7 @@ function BookDestinationForm() {
               </span>
             </div>
           </div>
-          
+         
           <div className="mt-4 p-4 bg-blue-50 rounded-lg">
             <div className="flex items-center">
               <Users className="h-5 w-5 text-blue-600 mr-2" />
@@ -259,15 +289,16 @@ function BookDestinationForm() {
           </div>
         </div>
 
+
         {/* Booking Form */}
         <form onSubmit={handleSubmit} className="space-y-8">
           {/* Personal Information */}
           <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
             <h3 className="text-xl font-semibold text-gray-900 mb-6">Personal Information</h3>
-            
+           
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2 ">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
                   Full Name *
                 </label>
                 <input
@@ -276,10 +307,11 @@ function BookDestinationForm() {
                   value={formData.name}
                   onChange={handleInputChange}
                   required
+                  placeholder="Full Name"
                   className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-gray-900"
                 />
               </div>
-              
+             
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Email Address *
@@ -290,10 +322,11 @@ function BookDestinationForm() {
                   value={formData.email}
                   onChange={handleInputChange}
                   required
+                  placeholder="Email Address"
                   className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-gray-900"
                 />
               </div>
-              
+             
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Phone Number *
@@ -304,10 +337,11 @@ function BookDestinationForm() {
                   value={formData.phone}
                   onChange={handleInputChange}
                   required
+                  placeholder="Phone Number"
                   className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-gray-900"
                 />
               </div>
-              
+             
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Nationality *
@@ -318,10 +352,10 @@ function BookDestinationForm() {
                   value={formData.nationality}
                   onChange={handleInputChange}
                   required
+                  placeholder="Nationality"
                   className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-gray-900"
                 />
               </div>
-              
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   ID Proof Number *
@@ -336,7 +370,7 @@ function BookDestinationForm() {
                   className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-gray-900"
                 />
               </div>
-              
+             
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Group Size *
@@ -356,10 +390,10 @@ function BookDestinationForm() {
             </div>
           </div>
 
+
           {/* Travel Dates */}
           <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
             <h3 className="text-xl font-semibold text-gray-900 mb-6">Travel Dates</h3>
-            
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -372,10 +406,10 @@ function BookDestinationForm() {
                   onChange={handleInputChange}
                   required
                   min={new Date().toISOString().split('T')[0]}
+                  max={formData.checkOutDate ? formData.checkOutDate : undefined}
                   className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-gray-900"
                 />
               </div>
-              
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Check-out Date *
@@ -387,16 +421,22 @@ function BookDestinationForm() {
                   onChange={handleInputChange}
                   required
                   min={formData.checkInDate || new Date().toISOString().split('T')[0]}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-gray-900"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent  text-gray-900"
                 />
               </div>
             </div>
+            {dateError && (
+              <div className="mt-4 text-red-600 text-sm font-medium">
+                {dateError}
+              </div>
+            )}
           </div>
+
 
           {/* Emergency Contact */}
           <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
             <h3 className="text-xl font-semibold text-gray-900 mb-6">Emergency Contact</h3>
-            
+           
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -408,10 +448,11 @@ function BookDestinationForm() {
                   value={formData.emergencyContact.name}
                   onChange={handleInputChange}
                   required
+                  placeholder="Contact Name"
                   className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-gray-900"
                 />
               </div>
-              
+             
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Contact Phone *
@@ -422,10 +463,11 @@ function BookDestinationForm() {
                   value={formData.emergencyContact.phone}
                   onChange={handleInputChange}
                   required
+                  placeholder="Contact Phone"
                   className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-gray-900"
                 />
               </div>
-              
+             
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Relationship *
@@ -449,10 +491,11 @@ function BookDestinationForm() {
             </div>
           </div>
 
+
           {/* Special Requests */}
           <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
             <h3 className="text-xl font-semibold text-gray-900 mb-6">Special Requests (Optional)</h3>
-            
+           
             <textarea
               name="specialRequests"
               value={formData.specialRequests}
@@ -462,6 +505,7 @@ function BookDestinationForm() {
               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-gray-900"
             />
           </div>
+
 
           {/* Guidelines */}
           <div className="bg-yellow-50 rounded-2xl p-6 border border-yellow-200">
@@ -481,6 +525,7 @@ function BookDestinationForm() {
             </div>
           </div>
 
+
           {/* Submit Button */}
           <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
             <div className="flex items-center justify-between">
@@ -489,7 +534,7 @@ function BookDestinationForm() {
                   By submitting this form, you agree to follow all destination guidelines and regulations.
                 </p>
               </div>
-              
+             
               <button
                 type="submit"
                 disabled={submitting}
@@ -515,6 +560,7 @@ function BookDestinationForm() {
     </TouristLayout>
   );
 }
+
 
 export default function BookDestination() {
   return (

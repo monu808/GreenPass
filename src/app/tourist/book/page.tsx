@@ -267,7 +267,7 @@ function BookDestinationForm() {
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-gray-700 mb-2 ">
                   Full Name *
                 </label>
                 <input
@@ -276,7 +276,7 @@ function BookDestinationForm() {
                   value={formData.name}
                   onChange={handleInputChange}
                   required
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-gray-900"
                 />
               </div>
               
@@ -290,7 +290,7 @@ function BookDestinationForm() {
                   value={formData.email}
                   onChange={handleInputChange}
                   required
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-gray-900"
                 />
               </div>
               
@@ -304,7 +304,7 @@ function BookDestinationForm() {
                   value={formData.phone}
                   onChange={handleInputChange}
                   required
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-gray-900"
                 />
               </div>
               
@@ -318,7 +318,7 @@ function BookDestinationForm() {
                   value={formData.nationality}
                   onChange={handleInputChange}
                   required
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-gray-900"
                 />
               </div>
               
@@ -333,7 +333,7 @@ function BookDestinationForm() {
                   onChange={handleInputChange}
                   required
                   placeholder="Passport/Aadhar/Driving License"
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-gray-900"
                 />
               </div>
               
@@ -346,7 +346,7 @@ function BookDestinationForm() {
                   value={formData.groupSize}
                   onChange={handleInputChange}
                   required
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-gray-900"
                 >
                   {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(size => (
                     <option key={size} value={size}>{size} {size === 1 ? 'Person' : 'People'}</option>
@@ -372,7 +372,7 @@ function BookDestinationForm() {
                   onChange={handleInputChange}
                   required
                   min={new Date().toISOString().split('T')[0]}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-gray-900"
                 />
               </div>
               
@@ -387,7 +387,7 @@ function BookDestinationForm() {
                   onChange={handleInputChange}
                   required
                   min={formData.checkInDate || new Date().toISOString().split('T')[0]}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-gray-900"
                 />
               </div>
             </div>
@@ -408,7 +408,7 @@ function BookDestinationForm() {
                   value={formData.emergencyContact.name}
                   onChange={handleInputChange}
                   required
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-gray-900"
                 />
               </div>
               
@@ -422,7 +422,7 @@ function BookDestinationForm() {
                   value={formData.emergencyContact.phone}
                   onChange={handleInputChange}
                   required
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-gray-900"
                 />
               </div>
               
@@ -435,7 +435,7 @@ function BookDestinationForm() {
                   value={formData.emergencyContact.relationship}
                   onChange={handleInputChange}
                   required
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-gray-900"
                 >
                   <option value="">Select Relationship</option>
                   <option value="spouse">Spouse</option>
@@ -459,7 +459,7 @@ function BookDestinationForm() {
               onChange={handleInputChange}
               rows={4}
               placeholder="Any special requirements, dietary restrictions, accessibility needs, etc."
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-gray-900"
             />
           </div>
 

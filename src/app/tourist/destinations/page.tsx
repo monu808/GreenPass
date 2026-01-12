@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { MapPin, Star, Users, Heart, Camera, Calendar, Navigation } from 'lucide-react';
 import TouristLayout from '@/components/TouristLayout';
 import { dbService } from '@/lib/databaseService';
+import { policyEngine } from '@/lib/ecologicalPolicyEngine';
 import { Destination } from '@/types';
 
 export default function TouristDestinations() {
@@ -63,10 +64,16 @@ export default function TouristDestinations() {
     // Apply category filter
     switch (selectedFilter) {
       case 'available':
-        filtered = filtered.filter(dest => dest.currentOccupancy < dest.maxCapacity * 0.8);
+        filtered = filtered.filter(dest => {
+          const adjustedCapacity = policyEngine.getAdjustedCapacity(dest);
+          return dest.currentOccupancy < adjustedCapacity * 0.8;
+        });
         break;
       case 'popular':
-        filtered = filtered.filter(dest => dest.currentOccupancy > dest.maxCapacity * 0.5);
+        filtered = filtered.filter(dest => {
+          const adjustedCapacity = policyEngine.getAdjustedCapacity(dest);
+          return dest.currentOccupancy > adjustedCapacity * 0.5;
+        });
         break;
     }
 
@@ -92,8 +99,11 @@ export default function TouristDestinations() {
   };
 
   const DestinationCard = ({ destination }: { destination: Destination }) => {
-    const occupancyRate = destination.currentOccupancy / destination.maxCapacity;
-    const availability = occupancyRate < 0.6 ? { text: 'Great Availability', color: 'text-green-600 bg-green-100' } :
+    const adjustedCapacity = policyEngine.getAdjustedCapacity(destination);
+    const occupancyRate = destination.currentOccupancy / adjustedCapacity;
+    const isOverCapacity = occupancyRate > 1;
+    const availability = isOverCapacity ? { text: 'Over Capacity', color: 'text-white bg-red-600' } :
+                        occupancyRate < 0.6 ? { text: 'Great Availability', color: 'text-green-600 bg-green-100' } :
                         occupancyRate < 0.8 ? { text: 'Limited Spots', color: 'text-yellow-600 bg-yellow-100' } :
                         { text: 'Almost Full', color: 'text-red-600 bg-red-100' };
 
@@ -142,13 +152,14 @@ export default function TouristDestinations() {
             <div className="flex items-center justify-between text-sm">
               <div className="flex items-center text-gray-500">
                 <Users className="h-4 w-4 mr-1" />
-                <span>{destination.currentOccupancy}/{destination.maxCapacity}</span>
+                <span>{destination.currentOccupancy}/{adjustedCapacity}</span>
               </div>
               <span className={`font-medium ${
+                isOverCapacity ? 'text-red-700 font-bold' :
                 occupancyRate < 0.6 ? 'text-green-600' :
                 occupancyRate < 0.8 ? 'text-yellow-600' : 'text-red-600'
               }`}>
-                {Math.round(occupancyRate * 100)}% Full
+                {isOverCapacity ? 'Over Capacity' : `${Math.round(occupancyRate * 100)}% Full`}
               </span>
             </div>
             <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">

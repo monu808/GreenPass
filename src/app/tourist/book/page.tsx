@@ -40,6 +40,7 @@ function BookDestinationForm() {
     specialRequests: '',
     acknowledged: false
   });
+  const [errors, setErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
     if (destinationId) {
@@ -112,35 +113,43 @@ function BookDestinationForm() {
         [name]: type === 'checkbox' ? checked : value
       }));
     }
+    // Clear error for the field being edited
+    if (errors[name]) {
+      setErrors(prev => {
+        const newErrors = { ...prev };
+        delete newErrors[name];
+        return newErrors;
+      });
+    }
   };
 
   const validateForm = () => {
+    const newErrors: Record<string, string> = {};
     const required = ['name', 'email', 'phone', 'nationality', 'idProof', 'checkInDate', 'checkOutDate'];
-    const emergencyRequired = ['name', 'phone', 'relationship'];
     
     for (const field of required) {
       if (!formData[field as keyof typeof formData]) {
-        return false;
+        newErrors[field] = 'This field is required';
       }
     }
     
-    for (const field of emergencyRequired) {
-      if (!formData.emergencyContact[field as keyof typeof formData.emergencyContact]) {
-        return false;
-      }
-    }
+    if (!formData.emergencyContact.name) newErrors['emergencyContact.name'] = 'Name is required';
+    if (!formData.emergencyContact.phone) newErrors['emergencyContact.phone'] = 'Phone is required';
+    if (!formData.emergencyContact.relationship) newErrors['emergencyContact.relationship'] = 'Relationship is required';
 
     // Sensitivity-specific validation
+    const policy = destination ? policyEngine.getPolicy(destination.ecologicalSensitivity) : null;
     if (destination && (destination.ecologicalSensitivity === 'high' || destination.ecologicalSensitivity === 'critical')) {
       if (policy?.requiresPermit && !formData.ecoPermitNumber) {
-        return false;
+        newErrors['ecoPermitNumber'] = `An ecological permit is required for ${destination.ecologicalSensitivity} sensitivity areas.`;
       }
       if (policy?.requiresEcoBriefing && !formData.acknowledged) {
-        return false;
+        newErrors['acknowledged'] = 'You must acknowledge the ecological briefing.';
       }
     }
     
-    return true;
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -298,7 +307,7 @@ function BookDestinationForm() {
                 <div className="flex items-center px-4 py-2 bg-blue-50 text-blue-700 rounded-xl border border-blue-100">
                   <Users className="h-5 w-5 mr-2" />
                   <span className="font-semibold">
-                    {policyEngine.getAvailableSpots(destination)} spots available (adjusted for sensitivity)
+                    {policyEngine.getAvailableSpots(destination)} / {destination.maxCapacity} spots free (ecological limit)
                   </span>
                 </div>
               </div>
@@ -406,8 +415,9 @@ function BookDestinationForm() {
                   value={formData.name}
                   onChange={handleInputChange}
                   required
-                  className="w-full px-4 py-4 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all outline-none text-gray-900"
+                  className={`w-full px-4 py-4 bg-white border ${errors.name ? 'border-red-500' : 'border-gray-200'} rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all outline-none text-gray-900`}
                 />
+                {errors.name && <p className="text-xs text-red-500 font-bold mt-1">{errors.name}</p>}
               </div>
               
               <div className="space-y-2">
@@ -418,8 +428,9 @@ function BookDestinationForm() {
                   value={formData.email}
                   onChange={handleInputChange}
                   required
-                  className="w-full px-4 py-4 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all outline-none text-gray-900"
+                  className={`w-full px-4 py-4 bg-white border ${errors.email ? 'border-red-500' : 'border-gray-200'} rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all outline-none text-gray-900`}
                 />
+                {errors.email && <p className="text-xs text-red-500 font-bold mt-1">{errors.email}</p>}
               </div>
               
               <div className="space-y-2">
@@ -430,8 +441,9 @@ function BookDestinationForm() {
                   value={formData.phone}
                   onChange={handleInputChange}
                   required
-                  className="w-full px-4 py-4 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all outline-none text-gray-900"
+                  className={`w-full px-4 py-4 bg-white border ${errors.phone ? 'border-red-500' : 'border-gray-200'} rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all outline-none text-gray-900`}
                 />
+                {errors.phone && <p className="text-xs text-red-500 font-bold mt-1">{errors.phone}</p>}
               </div>
               
               <div className="space-y-2">
@@ -442,8 +454,9 @@ function BookDestinationForm() {
                   value={formData.nationality}
                   onChange={handleInputChange}
                   required
-                  className="w-full px-4 py-4 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all outline-none text-gray-900"
+                  className={`w-full px-4 py-4 bg-white border ${errors.nationality ? 'border-red-500' : 'border-gray-200'} rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all outline-none text-gray-900`}
                 />
+                {errors.nationality && <p className="text-xs text-red-500 font-bold mt-1">{errors.nationality}</p>}
               </div>
               
               <div className="space-y-2">
@@ -455,8 +468,9 @@ function BookDestinationForm() {
                   onChange={handleInputChange}
                   required
                   placeholder="Passport/Aadhar/Driving License"
-                  className="w-full px-4 py-4 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all outline-none placeholder:text-gray-300 text-gray-900"
+                  className={`w-full px-4 py-4 bg-white border ${errors.idProof ? 'border-red-500' : 'border-gray-200'} rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all outline-none placeholder:text-gray-300 text-gray-900`}
                 />
+                {errors.idProof && <p className="text-xs text-red-500 font-bold mt-1">{errors.idProof}</p>}
               </div>
 
               {(destination.ecologicalSensitivity === 'high' || destination.ecologicalSensitivity === 'critical') && policy?.requiresPermit && (
@@ -469,9 +483,13 @@ function BookDestinationForm() {
                     onChange={handleInputChange}
                     required
                     placeholder="Enter your pre-obtained permit number"
-                    className="w-full px-4 py-4 bg-orange-50/30 border border-orange-200 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all outline-none placeholder:text-gray-300 text-gray-900"
+                    className={`w-full px-4 py-4 bg-orange-50/30 border ${errors.ecoPermitNumber ? 'border-red-500' : 'border-orange-200'} rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all outline-none placeholder:text-gray-300 text-gray-900`}
                   />
-                  <p className="text-[10px] font-bold text-orange-600 ml-1 uppercase tracking-wider">Required for {destination.ecologicalSensitivity} sensitivity areas.</p>
+                  {errors.ecoPermitNumber ? (
+                    <p className="text-xs text-red-500 font-bold mt-1">{errors.ecoPermitNumber}</p>
+                  ) : (
+                    <p className="text-[10px] font-bold text-orange-600 ml-1 uppercase tracking-wider">Required for {destination.ecologicalSensitivity} sensitivity areas.</p>
+                  )}
                 </div>
               )}
               
@@ -542,8 +560,9 @@ function BookDestinationForm() {
                   value={formData.emergencyContact.name}
                   onChange={handleInputChange}
                   required
-                  className="w-full px-4 py-4 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all outline-none text-gray-900"
+                  className={`w-full px-4 py-4 bg-white border ${errors['emergencyContact.name'] ? 'border-red-500' : 'border-gray-200'} rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all outline-none text-gray-900`}
                 />
+                {errors['emergencyContact.name'] && <p className="text-xs text-red-500 font-bold mt-1">{errors['emergencyContact.name']}</p>}
               </div>
               
               <div className="space-y-2">
@@ -554,8 +573,9 @@ function BookDestinationForm() {
                   value={formData.emergencyContact.phone}
                   onChange={handleInputChange}
                   required
-                  className="w-full px-4 py-4 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all outline-none text-gray-900"
+                  className={`w-full px-4 py-4 bg-white border ${errors['emergencyContact.phone'] ? 'border-red-500' : 'border-gray-200'} rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all outline-none text-gray-900`}
                 />
+                {errors['emergencyContact.phone'] && <p className="text-xs text-red-500 font-bold mt-1">{errors['emergencyContact.phone']}</p>}
               </div>
               
               <div className="space-y-2">
@@ -565,7 +585,7 @@ function BookDestinationForm() {
                   value={formData.emergencyContact.relationship}
                   onChange={handleInputChange}
                   required
-                  className="w-full px-4 py-4 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all outline-none appearance-none text-gray-900"
+                  className={`w-full px-4 py-4 bg-white border ${errors['emergencyContact.relationship'] ? 'border-red-500' : 'border-gray-200'} rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all outline-none appearance-none text-gray-900`}
                 >
                   <option value="">Select Relationship</option>
                   <option value="parent">Parent</option>
@@ -574,6 +594,7 @@ function BookDestinationForm() {
                   <option value="friend">Friend</option>
                   <option value="other">Other</option>
                 </select>
+                {errors['emergencyContact.relationship'] && <p className="text-xs text-red-500 font-bold mt-1">{errors['emergencyContact.relationship']}</p>}
               </div>
             </div>
           </div>

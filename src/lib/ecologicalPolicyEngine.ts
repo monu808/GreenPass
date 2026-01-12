@@ -102,13 +102,18 @@ class EcologicalPolicyEngine {
 
   getAdjustedCapacity(destination: Destination): number {
     const policy = this.getPolicy(destination.ecologicalSensitivity);
-    return Math.floor(destination.maxCapacity * policy.capacityMultiplier);
+    // The user wants the total capacity to remain the same, 
+    // but the available spots to be restricted.
+    // Adjusted capacity is the maximum allowed total occupancy.
+    // We calculate it as: current occupancy + (remaining physical capacity * multiplier)
+    const remainingPhysical = Math.max(0, destination.maxCapacity - destination.currentOccupancy);
+    return destination.currentOccupancy + Math.floor(remainingPhysical * policy.capacityMultiplier);
   }
 
   getAvailableSpots(destination: Destination): number {
-    const baseAvailable = destination.maxCapacity - destination.currentOccupancy;
     const policy = this.getPolicy(destination.ecologicalSensitivity);
-    return Math.floor(Math.max(0, baseAvailable) * policy.capacityMultiplier);
+    const remainingPhysical = Math.max(0, destination.maxCapacity - destination.currentOccupancy);
+    return Math.floor(remainingPhysical * policy.capacityMultiplier);
   }
 
   isBookingAllowed(destination: Destination, groupSize: number): { allowed: boolean; reason: string | null } {

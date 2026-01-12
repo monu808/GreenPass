@@ -36,12 +36,13 @@ class DatabaseService {
 
       const { data, error } = await query;
 
-      if (error) {
-        console.warn('Development Mode: Database not configured');
-        if (error.message) {
-          console.log('Database error:', error.message);
+      if (error || !data) {
+        if (error) {
+          console.warn('Development Mode: Database not configured');
+          if (error.message) {
+            console.log('Database error:', error.message);
+          }
         }
-        console.log('To use real data, configure Supabase in .env.local');
         return [];
       }
 
@@ -182,7 +183,9 @@ class DatabaseService {
 
   async getDestinationById(id: string): Promise<Destination | null> {
     try {
-      if (!supabase) {
+      const isSupabaseMissing = !process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+      
+      if (!supabase || isSupabaseMissing) {
         const mock = mockDestinations.find(d => d.id === id);
         return mock ? this.transformDbDestinationToDestination(mock as any) : null;
       }
@@ -193,6 +196,12 @@ class DatabaseService {
         .single();
 
       if (error || !data) {
+        // Fallback to mock data on error if in development
+        if (process.env.NODE_ENV === 'development') {
+          console.warn('Falling back to mock destination data due to database error');
+          const mock = mockDestinations.find(d => d.id === id);
+          return mock ? this.transformDbDestinationToDestination(mock as any) : null;
+        }
         console.error('Error fetching destination:', error);
         return null;
       }
@@ -200,13 +209,20 @@ class DatabaseService {
       return this.transformDbDestinationToDestination(data);
     } catch (error) {
       console.error('Error in getDestinationById:', error);
+      // Fallback to mock data on exception if in development
+      if (process.env.NODE_ENV === 'development') {
+        const mock = mockDestinations.find(d => d.id === id);
+        return mock ? this.transformDbDestinationToDestination(mock as any) : null;
+      }
       return null;
     }
   }
 
   async getCurrentOccupancy(destinationId: string): Promise<number> {
     try {
-      if (!supabase) {
+      const isSupabaseMissing = !process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+      
+      if (!supabase || isSupabaseMissing) {
         const mock = mockDestinations.find(d => d.id === destinationId);
         return mock ? mock.current_occupancy : 0;
       }
@@ -216,14 +232,24 @@ class DatabaseService {
         .eq('destination_id', destinationId)
         .eq('status', 'checked-in');
 
-      if (error) {
-        console.error('Error fetching occupancy:', error);
+      if (error || !data) {
+        if (process.env.NODE_ENV === 'development') {
+          const mock = mockDestinations.find(d => d.id === destinationId);
+          return mock ? mock.current_occupancy : 0;
+        }
+        if (error && Object.keys(error).length > 0) {
+          console.error('Error fetching occupancy:', error);
+        }
         return 0;
       }
 
       return (data as any).reduce((total: number, tourist: any) => total + tourist.group_size, 0);
     } catch (error) {
       console.error('Error in getCurrentOccupancy:', error);
+      if (process.env.NODE_ENV === 'development') {
+        const mock = mockDestinations.find(d => d.id === destinationId);
+        return mock ? mock.current_occupancy : 0;
+      }
       return 0;
     }
   }
@@ -274,8 +300,10 @@ class DatabaseService {
 
         const { data, error } = await query;
 
-        if (error) {
-          console.error('Error fetching alerts:', error);
+        if (error || !data) {
+          if (error && Object.keys(error).length > 0) {
+            console.error('Error fetching alerts:', error);
+          }
           console.warn('Falling back to mock data for development...');
           const mockFilteredAlerts = destinationId 
             ? mockAlerts.filter(alert => alert.destination_id === destinationId)
@@ -295,11 +323,15 @@ class DatabaseService {
       destinationsToProcess.forEach(dest => {
         const ecoAlert = policyEngine.generateEcologicalAlerts(this.transformDbDestinationToDestination(dest as any));
         if (ecoAlert) {
-          alerts.unshift({
-            ...ecoAlert,
-            id: `eco-${dest.id}`,
-            timestamp: new Date(),
-          } as Alert);
+          const alertId = `eco-${dest.id}`;
+          // Avoid duplication if an alert with this ID already exists
+          if (!alerts.some(a => a.id === alertId)) {
+            alerts.unshift({
+              ...ecoAlert,
+              id: alertId,
+              timestamp: new Date(),
+            } as Alert);
+          }
         }
       });
 
@@ -387,7 +419,8 @@ class DatabaseService {
         this.getAlerts(),
       ]);
 
-      const totalCapacity = destinations.reduce((sum, dest) => {
+      const physicalMaxCapacity = destinations.reduce((sum, dest) => sum + dest.current_occupancy + Math.max(0, dest.max_capacity - dest.current_occupancy), 0);
+      const adjustedMaxCapacity = destinations.reduce((sum, dest) => {
         const destinationObj = this.transformDbDestinationToDestination(dest as any);
         return sum + policyEngine.getAdjustedCapacity(destinationObj);
       }, 0);
@@ -405,11 +438,12 @@ class DatabaseService {
       return {
         totalTourists: tourists.length,
         currentOccupancy,
-        maxCapacity: totalCapacity,
+        maxCapacity: physicalMaxCapacity,
+        adjustedMaxCapacity,
         pendingApprovals,
         todayCheckIns,
         todayCheckOuts,
-        capacityUtilization: totalCapacity > 0 ? (currentOccupancy / totalCapacity) * 100 : 0,
+        capacityUtilization: adjustedMaxCapacity > 0 ? (currentOccupancy / adjustedMaxCapacity) * 100 : 0,
         alertsCount: alerts.length,
       };
     } catch (error) {

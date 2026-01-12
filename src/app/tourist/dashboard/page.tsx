@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { MapPin, Star, Calendar, Users, Camera, Heart, TrendingUp, Award, ArrowRight, Play, Navigation, Compass } from 'lucide-react';
 import TouristLayout from '@/components/TouristLayout';
 import { dbService } from '@/lib/databaseService';
+import { policyEngine } from '@/lib/ecologicalPolicyEngine';
 import { Destination } from '@/types';
 
 export default function TouristDashboard() {
@@ -38,10 +39,14 @@ export default function TouristDashboard() {
 
       setDestinations(transformedDestinations);
       
-      // Get featured destinations (top 3 with lowest occupancy)
+      // Get featured destinations (top 3 with lowest occupancy rate relative to adjusted capacity)
       const featured = transformedDestinations
         .filter(dest => dest.isActive)
-        .sort((a, b) => (a.currentOccupancy / a.maxCapacity) - (b.currentOccupancy / b.maxCapacity))
+        .sort((a, b) => {
+          const aRate = a.currentOccupancy / policyEngine.getAdjustedCapacity(a);
+          const bRate = b.currentOccupancy / policyEngine.getAdjustedCapacity(b);
+          return aRate - bRate;
+        })
         .slice(0, 3);
       
       setFeaturedDestinations(featured);
@@ -54,14 +59,17 @@ export default function TouristDashboard() {
   };
 
   const getAvailabilityColor = (destination: Destination) => {
-    const occupancyRate = destination.currentOccupancy / destination.maxCapacity;
+    const adjustedCapacity = policyEngine.getAdjustedCapacity(destination);
+    const occupancyRate = destination.currentOccupancy / adjustedCapacity;
     if (occupancyRate < 0.6) return 'text-emerald-600';
     if (occupancyRate < 0.8) return 'text-amber-600';
     return 'text-red-600';
   };
 
   const getAvailabilityText = (destination: Destination) => {
-    const occupancyRate = destination.currentOccupancy / destination.maxCapacity;
+    const adjustedCapacity = policyEngine.getAdjustedCapacity(destination);
+    const occupancyRate = destination.currentOccupancy / adjustedCapacity;
+    if (occupancyRate > 1) return 'Over Capacity';
     if (occupancyRate < 0.6) return 'Available';
     if (occupancyRate < 0.8) return 'Limited';
     return 'Full';

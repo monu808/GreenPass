@@ -26,6 +26,7 @@ export default function AdminDashboard() {
     totalTourists: 0,
     currentOccupancy: 0,
     maxCapacity: 0,
+    adjustedMaxCapacity: 0,
     pendingApprovals: 0,
     todayCheckIns: 0,
     todayCheckOuts: 0,
@@ -227,7 +228,7 @@ export default function AdminDashboard() {
                 value={`${stats.currentOccupancy}/${stats.maxCapacity}`}
                 icon={MapPin}
                 color="bg-green-100 text-green-600"
-                subtitle={`${Math.round(stats.capacityUtilization)}% capacity`}
+                subtitle={`${Math.round(stats.capacityUtilization)}% of ecological limit (${stats.adjustedMaxCapacity})`}
               />
               <StatCard
                 title="Pending Approvals"

@@ -1,9 +1,26 @@
-import React from 'react';
-import { Bell, User, Search, MapPin, Calendar, Heart } from 'lucide-react';
+'use client';
+
+import React, { useState } from 'react';
+import { Bell, User, Search, MapPin, Calendar, Heart, ChevronDown, Key, Settings, UserCircle, Shield, LogOut } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 
 export default function TouristHeader() {
   const { user, signOut } = useAuth();
+  const [showUserMenu, setShowUserMenu] = useState(false);
+  const [showAuthDropdown, setShowAuthDropdown] = useState(false);
+  const router = useRouter();
+
+  const handleSignOut = async () => {
+    await signOut();
+    setShowUserMenu(false);
+    router.push('/login');
+  };
+
+  const toggleAuthDropdown = () => {
+    setShowAuthDropdown(!showAuthDropdown);
+  };
 
   return (
     <header className="fixed top-0 right-0 left-64 bg-white/95 backdrop-blur-sm border-b border-gray-200 z-30 shadow-sm">
@@ -59,44 +76,133 @@ export default function TouristHeader() {
               </p>
               <p className="text-xs text-green-600 font-medium">Adventure Seeker</p>
             </div>
-            <div className="relative group">
-              <button className="p-2 hover:bg-gray-50 rounded-lg transition-all duration-200">
+            <div className="relative">
+              <button 
+                onClick={() => setShowUserMenu(!showUserMenu)}
+                className="flex items-center space-x-2 p-2 hover:bg-gray-50 rounded-lg transition-all duration-200 focus:outline-none"
+              >
                 <div className="h-8 w-8 bg-gradient-to-br from-green-500 to-blue-500 rounded-full flex items-center justify-center shadow-sm">
                   <User className="h-4 w-4 text-white" />
                 </div>
+                <ChevronDown className={`h-4 w-4 text-gray-600 transition-transform ${showUserMenu ? 'rotate-180' : ''}`} />
               </button>
               
               {/* Dropdown Menu */}
-              <div className="absolute right-0 mt-2 w-48 bg-white border border-gray-200 rounded-lg shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 transform translate-y-2 group-hover:translate-y-0">
-                <div className="py-2">
-                  <a href="/tourist/profile" className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">
-                    <User className="h-4 w-4 mr-3" />
-                    My Profile
-                  </a>
-                  <a href="/tourist/bookings" className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">
-                    <Calendar className="h-4 w-4 mr-3" />
-                    My Bookings
-                  </a>
-                  <a href="/tourist/favorites" className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">
-                    <Heart className="h-4 w-4 mr-3" />
-                    Favorites
-                  </a>
-                  <hr className="my-2 border-gray-200" />
-                  <button
-                    onClick={() => signOut()}
-                    className="flex items-center w-full px-4 py-2 text-sm text-red-600 hover:bg-red-50"
-                  >
-                    <svg className="h-4 w-4 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013 3v1" />
-                    </svg>
-                    Sign Out
-                  </button>
+              {showUserMenu && (
+                <div className="absolute right-0 mt-2 w-64 bg-white border border-gray-200 rounded-lg shadow-lg z-50">
+                  <div className="py-2">
+                    {/* User Info */}
+                    <div className="px-4 py-3 border-b border-gray-200">
+                      <p className="text-sm font-medium text-gray-900">
+                        {user?.user_metadata?.name || user?.email || 'Explorer'}
+                      </p>
+                      <p className="text-xs text-gray-500">{user?.email}</p>
+                      <div className="mt-2 inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                        <Shield className="h-3 w-3 mr-1" />
+                        Tourist
+                      </div>
+                    </div>
+
+                    <Link 
+                      href="/tourist/profile" 
+                      className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                      onClick={() => setShowUserMenu(false)}
+                    >
+                      <UserCircle className="h-4 w-4 mr-3" />
+                      My Profile
+                    </Link>
+                    <Link 
+                      href="/tourist/bookings" 
+                      className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                      onClick={() => setShowUserMenu(false)}
+                    >
+                      <Calendar className="h-4 w-4 mr-3" />
+                      My Bookings
+                    </Link>
+                    <Link 
+                      href="/tourist/favorites" 
+                      className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                      onClick={() => setShowUserMenu(false)}
+                    >
+                      <Heart className="h-4 w-4 mr-3" />
+                      Favorites
+                    </Link>
+                    
+                    {/* Authentication Dropdown */}
+                    <div className="relative">
+                      <button
+                        onClick={toggleAuthDropdown}
+                        className="w-full flex items-center justify-between px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                      >
+                        <div className="flex items-center">
+                          <Key className="h-4 w-4 mr-3" />
+                          Authentication
+                        </div>
+                        <ChevronDown className={`h-4 w-4 transition-transform ${showAuthDropdown ? 'rotate-180' : ''}`} />
+                      </button>
+                      
+                      {showAuthDropdown && (
+                        <div className="ml-4 pl-4 border-l border-gray-200">
+                          <Link
+                            href="/settings#change-password"
+                            className="block px-4 py-2 text-sm text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                            onClick={() => setShowUserMenu(false)}
+                          >
+                            Change Password
+                          </Link>
+                          <Link
+                            href="/settings#two-factor"
+                            className="block px-4 py-2 text-sm text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                            onClick={() => setShowUserMenu(false)}
+                          >
+                            Two-Factor Auth
+                          </Link>
+                          <Link
+                            href="/settings#sessions"
+                            className="block px-4 py-2 text-sm text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                            onClick={() => setShowUserMenu(false)}
+                          >
+                            Active Sessions
+                          </Link>
+                        </div>
+                      )}
+                    </div>
+
+                    <Link 
+                      href="/settings" 
+                      className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                      onClick={() => setShowUserMenu(false)}
+                    >
+                      <Settings className="h-4 w-4 mr-3" />
+                      Settings
+                    </Link>
+                    
+                    <hr className="my-2 border-gray-200" />
+                    <button
+                      onClick={handleSignOut}
+                      className="flex items-center w-full px-4 py-2 text-sm text-red-600 hover:bg-red-50"
+                    >
+                      <LogOut className="h-4 w-4 mr-3" />
+                      Sign Out
+                    </button>
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
           </div>
         </div>
       </div>
+
+      {/* Overlay to close dropdown */}
+      {showUserMenu && (
+        <div
+          className="fixed inset-0 z-40"
+          onClick={() => {
+            setShowUserMenu(false);
+            setShowAuthDropdown(false);
+          }}
+        />
+      )}
     </header>
   );
 }

@@ -5,16 +5,22 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import AdminDashboard from '@/components/AdminDashboard';
 import TouristDashboard from '@/app/tourist/dashboard/page';
+import HomePage from '@/app/home/page';
 
-export default function Dashboard() {
+export default function RootPage() {
   const { user, isAdmin, loading } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
-    if (!loading && !user) {
-      router.push('/login');
+    // If user is authenticated, redirect to appropriate dashboard
+    if (!loading && user) {
+      if (isAdmin) {
+        router.push('/dashboard');
+      } else {
+        router.push('/tourist/dashboard');
+      }
     }
-  }, [user, loading, router]);
+  }, [user, loading, isAdmin, router]);
 
   if (loading) {
     return (
@@ -24,14 +30,15 @@ export default function Dashboard() {
     );
   }
 
-  if (!user) {
-    return null;
+  // If user is logged in, show dashboard
+  if (user) {
+    if (isAdmin) {
+      return <AdminDashboard />;
+    } else {
+      return <TouristDashboard />;
+    }
   }
 
-  // Show different dashboards based on user role
-  if (isAdmin) {
-    return <AdminDashboard />;
-  } else {
-    return <TouristDashboard />;
-  }
+  // If not logged in, show home/landing page
+  return <HomePage />;
 }

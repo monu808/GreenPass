@@ -1,0 +1,180 @@
+'use client';
+
+import React from 'react';
+import Link from 'next/link';
+import { Mountain, MapPin, Calendar, Shield, TrendingUp, Leaf } from 'lucide-react';
+
+export default function HomePage() {
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-green-50 via-blue-50 to-green-50">
+      {/* Navigation */}
+      <nav className="bg-white/80 backdrop-blur-sm border-b border-gray-200 fixed w-full z-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center h-16">
+            <div className="flex items-center space-x-3">
+              <div className="p-2 bg-green-600 rounded-lg">
+                <Mountain className="h-6 w-6 text-white" />
+              </div>
+              <div>
+                <h1 className="text-xl font-bold text-gray-900">GreenPass</h1>
+                <p className="text-xs text-gray-600">Tourist Management System</p>
+              </div>
+            </div>
+            <div className="flex items-center space-x-4">
+              <Link
+                href="/login"
+                className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-green-600 transition-colors"
+              >
+                Login
+              </Link>
+              <Link
+                href="/signup"
+                className="px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 transition-colors"
+              >
+                Sign Up
+              </Link>
+            </div>
+          </div>
+        </div>
+      </nav>
+
+      {/* Hero Section */}
+      <div className="pt-32 pb-20 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-7xl mx-auto">
+          <div className="text-center">
+            <h1 className="text-5xl font-bold text-gray-900 mb-6">
+              Explore Paradise Responsibly
+            </h1>
+            <p className="text-xl text-gray-600 mb-8 max-w-3xl mx-auto">
+              Discover the breathtaking beauty of Jammu & Himachal Pradesh with our 
+              sustainable tourism management platform. Book, explore, and protect nature.
+            </p>
+            <div className="flex justify-center space-x-4">
+              <Link
+                href="/login"
+                className="px-8 py-4 text-lg font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 transition-all transform hover:scale-105 shadow-lg"
+              >
+                Get Started
+              </Link>
+              <Link
+                href="#features"
+                className="px-8 py-4 text-lg font-medium text-green-600 bg-white border-2 border-green-600 rounded-lg hover:bg-green-50 transition-all"
+              >
+                Learn More
+              </Link>
+            </div>
+          </div>
+
+          {/* Features Grid */}
+          <div id="features" className="mt-24 grid md:grid-cols-3 gap-8">
+            <div className="bg-white p-8 rounded-xl shadow-lg hover:shadow-xl transition-all">
+              <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center mb-4">
+                <MapPin className="h-6 w-6 text-green-600" />
+              </div>
+              <h3 className="text-xl font-semibold text-gray-900 mb-2">
+                Explore Destinations
+              </h3>
+              <p className="text-gray-600">
+                Discover beautiful locations across Jammu and Himachal Pradesh with 
+                real-time capacity management.
+              </p>
+            </div>
+
+            <div className="bg-white p-8 rounded-xl shadow-lg hover:shadow-xl transition-all">
+              <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center mb-4">
+                <Calendar className="h-6 w-6 text-blue-600" />
+              </div>
+              <h3 className="text-xl font-semibold text-gray-900 mb-2">
+                Easy Booking
+              </h3>
+              <p className="text-gray-600">
+                Book your trips seamlessly with our intelligent booking system that 
+                ensures sustainable tourism.
+              </p>
+            </div>
+
+            <div className="bg-white p-8 rounded-xl shadow-lg hover:shadow-xl transition-all">
+              <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center mb-4">
+                <Leaf className="h-6 w-6 text-purple-600" />
+              </div>
+              <h3 className="text-xl font-semibold text-gray-900 mb-2">
+                Eco-Friendly
+              </h3>
+              <p className="text-gray-600">
+                Contribute to environmental conservation with our ecological sensitivity 
+                tracking system.
+              </p>
+            </div>
+
+            <div className="bg-white p-8 rounded-xl shadow-lg hover:shadow-xl transition-all">
+              <div className="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center mb-4">
+                <Shield className="h-6 w-6 text-orange-600" />
+              </div>
+              <h3 className="text-xl font-semibold text-gray-900 mb-2">
+                Secure & Reliable
+              </h3>
+              <p className="text-gray-600">
+                Your data is protected with enterprise-grade security and reliable 
+                infrastructure.
+              </p>
+            </div>
+
+            <div className="bg-white p-8 rounded-xl shadow-lg hover:shadow-xl transition-all">
+              <div className="w-12 h-12 bg-red-100 rounded-lg flex items-center justify-center mb-4">
+                <TrendingUp className="h-6 w-6 text-red-600" />
+              </div>
+              <h3 className="text-xl font-semibold text-gray-900 mb-2">
+                Real-Time Analytics
+              </h3>
+              <p className="text-gray-600">
+                Monitor tourist flow and capacity in real-time with advanced analytics 
+                and reporting.
+              </p>
+            </div>
+
+            <div className="bg-white p-8 rounded-xl shadow-lg hover:shadow-xl transition-all">
+              <div className="w-12 h-12 bg-teal-100 rounded-lg flex items-center justify-center mb-4">
+                <Mountain className="h-6 w-6 text-teal-600" />
+              </div>
+              <h3 className="text-xl font-semibold text-gray-900 mb-2">
+                Adventure Awaits
+              </h3>
+              <p className="text-gray-600">
+                Plan your perfect mountain adventure with curated activities and 
+                expert guides.
+              </p>
+            </div>
+          </div>
+
+          {/* CTA Section */}
+          <div className="mt-24 bg-gradient-to-r from-green-600 to-blue-600 rounded-2xl p-12 text-center">
+            <h2 className="text-3xl font-bold text-white mb-4">
+              Ready to Start Your Journey?
+            </h2>
+            <p className="text-xl text-green-50 mb-8">
+              Join thousands of travelers exploring responsibly
+            </p>
+            <Link
+              href="/signup"
+              className="inline-block px-8 py-4 text-lg font-medium text-green-600 bg-white rounded-lg hover:bg-gray-50 transition-all transform hover:scale-105 shadow-lg"
+            >
+              Create Free Account
+            </Link>
+          </div>
+        </div>
+      </div>
+
+      {/* Footer */}
+      <footer className="bg-white border-t border-gray-200 py-8">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center text-gray-600">
+          <p className="text-sm">
+            © 2026 GreenPass Tourist Management System. All rights reserved.
+          </p>
+          <p className="text-sm mt-2">
+            Protecting the beauty of Jammu & Himachal Pradesh
+          </p>
+        </div>
+      </footer>
+    </div>
+  );
+}

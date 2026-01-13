@@ -73,6 +73,14 @@ class DatabaseService {
     try {
       if (!supabase) {
         console.log('Using mock addTourist');
+        
+        // Check ecological eligibility before adding (consistent with real DB path)
+        const eligibility = await this.checkBookingEligibility(tourist.destination_id, tourist.group_size);
+        if (!eligibility.allowed) {
+          console.error('Booking blocked by ecological policy:', eligibility.reason);
+          return null;
+        }
+
         const newTourist: Database['public']['Tables']['tourists']['Row'] = {
           id: `mock-tourist-${Date.now()}`,
           name: tourist.name,
@@ -142,6 +150,28 @@ class DatabaseService {
   async updateTouristStatus(touristId: string, status: Tourist['status']): Promise<boolean> {
     try {
       if (!supabase) {
+        // Get the tourist to find their destination and group size
+        const tourist = await this.getTouristById(touristId);
+        if (!tourist) {
+          console.error('Tourist not found for status update');
+          return false;
+        }
+
+        const oldStatus = tourist.status;
+        const destinationId = tourist.destination;
+
+        // If checking in or approving, verify capacity first
+        const isNowOccupying = status === 'checked-in' || status === 'approved';
+        const wasOccupying = oldStatus === 'checked-in' || oldStatus === 'approved';
+
+        if (isNowOccupying && !wasOccupying) {
+          const eligibility = await this.checkBookingEligibility(destinationId, tourist.groupSize);
+          if (!eligibility.allowed) {
+            console.error('Status update blocked by capacity/policy:', eligibility.reason);
+            return false;
+          }
+        }
+
         mockData.updateTouristStatus(touristId, status);
         return true;
       }

@@ -55,3 +55,20 @@ async function testTomorrowWeatherAPI() {
 }
 
 export { testTomorrowWeatherAPI };
+
+
+/*
+  This function checks if the rain intensity requires a warning.
+ */
+function checkRainIntensity(intensity: number) {
+  const ALERT_LIMIT = 10; // Threshold for heavy rain
+
+  if (intensity > ALERT_LIMIT) {
+    console.log("⚠️  HEAVY RAIN ALERT: Intensity is " + intensity + ". Triggering warning system!");
+  } else {
+    console.log("✅ Weather is within normal limits. Intensity: " + intensity);
+  }
+}
+
+// Test Case: Simulate heavy rain with an intensity of 15
+checkRainIntensity(15);

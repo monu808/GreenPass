@@ -70,5 +70,8 @@ function checkRainIntensity(intensity: number) {
   }
 }
 
-// Test Case: Simulate heavy rain with an intensity of 15
-checkRainIntensity(15);
+
+export function runWeatherTest() {
+  console.log("--- RUNNING MANUAL WEATHER TEST ---");
+  checkRainIntensity(15);
+}

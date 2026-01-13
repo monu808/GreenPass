@@ -77,6 +77,10 @@ export default function TouristDestinations() {
   }, [destinations, searchTerm, selectedFilter]);
 
   useEffect(() => {
+    loadDestinations();
+  }, []);
+
+  useEffect(() => {
     filterDestinations();
   }, [filterDestinations]);
 

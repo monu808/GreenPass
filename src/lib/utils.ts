@@ -309,14 +309,16 @@ export function sanitizeInput(input: string): string {
     .trim();
 }
 
-export function validateGroupSize(size: number, maxAllowed: number = 10): { valid: boolean; error?: string } {
-  if (isNaN(size) || !Number.isInteger(size)) {
+export function validateGroupSize(size: number | string, maxAllowed: number = 10): { valid: boolean; error?: string } {
+  const numSize = typeof size === 'string' ? parseInt(size, 10) : size;
+  
+  if (isNaN(numSize) || !Number.isInteger(numSize)) {
     return { valid: false, error: 'Group size must be a whole number' };
   }
-  if (size < 1) {
+  if (numSize < 1) {
     return { valid: false, error: 'Group size must be at least 1' };
   }
-  if (size > maxAllowed) {
+  if (numSize > maxAllowed) {
     return { valid: false, error: `Group size cannot exceed ${maxAllowed}` };
   }
   return { valid: true };

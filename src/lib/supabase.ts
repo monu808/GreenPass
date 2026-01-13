@@ -4,15 +4,13 @@ import { Database } from '../types/database';
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
-if (!supabaseUrl) {
-  throw new Error('Missing environment variable: NEXT_PUBLIC_SUPABASE_URL');
-}
+export const supabase = (supabaseUrl && supabaseAnonKey) 
+  ? createClient<Database>(supabaseUrl, supabaseAnonKey)
+  : null;
 
-if (!supabaseAnonKey) {
-  throw new Error('Missing environment variable: NEXT_PUBLIC_SUPABASE_ANON_KEY');
+if (!supabase) {
+  console.warn('⚠️ Supabase environment variables are missing. Database features will be unavailable.');
 }
-
-export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey);
 
 // Client-side supabase client
 export const createClientComponentClient = () => {

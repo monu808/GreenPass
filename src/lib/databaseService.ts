@@ -1,7 +1,6 @@
 import { supabase } from '@/lib/supabase';
 import { Tourist, Destination, Alert, DashboardStats } from '@/types';
 import { Database } from '@/types/database';
-import { testDatabaseConnection, mockDestinations, mockAlerts } from './dbTestUtils';
 import { policyEngine } from './ecologicalPolicyEngine';
 
 // Type aliases for database types
@@ -14,12 +13,8 @@ class DatabaseService {
   // Tourist operations
   async getTourists(userId?: string): Promise<Tourist[]> {
     try {
-      if (!supabase) {
-        console.warn('Supabase not initialized, returning empty tourists list');
-        return [];
-      }
-
-      let query = supabase
+      if (!supabase) return [];
+      let query = supabase!
         .from('tourists')
         .select(`
           *,
@@ -37,12 +32,6 @@ class DatabaseService {
       const { data, error } = await query;
 
       if (error || !data) {
-        if (error) {
-          console.warn('Development Mode: Database not configured');
-          if (error.message) {
-            console.log('Database error:', error.message);
-          }
-        }
         return [];
       }
 
@@ -56,7 +45,7 @@ class DatabaseService {
   async getTouristById(id: string): Promise<Tourist | null> {
     try {
       if (!supabase) return null;
-      const { data, error } = await supabase
+      const { data, error } = await supabase!
         .from('tourists')
         .select('*')
         .eq('id', id)
@@ -76,6 +65,7 @@ class DatabaseService {
 
   async addTourist(tourist: Database['public']['Tables']['tourists']['Insert']): Promise<Database['public']['Tables']['tourists']['Row'] | null> {
     try {
+      if (!supabase) return null;
       // Check ecological eligibility before adding
       const eligibility = await this.checkBookingEligibility(tourist.destination_id, tourist.group_size);
       if (!eligibility.allowed) {
@@ -83,18 +73,9 @@ class DatabaseService {
         return null;
       }
 
-      if (!supabase) {
-        console.warn('Supabase not initialized, mock adding tourist');
-        return {
-          id: Math.random().toString(36).substr(2, 9),
-          ...tourist,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        } as any;
-      }
       console.log('Attempting to insert tourist:', tourist);
       
-      const { data, error } = await supabase
+      const { data, error } = await supabase!
         .from('tourists')
         .insert(tourist as any)
         .select()
@@ -102,21 +83,19 @@ class DatabaseService {
 
       if (error) {
         console.error('Database error adding tourist:', error);
-        console.error('Error details:', {
-          message: error.message,
-          details: error.details,
-          hint: error.hint,
-          code: error.code
-        });
         return null;
       }
 
       if (!data) {
-        console.error('No data returned from insert operation');
         return null;
       }
 
-      console.log('Successfully added tourist:', data);
+      // Update occupancy if the tourist is immediately checked-in or approved
+      const touristData = data as any;
+      if (touristData.status === 'checked-in' || touristData.status === 'approved') {
+        await this.updateDestinationOccupancy(touristData.destination_id);
+      }
+
       return data;
     } catch (error) {
       console.error('Error in addTourist:', error);
@@ -126,8 +105,27 @@ class DatabaseService {
 
   async updateTouristStatus(touristId: string, status: Tourist['status']): Promise<boolean> {
     try {
-      if (!supabase) return true; // Mock success
-      const { error } = await (supabase
+      if (!supabase) return false;
+      // Get the tourist to find their destination and group size
+      const tourist = await this.getTouristById(touristId);
+      if (!tourist) {
+        console.error('Tourist not found for status update');
+        return false;
+      }
+
+      const oldStatus = tourist.status;
+      const destinationId = tourist.destination;
+
+      // If checking in, verify capacity first
+      if (status === 'checked-in' && oldStatus !== 'checked-in') {
+        const eligibility = await this.checkBookingEligibility(destinationId, tourist.groupSize);
+        if (!eligibility.allowed) {
+          console.error('Check-in blocked by capacity/policy:', eligibility.reason);
+          return false;
+        }
+      }
+
+      const { error } = await (supabase!
         .from('tourists') as any)
         .update({ status })
         .eq('id', touristId);
@@ -137,6 +135,14 @@ class DatabaseService {
         return false;
       }
 
+      // Update destination occupancy if status changed to/from checked-in or approved
+      if (
+        ((oldStatus !== 'checked-in' && oldStatus !== 'approved') && (status === 'checked-in' || status === 'approved')) ||
+        ((oldStatus === 'checked-in' || oldStatus === 'approved') && (status !== 'checked-in' && status !== 'approved'))
+      ) {
+        await this.updateDestinationOccupancy(destinationId);
+      }
+
       return true;
     } catch (error) {
       console.error('Error in updateTouristStatus:', error);
@@ -144,99 +150,107 @@ class DatabaseService {
     }
   }
 
+  /**
+   * Updates the current_occupancy field in the destinations table
+   * based on the sum of group_size for all 'checked-in' tourists.
+   */
+  async updateDestinationOccupancy(destinationId: string): Promise<void> {
+    try {
+      if (!supabase) return;
+
+      const occupancy = await this.getCurrentOccupancy(destinationId);
+      
+      const { error } = await (supabase!
+        .from('destinations') as any)
+        .update({ current_occupancy: occupancy })
+        .eq('id', destinationId);
+
+      if (error) {
+        console.error('Error updating destination occupancy:', error);
+      } else {
+        console.log(`Updated occupancy for destination ${destinationId} to ${occupancy}`);
+      }
+    } catch (error) {
+      console.error('Error in updateDestinationOccupancy:', error);
+    }
+  }
+
   // Destination operations
   async getDestinations(): Promise<Database['public']['Tables']['destinations']['Row'][]> {
     try {
-      if (!supabase) return mockDestinations;
-      const { data, error } = await supabase
+      if (!supabase) return [];
+      // Fetch destinations and their current occupancy from tourists table in one go
+      const { data: destinations, error: destError } = await supabase!
         .from('destinations')
         .select('*')
         .order('name');
 
-      if (error) {
-        console.warn('🔧 Development Mode: Using mock destinations data');
-        if (error.message) {
-          console.log('Database error:', error.message);
-        }
-        console.log('💡 To use real data, configure Supabase in .env.local');
-        return mockDestinations;
-      }
+      if (destError) throw destError;
+      if (!destinations) throw new Error('No destinations found');
 
-      // If we got real data, use it
-      if (data && data.length > 0) {
-        console.log('✅ Loaded', data.length, 'destinations from database');
-        return data;
-      }
-      
-      // If database is empty, use mock data
-      console.warn('📊 Database is empty, using mock destinations data');
-      return mockDestinations;
+      const { data: occupancyData, error: occError } = await supabase!
+        .from('tourists')
+        .select('destination_id, group_size')
+        .or('status.eq.checked-in,status.eq.approved');
+
+      if (occError) throw occError;
+
+      // Calculate occupancy for each destination
+      const occupancyMap: Record<string, number> = {};
+      occupancyData?.forEach((t: any) => {
+        occupancyMap[t.destination_id] = (occupancyMap[t.destination_id] || 0) + t.group_size;
+      });
+
+      // Merge occupancy into destinations
+      const updatedDestinations = (destinations || []).map((dest: any) => ({
+        ...dest,
+        current_occupancy: occupancyMap[dest.id] || 0
+      }));
+
+      console.log('✅ Loaded', updatedDestinations.length, 'destinations with real-time occupancy');
+      return updatedDestinations;
     } catch (error) {
-      console.warn('🔧 Development Mode: Using mock destinations data');
-      if (error instanceof Error) {
-        console.log('Connection error:', error.message);
-      }
-      console.log('💡 To use real data, configure Supabase in .env.local');
-      return mockDestinations;
+      console.error('Error in getDestinations:', error);
+      return [];
     }
   }
 
   async getDestinationById(id: string): Promise<Destination | null> {
     try {
-      const isSupabaseMissing = !process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-      
-      if (!supabase || isSupabaseMissing) {
-        const mock = mockDestinations.find(d => d.id === id);
-        return mock ? this.transformDbDestinationToDestination(mock as any) : null;
-      }
-      const { data, error } = await supabase
+      if (!supabase) return null;
+      const { data, error } = await supabase!
         .from('destinations')
         .select('*')
         .eq('id', id)
         .single();
 
       if (error || !data) {
-        // Fallback to mock data on error if in development
-        if (process.env.NODE_ENV === 'development') {
-          console.warn('Falling back to mock destination data due to database error');
-          const mock = mockDestinations.find(d => d.id === id);
-          return mock ? this.transformDbDestinationToDestination(mock as any) : null;
-        }
         console.error('Error fetching destination:', error);
         return null;
       }
 
-      return this.transformDbDestinationToDestination(data);
+      // Get real-time occupancy to ensure accuracy
+      const realTimeOccupancy = await this.getCurrentOccupancy(id);
+      const destination = this.transformDbDestinationToDestination(data);
+      destination.currentOccupancy = realTimeOccupancy;
+
+      return destination;
     } catch (error) {
       console.error('Error in getDestinationById:', error);
-      // Fallback to mock data on exception if in development
-      if (process.env.NODE_ENV === 'development') {
-        const mock = mockDestinations.find(d => d.id === id);
-        return mock ? this.transformDbDestinationToDestination(mock as any) : null;
-      }
       return null;
     }
   }
 
   async getCurrentOccupancy(destinationId: string): Promise<number> {
     try {
-      const isSupabaseMissing = !process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-      
-      if (!supabase || isSupabaseMissing) {
-        const mock = mockDestinations.find(d => d.id === destinationId);
-        return mock ? mock.current_occupancy : 0;
-      }
-      const { data, error } = await supabase
+      if (!supabase) return 0;
+      const { data, error } = await supabase!
         .from('tourists')
         .select('group_size')
         .eq('destination_id', destinationId)
-        .eq('status', 'checked-in');
+        .or('status.eq.checked-in,status.eq.approved');
 
       if (error || !data) {
-        if (process.env.NODE_ENV === 'development') {
-          const mock = mockDestinations.find(d => d.id === destinationId);
-          return mock ? mock.current_occupancy : 0;
-        }
         if (error && Object.keys(error).length > 0) {
           console.error('Error fetching occupancy:', error);
         }
@@ -246,10 +260,6 @@ class DatabaseService {
       return (data as any).reduce((total: number, tourist: any) => total + tourist.group_size, 0);
     } catch (error) {
       console.error('Error in getCurrentOccupancy:', error);
-      if (process.env.NODE_ENV === 'development') {
-        const mock = mockDestinations.find(d => d.id === destinationId);
-        return mock ? mock.current_occupancy : 0;
-      }
       return 0;
     }
   }
@@ -271,7 +281,16 @@ class DatabaseService {
       const destination = await this.getDestinationById(destinationId);
       if (!destination) return { allowed: false, reason: 'Destination not found' };
 
-      return policyEngine.isBookingAllowed(destination, groupSize);
+      // Use real-time occupancy for eligibility check to avoid race conditions
+      const realTimeOccupancy = await this.getCurrentOccupancy(destinationId);
+      
+      // Update the destination object with real-time occupancy before passing to policy engine
+      const destinationWithRealTimeOccupancy = {
+        ...destination,
+        currentOccupancy: realTimeOccupancy
+      };
+
+      return policyEngine.isBookingAllowed(destinationWithRealTimeOccupancy, groupSize);
     } catch (error) {
       console.error('Error in checkBookingEligibility:', error);
       return { allowed: false, reason: 'Error checking eligibility' };
@@ -281,38 +300,23 @@ class DatabaseService {
   // Alert operations
   async getAlerts(destinationId?: string): Promise<Alert[]> {
     try {
-      let alerts: Alert[] = [];
+      if (!supabase) return [];
+      let query = supabase!
+        .from('alerts')
+        .select('*')
+        .order('created_at', { ascending: false });
 
-      if (!supabase) {
-        const mockFilteredAlerts = destinationId 
-          ? mockAlerts.filter(alert => alert.destination_id === destinationId)
-          : mockAlerts;
-        alerts = mockFilteredAlerts.map(this.transformDbAlertToAlert);
-      } else {
-        let query = supabase
-          .from('alerts')
-          .select('*')
-          .order('created_at', { ascending: false });
-
-        if (destinationId) {
-          query = query.eq('destination_id', destinationId);
-        }
-
-        const { data, error } = await query;
-
-        if (error || !data) {
-          if (error && Object.keys(error).length > 0) {
-            console.error('Error fetching alerts:', error);
-          }
-          console.warn('Falling back to mock data for development...');
-          const mockFilteredAlerts = destinationId 
-            ? mockAlerts.filter(alert => alert.destination_id === destinationId)
-            : mockAlerts;
-          alerts = mockFilteredAlerts.map(this.transformDbAlertToAlert);
-        } else {
-          alerts = data.map(this.transformDbAlertToAlert);
-        }
+      if (destinationId) {
+        query = query.eq('destination_id', destinationId);
       }
+
+      const { data, error } = await query;
+
+      if (error || !data) {
+        return [];
+      }
+
+      const alerts = data.map(this.transformDbAlertToAlert);
 
       // Add ecological alerts from policy engine
       const destinations = await this.getDestinations();
@@ -345,7 +349,7 @@ class DatabaseService {
   async addAlert(alert: Omit<Alert, 'id' | 'timestamp'>): Promise<Alert | null> {
     try {
       if (!supabase) return null;
-      const { data, error } = await supabase
+      const { data, error } = await supabase!
         .from('alerts')
         .insert({
           type: alert.type,
@@ -373,7 +377,7 @@ class DatabaseService {
   async updateAlert(alertId: string, updates: Partial<{ isActive: boolean }>): Promise<void> {
     try {
       if (!supabase) return;
-      const { error } = await (supabase
+      const { error } = await (supabase!
         .from('alerts') as any)
         .update({
           is_active: updates.isActive,
@@ -393,7 +397,7 @@ class DatabaseService {
   async deactivateAlert(alertId: string): Promise<boolean> {
     try {
       if (!supabase) return true;
-      const { error } = await (supabase
+      const { error } = await (supabase!
         .from('alerts') as any)
         .update({ is_active: false })
         .eq('id', alertId);
@@ -419,20 +423,25 @@ class DatabaseService {
         this.getAlerts(),
       ]);
 
-      const physicalMaxCapacity = destinations.reduce((sum, dest) => sum + dest.current_occupancy + Math.max(0, dest.max_capacity - dest.current_occupancy), 0);
+      const physicalMaxCapacity = destinations.reduce((sum, dest) => sum + dest.max_capacity, 0);
       const adjustedMaxCapacity = destinations.reduce((sum, dest) => {
         const destinationObj = this.transformDbDestinationToDestination(dest as any);
         return sum + policyEngine.getAdjustedCapacity(destinationObj);
       }, 0);
-      const currentOccupancy = destinations.reduce((sum, dest) => sum + dest.current_occupancy, 0);
+      
+      // Calculate current occupancy from tourist records for accuracy
+      const currentOccupancy = tourists
+        .filter(t => t.status === 'checked-in' || t.status === 'approved')
+        .reduce((sum, t) => sum + (Number(t.groupSize) || 0), 0);
+
       const pendingApprovals = tourists.filter(t => t.status === 'pending').length;
       
       const today = new Date().toDateString();
       const todayCheckIns = tourists.filter(t => 
-        t.status === 'checked-in' && new Date(t.checkInDate).toDateString() === today
+        t.status === 'checked-in' && t.checkInDate && new Date(t.checkInDate).toDateString() === today
       ).length;
       const todayCheckOuts = tourists.filter(t => 
-        t.status === 'checked-out' && new Date(t.checkOutDate).toDateString() === today
+        t.status === 'checked-out' && t.checkOutDate && new Date(t.checkOutDate).toDateString() === today
       ).length;
 
       return {
@@ -471,7 +480,7 @@ class DatabaseService {
       }
       console.log('Saving weather data for destination:', destinationId, weatherData);
       
-      const { error } = await supabase
+      const { error } = await supabase!
         .from('weather_data')
         .insert({
           destination_id: destinationId,
@@ -511,7 +520,7 @@ class DatabaseService {
   async getLatestWeatherData(destinationId: string): Promise<DbWeatherData | null> {
     try {
       if (!supabase) return null;
-      const { data, error } = await supabase
+      const { data, error } = await supabase!
         .from('weather_data')
         .select('*')
         .eq('destination_id', destinationId)
@@ -534,7 +543,7 @@ class DatabaseService {
   async getWeatherAlerts(): Promise<Alert[]> {
     try {
       if (!supabase) return [];
-      const { data: weatherData, error } = await supabase
+      const { data: weatherData, error } = await supabase!
         .from('weather_data')
         .select(`
           *,
@@ -583,17 +592,17 @@ class DatabaseService {
       phone: dbTourist.phone,
       idProof: dbTourist.id_proof,
       nationality: dbTourist.nationality,
-      groupSize: dbTourist.group_size,
+      groupSize: Number(dbTourist.group_size) || 0,
       destination: dbTourist.destination_id,
-      checkInDate: new Date(dbTourist.check_in_date),
-      checkOutDate: new Date(dbTourist.check_out_date),
-      status: dbTourist.status,
+      checkInDate: dbTourist.check_in_date ? new Date(dbTourist.check_in_date) : new Date(),
+      checkOutDate: dbTourist.check_out_date ? new Date(dbTourist.check_out_date) : new Date(),
+      status: dbTourist.status as any,
       emergencyContact: {
-        name: dbTourist.emergency_contact_name,
-        phone: dbTourist.emergency_contact_phone,
-        relationship: dbTourist.emergency_contact_relationship,
+        name: dbTourist.emergency_contact_name || '',
+        phone: dbTourist.emergency_contact_phone || '',
+        relationship: dbTourist.emergency_contact_relationship || '',
       },
-      registrationDate: new Date(dbTourist.registration_date),
+      registrationDate: dbTourist.registration_date ? new Date(dbTourist.registration_date) : new Date(),
       userId: dbTourist.user_id,
     };
   }

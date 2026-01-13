@@ -194,7 +194,7 @@ class DatabaseService {
 
   /**
    * Updates the current_occupancy field in the destinations table
-   * based on the sum of group_size for all 'checked-in' tourists.
+   * based on the sum of group_size for all 'checked-in or approved' tourists.
    */
   async updateDestinationOccupancy(destinationId: string): Promise<void> {
     try {

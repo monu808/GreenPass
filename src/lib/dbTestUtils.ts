@@ -7,8 +7,15 @@ export async function testDatabaseConnection(): Promise<{
   error?: string;
 }> {
   try {
+    if (!supabase) {
+      return {
+        connected: false,
+        tablesExist: false,
+        error: 'Supabase environment variables are missing'
+      };
+    }
     // Test basic connection
-    const { data: connectionTest, error: connectionError } = await supabase
+    const { data: connectionTest, error: connectionError } = await supabase!
       .from('destinations')
       .select('count', { count: 'exact', head: true });
 

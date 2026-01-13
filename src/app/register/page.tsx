@@ -80,8 +80,18 @@ export default function RegisterTourist() {
   }, [submitSuccess]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    const { name, value, type } = e.target;
+    
+    // For numeric inputs, store as number if possible
+    let finalValue: string | number = value;
+    if (type === 'number' && value !== '') {
+      const parsed = parseInt(value, 10);
+      if (!isNaN(parsed)) {
+        finalValue = parsed;
+      }
+    }
+    
+    setFormData(prev => ({ ...prev, [name]: finalValue }));
     
     // Clear error when user starts typing
     if (errors[name]) {
@@ -240,7 +250,7 @@ const handleSubmit = async (e: React.FormEvent) => {
       phone: formData.phone,
       id_proof: formData.idProof,
       nationality: formData.nationality,
-      group_size: parseInt(formData.groupSize.toString()),
+      group_size: parseInt(formData.groupSize.toString(), 10),
       destination_id: selectedDestination.id,
       check_in_date: formData.checkInDate,
       check_out_date: formData.checkOutDate,
@@ -250,12 +260,12 @@ const handleSubmit = async (e: React.FormEvent) => {
       emergency_contact_relationship: formData.emergencyContactRelationship,
       user_id: null, // Set to null to avoid foreign key constraint
       registration_date: new Date().toISOString(),
-      // Add missing required fields with defaults
-      age: 0, // Default age, consider collecting this in the form
-      gender: 'prefer-not-to-say' as const,
-      address: '', // Default empty address, consider collecting this in the form
-      pin_code: '', // Default empty pin code, consider collecting this in the form
-      id_proof_type: 'aadhaar' as const // Default ID proof type, consider deriving from idProof or adding a selector
+      // Use values from formData
+      age: parseInt(formData.age, 10),
+      gender: formData.gender as any,
+      address: formData.address,
+      pin_code: formData.pinCode,
+      id_proof_type: formData.idProofType as any
     };
     
     console.log('Submitting booking data:', bookingData);

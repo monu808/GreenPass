@@ -132,7 +132,7 @@ export const alerts: Alert[] = [
 export const getTouristsByDestination = (destinationId: string): Tourist[] => {
   return tourists.filter(tourist => 
     tourist.destination === destinationId && 
-    tourist.status === 'checked-in'
+    (tourist.status === 'checked-in' || tourist.status === 'approved')
   );
 };
 
@@ -161,10 +161,11 @@ export const updateTouristStatus = (touristId: string, status: Tourist['status']
     const oldStatus = tourist.status;
     tourist.status = status;
     
-    // Update occupancy when status changes to/from checked-in
-    if (oldStatus !== 'checked-in' && status === 'checked-in') {
-      updateDestinationOccupancy(tourist.destination);
-    } else if (oldStatus === 'checked-in' && status !== 'checked-in') {
+    // Update occupancy when status changes to/from checked-in or approved
+    const wasOccupying = oldStatus === 'checked-in' || oldStatus === 'approved';
+    const isOccupying = status === 'checked-in' || status === 'approved';
+    
+    if (wasOccupying !== isOccupying) {
       updateDestinationOccupancy(tourist.destination);
     }
   }

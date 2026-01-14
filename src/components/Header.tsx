@@ -5,6 +5,7 @@ import { Bell, Search, User, LogOut, Settings, Shield, UserCircle, ChevronDown, 
 import { useAuth } from '@/contexts/AuthContext';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import ThemeToggle from "./ThemeToggle";
 
 export default function Header() {
   const { user, signOut, isAdmin } = useAuth();
@@ -44,6 +45,10 @@ export default function Header() {
 
         {/* Right side */}
         <div className="flex items-center space-x-4">
+
+          {/* Theme Toggle (Dark/Light Mode) */}
+          <ThemeToggle />
+
           {/* Notifications */}
           <button className="relative p-2 text-gray-400 hover:text-gray-600 transition-colors">
             <Bell className="h-5 w-5" />

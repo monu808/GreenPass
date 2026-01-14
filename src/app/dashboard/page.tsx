@@ -85,12 +85,9 @@ export default function EnhancedDashboard() {
   }, []);
 
   useEffect(() => {
+    // We only need to load the data once when the page opens.
+    // Real-time updates are now handled by the server!
     loadDashboardData();
-    // Auto-refresh every 30 seconds
-    const interval = setInterval(() => {
-      loadDashboardData();
-    }, 30000);
-    return () => clearInterval(interval);
   }, [loadDashboardData]);
 
   const refreshDashboard = async () => {
@@ -533,7 +530,7 @@ export default function EnhancedDashboard() {
                     <span>Wind: -- km/h</span>
                   </div>
                 </div>
-              ))}
+              ))} 
             </div>
           </div>
         </div>

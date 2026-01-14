@@ -15,7 +15,7 @@ export default function RootPage() {
     // If user is authenticated, redirect to appropriate dashboard
     if (!loading && user) {
       if (isAdmin) {
-        router.push('/dashboard');
+        router.push('/dashboard'); 
       } else {
         router.push('/tourist/dashboard');
       }

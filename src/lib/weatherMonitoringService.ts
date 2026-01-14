@@ -1,4 +1,4 @@
-'use client';
+'use client'; 
 
 import { weatherService, destinationCoordinates } from '@/lib/weatherService';
 import { dbService } from '@/lib/databaseService';
@@ -34,10 +34,7 @@ class WeatherMonitor implements WeatherMonitoringService {
     // Check immediately when starting
     this.checkWeatherNow();
 
-    // Then check every 5 minutes (300000ms) to avoid API rate limits
-    this.intervalId = setInterval(() => {
-      this.checkWeatherNow();
-    }, this.checkInterval);
+    
 
     console.log('✅ Weather monitoring started - checking every 5 minutes');
   }
@@ -193,18 +190,7 @@ class WeatherMonitor implements WeatherMonitoringService {
 // Create singleton instance
 const weatherMonitoringService = new WeatherMonitor();
 
-// Auto-start monitoring when the module loads (only in browser)
-if (typeof window !== 'undefined') {
-  // Start monitoring when page loads
-  setTimeout(() => {
-    weatherMonitoringService.start();
-  }, 2000); // Wait 2 seconds after page load
 
-  // Stop monitoring when page unloads
-  window.addEventListener('beforeunload', () => {
-    weatherMonitoringService.stop();
-  });
-}
 
 export { weatherMonitoringService };
 export type { WeatherMonitoringService };

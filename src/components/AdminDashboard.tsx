@@ -41,8 +41,35 @@ export default function AdminDashboard() {
   const [policyForm, setPolicyForm] = useState<EcologicalPolicy | null>(null);
 
   useEffect(() => {
+    // 1. Load initial data when the user first opens the dashboard
     loadDashboardData();
     setPolicies(policyEngine.getAllPolicies());
+
+    // 2. Real-Time Connection (Issue #21 Requirement)
+    // This connects the dashboard to the "live pipe" we created in route.ts
+    const eventSource = new EventSource('/api/weather-monitor');
+
+    eventSource.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        console.log("🚀 Real-time weather update received from server:", data);
+        
+        // When the server says it checked the weather, we refresh the UI
+        loadDashboardData(); 
+      } catch (err) {
+        console.error("Error parsing real-time data:", err);
+      }
+    };
+
+    eventSource.onerror = (err) => {
+      console.error("Connection to weather monitor lost. Retrying...");
+      eventSource.close();
+    };
+
+    // 3. Cleanup: Stop listening if the user navigates away from the dashboard
+    return () => {
+      eventSource.close();
+    };
   }, []);
 
   const [activeTab, setActiveTab] = useState<'overview' | 'policies'>('overview');
@@ -103,9 +130,7 @@ export default function AdminDashboard() {
     }
   };
 
-  useEffect(() => {
-    loadDashboardData();
-  }, [loadDashboardData]);
+  
 
   const updateWeatherData = async (destinations: Destination[]) => {
     for (const destination of destinations) {

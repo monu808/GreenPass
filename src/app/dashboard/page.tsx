@@ -85,9 +85,28 @@ export default function EnhancedDashboard() {
   }, []);
 
   useEffect(() => {
-    // We only need to load the data once when the page opens.
-    // Real-time updates are now handled by the server!
+    // 1. Initial data fetch when the dashboard opens
     loadDashboardData();
+
+    // 2. FIX for Issue #3: Establish a real-time connection to the server
+    const eventSource = new EventSource('/api/weather-monitor');
+
+    // When the server pushes a 'message', refresh all dashboard data
+    eventSource.onmessage = (event) => {
+      console.log("🚀 Real-time update received: Refreshing Enhanced Dashboard");
+      loadDashboardData();
+    };
+
+    // Note: We avoid closing on error here (Fix for Issue #4) 
+    // to allow the browser to auto-reconnect if the server blips.
+    eventSource.onerror = (error) => {
+      console.log("SSE connection lost. Waiting for browser to auto-reconnect...");
+    };
+
+    // 3. Cleanup: Close the stream when the user leaves this page
+    return () => {
+      eventSource.close();
+    };
   }, [loadDashboardData]);
 
   const refreshDashboard = async () => {

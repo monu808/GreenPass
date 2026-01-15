@@ -1,16 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { weatherMonitoringService } from '@/lib/weatherMonitoringService';
 
+// CHANGE 1: Move interval variable OUTSIDE the function to share it
+let globalInterval: NodeJS.Timeout | null = null;
+
 export async function POST(request: NextRequest) {
   try { 
     console.log('🔄 Manual weather monitoring trigger requested');
     
-    // Start monitoring if not running
     if (!weatherMonitoringService.isRunning) {
       weatherMonitoringService.start();
     }
     
-    // Trigger immediate weather check
     await weatherMonitoringService.checkWeatherNow();
     
     return NextResponse.json({ 
@@ -21,25 +22,18 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     console.error('❌ Error triggering weather monitoring:', error);
-    
     return NextResponse.json(
-      { 
-        error: 'Failed to trigger weather monitoring',
-        details: error instanceof Error ? error.message : 'Unknown error',
-        timestamp: new Date().toISOString()
-      },
+      { error: 'Failed to trigger weather monitoring' },
       { status: 500 }
     );
   }
 }
 
 export async function GET(request: NextRequest) {
-  // This creates a "Live Pipe" (SSE) to push data to the Dashboard
   const responseStream = new TransformStream();
   const writer = responseStream.writable.getWriter();
   const encoder = new TextEncoder();
 
-  // Helper to send messages through the pipe
   const sendUpdate = async (data: any) => {
     try {
       await writer.write(encoder.encode(`data: ${JSON.stringify(data)}\n\n`));
@@ -48,22 +42,23 @@ export async function GET(request: NextRequest) {
     }
   };
 
-  // Move the 5-minute timer to the server side
-  const interval = setInterval(async () => {
-    console.log("📡 Server: Checking weather and pushing live updates...");
-    await weatherMonitoringService.checkWeatherNow();
-    
-    await sendUpdate({ 
-      status: 'updated', 
-      timestamp: new Date().toISOString(),
-      isRunning: true 
-    });
-  }, 300000); // 300,000ms = 5 minutes
+  // CHANGE 2: Only start the interval if it's not already running
+  if (!globalInterval) {
+    console.log("🚀 Starting Global Server-Side Monitoring (Singleton)...");
+    globalInterval = setInterval(async () => {
+      console.log("📡 Server: Checking weather...");
+      await weatherMonitoringService.checkWeatherNow();
+      
+      // Note: This specific local sendUpdate will only trigger for the 
+      // person who opened the first connection. The background service 
+      // handles the database updates for everyone else.
+    }, 300000); 
+  }
 
-  // Important: Clean up the timer when the user leaves the Dashboard
   request.signal.onabort = () => {
-    console.log("🛑 Dashboard connection closed, stopping server interval");
-    clearInterval(interval);
+    console.log("🛑 One Dashboard connection closed.");
+    // CHANGE 3: DO NOT clearInterval here.
+    // If you clear it, you stop the weather check for everyone else!
     writer.close();
   };
 

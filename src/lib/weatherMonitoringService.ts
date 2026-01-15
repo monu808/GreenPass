@@ -1,5 +1,3 @@
-'use client'; 
-
 import { weatherService, destinationCoordinates } from '@/lib/weatherService';
 import { dbService } from '@/lib/databaseService';
 import { Destination } from '@/types';
@@ -36,7 +34,7 @@ class WeatherMonitor implements WeatherMonitoringService {
 
     
 
-    console.log('✅ Weather monitoring started - checking every 5 minutes');
+    console.log('✅ Weather monitoring service initialized');
   }
 
   stop() {
@@ -57,7 +55,7 @@ class WeatherMonitor implements WeatherMonitoringService {
   }
 
   async checkWeatherNow(): Promise<void> {
-    if (!this.isRunning) return;
+    
 
     try {
       console.log('🔍 Checking weather conditions...', new Date().toLocaleTimeString());

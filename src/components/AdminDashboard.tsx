@@ -62,8 +62,9 @@ export default function AdminDashboard() {
     };
 
     eventSource.onerror = (err) => {
-      console.error("Connection to weather monitor lost. Retrying...");
-      eventSource.close();
+      //  Remove .close() to allow the browser to auto-reconnect.
+      // The Spec for EventSource automatically handles retries.
+      console.error("SSE connection interrupted. Browser is attempting to reconnect...");
     };
 
     // 3. Cleanup: Stop listening if the user navigates away from the dashboard

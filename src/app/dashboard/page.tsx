@@ -85,12 +85,28 @@ export default function EnhancedDashboard() {
   }, []);
 
   useEffect(() => {
+    // 1. Initial data fetch when the dashboard opens
     loadDashboardData();
-    // Auto-refresh every 30 seconds
-    const interval = setInterval(() => {
+
+    // 2. FIX for Issue #3: Establish a real-time connection to the server
+    const eventSource = new EventSource('/api/weather-monitor');
+
+    // When the server pushes a 'message', refresh all dashboard data
+    eventSource.onmessage = (event) => {
+      console.log("🚀 Real-time update received: Refreshing Enhanced Dashboard");
       loadDashboardData();
-    }, 30000);
-    return () => clearInterval(interval);
+    };
+
+    // Note: We avoid closing on error here (Fix for Issue #4) 
+    // to allow the browser to auto-reconnect if the server blips.
+    eventSource.onerror = (error) => {
+      console.log("SSE connection lost. Waiting for browser to auto-reconnect...");
+    };
+
+    // 3. Cleanup: Close the stream when the user leaves this page
+    return () => {
+      eventSource.close();
+    };
   }, [loadDashboardData]);
 
   const refreshDashboard = async () => {
@@ -533,7 +549,7 @@ export default function EnhancedDashboard() {
                     <span>Wind: -- km/h</span>
                   </div>
                 </div>
-              ))}
+              ))} 
             </div>
           </div>
         </div>

@@ -1,5 +1,17 @@
 @import "tailwindcss";
 @plugin "tailwindcss-animate";
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* OVERRIDE Tailwind to use dark mode via class */
+:root {
+  color-scheme: light;
+}
+
+html.dark {
+  color-scheme: dark;
+}
 
 :root {
   --background: #ffffff;
@@ -236,4 +248,187 @@ body {
   .section-padding {
     padding: 8rem 0;
   }
+}
+
+/* Light mode variables (default) */
+:root {
+  --bg: #ffffff;
+  --text: #111111;
+  --card: #f4f4f4;
+  --border: #e2e2e2;
+}
+
+/* Dark mode variables */
+.dark {
+  --bg: #0d0d0d;
+  --text: #f5f5f5;
+  --card: #1a1a1a;
+  --border: #333333;
+}
+
+/* Global application */
+body {
+  background-color: var(--bg);
+  color: var(--text);
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+html.dark {
+  background-color: #0f172a; /* slate-900 */
+  color: #f1f5f9; /* slate-100 */
+}
+
+body {
+  transition: background 0.3s, color 0.3s;
+}
+
+/********************************************
+UNIVERSAL DARK MODE STYLES (GLOBAL)
+********************************************/
+
+/* Base */
+html.dark {
+  background-color: #0f172a; /* slate-900 */
+  color-scheme: dark;
+}
+
+html.dark body {
+  background-color: #0f172a;
+  color: #f1f5f9; /* slate-100 */
+}
+
+/********************************************
+HEADERS & NAVBARS 
+********************************************/
+header {
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+html.dark header {
+  background-color: #1e293b; /* slate-800 */
+  color: #f1f5f9;
+  border-color: #334155; /* slate-700 */
+}
+
+/********************************************
+SIDEBARS (ADMIN + TOURIST)
+********************************************/
+.sidebar {
+  background-color: white;
+  color: #0f172a;
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+html.dark .sidebar {
+  background-color: #1e293b; /* slate-800 */
+  color: #f1f5f9;
+}
+
+/********************************************
+CARDS (Any container with .card class)
+********************************************/
+.card {
+  background-color: white;
+  color: #0f172a;
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+html.dark .card {
+  background-color: #1e293b; /* slate-800 */
+  color: #f1f5f9;
+  border-color: #334155;
+}
+
+/********************************************
+INPUTS, TEXTAREAS, SELECTS
+********************************************/
+input,
+textarea,
+select {
+  background-color: white;
+  color: #0f172a;
+  border-color: #cbd5e1; /* slate-300 */
+  transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+}
+
+html.dark input,
+html.dark textarea,
+html.dark select {
+  background-color: #0f172a; /* slate-900 */
+  color: #f1f5f9;
+  border-color: #475569; /* slate-600 */
+}
+
+/********************************************
+TABLES
+********************************************/
+table {
+  color: inherit;
+  background-color: transparent;
+}
+
+html.dark table thead {
+  background-color: #1e293b; /* slate-800 */
+}
+
+html.dark table tbody tr {
+  background-color: #0f172a; /* slate-900 */
+  border-color: #334155;
+}
+
+html.dark table tbody tr:hover {
+  background-color: #1e293b !important; /* slate-800 */
+}
+
+/********************************************
+BUTTONS
+********************************************/
+button {
+  transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+}
+
+/* Green buttons */
+button.bg-green-600,
+button.bg-green-500 {
+  color: white;
+}
+
+html.dark button.bg-green-600,
+html.dark button.bg-green-500 {
+  background-color: #15803d !important; /* green-700 */
+}
+
+/* Neutral buttons */
+html.dark .btn {
+  color: #f1f5f9;
+  background-color: #1e293b;
+  border-color: #334155;
+}
+
+/********************************************
+ICONS
+********************************************/
+html.dark svg {
+  color: #f1f5f9 !important;
+  stroke: #f1f5f9 !important;
+}
+
+/********************************************
+SEARCH BARS
+********************************************/
+html.dark input[type="text"] {
+  background-color: #1e293b;
+  border-color: #334155;
+  color: #f1f5f9;
+}
+
+/********************************************
+DROPDOWNS & POPUPS
+********************************************/
+html.dark .dropdown,
+html.dark .menu,
+html.dark .popup,
+html.dark .modal {
+  background-color: #1e293b !important;
+  color: #f1f5f9 !important;
+  border-color: #334155 !important;
 }

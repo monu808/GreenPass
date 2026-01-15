@@ -43,6 +43,23 @@ export default function RootLayout({
         <AuthProvider>
           {children}
         </AuthProvider>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              try {
+                const saved = localStorage.getItem('theme');
+                const html = document.documentElement;
+                
+                if (saved === 'dark') {
+                  html.classList.add('dark');
+                } else if (saved === 'light') {
+                  html.classList.remove('dark');
+                }
+              } catch (e) {}
+            `,
+          }}
+        />
+
       </body>
     </html>
   );

@@ -134,30 +134,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const signIn = async (email: string, password: string) => {
-    // MOCK LOGIN for development/demo purposes
-    if (email === 'admin@tms-india.gov.in' && (password === 'TMS_Admin_2025!' || password === 'admin123')) {
-      console.log('Using mock admin login');
-      const mockUser = {
-        id: 'mock-admin-id',
-        email: 'admin@tms-india.gov.in',
-        user_metadata: { name: 'Admin User' },
-        app_metadata: {},
-        aud: 'authenticated',
-        created_at: new Date().toISOString()
-      } as User;
-      
-      setUser(mockUser);
-      setIsAdmin(true);
-      setSession({ 
-        user: mockUser, 
-        access_token: 'mock-token', 
-        refresh_token: 'mock-refresh',
-        expires_in: 3600,
-        token_type: 'bearer'
-      } as Session);
-      return { error: null };
-    }
-
     if (!supabase) return { error: { message: 'Authentication service not available' } };
     const { error } = await supabase.auth.signInWithPassword({
       email,
@@ -194,7 +170,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const signOut = async () => {
-    // Clear mock state
     setUser(null);
     setSession(null);
     setIsAdmin(false);

@@ -5,6 +5,7 @@ import { broadcast } from './messagingService';
 
 interface WeatherMonitoringService {
   checkWeatherNow: () => Promise<void>;
+  isRunning: boolean;
 }
 
 class WeatherMonitor implements WeatherMonitoringService {
@@ -12,6 +13,7 @@ class WeatherMonitor implements WeatherMonitoringService {
   private lastApiCall: number = 0;
   private apiCallDelay: number = 10000; // 10 seconds between API calls
   private checkInterval: number = 21600000; // 6 hours threshold for freshness
+  public readonly isRunning: boolean = true; // Service is always active (handled by app-load or external cron)
 
   async checkWeatherNow(): Promise<void> {
     try {

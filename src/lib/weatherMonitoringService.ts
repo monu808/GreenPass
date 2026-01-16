@@ -179,13 +179,15 @@ class WeatherMonitor implements WeatherMonitoringService {
         // Determine severity based on conditions
         if (weatherData.temperature > 45 || weatherData.temperature < -10) {
           alertLevel = 'critical';
-        } else if (weatherData.windSpeed > 20 || weatherData.visibility < 500) {
+        } else if (weatherData.windSpeed > 25 || weatherData.visibility < 300) {
           alertLevel = 'critical';
         } else if (weatherData.temperature > 40 || weatherData.temperature < 0) {
           alertLevel = 'high';
-        } else if (weatherData.windSpeed > 15 || (weatherData.precipitationProbability && weatherData.precipitationProbability > 80)) {
+        } else if (weatherData.windSpeed > 18 || (weatherData.precipitationProbability && weatherData.precipitationProbability > 85)) {
           alertLevel = 'high';
-        } else if (weatherData.windSpeed > 10 || (weatherData.uvIndex && weatherData.uvIndex > 8)) {
+        } else if (weatherData.visibility < 1000) {
+          alertLevel = 'high';
+        } else if (weatherData.windSpeed > 12 || (weatherData.uvIndex && weatherData.uvIndex > 9)) {
           alertLevel = 'medium';
         } else {
           alertLevel = 'low';

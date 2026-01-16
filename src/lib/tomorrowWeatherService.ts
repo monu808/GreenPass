@@ -352,6 +352,7 @@ export const destinationCoordinates: { [key: string]: { lat: number; lon: number
   'dalhousie': { lat: 32.5448, lon: 75.9600, name: 'Dalhousie' },
   'kasol': { lat: 32.0998, lon: 77.3152, name: 'Kasol' },
   'spiti': { lat: 32.2466, lon: 78.0265, name: 'Spiti Valley' },
+  'spitivalley': { lat: 32.2466, lon: 78.0265, name: 'Spiti Valley' },
   'kinnaur': { lat: 31.6089, lon: 78.4697, name: 'Kinnaur' },
   
   // Jammu and Kashmir

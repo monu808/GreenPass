@@ -4,8 +4,8 @@ import React, { useState, useEffect, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { Calendar, Users, MapPin, Clock, Star, AlertTriangle, CheckCircle, Leaf, ShieldAlert, XCircle, RefreshCw } from 'lucide-react';
 import TouristLayout from '@/components/TouristLayout';
-import { dbService } from '@/lib/databaseService';
-import { policyEngine } from '@/lib/ecologicalPolicyEngine';
+import { getDbService } from '@/lib/databaseService';
+import { getPolicyEngine } from '@/lib/ecologicalPolicyEngine';
 import { useAuth } from '@/contexts/AuthContext';
 import { Destination, Alert } from '@/types';
 
@@ -56,6 +56,8 @@ function BookDestinationForm() {
 
   const loadDestination = async () => {
     try {
+      const dbService = getDbService();
+      const policyEngine = getPolicyEngine();
       const destinations = await dbService.getDestinations();
       const found = destinations.find(d => d.id === destinationId);
       
@@ -90,6 +92,7 @@ function BookDestinationForm() {
 
   const checkEligibility = async (size: number) => {
     if (!destination) return;
+    const dbService = getDbService();
     const result = await dbService.checkBookingEligibility(destination.id, size);
     setEligibility(result);
   };
@@ -138,6 +141,7 @@ function BookDestinationForm() {
     if (!formData.emergencyContact.relationship) newErrors['emergencyContact.relationship'] = 'Relationship is required';
 
     // Sensitivity-specific validation
+    const policyEngine = getPolicyEngine();
     const policy = destination ? policyEngine.getPolicy(destination.ecologicalSensitivity) : null;
     if (destination && (destination.ecologicalSensitivity === 'high' || destination.ecologicalSensitivity === 'critical')) {
       if (policy?.requiresPermit && !formData.ecoPermitNumber) {
@@ -168,6 +172,7 @@ function BookDestinationForm() {
     setSubmitting(true);
     
     try {
+      const dbService = getDbService();
       const bookingData = {
         name: formData.name,
         email: formData.email,
@@ -274,6 +279,7 @@ function BookDestinationForm() {
   }
 
   const availability = getAvailabilityStatus();
+  const policyEngine = getPolicyEngine();
   const adjustedCapacity = destination ? policyEngine.getAdjustedCapacity(destination) : 0;
   const policy = destination ? policyEngine.getPolicy(destination.ecologicalSensitivity) : null;
 
@@ -308,7 +314,7 @@ function BookDestinationForm() {
                 <div className="flex items-center px-4 py-2 bg-blue-50 text-blue-700 rounded-xl border border-blue-100">
                   <Users className="h-5 w-5 mr-2" />
                   <span className="font-semibold">
-                    {policyEngine.getAvailableSpots(destination)} / {destination.maxCapacity} spots free (ecological limit)
+                    {getPolicyEngine().getAvailableSpots(destination)} / {destination.maxCapacity} spots free (ecological limit)
                   </span>
                 </div>
               </div>

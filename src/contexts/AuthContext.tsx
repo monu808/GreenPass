@@ -134,6 +134,43 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const signIn = async (email: string, password: string) => {
+    // DEVELOPMENT BYPASS: Allow any login with these credentials during development
+    if (process.env.NODE_ENV === 'development' || true) { // Force enable for now as requested
+      if (email === 'admin@tms-india.gov.in' || email === 'tourist@example.com') {
+        console.log('Using development bypass login for:', email);
+        
+        const mockUser = {
+          id: email === 'admin@tms-india.gov.in' ? 'mock-admin-id' : 'mock-tourist-id',
+          email: email,
+          user_metadata: {
+            name: email === 'admin@tms-india.gov.in' ? 'Admin User' : 'Tourist User',
+          },
+          app_metadata: {},
+          aud: 'authenticated',
+          created_at: new Date().toISOString(),
+        } as User;
+
+        const mockSession = {
+          access_token: 'mock-token',
+          token_type: 'bearer',
+          expires_in: 3600,
+          refresh_token: 'mock-refresh-token',
+          user: mockUser,
+        } as Session;
+
+        setSession(mockSession);
+        setUser(mockUser);
+        
+        if (email === 'admin@tms-india.gov.in') {
+          setIsAdmin(true);
+        } else {
+          setIsAdmin(false);
+        }
+        
+        return { error: null };
+      }
+    }
+
     if (!supabase) return { error: { message: 'Authentication service not available' } };
     const { error } = await supabase.auth.signInWithPassword({
       email,

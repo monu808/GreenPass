@@ -1,3 +1,5 @@
+'use client';
+
 import React from 'react';
 import TouristHeader from './TouristHeader';
 import TouristSidebar from './TouristSidebar';
@@ -8,6 +10,8 @@ interface TouristLayoutProps {
 }
 
 export default function TouristLayout({ children }: TouristLayoutProps) {
+  const [isSidebarOpen, setIsSidebarOpen] = React.useState(false);
+
   return (
     <ProtectedRoute requireAdmin={false}>
       <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-100 relative">
@@ -19,10 +23,10 @@ export default function TouristLayout({ children }: TouristLayoutProps) {
         <div className="absolute top-40 right-20 w-24 h-24 bg-gradient-to-br from-amber-400/20 to-orange-400/20 rounded-full blur-xl float-animation" style={{animationDelay: '1s'}}></div>
         <div className="absolute bottom-20 left-1/4 w-20 h-20 bg-gradient-to-br from-purple-400/20 to-pink-400/20 rounded-full blur-xl float-animation" style={{animationDelay: '2s'}}></div>
         
-        <TouristSidebar />
-        <TouristHeader />
-        <main className="ml-64 pt-16 relative z-10">
-          <div className="p-8">
+        <TouristSidebar isOpen={isSidebarOpen} setIsOpen={setIsSidebarOpen} />
+        <TouristHeader onMenuClick={() => setIsSidebarOpen(true)} />
+        <main className="lg:ml-64 pt-16 relative z-10 transition-all duration-300">
+          <div className="p-4 lg:p-8">
             <div className="max-w-7xl mx-auto">
               {children}
             </div>

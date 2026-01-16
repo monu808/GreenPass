@@ -1,5 +1,5 @@
 import { weatherService, destinationCoordinates } from '@/lib/weatherService';
-import { dbService } from '@/lib/databaseService';
+import { getDbService } from '@/lib/databaseService';
 import { Destination } from '@/types';
 import { broadcast } from './messagingService';
 
@@ -19,6 +19,7 @@ class WeatherMonitor implements WeatherMonitoringService {
     try {
       console.log('🔍 Checking weather conditions...', new Date().toLocaleTimeString());
 
+      const dbService = getDbService();
       // Get all destinations
       const destinations = await dbService.getDestinations();
       
@@ -158,6 +159,7 @@ class WeatherMonitor implements WeatherMonitoringService {
 
       // Save weather data with alert info to database only if requested
       if (saveToDatabase) {
+        const dbService = getDbService();
         await dbService.saveWeatherData(destination.id, weatherData, {
           level: alertLevel,
           message: alertMessage || undefined,

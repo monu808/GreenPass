@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Layout from '@/components/Layout';
 import { User } from 'lucide-react';
-import { dbService } from '@/lib/databaseService';
+import { getDbService } from '@/lib/databaseService';
 import { 
   validateEmail, 
   validatePhone, 
@@ -60,6 +60,7 @@ export default function RegisterTourist() {
   useEffect(() => {
     const loadDestinations = async () => {
       try {
+        const dbService = getDbService();
         const data = await dbService.getDestinations();
         setDestinations(data);
       } catch (error) {
@@ -271,6 +272,7 @@ const handleSubmit = async (e: React.FormEvent) => {
     console.log('Submitting booking data:', bookingData);
     console.log('Destination:', selectedDestination);
     
+    const dbService = getDbService();
     const result = await dbService.addTourist(bookingData);
     
     if (!result) {

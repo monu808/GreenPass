@@ -1,3 +1,5 @@
+'use client';
+
 import React from 'react';
 import Sidebar from './Sidebar';
 import Header from './Header';
@@ -14,6 +16,7 @@ interface LayoutProps {
 
 export default function Layout({ children, requireAdmin = false, forceAdminLayout = false }: LayoutProps) {
   const { isAdmin } = useAuth();
+  const [isSidebarOpen, setIsSidebarOpen] = React.useState(false);
 
   // If user is not admin and we're not forcing admin layout, show tourist layout
   if (!isAdmin && !forceAdminLayout) {
@@ -24,11 +27,11 @@ export default function Layout({ children, requireAdmin = false, forceAdminLayou
   return (
     <ProtectedRoute requireAdmin={requireAdmin}>
       <div className="min-h-screen bg-gray-50">
-        <Sidebar />
-        <Header />
-        <main className="ml-64 pt-16">
+        <Sidebar isOpen={isSidebarOpen} setIsOpen={setIsSidebarOpen} />
+        <Header onMenuClick={() => setIsSidebarOpen(true)} />
+        <main className="lg:ml-64 pt-16 transition-all duration-300">
           <DatabaseStatusBanner />
-          <div className="p-6">
+          <div className="p-4 lg:p-6">
             {children}
           </div>
         </main>

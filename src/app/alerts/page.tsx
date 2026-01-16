@@ -22,7 +22,7 @@ import {
   Play,
   Pause,
 } from "lucide-react";
-import { dbService } from "@/lib/databaseService";
+import { getDbService } from "@/lib/databaseService";
 import { weatherMonitoringService } from "@/lib/weatherMonitoringService";
 import { Alert, Destination } from "@/types";
 
@@ -43,6 +43,7 @@ export default function AlertsPage() {
   const loadData = useCallback(async () => {
     try {
       setLoading(true);
+      const dbService = getDbService();
       const [regularAlerts, weatherAlerts, destinationsData] =
         await Promise.all([
           dbService.getAlerts(), // Get non-weather alerts from alerts table
@@ -140,6 +141,7 @@ export default function AlertsPage() {
 
   const handleToggleAlert = async (alertId: string, isActive: boolean) => {
     try {
+      const dbService = getDbService();
       await dbService.updateAlert(alertId, { isActive: !isActive });
       await loadData(); // Reload data
     } catch (error) {
@@ -228,6 +230,7 @@ export default function AlertsPage() {
     const handleSubmit = async (e: React.FormEvent) => {
       e.preventDefault();
       try {
+        const dbService = getDbService();
         await dbService.addAlert({
           type: formData.type as any,
           title: formData.title,

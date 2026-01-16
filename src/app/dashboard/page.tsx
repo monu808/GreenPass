@@ -39,6 +39,7 @@ export default function EnhancedDashboard() {
   const [destinations, setDestinations] = useState<Destination[]>([]);
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [recentTourists, setRecentTourists] = useState<Tourist[]>([]);
+  const [weatherMap, setWeatherMap] = useState<Record<string, any>>({});
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -93,8 +94,34 @@ export default function EnhancedDashboard() {
 
     // When the server pushes a 'message', refresh all dashboard data
     eventSource.onmessage = (event) => {
-      console.log("🚀 Real-time update received: Refreshing Enhanced Dashboard");
-      loadDashboardData();
+      try {
+        const data = JSON.parse(event.data);
+        console.log("🚀 Real-time update received: Refreshing Enhanced Dashboard", data);
+        
+        const isWeatherUpdate = data.type === 'weather_update' || data.type === 'weather_update_available';
+        
+        if (isWeatherUpdate && data.destinationId && data.weather) {
+          console.log(`✅ Applying targeted weather update for ${data.destinationId}`);
+          setWeatherMap(prev => ({
+            ...prev,
+            [data.destinationId]: {
+              temperature: data.weather.temperature,
+              humidity: data.weather.humidity,
+              weatherMain: data.weather.weatherMain,
+              weatherDescription: data.weather.weatherDescription,
+              windSpeed: data.weather.windSpeed,
+              recordedAt: new Date().toISOString()
+            }
+          }));
+        } else {
+          // If it's a general 'available' signal or unknown type, refresh everything
+          console.log("🔄 Performing full dashboard refresh");
+          loadDashboardData();
+        }
+      } catch (err) {
+        console.error("Error parsing real-time data:", err);
+        loadDashboardData();
+      }
     };
 
     // Note: We avoid closing on error here (Fix for Issue #4) 
@@ -115,10 +142,47 @@ export default function EnhancedDashboard() {
   };
 
   const updateWeatherData = async (destinations: Destination[]) => {
-    for (const destination of destinations) {
-      const coordinates = destinationCoordinates[destination.id];
-      if (coordinates) {
-        try {
+    // Process each destination in parallel for better performance
+    await Promise.all(destinations.map(async (destination) => {
+      try {
+        // First, try to get the latest weather from the database
+        const latestWeather = await dbService.getLatestWeatherData(destination.id);
+        if (latestWeather) {
+          const mappedData = {
+            temperature: latestWeather.temperature,
+            humidity: latestWeather.humidity,
+            weatherMain: latestWeather.weather_main,
+            weatherDescription: latestWeather.weather_description,
+            windSpeed: latestWeather.wind_speed,
+            recordedAt: latestWeather.recorded_at || new Date().toISOString()
+          };
+          
+          // Update state immediately for this destination
+          setWeatherMap(prev => ({
+            ...prev,
+            [destination.id]: mappedData
+          }));
+        }
+
+        const coordinates = destinationCoordinates[destination.id] || 
+                          destinationCoordinates[destination.name?.toLowerCase().replace(/\s+/g, '')] ||
+                          destinationCoordinates[destination.name?.toLowerCase()];
+        
+        // Check if we already have recent weather data for this destination
+        const sixHoursInMs = 6 * 60 * 60 * 1000;
+        let isFresh = false;
+
+        if (latestWeather && latestWeather.recorded_at) {
+          const recordedAt = new Date(latestWeather.recorded_at).getTime();
+          if (new Date().getTime() - recordedAt < sixHoursInMs) {
+            isFresh = true;
+            console.log(`✅ [Dashboard] Weather for ${destination.name} is fresh. Skipping fetch.`);
+          }
+        }
+
+        // Only fetch if coordinates exist AND data is not fresh
+        if (coordinates && !isFresh) {
+          console.log(`🌐 [Dashboard] Fetching weather for ${destination.name}...`);
           const weatherData = await weatherService.getWeatherByCoordinates(
             coordinates.lat,
             coordinates.lon,
@@ -127,6 +191,21 @@ export default function EnhancedDashboard() {
 
           if (weatherData) {
             await dbService.saveWeatherData(destination.id, weatherData);
+            
+            const mappedData = {
+              temperature: weatherData.temperature,
+              humidity: weatherData.humidity,
+              weatherMain: weatherData.weatherMain,
+              weatherDescription: weatherData.weatherDescription,
+              windSpeed: weatherData.windSpeed,
+              recordedAt: new Date().toISOString()
+            };
+            
+            // Update state with fresh API data
+            setWeatherMap(prev => ({
+              ...prev,
+              [destination.id]: mappedData
+            }));
 
             const alertCheck = weatherService.shouldGenerateAlert(weatherData);
             if (alertCheck.shouldAlert && alertCheck.reason) {
@@ -140,14 +219,11 @@ export default function EnhancedDashboard() {
               });
             }
           }
-        } catch (error) {
-          console.error(
-            `Error updating weather for ${destination.name}:`,
-            error
-          );
         }
+      } catch (error) {
+        console.error(`Error updating weather for ${destination.name}:`, error);
       }
-    }
+    }));
   };
 
   const StatCard = ({
@@ -328,6 +404,7 @@ export default function EnhancedDashboard() {
                     const utilizationPercent =
                       (destination.currentOccupancy / destination.maxCapacity) *
                       100;
+                    const weather = weatherMap[destination.id];
 
                     return (
                       <div
@@ -411,6 +488,37 @@ export default function EnhancedDashboard() {
                             <Eye className="h-4 w-4 mr-1" />
                             Details
                           </button>
+                        </div>
+
+                        {/* Weather Section */}
+                        <div className="mt-3 pt-3 border-t border-gray-100">
+                          {weather ? (
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center space-x-3">
+                                <span className="text-xl font-bold text-gray-900">
+                                  {Math.round(weather.temperature)}°C
+                                </span>
+                                <div className="text-xs text-gray-500">
+                                  <p className="font-medium text-gray-700 capitalize">
+                                    {weather.weatherDescription}
+                                  </p>
+                                  <p>Humidity: {weather.humidity}%</p>
+                                </div>
+                              </div>
+                              <div className="text-right text-[10px] text-gray-400">
+                                <p>Wind: {weather.windSpeed}m/s</p>
+                                <p>Updated: {new Date(weather.recordedAt).toLocaleTimeString()}</p>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="flex items-center justify-between text-xs text-gray-400">
+                              <div className="flex items-center space-x-2">
+                                <RefreshCw className="h-3 w-3 animate-spin" />
+                                <span>Loading weather...</span>
+                              </div>
+                              <span>--°C</span>
+                            </div>
+                          )}
                         </div>
                       </div>
                     );
@@ -534,22 +642,45 @@ export default function EnhancedDashboard() {
           </div>
           <div className="p-6">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {destinations.map((destination) => (
-                <div key={destination.id} className="bg-gray-50 rounded-lg p-4">
-                  <div className="flex items-center justify-between mb-2">
-                    <h3 className="font-medium text-gray-900">
-                      {destination.name}
-                    </h3>
-                    <Navigation className="h-4 w-4 text-gray-400" />
+              {destinations.map((destination) => {
+                const weather = weatherMap[destination.id];
+                return (
+                  <div key={destination.id} className="bg-gray-50 rounded-lg p-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <h3 className="font-medium text-gray-900">
+                        {destination.name}
+                      </h3>
+                      <Navigation className="h-4 w-4 text-gray-400" />
+                    </div>
+                    {weather ? (
+                      <>
+                        <p className="text-2xl font-bold text-gray-900">
+                          {Math.round(weather.temperature)}°C
+                        </p>
+                        <p className="text-sm text-gray-600 capitalize">
+                          {weather.weatherDescription}
+                        </p>
+                        <div className="mt-3 flex items-center justify-between text-xs text-gray-500">
+                          <span>Humidity: {weather.humidity}%</span>
+                          <span>Wind: {weather.windSpeed} m/s</span>
+                        </div>
+                        <p className="text-[10px] text-gray-400 mt-2">
+                          Last updated: {new Date(weather.recordedAt).toLocaleTimeString()}
+                        </p>
+                      </>
+                    ) : (
+                      <>
+                        <p className="text-2xl font-bold text-gray-900">--°C</p>
+                        <p className="text-sm text-gray-600">Loading...</p>
+                        <div className="mt-3 flex items-center justify-between text-xs text-gray-500">
+                          <span>Humidity: --%</span>
+                          <span>Wind: -- m/s</span>
+                        </div>
+                      </>
+                    )}
                   </div>
-                  <p className="text-2xl font-bold text-gray-900">--°C</p>
-                  <p className="text-sm text-gray-600">Loading...</p>
-                  <div className="mt-3 flex items-center justify-between text-xs text-gray-500">
-                    <span>Humidity: --%</span>
-                    <span>Wind: -- km/h</span>
-                  </div>
-                </div>
-              ))} 
+                );
+              })}
             </div>
           </div>
         </div>

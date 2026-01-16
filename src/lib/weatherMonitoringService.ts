@@ -1,62 +1,21 @@
 import { weatherService, destinationCoordinates } from '@/lib/weatherService';
 import { dbService } from '@/lib/databaseService';
 import { Destination } from '@/types';
+import { broadcast } from './messagingService';
 
 interface WeatherMonitoringService {
-  isRunning: boolean;
-  intervalId: NodeJS.Timeout | null;
-  start: () => void;
-  stop: () => void;
   checkWeatherNow: () => Promise<void>;
+  isRunning: boolean;
 }
 
 class WeatherMonitor implements WeatherMonitoringService {
-  isRunning = false;
-  intervalId: NodeJS.Timeout | null = null;
   private lastCheckedData: Map<string, any> = new Map();
   private lastApiCall: number = 0;
   private apiCallDelay: number = 10000; // 10 seconds between API calls
-  private checkInterval: number = 300000; // 5 minutes between monitoring cycles
-
-  start() {
-    if (this.isRunning) {
-      console.log('⚡ Weather monitoring is already running');
-      return;
-    }
-
-    console.log('🌤️ Starting weather monitoring service...');
-    console.log(`⏱️ Using monitoring interval: ${this.checkInterval}ms (${this.checkInterval/60000} minutes)`);
-    console.log(`⏱️ Using API call delay: ${this.apiCallDelay}ms between destinations`);
-    this.isRunning = true;
-
-    // Check immediately when starting
-    this.checkWeatherNow();
-
-    
-
-    console.log('✅ Weather monitoring service initialized');
-  }
-
-  stop() {
-    if (!this.isRunning) {
-      console.log('⚡ Weather monitoring is not running');
-      return;
-    }
-
-    console.log('🛑 Stopping weather monitoring service...');
-    this.isRunning = false;
-
-    if (this.intervalId) {
-      clearInterval(this.intervalId);
-      this.intervalId = null;
-    }
-
-    console.log('✅ Weather monitoring stopped');
-  }
+  private checkInterval: number = 21600000; // 6 hours threshold for freshness
+  public readonly isRunning: boolean = true; // Service is always active (handled by app-load or external cron)
 
   async checkWeatherNow(): Promise<void> {
-    
-
     try {
       console.log('🔍 Checking weather conditions...', new Date().toLocaleTimeString());
 
@@ -70,17 +29,45 @@ class WeatherMonitor implements WeatherMonitoringService {
 
       // Check weather for each destination with rate limiting
       for (const destination of destinations) {
-        const coordinates = destinationCoordinates[destination.id] || 
-                          destinationCoordinates[destination.name?.toLowerCase().replace(/\s+/g, '')] ||
-                          destinationCoordinates[destination.name?.toLowerCase()];
-
-        if (!coordinates) {
-          console.log(`⚠️ No coordinates found for ${destination.name}`);
-          continue;
-        }
-
         try {
-          console.log(`📍 Checking weather for ${destination.name}...`);
+          // Always check the database first to have some data (even if old)
+          const latestWeather = await dbService.getLatestWeatherData(destination.id);
+          
+          if (latestWeather && latestWeather.recorded_at) {
+            const recordedAt = new Date(latestWeather.recorded_at).getTime();
+            
+            // Update local cache immediately with DB data as a baseline
+            this.lastCheckedData.set(destination.id, {
+              temperature: latestWeather.temperature,
+              humidity: latestWeather.humidity,
+              pressure: latestWeather.pressure,
+              weatherMain: latestWeather.weather_main,
+              weatherDescription: latestWeather.weather_description,
+              windSpeed: latestWeather.wind_speed,
+              windDirection: latestWeather.wind_direction,
+              visibility: latestWeather.visibility,
+              timestamp: recordedAt
+            });
+
+            // Check if this data is fresh enough (6 hours)
+            const sixHoursAgo = Date.now() - this.checkInterval;
+            if (recordedAt > sixHoursAgo) {
+              const minutesOld = Math.round((Date.now() - recordedAt) / 60000);
+              console.log(`✅ Weather for ${destination.name} is fresh (${minutesOld} min old). Skipping external API call.`);
+              continue;
+            }
+          }
+
+          const coordinates = destinationCoordinates[destination.id] || 
+                            destinationCoordinates[destination.name?.toLowerCase().replace(/\s+/g, '')] ||
+                            destinationCoordinates[destination.name?.toLowerCase()];
+
+          if (!coordinates) {
+            console.log(`⚠️ No coordinates found for ${destination.name}. Skipping.`);
+            continue;
+          }
+
+          console.log(`🌐 FETCHING fresh weather data from Tomorrow.io for ${destination.name}...`);
           
           // Rate limiting: ensure minimum delay between API calls
           const now = Date.now();
@@ -99,16 +86,16 @@ class WeatherMonitor implements WeatherMonitoringService {
           );
 
           if (!weatherData) {
-            console.log(`❌ Failed to get weather data for ${destination.name} - using cached data if available`);
+            console.log(`❌ Failed to get weather data for ${destination.name} - using last available data`);
             
             // Try to use cached data for alerts if API fails
             const cachedData = this.lastCheckedData.get(destination.id);
-            if (cachedData && Date.now() - cachedData.timestamp < 3600000) { // Use cache if less than 1 hour old
-              console.log(`📋 Using cached weather data for ${destination.name}`);
+            if (cachedData) {
+              console.log(`📋 Using last available weather data for ${destination.name} (from ${new Date(cachedData.timestamp).toLocaleTimeString()})`);
               // Process cached data for alerts but don't save to database again
               this.processWeatherAlerts(destination, cachedData, false);
             } else {
-              console.log(`❌ No valid cached data for ${destination.name}, skipping...`);
+              console.log(`❌ No data available for ${destination.name}, skipping...`);
             }
             continue;
           }
@@ -146,13 +133,15 @@ class WeatherMonitor implements WeatherMonitoringService {
         // Determine severity based on conditions
         if (weatherData.temperature > 45 || weatherData.temperature < -10) {
           alertLevel = 'critical';
-        } else if (weatherData.windSpeed > 20 || weatherData.visibility < 500) {
+        } else if (weatherData.windSpeed > 25 || weatherData.visibility < 300) {
           alertLevel = 'critical';
         } else if (weatherData.temperature > 40 || weatherData.temperature < 0) {
           alertLevel = 'high';
-        } else if (weatherData.windSpeed > 15 || (weatherData.precipitationProbability && weatherData.precipitationProbability > 80)) {
+        } else if (weatherData.windSpeed > 18 || (weatherData.precipitationProbability && weatherData.precipitationProbability > 85)) {
           alertLevel = 'high';
-        } else if (weatherData.windSpeed > 10 || (weatherData.uvIndex && weatherData.uvIndex > 8)) {
+        } else if (weatherData.visibility < 1000) {
+          alertLevel = 'high';
+        } else if (weatherData.windSpeed > 12 || (weatherData.uvIndex && weatherData.uvIndex > 9)) {
           alertLevel = 'medium';
         } else {
           alertLevel = 'low';
@@ -174,6 +163,24 @@ class WeatherMonitor implements WeatherMonitoringService {
           message: alertMessage || undefined,
           reason: alertReason || undefined
         });
+
+        // After saving, broadcast the update to all connected clients (distributed)
+        await broadcast({
+          type: 'weather_update',
+          destinationId: destination.id,
+          weather: {
+            temperature: weatherData.temperature,
+            humidity: weatherData.humidity,
+            weatherMain: weatherData.weatherMain,
+            weatherDescription: weatherData.weatherDescription,
+            windSpeed: weatherData.windSpeed,
+          },
+          alert: alertLevel !== 'none' ? {
+            level: alertLevel,
+            message: alertMessage,
+          } : null,
+          timestamp: new Date().toISOString()
+        });
       }
 
       // Log current weather summary
@@ -185,10 +192,18 @@ class WeatherMonitor implements WeatherMonitoringService {
   }
 }
 
-// Create singleton instance
-const weatherMonitoringService = new WeatherMonitor();
+// Create singleton instance using global to persist across HMR in development
+const MONITOR_KEY = Symbol.for('greenpass.weather_monitor');
+let weatherMonitoringService: WeatherMonitor;
 
-
+if (typeof global !== 'undefined') {
+  if (!(global as any)[MONITOR_KEY]) {
+    (global as any)[MONITOR_KEY] = new WeatherMonitor();
+  }
+  weatherMonitoringService = (global as any)[MONITOR_KEY];
+} else {
+  weatherMonitoringService = new WeatherMonitor();
+}
 
 export { weatherMonitoringService };
 export type { WeatherMonitoringService };

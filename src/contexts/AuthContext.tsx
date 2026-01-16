@@ -135,7 +135,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signIn = async (email: string, password: string) => {
     // DEVELOPMENT BYPASS: Allow any login with these credentials during development
-    if (process.env.NODE_ENV === 'development' || true) { // Force enable for now as requested
+    if (process.env.NODE_ENV === 'development') {
       if (email === 'admin@tms-india.gov.in' || email === 'tourist@example.com') {
         console.log('Using development bypass login for:', email);
         

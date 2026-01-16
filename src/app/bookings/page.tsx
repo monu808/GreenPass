@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import Layout from "@/components/Layout";
 import {
   Calendar,
@@ -18,6 +19,7 @@ import { getDbService } from "@/lib/databaseService";
 import { Tourist, Destination } from "@/types";
 
 export default function BookingsPage() {
+  const router = useRouter();
   const [bookings, setBookings] = useState<Tourist[]>([]);
   const [destinations, setDestinations] = useState<Destination[]>([]);
   const [loading, setLoading] = useState(true);
@@ -54,6 +56,39 @@ export default function BookingsPage() {
   useEffect(() => {
     loadData();
   }, [loadData]);
+
+  const handleViewBooking = (bookingId: string) => {
+    router.push(`/management?id=${bookingId}`);
+  };
+
+  const handleApproveBooking = async (bookingId: string) => {
+    try {
+      const dbService = getDbService();
+      await dbService.updateTouristStatus(bookingId, "approved");
+      // Optimistic update
+      setBookings((prev) =>
+        prev.map((b) => (b.id === bookingId ? { ...b, status: "approved" } : b))
+      );
+    } catch (error) {
+      console.error("Error approving booking:", error);
+      alert("Failed to approve booking. Please try again.");
+    }
+  };
+
+  const handleCancelBooking = async (bookingId: string) => {
+    if (!confirm("Are you sure you want to cancel this booking?")) return;
+    try {
+      const dbService = getDbService();
+      await dbService.updateTouristStatus(bookingId, "cancelled");
+      // Optimistic update
+      setBookings((prev) =>
+        prev.map((b) => (b.id === bookingId ? { ...b, status: "cancelled" } : b))
+      );
+    } catch (error) {
+      console.error("Error cancelling booking:", error);
+      alert("Failed to cancel booking. Please try again.");
+    }
+  };
 
   const getDestinationName = (destinationId: string) => {
     const dest = destinations.find((d) => d.id === destinationId);
@@ -341,15 +376,27 @@ export default function BookingsPage() {
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm">
                           <div className="flex space-x-3">
-                            <button className="text-green-600 hover:text-green-700 transition-colors">
+                            <button
+                              onClick={() => handleViewBooking(booking.id)}
+                              className="text-green-600 hover:text-green-700 transition-colors"
+                              title="View Details"
+                            >
                               <Eye className="h-4 w-4" />
                             </button>
                             {booking.status === "pending" && (
                               <>
-                                <button className="text-blue-600 hover:text-blue-700 transition-colors">
+                                <button
+                                  onClick={() => handleApproveBooking(booking.id)}
+                                  className="text-blue-600 hover:text-blue-700 transition-colors"
+                                  title="Approve Booking"
+                                >
                                   <CheckCircle className="h-4 w-4" />
                                 </button>
-                                <button className="text-red-600 hover:text-red-700 transition-colors">
+                                <button
+                                  onClick={() => handleCancelBooking(booking.id)}
+                                  className="text-red-600 hover:text-red-700 transition-colors"
+                                  title="Cancel Booking"
+                                >
                                   <XCircle className="h-4 w-4" />
                                 </button>
                               </>
@@ -390,17 +437,26 @@ export default function BookingsPage() {
                     </div>
 
                     <div className="flex justify-end items-center pt-2 space-x-3 border-t border-gray-50">
-                      <button className="flex items-center text-xs font-medium text-green-600 bg-green-50 px-3 py-1.5 rounded-lg">
+                      <button
+                        onClick={() => handleViewBooking(booking.id)}
+                        className="flex items-center text-xs font-medium text-green-600 bg-green-50 px-3 py-1.5 rounded-lg"
+                      >
                         <Eye className="h-3.5 w-3.5 mr-1.5" />
                         Details
                       </button>
                       {booking.status === "pending" && (
                         <>
-                          <button className="flex items-center text-xs font-medium text-blue-600 bg-blue-50 px-3 py-1.5 rounded-lg">
+                          <button
+                            onClick={() => handleApproveBooking(booking.id)}
+                            className="flex items-center text-xs font-medium text-blue-600 bg-blue-50 px-3 py-1.5 rounded-lg"
+                          >
                             <CheckCircle className="h-3.5 w-3.5 mr-1.5" />
                             Approve
                           </button>
-                          <button className="flex items-center text-xs font-medium text-red-600 bg-red-50 px-3 py-1.5 rounded-lg">
+                          <button
+                            onClick={() => handleCancelBooking(booking.id)}
+                            className="flex items-center text-xs font-medium text-red-600 bg-red-50 px-3 py-1.5 rounded-lg"
+                          >
                             <XCircle className="h-3.5 w-3.5 mr-1.5" />
                             Cancel
                           </button>

@@ -1,7 +1,7 @@
 import { supabase } from '@/lib/supabase';
 import { Tourist, Destination, Alert, DashboardStats } from '@/types';
 import { Database } from '@/types/database';
-import { policyEngine } from './ecologicalPolicyEngine';
+import { getPolicyEngine } from './ecologicalPolicyEngine';
 import * as mockData from '@/data/mockData';
 
 // Type aliases for database types
@@ -11,16 +11,22 @@ type DbAlert = Database['public']['Tables']['alerts']['Row'];
 type DbWeatherData = Database['public']['Tables']['weather_data']['Row'];
 
 // Global cache for weather data to persist across HMR in development
-const WEATHER_CACHE_KEY = Symbol.for('greenpass.weather_cache');
-const globalWeatherCache = (global as any)[WEATHER_CACHE_KEY] || new Map<string, DbWeatherData>();
-if (typeof global !== 'undefined') {
-  (global as any)[WEATHER_CACHE_KEY] = globalWeatherCache;
-}
+const WEATHER_CACHE_KEY = 'greenpass.weather_cache';
+const getGlobalWeatherCache = (): Map<string, DbWeatherData> => {
+  if (typeof globalThis === 'undefined') return new Map<string, DbWeatherData>();
+  
+  const g = globalThis as any;
+  if (!g[WEATHER_CACHE_KEY]) {
+    g[WEATHER_CACHE_KEY] = new Map<string, DbWeatherData>();
+  }
+  return g[WEATHER_CACHE_KEY];
+};
 
 class DatabaseService {
-  private weatherCache: Map<string, DbWeatherData> = globalWeatherCache;
+  private weatherCache: Map<string, DbWeatherData>;
 
   constructor() {
+    this.weatherCache = getGlobalWeatherCache();
     // Initialize cache from localStorage if available (for browser environment)
     if (typeof window !== 'undefined') {
       try {
@@ -403,7 +409,7 @@ class DatabaseService {
       const destination = await this.getDestinationById(destinationId);
       if (!destination) return 0;
 
-      return policyEngine.getAvailableSpots(destination);
+      return getPolicyEngine().getAvailableSpots(destination);
     } catch (error) {
       console.error('Error in getAvailableCapacity:', error);
       return 0;
@@ -423,8 +429,8 @@ class DatabaseService {
         ...destination,
         currentOccupancy: realTimeOccupancy
       };
-
-      return policyEngine.isBookingAllowed(destinationWithRealTimeOccupancy, groupSize);
+      
+      return getPolicyEngine().isBookingAllowed(destinationWithRealTimeOccupancy, groupSize);
     } catch (error) {
       console.error('Error in checkBookingEligibility:', error);
       return { allowed: false, reason: 'Error checking eligibility' };
@@ -466,6 +472,7 @@ class DatabaseService {
         : destinations;
 
       destinationsToProcess.forEach(dest => {
+        const policyEngine = getPolicyEngine();
         const ecoAlert = policyEngine.generateEcologicalAlerts(this.transformDbDestinationToDestination(dest as any));
         if (ecoAlert) {
           const alertId = `eco-${dest.id}`;
@@ -556,6 +563,10 @@ class DatabaseService {
   }
 
   // Dashboard statistics
+  getPolicyEngine() {
+    return getPolicyEngine();
+  }
+
   async getDashboardStats(): Promise<DashboardStats> {
     try {
       const [tourists, destinations, alerts] = await Promise.all([
@@ -567,6 +578,7 @@ class DatabaseService {
       const physicalMaxCapacity = destinations.reduce((sum, dest) => sum + (dest.max_capacity || 0), 0);
       const adjustedMaxCapacity = destinations.reduce((sum, dest) => {
         const destinationObj = this.transformDbDestinationToDestination(dest as any);
+        const policyEngine = getPolicyEngine();
         return sum + (policyEngine.getAdjustedCapacity(destinationObj) || 0);
       }, 0);
       
@@ -826,6 +838,16 @@ class DatabaseService {
   }
 }
 
-// Create singleton instance
-export const dbService = new DatabaseService();
+// Create singleton instance with HMR support
+const DB_SERVICE_KEY = 'greenpass.db_service';
+export const getDbService = (): DatabaseService => {
+  if (typeof globalThis === 'undefined') return new DatabaseService();
+  
+  const g = globalThis as any;
+  if (!g[DB_SERVICE_KEY]) {
+    g[DB_SERVICE_KEY] = new DatabaseService();
+  }
+  return g[DB_SERVICE_KEY];
+};
+
 export default DatabaseService;

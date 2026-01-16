@@ -3,8 +3,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { MapPin, Star, Users, Heart, Camera, Calendar, Navigation } from 'lucide-react';
 import TouristLayout from '@/components/TouristLayout';
-import { dbService } from '@/lib/databaseService';
-import { policyEngine } from '@/lib/ecologicalPolicyEngine';
+import { getDbService } from '@/lib/databaseService';
+import { getPolicyEngine } from '@/lib/ecologicalPolicyEngine';
 import { Destination } from '@/types';
 
 export default function TouristDestinations() {
@@ -20,6 +20,7 @@ export default function TouristDestinations() {
 
   const loadDestinations = async () => {
     try {
+      const dbService = getDbService();
       const destinationsData = await dbService.getDestinations();
 
       const transformedDestinations = destinationsData.map((dest) => ({
@@ -61,12 +62,14 @@ export default function TouristDestinations() {
     switch (selectedFilter) {
       case 'available':
         filtered = filtered.filter(dest => {
+          const policyEngine = getPolicyEngine();
           const adjustedCapacity = policyEngine.getAdjustedCapacity(dest);
           return dest.currentOccupancy < adjustedCapacity * 0.8;
         });
         break;
       case 'popular':
         filtered = filtered.filter(dest => {
+          const policyEngine = getPolicyEngine();
           const adjustedCapacity = policyEngine.getAdjustedCapacity(dest);
           return dest.currentOccupancy > adjustedCapacity * 0.5;
         });
@@ -85,6 +88,7 @@ export default function TouristDestinations() {
   }, [filterDestinations]);
 
   const getAvailabilityStatus = (destination: Destination) => {
+    const policyEngine = getPolicyEngine();
     const adjustedCapacity = policyEngine.getAdjustedCapacity(destination);
     const occupancyRate = destination.currentOccupancy / adjustedCapacity;
     if (occupancyRate < 0.6) return { text: 'Great Availability', color: 'text-green-600 bg-green-100' };
@@ -103,6 +107,7 @@ export default function TouristDestinations() {
   };
 
   const DestinationCard = ({ destination }: { destination: Destination }) => {
+    const policyEngine = getPolicyEngine();
     const adjustedCapacity = policyEngine.getAdjustedCapacity(destination);
     const occupancyRate = destination.currentOccupancy / adjustedCapacity;
     const isOverCapacity = occupancyRate > 1;

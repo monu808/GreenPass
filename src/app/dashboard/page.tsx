@@ -19,7 +19,7 @@ import {
   UserX,
   Navigation,
 } from "lucide-react";
-import { dbService } from "@/lib/databaseService";
+import { getDbService } from "@/lib/databaseService";
 import { weatherService, destinationCoordinates } from "@/lib/weatherService";
 import { getCapacityStatus, formatDateTime } from "@/lib/utils";
 import { DashboardStats, Destination, Alert, Tourist } from "@/types";
@@ -45,6 +45,7 @@ export default function EnhancedDashboard() {
 
   const loadDashboardData = useCallback(async () => {
     try {
+      const dbService = getDbService();
       const [dashboardStats, destinationsData, alertsData, touristsData] =
         await Promise.all([
           dbService.getDashboardStats(),
@@ -142,6 +143,7 @@ export default function EnhancedDashboard() {
   };
 
   const updateWeatherData = async (destinations: Destination[]) => {
+    const dbService = getDbService();
     // Process each destination in parallel for better performance
     await Promise.all(destinations.map(async (destination) => {
       try {
@@ -275,32 +277,32 @@ export default function EnhancedDashboard() {
     <Layout>
       <div className="space-y-6">
         {/* Enhanced Header */}
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">
+            <h1 className="text-xl sm:text-2xl font-bold text-gray-900">
               Enhanced Dashboard
             </h1>
-            <p className="text-gray-600">
+            <p className="text-sm sm:text-base text-gray-600">
               Real-time comprehensive tourist management overview
             </p>
-            <p className="text-sm text-gray-500 mt-1">
+            <p className="text-xs sm:text-sm text-gray-500 mt-1">
               Last updated: {new Date().toLocaleTimeString()}
             </p>
           </div>
-          <div className="flex space-x-3">
+          <div className="flex space-x-2 sm:space-x-3">
             <button
               onClick={refreshDashboard}
               disabled={refreshing}
-              className="flex items-center px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
+              className="flex-1 sm:flex-none flex items-center justify-center px-3 sm:px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50 text-sm"
             >
               <RefreshCw
                 className={`h-4 w-4 mr-2 ${refreshing ? "animate-spin" : ""}`}
               />
-              {refreshing ? "Refreshing..." : "Refresh"}
+              {refreshing ? "..." : "Refresh"}
             </button>
-            <button className="flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors">
+            <button className="flex-1 sm:flex-none flex items-center justify-center px-3 sm:px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm">
               <Download className="h-4 w-4 mr-2" />
-              Export Report
+              Export
             </button>
           </div>
         </div>
@@ -397,12 +399,14 @@ export default function EnhancedDashboard() {
               ) : (
                 <div className="space-y-4">
                   {destinations.map((destination) => {
+                    const policyEngine = getDbService().getPolicyEngine();
+                    const adjustedCapacity = policyEngine.getAdjustedCapacity(destination);
                     const capacityStatus = getCapacityStatus(
                       destination.currentOccupancy,
-                      destination.maxCapacity
+                      adjustedCapacity
                     );
                     const utilizationPercent =
-                      (destination.currentOccupancy / destination.maxCapacity) *
+                      (destination.currentOccupancy / adjustedCapacity) *
                       100;
                     const weather = weatherMap[destination.id];
 
@@ -452,8 +456,8 @@ export default function EnhancedDashboard() {
                             <span>Capacity Usage</span>
                             <span>
                               {destination.currentOccupancy}/
-                              {destination.maxCapacity} (
-                              {utilizationPercent.toFixed(1)}%)
+                              {Math.round(adjustedCapacity)} (
+                              {((destination.currentOccupancy / adjustedCapacity) * 100).toFixed(1)}%)
                             </span>
                           </div>
                           <div className="w-full bg-gray-200 rounded-full h-2">

@@ -16,11 +16,11 @@ import {
   X,
   RefreshCw
 } from 'lucide-react';
-import { dbService } from '@/lib/databaseService';
+import { getDbService } from '@/lib/databaseService';
 import { weatherService, destinationCoordinates } from '@/lib/weatherService';
 import { getCapacityStatus, formatDateTime } from '@/lib/utils';
 import { DashboardStats, Destination, Alert } from '@/types';
-import { policyEngine, DEFAULT_POLICIES, SensitivityLevel, EcologicalPolicy } from '@/lib/ecologicalPolicyEngine';
+import { getPolicyEngine, DEFAULT_POLICIES, SensitivityLevel, EcologicalPolicy } from '@/lib/ecologicalPolicyEngine';
 
 export default function AdminDashboard() {
   const [stats, setStats] = useState<DashboardStats>({
@@ -54,6 +54,7 @@ export default function AdminDashboard() {
   useEffect(() => {
     // 1. Load initial data when the user first opens the dashboard
     loadDashboardData();
+    const policyEngine = getPolicyEngine();
     setPolicies(policyEngine.getAllPolicies());
 
     // 2. Real-Time Connection (Issue #21 Requirement)
@@ -104,6 +105,7 @@ export default function AdminDashboard() {
   const [activeTab, setActiveTab] = useState<'overview' | 'policies'>('overview');
 
   const handleConfigure = (level: SensitivityLevel) => {
+    const policyEngine = getPolicyEngine();
     const policy = policies[level] || policyEngine.getPolicy(level);
     setPolicyForm({ ...policy });
     setEditingPolicy(level);
@@ -111,6 +113,7 @@ export default function AdminDashboard() {
 
   const handleSavePolicy = () => {
     if (editingPolicy && policyForm) {
+      const policyEngine = getPolicyEngine();
       policyEngine.updatePolicy(editingPolicy, policyForm);
       setPolicies(policyEngine.getAllPolicies());
       setEditingPolicy(null);
@@ -122,6 +125,7 @@ export default function AdminDashboard() {
 
   const loadDashboardData = async () => {
     try {
+      const dbService = getDbService();
       const [dashboardStats, destinationsData, alertsData] = await Promise.all([
         dbService.getDashboardStats(),
         dbService.getDestinations(),
@@ -163,6 +167,7 @@ export default function AdminDashboard() {
 
   const updateWeatherData = async (destinations: Destination[]) => {
     const newWeatherMap: Record<string, any> = {};
+    const dbService = getDbService();
 
     for (const destination of destinations) {
       try {
@@ -369,84 +374,87 @@ export default function AdminDashboard() {
                   Destinations Overview
                 </h2>
                 <div className="space-y-4">
-                  {destinations.slice(0, 5).map((destination) => {
-                    const adjustedCapacity = policyEngine.getAdjustedCapacity(destination);
-                    const status = getCapacityStatus(destination.currentOccupancy, adjustedCapacity).status;
-                    const weather = weatherMap[destination.id];
-                    
-                    return (
-                      <div key={destination.id} className="flex flex-col p-4 bg-gray-50 rounded-lg border border-gray-100 hover:shadow-sm transition-shadow">
-                        <div className="flex items-center justify-between mb-3">
-                          <div className="flex items-center space-x-3">
-                            <MapPin className="h-5 w-5 text-gray-400" />
-                            <div>
-                              <p className="font-medium text-gray-900">{destination.name}</p>
-                              <div className="flex items-center text-sm text-gray-600">
-                                <span>{destination.location}</span>
-                                <span className="mx-2 text-gray-300">•</span>
-                                <span className={`flex items-center ${
-                                  destination.ecologicalSensitivity === 'critical' ? 'text-red-600' :
-                                  destination.ecologicalSensitivity === 'high' ? 'text-orange-600' :
-                                  destination.ecologicalSensitivity === 'medium' ? 'text-yellow-600' : 'text-green-600'
-                                }`}>
-                                  <Leaf className="h-3 w-3 mr-1" />
-                                  {destination.ecologicalSensitivity}
-                                </span>
-                              </div>
-                            </div>
-                          </div>
-                          <div className="text-right">
-                            <div className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                              status === 'low'
-                                ? 'bg-green-100 text-green-800'
-                                : status === 'medium'
-                                ? 'bg-yellow-100 text-yellow-800'
-                                : 'bg-red-100 text-red-800'
-                            }`}>
-                              {status}
-                            </div>
-                            <p className="text-sm text-gray-600 mt-1">
-                              {destination.currentOccupancy}/{adjustedCapacity}
-                              {adjustedCapacity < destination.maxCapacity && (
-                                <span className="text-xs text-orange-500 ml-1">(! limit)</span>
-                              )}
-                            </p>
-                          </div>
-                        </div>
-
-                        {/* Weather Section */}
-                        <div className="mt-2 pt-3 border-t border-gray-200">
-                          {weather ? (
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center space-x-3">
-                                <span className="text-xl font-bold text-gray-900">
-                                  {Math.round(weather.temperature)}°C
-                                </span>
-                                <div className="text-xs text-gray-500">
-                                  <p className="font-medium text-gray-700 capitalize">
-                                    {weather.weatherDescription}
-                                  </p>
-                                  <p>Humidity: {weather.humidity}%</p>
+                  {(() => {
+                    const policyEngine = getPolicyEngine();
+                    return destinations.slice(0, 5).map((destination) => {
+                      const adjustedCapacity = policyEngine.getAdjustedCapacity(destination);
+                      const status = getCapacityStatus(destination.currentOccupancy, adjustedCapacity).status;
+                      const weather = weatherMap[destination.id];
+                      
+                      return (
+                        <div key={destination.id} className="flex flex-col p-4 bg-gray-50 rounded-lg border border-gray-100 hover:shadow-sm transition-shadow">
+                          <div className="flex items-center justify-between mb-3">
+                            <div className="flex items-center space-x-3">
+                              <MapPin className="h-5 w-5 text-gray-400" />
+                              <div>
+                                <p className="font-medium text-gray-900">{destination.name}</p>
+                                <div className="flex items-center text-sm text-gray-600">
+                                  <span>{destination.location}</span>
+                                  <span className="mx-2 text-gray-300">•</span>
+                                  <span className={`flex items-center ${
+                                    destination.ecologicalSensitivity === 'critical' ? 'text-red-600' :
+                                    destination.ecologicalSensitivity === 'high' ? 'text-orange-600' :
+                                    destination.ecologicalSensitivity === 'medium' ? 'text-yellow-600' : 'text-green-600'
+                                  }`}>
+                                    <Leaf className="h-3 w-3 mr-1" />
+                                    {destination.ecologicalSensitivity}
+                                  </span>
                                 </div>
                               </div>
-                              <div className="text-right text-[10px] text-gray-400">
-                                <p>Wind: {weather.windSpeed}m/s</p>
-                                <p>Updated: {new Date(weather.recordedAt).toLocaleTimeString()}</p>
-                              </div>
                             </div>
-                          ) : (
-                            <div className="flex items-center justify-between text-xs text-gray-400">
-                              <div className="flex items-center space-x-2">
-                                <RefreshCw className="h-3 w-3 animate-spin" />
-                                <span>Loading weather...</span>
+                            <div className="text-right">
+                              <div className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                                status === 'low'
+                                  ? 'bg-green-100 text-green-800'
+                                  : status === 'medium'
+                                  ? 'bg-yellow-100 text-yellow-800'
+                                  : 'bg-red-100 text-red-800'
+                              }`}>
+                                {status}
                               </div>
-                              <span>--°C</span>
+                              <p className="text-sm text-gray-600 mt-1">
+                                {destination.currentOccupancy}/{adjustedCapacity}
+                                {adjustedCapacity < destination.maxCapacity && (
+                                  <span className="text-xs text-orange-500 ml-1">(! limit)</span>
+                                )}
+                              </p>
                             </div>
-                          )}
+                          </div>
+
+                          {/* Weather Section */}
+                          <div className="mt-2 pt-3 border-t border-gray-200">
+                            {weather ? (
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center space-x-3">
+                                  <span className="text-xl font-bold text-gray-900">
+                                    {Math.round(weather.temperature)}°C
+                                  </span>
+                                  <div className="text-xs text-gray-500">
+                                    <p className="font-medium text-gray-700 capitalize">
+                                      {weather.weatherDescription}
+                                    </p>
+                                    <p>Humidity: {weather.humidity}%</p>
+                                  </div>
+                                </div>
+                                <div className="text-right text-[10px] text-gray-400">
+                                  <p>Wind: {weather.windSpeed}m/s</p>
+                                  <p>Updated: {new Date(weather.recordedAt).toLocaleTimeString()}</p>
+                                </div>
+                              </div>
+                            ) : (
+                              <div className="flex items-center justify-between text-xs text-gray-400">
+                                <div className="flex items-center space-x-2">
+                                  <RefreshCw className="h-3 w-3 animate-spin" />
+                                  <span>Loading weather...</span>
+                                </div>
+                                <span>--°C</span>
+                              </div>
+                            )}
+                          </div>
                         </div>
-                      </div>
-                    );
-                  })}
+                      );
+                    });
+                  })()}
                 </div>
               </div>
 

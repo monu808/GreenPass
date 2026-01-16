@@ -17,7 +17,7 @@ import {
   UserX,
   Eye
 } from 'lucide-react';
-import { dbService } from '@/lib/databaseService';
+import { getDbService } from '@/lib/databaseService';
 import { Tourist } from '@/types';
 
 export default function TouristManagement() {
@@ -35,6 +35,7 @@ export default function TouristManagement() {
   const loadTourists = async () => {
     try {
       setLoading(true);
+      const dbService = getDbService();
       const data = await dbService.getTourists();
       setTourists(data);
     } catch (error) {
@@ -46,6 +47,7 @@ export default function TouristManagement() {
 
   const handleStatusUpdate = async (touristId: string, newStatus: Tourist['status']) => {
     try {
+      const dbService = getDbService();
       await dbService.updateTouristStatus(touristId, newStatus);
       await loadTourists(); // Reload data
     } catch (error) {

@@ -28,7 +28,7 @@ import {
   User,
   CalendarDays,
 } from "lucide-react";
-import { dbService } from "@/lib/databaseService";
+import { getDbService } from "@/lib/databaseService";
 import { Tourist, Destination } from "@/types";
 import { formatDateTime } from "@/lib/utils";
 
@@ -57,6 +57,7 @@ export default function TouristBookingManagement() {
   const loadData = useCallback(async () => {
     try {
       setLoading(true);
+      const dbService = getDbService();
       const [touristData, destinationData] = await Promise.all([
         dbService.getTourists(),
         dbService.getDestinations(),
@@ -106,6 +107,7 @@ export default function TouristBookingManagement() {
     newStatus: Tourist["status"]
   ) => {
     try {
+      const dbService = getDbService();
       await dbService.updateTouristStatus(touristId, newStatus);
       await loadData(); // Reload data
     } catch (error) {
@@ -115,6 +117,7 @@ export default function TouristBookingManagement() {
 
   const handleBulkStatusUpdate = async (status: Tourist["status"]) => {
     try {
+      const dbService = getDbService();
       await Promise.all(
         selectedTourists.map((id) => dbService.updateTouristStatus(id, status))
       );
@@ -521,27 +524,27 @@ export default function TouristBookingManagement() {
     <Layout>
       <div className="space-y-6">
         {/* Header */}
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-4 sm:space-y-0">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">
+            <h1 className="text-xl sm:text-2xl font-bold text-gray-900">
               Tourist & Booking Management
             </h1>
-            <p className="text-gray-600">
+            <p className="text-sm sm:text-base text-gray-600">
               Comprehensive management of tourist registrations and bookings
             </p>
           </div>
-          <div className="flex space-x-3">
-            <button className="flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors">
+          <div className="flex flex-wrap gap-2 sm:space-x-3 sm:gap-0">
+            <button className="flex-1 sm:flex-none flex items-center justify-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm">
               <Plus className="h-4 w-4 mr-2" />
-              New Registration
+              New
             </button>
-            <button className="flex items-center px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
+            <button className="flex-1 sm:flex-none flex items-center justify-center px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors text-sm">
               <Download className="h-4 w-4 mr-2" />
-              Export Data
+              Export
             </button>
             <button
               onClick={loadData}
-              className="flex items-center px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+              className="flex-1 sm:flex-none flex items-center justify-center px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors text-sm"
             >
               <RefreshCw className="h-4 w-4 mr-2" />
               Refresh
@@ -550,7 +553,7 @@ export default function TouristBookingManagement() {
         </div>
 
         {/* Statistics Dashboard */}
-        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
           <StatCard
             title="Total Tourists"
             value={stats.total}
@@ -596,24 +599,24 @@ export default function TouristBookingManagement() {
         </div>
 
         {/* Filters and Search */}
-        <div className="bg-white rounded-lg border border-gray-200 p-6">
+        <div className="bg-white rounded-lg border border-gray-200 p-4 sm:p-6">
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between space-y-4 lg:space-y-0 lg:space-x-4">
-            <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-4 flex-1">
-              <div className="relative flex-1">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:flex lg:flex-row gap-3 flex-1">
+              <div className="relative col-span-1 sm:col-span-2 lg:flex-1">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
                 <input
                   type="text"
-                  placeholder="Search by name, email, or phone..."
+                  placeholder="Search..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-sm"
                 />
               </div>
 
               <select
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
-                className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-sm bg-white"
               >
                 <option value="all">All Status</option>
                 <option value="pending">Pending</option>
@@ -626,7 +629,7 @@ export default function TouristBookingManagement() {
               <select
                 value={destinationFilter}
                 onChange={(e) => setDestinationFilter(e.target.value)}
-                className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-sm bg-white"
               >
                 <option value="all">All Destinations</option>
                 {destinations.map((dest) => (
@@ -637,11 +640,12 @@ export default function TouristBookingManagement() {
               </select>
             </div>
 
-            <div className="flex items-center space-x-2">
+            <div className="flex items-center justify-between sm:justify-end space-x-2">
+              <span className="text-sm text-gray-500 lg:hidden">View:</span>
               <div className="flex border border-gray-300 rounded-lg overflow-hidden">
                 <button
                   onClick={() => setViewMode("list")}
-                  className={`px-3 py-2 text-sm font-medium ${
+                  className={`px-4 py-2 text-sm font-medium ${
                     viewMode === "list"
                       ? "bg-green-100 text-green-700"
                       : "text-gray-700 hover:bg-gray-50"
@@ -651,7 +655,7 @@ export default function TouristBookingManagement() {
                 </button>
                 <button
                   onClick={() => setViewMode("grid")}
-                  className={`px-3 py-2 text-sm font-medium ${
+                  className={`px-4 py-2 text-sm font-medium ${
                     viewMode === "grid"
                       ? "bg-green-100 text-green-700"
                       : "text-gray-700 hover:bg-gray-50"
@@ -666,29 +670,29 @@ export default function TouristBookingManagement() {
           {/* Bulk Actions */}
           {selectedTourists.length > 0 && (
             <div className="mt-4 p-4 bg-green-50 rounded-lg border border-green-200">
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
                 <div className="flex items-center space-x-2">
                   <CheckSquare className="h-5 w-5 text-green-600" />
                   <span className="text-sm font-medium text-green-800">
-                    {selectedTourists.length} tourist(s) selected
+                    {selectedTourists.length} selected
                   </span>
                 </div>
-                <div className="flex space-x-2">
+                <div className="flex flex-wrap justify-center gap-2">
                   <button
                     onClick={() => handleBulkStatusUpdate("approved")}
-                    className="px-3 py-1 bg-green-600 text-white text-sm rounded hover:bg-green-700"
+                    className="px-3 py-1.5 bg-green-600 text-white text-xs font-medium rounded hover:bg-green-700 transition-colors"
                   >
                     Approve
                   </button>
                   <button
                     onClick={() => handleBulkStatusUpdate("cancelled")}
-                    className="px-3 py-1 bg-red-600 text-white text-sm rounded hover:bg-red-700"
+                    className="px-3 py-1.5 bg-red-600 text-white text-xs font-medium rounded hover:bg-red-700 transition-colors"
                   >
                     Cancel
                   </button>
                   <button
                     onClick={() => setSelectedTourists([])}
-                    className="px-3 py-1 border border-gray-300 text-gray-700 text-sm rounded hover:bg-gray-50"
+                    className="px-3 py-1.5 border border-gray-300 text-gray-700 text-xs font-medium rounded hover:bg-gray-50 transition-colors bg-white"
                   >
                     Clear
                   </button>
@@ -750,7 +754,7 @@ export default function TouristBookingManagement() {
                   <table className="min-w-full divide-y divide-gray-200">
                     <thead className="bg-gray-50">
                       <tr>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                           <input
                             type="checkbox"
                             checked={
@@ -766,19 +770,19 @@ export default function TouristBookingManagement() {
                             className="rounded border-gray-300 text-green-600 focus:ring-green-500"
                           />
                         </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                           Tourist
                         </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        <th className="hidden md:table-cell px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                           Destination
                         </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                           Dates
                         </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        <th className="hidden sm:table-cell px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                           Status
                         </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                           Actions
                         </th>
                       </tr>
@@ -788,7 +792,7 @@ export default function TouristBookingManagement() {
                         const StatusIcon = getStatusIcon(tourist.status);
                         return (
                           <tr key={tourist.id} className="hover:bg-gray-50">
-                            <td className="px-6 py-4 whitespace-nowrap">
+                            <td className="px-4 sm:px-6 py-4 whitespace-nowrap">
                               <input
                                 type="checkbox"
                                 checked={selectedTourists.includes(tourist.id)}
@@ -809,22 +813,22 @@ export default function TouristBookingManagement() {
                                 className="rounded border-gray-300 text-green-600 focus:ring-green-500"
                               />
                             </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
+                            <td className="px-4 sm:px-6 py-4 whitespace-nowrap">
                               <div className="flex items-center">
                                 <div>
                                   <div className="text-sm font-medium text-gray-900">
                                     {tourist.name}
                                   </div>
-                                  <div className="text-sm text-gray-500">
+                                  <div className="hidden sm:block text-xs text-gray-500">
                                     {tourist.email}
                                   </div>
-                                  <div className="text-sm text-gray-500">
-                                    {tourist.phone}
+                                  <div className="block sm:hidden text-xs font-medium text-green-600">
+                                    {tourist.status}
                                   </div>
                                 </div>
                               </div>
                             </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
+                            <td className="hidden md:table-cell px-6 py-4 whitespace-nowrap">
                               <div className="text-sm text-gray-900">
                                 {getDestinationName(tourist.destination)}
                               </div>
@@ -832,23 +836,23 @@ export default function TouristBookingManagement() {
                                 Group: {tourist.groupSize}
                               </div>
                             </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <div className="text-sm text-gray-900">
-                                <div>
-                                  In:{" "}
+                            <td className="px-4 sm:px-6 py-4 whitespace-nowrap">
+                              <div className="text-xs sm:text-sm text-gray-900">
+                                <div className="flex items-center">
+                                  <span className="w-8 sm:w-auto text-gray-400 mr-1 sm:mr-0 sm:hidden">In:</span>
                                   {new Date(
                                     tourist.checkInDate
                                   ).toLocaleDateString()}
                                 </div>
-                                <div>
-                                  Out:{" "}
+                                <div className="flex items-center">
+                                  <span className="w-8 sm:w-auto text-gray-400 mr-1 sm:mr-0 sm:hidden">Out:</span>
                                   {new Date(
                                     tourist.checkOutDate
                                   ).toLocaleDateString()}
                                 </div>
                               </div>
                             </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
+                            <td className="hidden sm:table-cell px-6 py-4 whitespace-nowrap">
                               <span
                                 className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(
                                   tourist.status
@@ -859,69 +863,71 @@ export default function TouristBookingManagement() {
                                   tourist.status.slice(1)}
                               </span>
                             </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
-                              <button
-                                onClick={() => {
-                                  setSelectedTourist(tourist);
-                                  setShowDetails(true);
-                                }}
-                                className="text-green-600 hover:text-green-900"
-                              >
-                                <Eye className="h-4 w-4" />
-                              </button>
+                            <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-sm font-medium">
+                              <div className="flex items-center space-x-2 sm:space-x-3">
+                                <button
+                                  onClick={() => {
+                                    setSelectedTourist(tourist);
+                                    setShowDetails(true);
+                                  }}
+                                  className="text-green-600 hover:text-green-900 p-1"
+                                >
+                                  <Eye className="h-4 w-4" />
+                                </button>
 
-                              {tourist.status === "pending" && (
-                                <>
+                                {tourist.status === "pending" && (
+                                  <>
+                                    <button
+                                      onClick={() =>
+                                        handleStatusUpdate(tourist.id, "approved")
+                                      }
+                                      className="text-green-600 hover:text-green-900 p-1"
+                                      title="Approve"
+                                    >
+                                      <CheckCircle className="h-4 w-4" />
+                                    </button>
+                                    <button
+                                      onClick={() =>
+                                        handleStatusUpdate(
+                                          tourist.id,
+                                          "cancelled"
+                                        )
+                                      }
+                                      className="text-red-600 hover:text-red-900 p-1"
+                                      title="Cancel"
+                                    >
+                                      <XCircle className="h-4 w-4" />
+                                    </button>
+                                  </>
+                                )}
+
+                                {tourist.status === "approved" && (
                                   <button
                                     onClick={() =>
-                                      handleStatusUpdate(tourist.id, "approved")
+                                      handleStatusUpdate(tourist.id, "checked-in")
                                     }
-                                    className="text-green-600 hover:text-green-900"
-                                    title="Approve"
+                                    className="text-blue-600 hover:text-blue-900 p-1"
+                                    title="Check In"
                                   >
-                                    <CheckCircle className="h-4 w-4" />
+                                    <UserCheck className="h-4 w-4" />
                                   </button>
+                                )}
+
+                                {tourist.status === "checked-in" && (
                                   <button
                                     onClick={() =>
                                       handleStatusUpdate(
                                         tourist.id,
-                                        "cancelled"
+                                        "checked-out"
                                       )
                                     }
-                                    className="text-red-600 hover:text-red-900"
-                                    title="Cancel"
+                                    className="text-gray-600 hover:text-gray-900 p-1"
+                                    title="Check Out"
                                   >
-                                    <XCircle className="h-4 w-4" />
+                                    <UserX className="h-4 w-4" />
                                   </button>
-                                </>
-                              )}
-
-                              {tourist.status === "approved" && (
-                                <button
-                                  onClick={() =>
-                                    handleStatusUpdate(tourist.id, "checked-in")
-                                  }
-                                  className="text-blue-600 hover:text-blue-900"
-                                  title="Check In"
-                                >
-                                  <UserCheck className="h-4 w-4" />
-                                </button>
-                              )}
-
-                              {tourist.status === "checked-in" && (
-                                <button
-                                  onClick={() =>
-                                    handleStatusUpdate(
-                                      tourist.id,
-                                      "checked-out"
-                                    )
-                                  }
-                                  className="text-gray-600 hover:text-gray-900"
-                                  title="Check Out"
-                                >
-                                  <UserX className="h-4 w-4" />
-                                </button>
-                              )}
+                                )}
+                              </div>
                             </td>
                           </tr>
                         );
@@ -1091,16 +1097,16 @@ export default function TouristBookingManagement() {
                       </div>
                     </div>
 
-                    <div className="flex justify-end space-x-3 pt-6 border-t border-gray-200">
+                    <div className="flex flex-col sm:flex-row justify-end gap-3 pt-6 border-t border-gray-200">
                       <button
                         onClick={() => setShowDetails(false)}
-                        className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
+                        className="w-full sm:w-auto px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 text-sm font-medium"
                       >
                         Close
                       </button>
                       <button
                         onClick={handlePrintReceipt}
-                        className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                        className="w-full sm:w-auto px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium"
                       >
                         Print Receipt
                       </button>
@@ -1114,7 +1120,7 @@ export default function TouristBookingManagement() {
                               );
                               setShowDetails(false);
                             }}
-                            className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+                            className="w-full sm:w-auto px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm font-medium"
                           >
                             Approve
                           </button>
@@ -1126,7 +1132,7 @@ export default function TouristBookingManagement() {
                               );
                               setShowDetails(false);
                             }}
-                            className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
+                            className="w-full sm:w-auto px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 text-sm font-medium"
                           >
                             Cancel
                           </button>

@@ -1,12 +1,16 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Bell, User, Search, MapPin, Calendar, Heart, ChevronDown, Key, Settings, UserCircle, Shield, LogOut } from 'lucide-react';
+import { Bell, User, Search, MapPin, Calendar, Heart, ChevronDown, Key, Settings, UserCircle, Shield, LogOut, Menu } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 
-export default function TouristHeader() {
+interface HeaderProps {
+  onMenuClick?: () => void;
+}
+
+export default function TouristHeader({ onMenuClick }: HeaderProps) {
   const { user, signOut } = useAuth();
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [showAuthDropdown, setShowAuthDropdown] = useState(false);
@@ -23,40 +27,47 @@ export default function TouristHeader() {
   };
 
   return (
-    <header className="fixed top-0 right-0 left-64 bg-white/95 backdrop-blur-sm border-b border-gray-200 z-30 shadow-sm">
-      <div className="flex items-center justify-between px-6 py-4">
-        {/* Welcome Message */}
-        <div className="flex items-center space-x-4">
-          <div className="flex items-center space-x-3">
-            <div className="p-2 bg-green-100 rounded-lg">
+    <header className="fixed top-0 right-0 left-0 lg:left-64 bg-white/95 backdrop-blur-sm border-b border-gray-200 z-30 shadow-sm transition-all duration-300">
+      <div className="flex items-center justify-between px-4 lg:px-6 py-4">
+        <div className="flex items-center">
+          <button
+            onClick={onMenuClick}
+            className="p-2 mr-4 text-gray-600 lg:hidden hover:bg-gray-100 rounded-lg transition-colors"
+          >
+            <Menu className="h-6 w-6" />
+          </button>
+          
+          {/* Welcome Message */}
+          <div className="flex items-center space-x-3 sm:space-x-4">
+            <div className="p-2 bg-green-100 rounded-lg hidden sm:block">
               <MapPin className="h-5 w-5 text-green-600" />
             </div>
             <div>
-              <h1 className="text-lg font-semibold text-gray-900">
+              <h1 className="text-base sm:text-lg font-semibold text-gray-900">
                 Explore Paradise
               </h1>
-              <p className="text-sm text-gray-600">Jammu & Himachal Pradesh</p>
+              <p className="text-xs sm:text-sm text-gray-600 hidden sm:block">Jammu & Himachal Pradesh</p>
             </div>
           </div>
         </div>
 
         {/* Search Bar */}
-        <div className="flex-1 max-w-lg mx-8">
+        <div className="flex-1 max-w-lg mx-4 lg:mx-8 hidden md:block">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
             <input
               type="text"
               placeholder="Search destinations, activities..."
-              className="w-full pl-10 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent text-gray-700 placeholder-gray-500"
+              className="w-full pl-10 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent text-gray-700 placeholder-gray-500 text-sm"
             />
           </div>
         </div>
 
         {/* User Actions */}
-        <div className="flex items-center space-x-4">
+        <div className="flex items-center space-x-2 lg:space-x-4">
           {/* Quick Actions */}
-          <div className="flex items-center space-x-2">
-            <button className="p-2 text-gray-600 hover:text-green-600 hover:bg-green-50 rounded-lg transition-all duration-200">
+          <div className="flex items-center space-x-1 sm:space-x-2">
+            <button className="p-2 text-gray-600 hover:text-green-600 hover:bg-green-50 rounded-lg transition-all duration-200 hidden sm:block">
               <Heart className="h-5 w-5" />
             </button>
             <button className="p-2 text-gray-600 hover:text-green-600 hover:bg-green-50 rounded-lg transition-all duration-200">
@@ -64,22 +75,22 @@ export default function TouristHeader() {
             </button>
             <button className="p-2 text-gray-600 hover:text-green-600 hover:bg-green-50 rounded-lg transition-all duration-200 relative">
               <Bell className="h-5 w-5" />
-              <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full"></span>
+              <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-red-500 rounded-full"></span>
             </button>
           </div>
 
           {/* User Menu */}
-          <div className="flex items-center space-x-4">
-            <div className="text-right">
-              <p className="text-sm font-medium text-gray-800">
-                {user?.user_metadata?.name || user?.email || 'Explorer'}
+          <div className="flex items-center space-x-2 sm:space-x-4">
+            <div className="text-right hidden sm:block">
+              <p className="text-sm font-medium text-gray-800 truncate max-w-[100px]">
+                {user?.user_metadata?.name || user?.email?.split('@')[0] || 'Explorer'}
               </p>
               <p className="text-xs text-green-600 font-medium">Adventure Seeker</p>
             </div>
             <div className="relative">
               <button 
                 onClick={() => setShowUserMenu(!showUserMenu)}
-                className="flex items-center space-x-2 p-2 hover:bg-gray-50 rounded-lg transition-all duration-200 focus:outline-none"
+                className="flex items-center space-x-1 sm:space-x-2 p-1 sm:p-2 hover:bg-gray-50 rounded-lg transition-all duration-200 focus:outline-none"
               >
                 <div className="h-8 w-8 bg-gradient-to-br from-green-500 to-blue-500 rounded-full flex items-center justify-center shadow-sm">
                   <User className="h-4 w-4 text-white" />

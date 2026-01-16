@@ -252,38 +252,66 @@ export default function TouristBookings() {
 
   return (
     <TouristLayout>
-      <div className="space-y-6">
+      <div className="space-y-4 sm:space-y-8 pb-10">
         {/* Header */}
-        <div className="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-xl p-6 text-white">
-          <h1 className="text-3xl font-bold mb-2">My Bookings</h1>
-          <p className="text-blue-100">Manage and track all your travel bookings</p>
+        <div className="bg-gradient-to-r from-blue-600 via-indigo-600 to-indigo-700 rounded-2xl p-6 sm:p-10 text-white shadow-xl relative overflow-hidden group">
+          <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&q=80')] opacity-10 mix-blend-overlay group-hover:scale-105 transition-transform duration-700"></div>
+          <div className="relative">
+            <h1 className="text-3xl sm:text-4xl font-black mb-2 tracking-tight">My Bookings</h1>
+            <p className="text-blue-100 text-sm sm:text-lg font-medium max-w-xl">
+              Manage and track all your travel bookings in one place
+            </p>
+          </div>
+        </div>
+
+        {/* Stats Section */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6">
+          {[
+            { label: 'Total', count: bookings.length, icon: Calendar, color: 'from-blue-500 to-indigo-600' },
+            { label: 'Confirmed', count: bookings.filter(b => b.status === 'confirmed').length, icon: CheckCircle, color: 'from-emerald-500 to-teal-600' },
+            { label: 'Pending', count: bookings.filter(b => b.status === 'pending').length, icon: Clock, color: 'from-amber-500 to-orange-600' },
+            { label: 'Completed', count: bookings.filter(b => b.status === 'completed').length, icon: Star, color: 'from-purple-500 to-pink-600' }
+          ].map((stat, i) => (
+            <div key={i} className="bg-white rounded-2xl p-4 sm:p-6 shadow-sm border border-gray-100 flex items-center gap-3 sm:gap-4 group hover:border-blue-200 transition-all">
+              <div className={`p-2.5 sm:p-3.5 rounded-xl bg-gradient-to-br ${stat.color} shadow-lg group-hover:scale-110 transition-transform`}>
+                <stat.icon className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
+              </div>
+              <div>
+                <p className="text-xs sm:text-sm font-bold text-gray-500 uppercase tracking-wider">{stat.label}</p>
+                <p className="text-xl sm:text-2xl font-black text-gray-900 leading-none mt-1">{stat.count}</p>
+              </div>
+            </div>
+          ))}
         </div>
 
         {/* Search and Filter */}
-        <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
-          <div className="flex flex-col sm:flex-row gap-4">
+        <div className="bg-white rounded-2xl p-4 sm:p-8 shadow-sm border border-gray-100">
+          <div className="flex flex-col lg:flex-row gap-4 sm:gap-6">
             <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+              <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
               <input
                 type="text"
-                placeholder="Search bookings..."
+                placeholder="Search by title or destination..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900"
+                className="w-full pl-12 pr-4 py-3.5 sm:py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 text-sm sm:text-base font-medium transition-all"
               />
             </div>
-            <div className="flex gap-3">
-              <select
-                value={sortBy}
-                onChange={(e) => setSortBy(e.target.value)}
-                className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 bg-white"
-              >
-                <option value="date">Sort by Date</option>
-                <option value="amount">Sort by Amount</option>
-                <option value="name">Sort by Name</option>
-              </select>
-              <button className="flex items-center px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
-                <Filter className="h-4 w-4 mr-2" />
+            <div className="flex flex-row gap-2 sm:gap-4">
+              <div className="relative flex-1 sm:flex-none sm:w-56">
+                <select
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value)}
+                  className="w-full appearance-none pl-4 pr-10 py-3.5 sm:py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 bg-white text-sm sm:text-base font-bold transition-all cursor-pointer"
+                >
+                  <option value="date">Sort by Date</option>
+                  <option value="amount">Sort by Amount</option>
+                  <option value="name">Sort by Name</option>
+                </select>
+                <ChevronDown className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5 pointer-events-none" />
+              </div>
+              <button className="flex items-center justify-center px-6 py-3.5 sm:py-3 text-gray-700 bg-gray-50 border border-gray-200 rounded-xl hover:bg-gray-100 transition-all text-sm sm:text-base font-bold whitespace-nowrap active:scale-95">
+                <Filter className="h-5 w-5 mr-2 text-blue-600" />
                 Filter
               </button>
             </div>
@@ -291,21 +319,21 @@ export default function TouristBookings() {
         </div>
 
         {/* Tabs */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200">
-          <div className="flex overflow-x-auto">
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+          <div className="flex overflow-x-auto scrollbar-hide">
             {tabs.map((tab) => (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center space-x-2 px-6 py-4 text-sm font-medium whitespace-nowrap border-b-2 transition-colors ${
+                className={`flex items-center space-x-2.5 px-6 sm:px-8 py-4 sm:py-5 text-xs sm:text-sm font-black whitespace-nowrap border-b-4 transition-all ${
                   activeTab === tab.id
-                    ? 'border-blue-600 text-blue-600 bg-blue-50'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+                    ? 'border-blue-600 text-blue-600 bg-blue-50/50'
+                    : 'border-transparent text-gray-400 hover:text-gray-600 hover:bg-gray-50'
                 }`}
               >
                 <span>{tab.label}</span>
-                <span className={`px-2 py-1 rounded-full text-xs ${
-                  activeTab === tab.id ? 'bg-blue-100 text-blue-600' : 'bg-gray-100 text-gray-600'
+                <span className={`px-2 py-0.5 rounded-lg text-[10px] sm:text-xs font-black ${
+                  activeTab === tab.id ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-500'
                 }`}>
                   {tab.count}
                 </span>
@@ -315,80 +343,99 @@ export default function TouristBookings() {
         </div>
 
         {/* Bookings List */}
-        <div className="space-y-4">
+        <div className="grid grid-cols-1 gap-4 sm:gap-6">
           {filteredBookings.length === 0 ? (
-            <div className="bg-white rounded-xl p-8 text-center shadow-sm border border-gray-200">
-              <Calendar className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">No bookings found</h3>
-              <p className="text-gray-500">Try adjusting your search or filter criteria.</p>
+            <div className="bg-white rounded-3xl p-12 sm:p-20 text-center shadow-sm border border-gray-100">
+              <div className="bg-gray-50 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6">
+                <Calendar className="h-10 w-10 text-gray-300" />
+              </div>
+              <h3 className="text-xl font-black text-gray-900 mb-2">No bookings found</h3>
+              <p className="text-gray-500 text-sm sm:text-base font-medium max-w-xs mx-auto">Try adjusting your search or filter criteria to find what you're looking for.</p>
             </div>
           ) : (
             filteredBookings.map((booking) => (
-              <div key={booking.id} className="bg-white rounded-xl p-6 shadow-sm border border-gray-200 hover:border-blue-300 transition-colors">
-                <div className="flex items-start justify-between mb-4">
-                  <div className="flex items-start space-x-4">
-                    <div className="w-16 h-16 bg-gray-200 rounded-lg flex-shrink-0" />
-                    <div className="flex-1">
-                      <div className="flex items-center space-x-2 mb-2">
+              <div key={booking.id} className="bg-white rounded-2xl p-4 sm:p-8 shadow-sm border border-gray-100 hover:border-blue-200 hover:shadow-xl transition-all duration-300 group">
+                <div className="flex flex-col sm:flex-row items-start justify-between mb-6 sm:mb-8 gap-6">
+                  <div className="flex flex-col sm:flex-row items-start space-y-4 sm:space-y-0 sm:space-x-6 w-full">
+                    <div className="w-full sm:w-32 h-40 sm:h-32 bg-gray-50 rounded-2xl flex-shrink-0 flex items-center justify-center overflow-hidden relative group-hover:scale-105 transition-transform duration-500">
+                      <div className="bg-white p-3.5 rounded-2xl shadow-md z-10">
                         {getTypeIcon(booking.type)}
-                        <h3 className="text-lg font-semibold text-gray-900">{booking.title}</h3>
-                        <span className={`px-3 py-1 rounded-full text-xs font-medium border ${getStatusColor(booking.status)}`}>
+                      </div>
+                      <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-indigo-500/5"></div>
+                    </div>
+                    <div className="flex-1 w-full">
+                      <div className="flex flex-wrap items-center gap-3 mb-3">
+                        <h3 className="text-xl sm:text-2xl font-black text-gray-900 tracking-tight group-hover:text-blue-600 transition-colors">{booking.title}</h3>
+                        <span className={`inline-flex items-center px-3 py-1 rounded-xl text-[10px] sm:text-xs font-black border-2 shadow-sm ${getStatusColor(booking.status)}`}>
                           {getStatusIcon(booking.status)}
-                          <span className="ml-1 capitalize">{booking.status}</span>
+                          <span className="ml-1.5 uppercase tracking-wider">{booking.status}</span>
                         </span>
                       </div>
-                      <div className="flex items-center text-gray-600 mb-1">
-                        <MapPin className="h-4 w-4 mr-1" />
-                        <span className="text-sm">{booking.destination}</span>
-                      </div>
-                      <div className="flex items-center text-gray-600 mb-1">
-                        <Calendar className="h-4 w-4 mr-1" />
-                        <span className="text-sm">
-                          {new Date(booking.startDate).toLocaleDateString()} - {new Date(booking.endDate).toLocaleDateString()}
-                        </span>
-                      </div>
-                      <div className="flex items-center text-gray-600">
-                        <Users className="h-4 w-4 mr-1" />
-                        <span className="text-sm">{booking.guests} guests</span>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-2.5 text-gray-500 font-bold">
+                        <div className="flex items-center text-xs sm:text-sm">
+                          <MapPin className="h-4 w-4 mr-2 text-blue-500" />
+                          <span className="truncate">{booking.destination}</span>
+                        </div>
+                        <div className="flex items-center text-xs sm:text-sm">
+                          <Calendar className="h-4 w-4 mr-2 text-indigo-500" />
+                          <span>{new Date(booking.startDate).toLocaleDateString('en-IN', {day: '2-digit', month: 'short'})} - {new Date(booking.endDate).toLocaleDateString('en-IN', {day: '2-digit', month: 'short'})}</span>
+                        </div>
+                        <div className="flex items-center text-xs sm:text-sm">
+                          <Users className="h-4 w-4 mr-2 text-emerald-500" />
+                          <span>{booking.guests} {booking.guests > 1 ? 'guests' : 'guest'}</span>
+                        </div>
+                        <div className="flex items-center text-xs sm:text-sm sm:hidden">
+                          <CreditCard className="h-4 w-4 mr-2 text-amber-500" />
+                          <span className="font-black text-gray-900 text-lg">₹{booking.totalAmount.toLocaleString()}</span>
+                        </div>
                       </div>
                     </div>
                   </div>
-                  <div className="text-right">
-                    <div className="text-2xl font-bold text-gray-900 mb-1">₹{booking.totalAmount.toLocaleString()}</div>
-                    <div className="text-sm text-gray-500">Booking ID: {booking.id}</div>
+                  <div className="hidden sm:block text-right">
+                    <div className="text-3xl font-black text-gray-900 mb-1 tracking-tight">₹{booking.totalAmount.toLocaleString()}</div>
+                    <div className="text-[10px] text-gray-400 font-black bg-gray-50 px-3 py-1 rounded-lg inline-block uppercase tracking-widest border border-gray-100">ID: {booking.id}</div>
                   </div>
                 </div>
 
-                <div className="border-t border-gray-200 pt-4">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-4 text-sm text-gray-600">
-                      <span>Booked on {new Date(booking.bookingDate).toLocaleDateString()}</span>
-                      <span>•</span>
-                      <span>Confirmation: {booking.confirmationCode}</span>
-                      <span>•</span>
-                      <span>Provider: {booking.provider}</span>
+                <div className="border-t border-gray-100 pt-6">
+                  <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+                    <div className="flex flex-wrap items-center gap-x-6 gap-y-3 text-[10px] sm:text-xs text-gray-400 font-black uppercase tracking-widest">
+                      <div className="flex items-center">
+                        <Clock className="h-3.5 w-3.5 mr-2 text-gray-300" />
+                        <span>Booked: {new Date(booking.bookingDate).toLocaleDateString()}</span>
+                      </div>
+                      <div className="hidden sm:block text-gray-200">/</div>
+                      <div className="flex items-center">
+                        <CheckCircle className="h-3.5 w-3.5 mr-2 text-gray-300" />
+                        <span>Code: {booking.confirmationCode}</span>
+                      </div>
+                      <div className="hidden sm:block text-gray-200">/</div>
+                      <div className="flex items-center">
+                        <Users className="h-3.5 w-3.5 mr-2 text-gray-300" />
+                        <span>{booking.provider}</span>
+                      </div>
                     </div>
-                    <div className="flex items-center space-x-2">
+                    <div className="grid grid-cols-2 sm:flex items-center gap-3">
                       <button
                         onClick={() => setSelectedBooking(booking)}
-                        className="flex items-center px-3 py-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                        className="flex items-center justify-center px-5 py-3 text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-xl transition-all text-xs font-black uppercase tracking-wider active:scale-95"
                       >
-                        <Eye className="h-4 w-4 mr-1" />
-                        View Details
+                        <Eye className="h-4 w-4 mr-2" />
+                        Details
                       </button>
                       {booking.status === 'confirmed' && (
-                        <button className="flex items-center px-3 py-1.5 text-gray-600 hover:bg-gray-50 rounded-lg transition-colors">
-                          <Edit className="h-4 w-4 mr-1" />
+                        <button className="flex items-center justify-center px-5 py-3 text-gray-600 bg-gray-50 hover:bg-gray-100 rounded-xl transition-all text-xs font-black uppercase tracking-wider active:scale-95">
+                          <Edit className="h-4 w-4 mr-2" />
                           Modify
                         </button>
                       )}
-                      <button className="flex items-center px-3 py-1.5 text-gray-600 hover:bg-gray-50 rounded-lg transition-colors">
-                        <Download className="h-4 w-4 mr-1" />
-                        Download
+                      <button className="flex items-center justify-center px-5 py-3 text-gray-600 bg-gray-50 hover:bg-gray-100 rounded-xl transition-all text-xs font-black uppercase tracking-wider active:scale-95">
+                        <Download className="h-4 w-4 mr-2" />
+                        Receipt
                       </button>
                       {booking.status === 'pending' && (
-                        <button className="flex items-center px-3 py-1.5 text-red-600 hover:bg-red-50 rounded-lg transition-colors">
-                          <XCircle className="h-4 w-4 mr-1" />
+                        <button className="flex items-center justify-center px-5 py-3 text-red-600 bg-red-50 hover:bg-red-100 rounded-xl transition-all text-xs font-black uppercase tracking-wider col-span-2 sm:col-auto active:scale-95">
+                          <XCircle className="h-4 w-4 mr-2" />
                           Cancel
                         </button>
                       )}
@@ -402,96 +449,120 @@ export default function TouristBookings() {
 
         {/* Booking Details Modal */}
         {selectedBooking && (
-          <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-300">
-            <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto transform animate-in zoom-in-95 duration-300">
-              <div className="p-6">
-                <div className="flex items-center justify-between mb-6">
-                  <h2 className="text-2xl font-bold text-gray-900">Booking Details</h2>
+          <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-md flex items-end sm:items-center justify-center z-50 p-0 sm:p-4 animate-in fade-in duration-300">
+            <div className="bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl max-w-2xl w-full max-h-[95vh] overflow-y-auto transform animate-in slide-in-from-bottom sm:zoom-in-95 duration-400">
+              <div className="p-6 sm:p-10">
+                <div className="flex items-center justify-between mb-8 sticky top-0 bg-white z-10 py-2 border-b-2 border-gray-50">
+                  <h2 className="text-2xl sm:text-3xl font-black text-gray-900 tracking-tight">Booking Details</h2>
                   <button
                     onClick={() => setSelectedBooking(null)}
-                    className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100"
+                    className="p-2.5 text-gray-400 hover:text-gray-900 rounded-xl hover:bg-gray-100 transition-all active:scale-90"
                   >
-                    <XCircle className="h-6 w-6" />
+                    <XCircle className="h-7 w-7" />
                   </button>
                 </div>
 
-                <div className="space-y-6">
+                <div className="space-y-8 sm:space-y-10">
                   {/* Basic Info */}
-                  <div className="bg-gray-50 rounded-lg p-4">
-                    <div className="flex items-center justify-between mb-4">
-                      <div className="flex items-center space-x-3">
-                        {getTypeIcon(selectedBooking.type)}
-                        <h3 className="text-xl font-semibold text-gray-900">{selectedBooking.title}</h3>
+                  <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-3xl p-6 sm:p-8 border border-blue-100 shadow-sm relative overflow-hidden">
+                    <div className="absolute top-0 right-0 w-32 h-32 bg-blue-600/5 rounded-full -mr-16 -mt-16"></div>
+                    <div className="relative">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
+                        <div className="flex items-center space-x-4">
+                          <div className="bg-white p-3.5 rounded-2xl shadow-md">
+                            {getTypeIcon(selectedBooking.type)}
+                          </div>
+                          <h3 className="text-2xl sm:text-3xl font-black text-gray-900 tracking-tight">{selectedBooking.title}</h3>
+                        </div>
+                        <span className={`self-start sm:self-auto px-4 py-1.5 rounded-xl text-[10px] sm:text-xs font-black border-2 shadow-sm uppercase tracking-widest ${getStatusColor(selectedBooking.status)}`}>
+                          <span className="flex items-center">
+                            {getStatusIcon(selectedBooking.status)}
+                            <span className="ml-2">{selectedBooking.status}</span>
+                          </span>
+                        </span>
                       </div>
-                      <span className={`px-3 py-1 rounded-full text-sm font-medium border ${getStatusColor(selectedBooking.status)}`}>
-                        {getStatusIcon(selectedBooking.status)}
-                        <span className="ml-1 capitalize">{selectedBooking.status}</span>
-                      </span>
-                    </div>
-                    
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                      <div>
-                        <span className="font-medium text-gray-700">Destination:</span>
-                        <p className="text-gray-900">{selectedBooking.destination}</p>
-                      </div>
-                      <div>
-                        <span className="font-medium text-gray-700">Dates:</span>
-                        <p className="text-gray-900">
-                          {new Date(selectedBooking.startDate).toLocaleDateString()} - {new Date(selectedBooking.endDate).toLocaleDateString()}
-                        </p>
-                      </div>
-                      <div>
-                        <span className="font-medium text-gray-700">Guests:</span>
-                        <p className="text-gray-900">{selectedBooking.guests} people</p>
-                      </div>
-                      <div>
-                        <span className="font-medium text-gray-700">Total Amount:</span>
-                        <p className="text-gray-900 font-semibold">₹{selectedBooking.totalAmount.toLocaleString()}</p>
+                      
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-10 gap-y-6">
+                        <div className="space-y-1.5">
+                          <span className="text-[10px] font-black text-blue-400 uppercase tracking-widest">Destination</span>
+                          <p className="text-gray-900 font-bold text-base flex items-center">
+                            <MapPin className="h-4 w-4 mr-2 text-blue-500" />
+                            {selectedBooking.destination}
+                          </p>
+                        </div>
+                        <div className="space-y-1.5">
+                          <span className="text-[10px] font-black text-indigo-400 uppercase tracking-widest">Dates</span>
+                          <p className="text-gray-900 font-bold text-base flex items-center">
+                            <Calendar className="h-4 w-4 mr-2 text-indigo-500" />
+                            {new Date(selectedBooking.startDate).toLocaleDateString()} - {new Date(selectedBooking.endDate).toLocaleDateString()}
+                          </p>
+                        </div>
+                        <div className="space-y-1.5">
+                          <span className="text-[10px] font-black text-emerald-400 uppercase tracking-widest">Guests</span>
+                          <p className="text-gray-900 font-bold text-base flex items-center">
+                            <Users className="h-4 w-4 mr-2 text-emerald-500" />
+                            {selectedBooking.guests} people
+                          </p>
+                        </div>
+                        <div className="space-y-1.5">
+                          <span className="text-[10px] font-black text-amber-400 uppercase tracking-widest">Total Amount</span>
+                          <p className="text-blue-700 font-black text-2xl tracking-tight">₹{selectedBooking.totalAmount.toLocaleString()}</p>
+                        </div>
                       </div>
                     </div>
                   </div>
 
                   {/* Provider Info */}
-                  <div>
-                    <h4 className="font-semibold text-gray-900 mb-3">Provider Information</h4>
-                    <div className="bg-white border border-gray-200 rounded-lg p-4">
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-                        <div>
-                          <span className="font-medium text-gray-700">Provider:</span>
-                          <p className="text-gray-900">{selectedBooking.provider}</p>
+                  <div className="space-y-4">
+                    <h4 className="font-black text-gray-900 flex items-center text-xs uppercase tracking-[0.2em]">
+                      Provider Information
+                    </h4>
+                    <div className="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm hover:border-blue-100 transition-colors">
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 text-sm">
+                        <div className="space-y-1.5">
+                          <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Name</span>
+                          <p className="text-gray-900 font-bold text-base">{selectedBooking.provider}</p>
                         </div>
-                        <div>
-                          <span className="font-medium text-gray-700">Phone:</span>
-                          <p className="text-gray-900">{selectedBooking.contact.phone}</p>
+                        <div className="space-y-1.5">
+                          <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Phone</span>
+                          <a href={`tel:${selectedBooking.contact.phone}`} className="text-blue-600 font-bold text-base flex items-center hover:text-blue-700 transition-colors">
+                            <Phone className="h-4 w-4 mr-2" />
+                            {selectedBooking.contact.phone}
+                          </a>
                         </div>
-                        <div>
-                          <span className="font-medium text-gray-700">Email:</span>
-                          <p className="text-gray-900">{selectedBooking.contact.email}</p>
+                        <div className="space-y-1.5">
+                          <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Email</span>
+                          <a href={`mailto:${selectedBooking.contact.email}`} className="text-blue-600 font-bold text-base flex items-center hover:text-blue-700 transition-colors truncate">
+                            <Mail className="h-4 w-4 mr-2" />
+                            {selectedBooking.contact.email}
+                          </a>
                         </div>
                       </div>
                     </div>
                   </div>
 
                   {/* Booking Details */}
-                  <div>
-                    <h4 className="font-semibold text-gray-900 mb-3">Booking Details</h4>
-                    <div className="bg-white border border-gray-200 rounded-lg p-4">
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                        <div>
-                          <span className="font-medium text-gray-700">Booking ID:</span>
-                          <p className="text-gray-900">{selectedBooking.id}</p>
+                  <div className="space-y-4">
+                    <h4 className="font-black text-gray-900 flex items-center text-xs uppercase tracking-[0.2em]">
+                      Booking Information
+                    </h4>
+                    <div className="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm hover:border-indigo-100 transition-colors">
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-6 text-sm">
+                        <div className="space-y-1.5">
+                          <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">ID</span>
+                          <p className="text-gray-900 font-black font-mono text-sm tracking-tighter uppercase">{selectedBooking.id}</p>
                         </div>
-                        <div>
-                          <span className="font-medium text-gray-700">Confirmation Code:</span>
-                          <p className="text-gray-900 font-mono">{selectedBooking.confirmationCode}</p>
+                        <div className="space-y-1.5">
+                          <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Conf. Code</span>
+                          <p className="text-indigo-600 font-black font-mono text-sm bg-indigo-50 px-2 py-0.5 rounded-lg inline-block tracking-widest">{selectedBooking.confirmationCode}</p>
                         </div>
-                        <div>
-                          <span className="font-medium text-gray-700">Booking Date:</span>
-                          <p className="text-gray-900">{new Date(selectedBooking.bookingDate).toLocaleDateString()}</p>
+                        <div className="space-y-1.5">
+                          <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Booked On</span>
+                          <p className="text-gray-900 font-bold">{new Date(selectedBooking.bookingDate).toLocaleDateString()}</p>
                         </div>
-                        <div>
-                          <span className="font-medium text-gray-700">Type:</span>
-                          <p className="text-gray-900 capitalize">{selectedBooking.type}</p>
+                        <div className="space-y-1.5">
+                          <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Category</span>
+                          <p className="text-gray-900 font-bold capitalize">{selectedBooking.type}</p>
                         </div>
                       </div>
                     </div>
@@ -499,42 +570,48 @@ export default function TouristBookings() {
 
                   {/* Additional Details */}
                   {selectedBooking.details && (
-                    <div>
-                      <h4 className="font-semibold text-gray-900 mb-3">Additional Information</h4>
-                      <div className="bg-white border border-gray-200 rounded-lg p-4">
-                        {Object.entries(selectedBooking.details).map(([key, value]) => (
-                          <div key={key} className="mb-3 last:mb-0">
-                            <span className="font-medium text-gray-700 capitalize">{key.replace(/([A-Z])/g, ' $1')}:</span>
-                            {Array.isArray(value) ? (
-                              <ul className="mt-1 list-disc list-inside text-gray-900 text-sm">
-                                {value.map((item, index) => (
-                                  <li key={index}>{item}</li>
-                                ))}
-                              </ul>
-                            ) : (
-                              <p className="text-gray-900">{String(value)}</p>
-                            )}
-                          </div>
-                        ))}
+                    <div className="space-y-4">
+                      <h4 className="font-black text-gray-900 flex items-center text-xs uppercase tracking-[0.2em]">
+                        Service Details
+                      </h4>
+                      <div className="bg-gray-50/50 border border-gray-100 rounded-3xl p-6 sm:p-8">
+                        <div className="grid grid-cols-1 gap-6">
+                          {Object.entries(selectedBooking.details).map(([key, value]) => (
+                            <div key={key} className="space-y-2.5">
+                              <span className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">{key.replace(/([A-Z])/g, ' $1')}</span>
+                              {Array.isArray(value) ? (
+                                <div className="flex flex-wrap gap-2.5 mt-1">
+                                  {value.map((item, index) => (
+                                    <span key={index} className="bg-white px-4 py-1.5 rounded-xl border border-gray-100 text-xs text-gray-700 font-bold shadow-sm">
+                                      {item}
+                                    </span>
+                                  ))}
+                                </div>
+                              ) : (
+                                <p className="text-gray-900 font-bold text-base">{String(value)}</p>
+                              )}
+                            </div>
+                          ))}
+                        </div>
                       </div>
                     </div>
                   )}
                 </div>
 
                 {/* Action Buttons */}
-                <div className="flex justify-end space-x-3 mt-6 pt-6 border-t border-gray-200">
-                  <button className="flex items-center px-4 py-2 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
+                <div className="flex flex-col sm:flex-row gap-4 mt-12 pt-10 border-t-2 border-gray-50">
+                  <button className="flex-1 flex items-center justify-center px-6 py-4 text-gray-700 bg-white border-2 border-gray-100 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-gray-50 hover:border-gray-200 transition-all shadow-sm active:scale-95">
                     <Download className="h-4 w-4 mr-2" />
-                    Download
+                    Download Receipt
                   </button>
                   {selectedBooking.status === 'confirmed' && (
-                    <button className="flex items-center px-4 py-2 text-blue-600 border border-blue-300 rounded-lg hover:bg-blue-50 transition-colors">
+                    <button className="flex-1 flex items-center justify-center px-6 py-4 text-white bg-blue-600 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-blue-700 transition-all shadow-xl shadow-blue-200 active:scale-95">
                       <Edit className="h-4 w-4 mr-2" />
                       Modify Booking
                     </button>
                   )}
                   {selectedBooking.status === 'pending' && (
-                    <button className="flex items-center px-4 py-2 text-red-600 border border-red-300 rounded-lg hover:bg-red-50 transition-colors">
+                    <button className="flex-1 flex items-center justify-center px-6 py-4 text-white bg-red-500 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-red-600 transition-all shadow-xl shadow-red-200 active:scale-95">
                       <XCircle className="h-4 w-4 mr-2" />
                       Cancel Booking
                     </button>

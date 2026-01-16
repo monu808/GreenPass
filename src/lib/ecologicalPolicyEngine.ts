@@ -153,5 +153,24 @@ class EcologicalPolicyEngine {
   }
 }
 
-export const policyEngine = new EcologicalPolicyEngine();
-export default policyEngine;
+// Export a singleton factory function to support Turbopack HMR and consistent state
+let globalPolicyEngine: EcologicalPolicyEngine | null = null;
+
+export const getPolicyEngine = (): EcologicalPolicyEngine => {
+  if (typeof window !== 'undefined') {
+    // Client-side: use a global on window to persist across HMR
+    const win = window as any;
+    if (!win.__policyEngine) {
+      win.__policyEngine = new EcologicalPolicyEngine();
+    }
+    return win.__policyEngine;
+  }
+  
+  // Server-side or non-browser
+  if (!globalPolicyEngine) {
+    globalPolicyEngine = new EcologicalPolicyEngine();
+  }
+  return globalPolicyEngine;
+};
+
+export default getPolicyEngine;

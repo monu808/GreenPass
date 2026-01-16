@@ -83,35 +83,35 @@ function LoginForm() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-green-50 to-blue-50 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-md w-full space-y-8">
+    <div className="min-h-screen bg-gradient-to-br from-green-50 to-blue-50 flex items-center justify-center py-8 sm:py-12 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-md w-full space-y-6 sm:space-y-8">
         {/* Header */}
         <div className="text-center">
           <div className="flex justify-center">
-            <div className="w-12 h-12 bg-green-600 rounded-xl flex items-center justify-center">
-              <MapPin className="h-7 w-7 text-white" />
+            <div className="w-10 h-10 sm:w-12 sm:h-12 bg-green-600 rounded-xl flex items-center justify-center">
+              <MapPin className="h-6 w-6 sm:h-7 sm:w-7 text-white" />
             </div>
           </div>
-          <h2 className="mt-6 text-3xl font-bold text-gray-900">
+          <h2 className="mt-4 sm:mt-6 text-2xl sm:text-3xl font-bold text-gray-900">
             Welcome Back
           </h2>
-          <p className="mt-2 text-sm text-gray-600">
+          <p className="mt-2 text-xs sm:text-sm text-gray-600">
             Sign in to your Tourist Management System account
           </p>
         </div>
 
         {/* Form */}
-        <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
-          <div className="bg-white rounded-lg shadow-sm p-6 space-y-4">
+        <form className="mt-6 sm:mt-8 space-y-4 sm:space-y-6" onSubmit={handleSubmit}>
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 sm:p-6 space-y-4">
             {error && (
               <div className="bg-red-50 border border-red-200 rounded-lg p-3">
-                <p className="text-sm text-red-600">{error}</p>
+                <p className="text-xs sm:text-sm text-red-600">{error}</p>
               </div>
             )}
 
             {/* Email */}
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
+              <label htmlFor="email" className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
                 Email Address
               </label>
               <div className="relative">
@@ -124,7 +124,7 @@ function LoginForm() {
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="pl-10 w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-gray-900"
+                  className="pl-10 w-full px-3 py-2.5 sm:py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-gray-900 text-sm sm:text-base"
                   placeholder="Enter your email"
                 />
               </div>
@@ -132,7 +132,7 @@ function LoginForm() {
 
             {/* Password */}
             <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
+              <label htmlFor="password" className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
                 Password
               </label>
               <div className="relative">
@@ -145,13 +145,13 @@ function LoginForm() {
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="pl-10 pr-10 w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-gray-900"
+                  className="pl-10 pr-10 w-full px-3 py-2.5 sm:py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-gray-900 text-sm sm:text-base"
                   placeholder="Enter your password"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 p-1"
                 >
                   {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
@@ -162,7 +162,7 @@ function LoginForm() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-green-600 text-white py-2 px-4 rounded-lg hover:bg-green-700 focus:ring-2 focus:ring-green-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className="w-full bg-green-600 text-white py-2.5 sm:py-2 px-4 rounded-lg hover:bg-green-700 focus:ring-2 focus:ring-green-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium text-sm sm:text-base"
             >
               {loading ? (
                 <div className="flex items-center justify-center">
@@ -175,21 +175,34 @@ function LoginForm() {
             </button>
 
             {/* Admin Login Button */}
-            <button
-              type="button"
-              onClick={fillAdminCredentials}
-              className="w-full bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors flex items-center justify-center space-x-2"
-            >
-              <Lock className="h-4 w-4" />
-              <span>Admin Login</span>
-            </button>
+            <div className="grid grid-cols-2 gap-4">
+              <button
+                type="button"
+                onClick={fillAdminCredentials}
+                className="w-full bg-blue-600 text-white py-2.5 sm:py-2 px-4 rounded-lg hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors flex items-center justify-center space-x-2 font-medium text-sm sm:text-base"
+              >
+                <Lock className="h-4 w-4" />
+                <span>Admin</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setEmail('tourist@example.com');
+                  setPassword('tourist123');
+                }}
+                className="w-full bg-green-100 text-green-700 py-2.5 sm:py-2 px-4 rounded-lg hover:bg-green-200 focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition-colors flex items-center justify-center space-x-2 font-medium text-sm sm:text-base"
+              >
+                <MapPin className="h-4 w-4" />
+                <span>Tourist</span>
+              </button>
+            </div>
 
             {/* Divider */}
-            <div className="relative">
+            <div className="relative py-2">
               <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-gray-300" />
+                <div className="w-full border-t border-gray-200" />
               </div>
-              <div className="relative flex justify-center text-sm">
+              <div className="relative flex justify-center text-xs">
                 <span className="px-2 bg-white text-gray-500">Or continue with</span>
               </div>
             </div>
@@ -199,7 +212,7 @@ function LoginForm() {
               type="button"
               onClick={handleGoogleSignIn}
               disabled={loading}
-              className="w-full flex items-center justify-center px-4 py-2 border border-gray-300 rounded-lg shadow-sm bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 focus:ring-2 focus:ring-green-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className="w-full flex items-center justify-center px-4 py-2.5 sm:py-2 border border-gray-300 rounded-lg shadow-sm bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 focus:ring-2 focus:ring-green-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               <svg className="w-4 h-4 mr-2" viewBox="0 0 24 24">
                 <path
@@ -224,10 +237,10 @@ function LoginForm() {
           </div>
 
           {/* Sign Up Link */}
-          <div className="text-center">
+          <div className="text-center pt-2">
             <p className="text-sm text-gray-600">
               Don&apos;t have an account?{' '}
-              <Link href="/signup" className="font-medium text-green-600 hover:text-green-500">
+              <Link href="/signup" className="font-semibold text-green-600 hover:text-green-500">
                 Sign up here
               </Link>
             </p>

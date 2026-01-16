@@ -380,6 +380,7 @@ export default function BookingsPage() {
                               onClick={() => handleViewBooking(booking.id)}
                               className="text-green-600 hover:text-green-700 transition-colors"
                               title="View Details"
+                              aria-label="View booking"
                             >
                               <Eye className="h-4 w-4" />
                             </button>
@@ -389,6 +390,7 @@ export default function BookingsPage() {
                                   onClick={() => handleApproveBooking(booking.id)}
                                   className="text-blue-600 hover:text-blue-700 transition-colors"
                                   title="Approve Booking"
+                                  aria-label="Approve booking"
                                 >
                                   <CheckCircle className="h-4 w-4" />
                                 </button>
@@ -396,6 +398,7 @@ export default function BookingsPage() {
                                   onClick={() => handleCancelBooking(booking.id)}
                                   className="text-red-600 hover:text-red-700 transition-colors"
                                   title="Cancel Booking"
+                                  aria-label="Cancel booking"
                                 >
                                   <XCircle className="h-4 w-4" />
                                 </button>

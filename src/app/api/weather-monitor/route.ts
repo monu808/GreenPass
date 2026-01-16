@@ -1,12 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { weatherMonitoringService } from '@/lib/weatherMonitoringService';
 
-// CHANGE 1: Move interval variable OUTSIDE the function to share it
-let globalInterval: NodeJS.Timeout | null = null;
+import { createServerComponentClient } from '@/lib/supabase';
+import { broadcast } from '@/lib/messagingService';
+
+// Local instance state for SSE connections
 const activeWriters = new Set<WritableStreamDefaultWriter>();
 const encoder = new TextEncoder();
 
-const broadcast = async (data: any) => {
+/**
+ * localFlush sends a message to all SSE connections connected to THIS instance.
+ */
+const localFlush = async (data: any) => {
   const message = `data: ${JSON.stringify(data)}\n\n`;
   const encoded = encoder.encode(message);
   
@@ -26,21 +31,21 @@ export async function POST(request: NextRequest) {
   try { 
     console.log('🔄 Weather monitoring trigger received');
     
-    if (!weatherMonitoringService.isRunning) {
-      weatherMonitoringService.start();
-    } else {
-      // If already running, trigger a check in the background
-      // without making the request wait for it to complete
-      weatherMonitoringService.checkWeatherNow().catch(err => {
-        console.error('Background weather check failed:', err);
-      });
-    }
+    // In serverless, we just run the check once. No more background intervals.
+    // The "coordinator" (cron) will hit this endpoint periodically.
+    await weatherMonitoringService.checkWeatherNow();
+    
+    // After checking, we broadcast to everyone
+    await broadcast({ 
+      type: 'weather_update_available', 
+      timestamp: new Date().toISOString(),
+      source: 'manual_trigger'
+    });
     
     return NextResponse.json({ 
       success: true, 
-      message: 'Weather monitoring process initiated',
-      timestamp: new Date().toISOString(),
-      isRunning: weatherMonitoringService.isRunning
+      message: 'Weather check completed and broadcasted',
+      timestamp: new Date().toISOString()
     });
   } catch (error) {
     console.error('❌ Error in weather-monitor API:', error);
@@ -56,24 +61,30 @@ export async function GET(request: NextRequest) {
   const writer = responseStream.writable.getWriter();
   activeWriters.add(writer);
 
-  // Send initial connection success
-  await writer.write(encoder.encode(`data: ${JSON.stringify({ type: 'connection_established', timestamp: new Date().toISOString() })}\n\n`));
+  // Set up shared channel subscription for THIS instance's connections
+  const supabase = createServerComponentClient();
+  const channel = supabase.channel('weather-monitor-shared')
+    .on('broadcast', { event: 'weather_update' }, ({ payload }) => {
+      console.log('📥 Received shared broadcast, flushing to local SSE clients');
+      localFlush(payload);
+    })
+    .subscribe((status) => {
+      if (status === 'SUBSCRIBED') {
+        console.log('✅ Instance subscribed to shared weather channel');
+      }
+    });
 
-  // CHANGE 2: Only start the interval if it's not already running
-  if (!globalInterval) {
-    console.log("🚀 Starting Global Server-Side Monitoring (Singleton)...");
-    globalInterval = setInterval(async () => {
-      console.log("📡 Server: Checking weather...");
-      await weatherMonitoringService.checkWeatherNow();
-      
-      // Broadcast that weather was updated
-      await broadcast({ type: 'weather_update_available', timestamp: new Date().toISOString() });
-    }, 21600000); // 6 hours
-  }
+  // Send initial connection success
+  await writer.write(encoder.encode(`data: ${JSON.stringify({ 
+    type: 'connection_established', 
+    timestamp: new Date().toISOString(),
+    mode: 'distributed'
+  })}\n\n`));
 
   request.signal.onabort = () => {
     console.log("🛑 One Dashboard connection closed.");
     activeWriters.delete(writer);
+    channel.unsubscribe();
     writer.close();
   };
 

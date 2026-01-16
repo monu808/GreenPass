@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { MapPin, Star, Calendar, Users, Camera, Heart, TrendingUp, Award, ArrowRight, Play, Navigation, Compass, RefreshCw } from 'lucide-react';
 import TouristLayout from '@/components/TouristLayout';
 import { dbService } from '@/lib/databaseService';
@@ -13,6 +13,14 @@ export default function TouristDashboard() {
   const [loading, setLoading] = useState(true);
   const [featuredDestinations, setFeaturedDestinations] = useState<Destination[]>([]);
   const [weatherMap, setWeatherMap] = useState<Record<string, any>>({});
+  
+  // Ref to track the latest weatherMap state and avoid stale closures in async flows
+  const weatherMapRef = useRef<Record<string, any>>({});
+  
+  // Sync ref with state
+  useEffect(() => {
+    weatherMapRef.current = weatherMap;
+  }, [weatherMap]);
 
   const loadTouristData = useCallback(async () => {
     try {
@@ -67,7 +75,9 @@ export default function TouristDashboard() {
         const data = JSON.parse(event.data);
         console.log("🚀 Real-time update received: Refreshing Tourist Dashboard", data);
         
-        if (data.type === 'weather_update' && data.destinationId && data.weather) {
+        const isWeatherUpdate = data.type === 'weather_update' || data.type === 'weather_update_available';
+        
+        if (isWeatherUpdate && data.destinationId && data.weather) {
           setWeatherMap(prev => ({
             ...prev,
             [data.destinationId]: {
@@ -122,8 +132,9 @@ export default function TouristDashboard() {
                           destinationCoordinates[destination.name?.toLowerCase().replace(/\s+/g, '')] ||
                           destinationCoordinates[destination.name?.toLowerCase()];
         
-        // Check if we already have recent weather data for this destination
-        const existingWeather = weatherMap[destination.id];
+        // Check if we already have recent weather data for this destination using the ref
+        // to avoid stale closures in this async loop
+        const existingWeather = weatherMapRef.current[destination.id];
         const sixHoursInMs = 6 * 60 * 60 * 1000;
         const isFresh = existingWeather && 
                         (new Date().getTime() - new Date(existingWeather.recordedAt).getTime() < sixHoursInMs);

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import Layout from "@/components/Layout";
 import {
   Users,
@@ -37,6 +37,15 @@ export default function AdminDashboard() {
   const [destinations, setDestinations] = useState<Destination[]>([]);
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [weatherMap, setWeatherMap] = useState<Record<string, any>>({});
+  
+  // Ref to track the latest weatherMap state and avoid stale closures in async flows
+  const weatherMapRef = useRef<Record<string, any>>({});
+  
+  // Sync ref with state
+  useEffect(() => {
+    weatherMapRef.current = weatherMap;
+  }, [weatherMap]);
+
   const [policies, setPolicies] = useState<Record<SensitivityLevel, EcologicalPolicy>>(DEFAULT_POLICIES);
   const [loading, setLoading] = useState(true);
   const [editingPolicy, setEditingPolicy] = useState<SensitivityLevel | null>(null);
@@ -56,8 +65,10 @@ export default function AdminDashboard() {
         const data = JSON.parse(event.data);
         console.log("🚀 Real-time weather update received from server:", data);
         
+        const isWeatherUpdate = data.type === 'weather_update' || data.type === 'weather_update_available';
+
         // If the update contains specific destination weather, update it directly
-        if (data.type === 'weather_update' && data.destinationId && data.weather) {
+        if (isWeatherUpdate && data.destinationId && data.weather) {
           setWeatherMap(prev => ({
             ...prev,
             [data.destinationId]: {
@@ -70,7 +81,7 @@ export default function AdminDashboard() {
             }
           }));
         } else {
-          // Fallback to full reload for other update types
+          // Fallback to full reload for other update types (like general available signal)
           loadDashboardData(); 
         }
       } catch (err) {
@@ -179,8 +190,9 @@ export default function AdminDashboard() {
                           destinationCoordinates[destination.name?.toLowerCase().replace(/\s+/g, '')] ||
                           destinationCoordinates[destination.name?.toLowerCase()];
         
-        // Check if we already have recent weather data for this destination
-        const existingWeather = weatherMap[destination.id];
+        // Check if we already have recent weather data for this destination using the ref
+        // to avoid stale closures in this async loop
+        const existingWeather = weatherMapRef.current[destination.id];
         const sixHoursInMs = 6 * 60 * 60 * 1000;
         const isFresh = existingWeather && 
                         (new Date().getTime() - new Date(existingWeather.recordedAt).getTime() < sixHoursInMs);

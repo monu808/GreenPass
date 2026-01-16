@@ -98,7 +98,10 @@ export default function EnhancedDashboard() {
         const data = JSON.parse(event.data);
         console.log("🚀 Real-time update received: Refreshing Enhanced Dashboard", data);
         
-        if (data.type === 'weather_update' && data.destinationId && data.weather) {
+        const isWeatherUpdate = data.type === 'weather_update' || data.type === 'weather_update_available';
+        
+        if (isWeatherUpdate && data.destinationId && data.weather) {
+          console.log(`✅ Applying targeted weather update for ${data.destinationId}`);
           setWeatherMap(prev => ({
             ...prev,
             [data.destinationId]: {
@@ -111,6 +114,8 @@ export default function EnhancedDashboard() {
             }
           }));
         } else {
+          // If it's a general 'available' signal or unknown type, refresh everything
+          console.log("🔄 Performing full dashboard refresh");
           loadDashboardData();
         }
       } catch (err) {

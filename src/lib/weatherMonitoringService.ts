@@ -1,65 +1,17 @@
 import { weatherService, destinationCoordinates } from '@/lib/weatherService';
 import { dbService } from '@/lib/databaseService';
 import { Destination } from '@/types';
+import { broadcast } from './messagingService';
 
 interface WeatherMonitoringService {
-  isRunning: boolean;
-  intervalId: NodeJS.Timeout | null;
-  start: () => void;
-  stop: () => void;
   checkWeatherNow: () => Promise<void>;
 }
 
 class WeatherMonitor implements WeatherMonitoringService {
-  isRunning = false;
-  intervalId: NodeJS.Timeout | null = null;
   private lastCheckedData: Map<string, any> = new Map();
   private lastApiCall: number = 0;
   private apiCallDelay: number = 10000; // 10 seconds between API calls
-  private checkInterval: number = 21600000; // 6 hours between monitoring cycles (6 * 60 * 60 * 1000)
-
-  start() {
-    if (this.isRunning) {
-      console.log('⚡ Weather monitoring is already running');
-      return;
-    }
-
-    console.log('🌤️ Starting weather monitoring service...');
-    console.log(`⏱️ Using monitoring interval: ${this.checkInterval}ms (${this.checkInterval/3600000} hours)`);
-    console.log(`⏱️ Using API call delay: ${this.apiCallDelay}ms between destinations`);
-    this.isRunning = true;
-
-    // Check immediately when starting
-    this.checkWeatherNow();
-
-    // Set up the recurring interval
-    if (this.intervalId) {
-      clearInterval(this.intervalId);
-    }
-    this.intervalId = setInterval(() => {
-      console.log('⏰ Scheduled weather monitoring cycle starting...');
-      this.checkWeatherNow();
-    }, this.checkInterval);
-
-    console.log('✅ Weather monitoring service initialized');
-  }
-
-  stop() {
-    if (!this.isRunning) {
-      console.log('⚡ Weather monitoring is not running');
-      return;
-    }
-
-    console.log('🛑 Stopping weather monitoring service...');
-    this.isRunning = false;
-
-    if (this.intervalId) {
-      clearInterval(this.intervalId);
-      this.intervalId = null;
-    }
-
-    console.log('✅ Weather monitoring stopped');
-  }
+  private checkInterval: number = 21600000; // 6 hours threshold for freshness
 
   async checkWeatherNow(): Promise<void> {
     try {
@@ -208,6 +160,24 @@ class WeatherMonitor implements WeatherMonitoringService {
           level: alertLevel,
           message: alertMessage || undefined,
           reason: alertReason || undefined
+        });
+
+        // After saving, broadcast the update to all connected clients (distributed)
+        await broadcast({
+          type: 'weather_update',
+          destinationId: destination.id,
+          weather: {
+            temperature: weatherData.temperature,
+            humidity: weatherData.humidity,
+            weatherMain: weatherData.weatherMain,
+            weatherDescription: weatherData.weatherDescription,
+            windSpeed: weatherData.windSpeed,
+          },
+          alert: alertLevel !== 'none' ? {
+            level: alertLevel,
+            message: alertMessage,
+          } : null,
+          timestamp: new Date().toISOString()
         });
       }
 

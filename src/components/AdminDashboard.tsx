@@ -13,7 +13,8 @@ import {
   ShieldAlert,
   Settings,
   Save,
-  X
+  X,
+  RefreshCw
 } from 'lucide-react';
 import { dbService } from '@/lib/databaseService';
 import { weatherService, destinationCoordinates } from '@/lib/weatherService';
@@ -35,6 +36,7 @@ export default function AdminDashboard() {
   });
   const [destinations, setDestinations] = useState<Destination[]>([]);
   const [alerts, setAlerts] = useState<Alert[]>([]);
+  const [weatherMap, setWeatherMap] = useState<Record<string, any>>({});
   const [policies, setPolicies] = useState<Record<SensitivityLevel, EcologicalPolicy>>(DEFAULT_POLICIES);
   const [loading, setLoading] = useState(true);
   const [editingPolicy, setEditingPolicy] = useState<SensitivityLevel | null>(null);
@@ -54,8 +56,23 @@ export default function AdminDashboard() {
         const data = JSON.parse(event.data);
         console.log("🚀 Real-time weather update received from server:", data);
         
-        // When the server says it checked the weather, we refresh the UI
-        loadDashboardData(); 
+        // If the update contains specific destination weather, update it directly
+        if (data.type === 'weather_update' && data.destinationId && data.weather) {
+          setWeatherMap(prev => ({
+            ...prev,
+            [data.destinationId]: {
+              temperature: data.weather.temperature,
+              humidity: data.weather.humidity,
+              weatherMain: data.weather.weatherMain,
+              weatherDescription: data.weather.weatherDescription,
+              windSpeed: data.weather.windSpeed,
+              recordedAt: new Date().toISOString()
+            }
+          }));
+        } else {
+          // Fallback to full reload for other update types
+          loadDashboardData(); 
+        }
       } catch (err) {
         console.error("Error parsing real-time data:", err);
       }
@@ -134,10 +151,41 @@ export default function AdminDashboard() {
   
 
   const updateWeatherData = async (destinations: Destination[]) => {
+    const newWeatherMap: Record<string, any> = {};
+
     for (const destination of destinations) {
-      const coordinates = destinationCoordinates[destination.id];
-      if (coordinates) {
-        try {
+      try {
+        // First, try to get the latest weather from the database
+        const latestWeather = await dbService.getLatestWeatherData(destination.id);
+        if (latestWeather) {
+          const dbData = {
+            temperature: latestWeather.temperature,
+            humidity: latestWeather.humidity,
+            weatherMain: latestWeather.weather_main,
+            weatherDescription: latestWeather.weather_description,
+            windSpeed: latestWeather.wind_speed,
+            recordedAt: latestWeather.recorded_at
+          };
+          newWeatherMap[destination.id] = dbData;
+          
+          // Update state immediately for this destination
+          setWeatherMap(prev => ({
+            ...prev,
+            [destination.id]: dbData
+          }));
+        }
+
+        const coordinates = destinationCoordinates[destination.id] || 
+                          destinationCoordinates[destination.name?.toLowerCase().replace(/\s+/g, '')] ||
+                          destinationCoordinates[destination.name?.toLowerCase()];
+        
+        // Check if we already have recent weather data for this destination
+        const existingWeather = weatherMap[destination.id];
+        const sixHoursInMs = 6 * 60 * 60 * 1000;
+        const isFresh = existingWeather && 
+                        (new Date().getTime() - new Date(existingWeather.recordedAt).getTime() < sixHoursInMs);
+
+        if (coordinates && !isFresh) {
           const weatherData = await weatherService.getWeatherByCoordinates(
             coordinates.lat,
             coordinates.lon,
@@ -147,6 +195,23 @@ export default function AdminDashboard() {
           if (weatherData) {
             // Save weather data to database
             await dbService.saveWeatherData(destination.id, weatherData);
+
+            const mappedData = {
+              temperature: weatherData.temperature,
+              humidity: weatherData.humidity,
+              weatherMain: weatherData.weatherMain,
+              weatherDescription: weatherData.weatherDescription,
+              windSpeed: weatherData.windSpeed,
+              recordedAt: new Date().toISOString()
+            };
+
+            newWeatherMap[destination.id] = mappedData;
+            
+            // Update state with fresh API data
+            setWeatherMap(prev => ({
+              ...prev,
+              [destination.id]: mappedData
+            }));
 
             // Check if we should generate a weather alert
             const alertCheck = weatherService.shouldGenerateAlert(weatherData);
@@ -161,12 +226,12 @@ export default function AdminDashboard() {
               });
             }
           }
-        } catch (error) {
-          console.error(
-            `Error updating weather for ${destination.name}:`,
-            error
-          );
         }
+      } catch (error) {
+        console.error(
+          `Error updating weather for ${destination.name}:`,
+          error
+        );
       }
     }
   };
@@ -295,43 +360,77 @@ export default function AdminDashboard() {
                   {destinations.slice(0, 5).map((destination) => {
                     const adjustedCapacity = policyEngine.getAdjustedCapacity(destination);
                     const status = getCapacityStatus(destination.currentOccupancy, adjustedCapacity).status;
+                    const weather = weatherMap[destination.id];
                     
                     return (
-                      <div key={destination.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                        <div className="flex items-center space-x-3">
-                          <MapPin className="h-5 w-5 text-gray-400" />
-                          <div>
-                            <p className="font-medium text-gray-900">{destination.name}</p>
-                            <div className="flex items-center text-sm text-gray-600">
-                              <span>{destination.location}</span>
-                              <span className="mx-2 text-gray-300">•</span>
-                              <span className={`flex items-center ${
-                                destination.ecologicalSensitivity === 'critical' ? 'text-red-600' :
-                                destination.ecologicalSensitivity === 'high' ? 'text-orange-600' :
-                                destination.ecologicalSensitivity === 'medium' ? 'text-yellow-600' : 'text-green-600'
-                              }`}>
-                                <Leaf className="h-3 w-3 mr-1" />
-                                {destination.ecologicalSensitivity}
-                              </span>
+                      <div key={destination.id} className="flex flex-col p-4 bg-gray-50 rounded-lg border border-gray-100 hover:shadow-sm transition-shadow">
+                        <div className="flex items-center justify-between mb-3">
+                          <div className="flex items-center space-x-3">
+                            <MapPin className="h-5 w-5 text-gray-400" />
+                            <div>
+                              <p className="font-medium text-gray-900">{destination.name}</p>
+                              <div className="flex items-center text-sm text-gray-600">
+                                <span>{destination.location}</span>
+                                <span className="mx-2 text-gray-300">•</span>
+                                <span className={`flex items-center ${
+                                  destination.ecologicalSensitivity === 'critical' ? 'text-red-600' :
+                                  destination.ecologicalSensitivity === 'high' ? 'text-orange-600' :
+                                  destination.ecologicalSensitivity === 'medium' ? 'text-yellow-600' : 'text-green-600'
+                                }`}>
+                                  <Leaf className="h-3 w-3 mr-1" />
+                                  {destination.ecologicalSensitivity}
+                                </span>
+                              </div>
                             </div>
                           </div>
-                        </div>
-                        <div className="text-right">
-                          <div className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                            status === 'low'
-                              ? 'bg-green-100 text-green-800'
-                              : status === 'medium'
-                              ? 'bg-yellow-100 text-yellow-800'
-                              : 'bg-red-100 text-red-800'
-                          }`}>
-                            {status}
+                          <div className="text-right">
+                            <div className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                              status === 'low'
+                                ? 'bg-green-100 text-green-800'
+                                : status === 'medium'
+                                ? 'bg-yellow-100 text-yellow-800'
+                                : 'bg-red-100 text-red-800'
+                            }`}>
+                              {status}
+                            </div>
+                            <p className="text-sm text-gray-600 mt-1">
+                              {destination.currentOccupancy}/{adjustedCapacity}
+                              {adjustedCapacity < destination.maxCapacity && (
+                                <span className="text-xs text-orange-500 ml-1">(! limit)</span>
+                              )}
+                            </p>
                           </div>
-                          <p className="text-sm text-gray-600 mt-1">
-                            {destination.currentOccupancy}/{adjustedCapacity}
-                            {adjustedCapacity < destination.maxCapacity && (
-                              <span className="text-xs text-orange-500 ml-1">(! limit)</span>
-                            )}
-                          </p>
+                        </div>
+
+                        {/* Weather Section */}
+                        <div className="mt-2 pt-3 border-t border-gray-200">
+                          {weather ? (
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center space-x-3">
+                                <span className="text-xl font-bold text-gray-900">
+                                  {Math.round(weather.temperature)}°C
+                                </span>
+                                <div className="text-xs text-gray-500">
+                                  <p className="font-medium text-gray-700 capitalize">
+                                    {weather.weatherDescription}
+                                  </p>
+                                  <p>Humidity: {weather.humidity}%</p>
+                                </div>
+                              </div>
+                              <div className="text-right text-[10px] text-gray-400">
+                                <p>Wind: {weather.windSpeed}m/s</p>
+                                <p>Updated: {new Date(weather.recordedAt).toLocaleTimeString()}</p>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="flex items-center justify-between text-xs text-gray-400">
+                              <div className="flex items-center space-x-2">
+                                <RefreshCw className="h-3 w-3 animate-spin" />
+                                <span>Loading weather...</span>
+                              </div>
+                              <span>--°C</span>
+                            </div>
+                          )}
                         </div>
                       </div>
                     );

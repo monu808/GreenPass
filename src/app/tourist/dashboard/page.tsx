@@ -1,22 +1,20 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { MapPin, Star, Calendar, Users, Camera, Heart, TrendingUp, Award, ArrowRight, Play, Navigation, Compass } from 'lucide-react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { MapPin, Star, Calendar, Users, Camera, Heart, TrendingUp, Award, ArrowRight, Play, Navigation, Compass, RefreshCw } from 'lucide-react';
 import TouristLayout from '@/components/TouristLayout';
 import { dbService } from '@/lib/databaseService';
 import { policyEngine } from '@/lib/ecologicalPolicyEngine';
+import { weatherService, destinationCoordinates } from '@/lib/weatherService';
 import { Destination } from '@/types';
 
 export default function TouristDashboard() {
   const [destinations, setDestinations] = useState<Destination[]>([]);
   const [loading, setLoading] = useState(true);
   const [featuredDestinations, setFeaturedDestinations] = useState<Destination[]>([]);
+  const [weatherMap, setWeatherMap] = useState<Record<string, any>>({});
 
-  useEffect(() => {
-    loadTouristData();
-  }, []);
-
-  const loadTouristData = async () => {
+  const loadTouristData = useCallback(async () => {
     try {
       const destinationsData = await dbService.getDestinations();
       
@@ -50,11 +48,114 @@ export default function TouristDashboard() {
         .slice(0, 3);
       
       setFeaturedDestinations(featured);
+      updateWeatherData(featured);
     } catch (error) {
       console.error('Error loading tourist data:', error);
-      console.log('Dashboard is using mock data for demonstration');
     } finally {
       setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadTouristData();
+
+    // Establish a real-time connection for weather updates
+    const eventSource = new EventSource('/api/weather-monitor');
+
+    eventSource.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        console.log("🚀 Real-time update received: Refreshing Tourist Dashboard", data);
+        
+        if (data.type === 'weather_update' && data.destinationId && data.weather) {
+          setWeatherMap(prev => ({
+            ...prev,
+            [data.destinationId]: {
+              temperature: data.weather.temperature,
+              humidity: data.weather.humidity,
+              weatherMain: data.weather.weatherMain,
+              weatherDescription: data.weather.weatherDescription,
+              windSpeed: data.weather.windSpeed,
+              recordedAt: new Date().toISOString()
+            }
+          }));
+        } else {
+          loadTouristData();
+        }
+      } catch (err) {
+        console.error("Error parsing real-time data:", err);
+        loadTouristData();
+      }
+    };
+
+    eventSource.onerror = (error) => {
+      console.log("SSE connection lost. Waiting for browser to auto-reconnect...");
+    };
+
+    return () => {
+      eventSource.close();
+    };
+  }, [loadTouristData]);
+
+  const updateWeatherData = async (destinations: Destination[]) => {
+    for (const destination of destinations) {
+      try {
+        // First, try to get the latest weather from the database
+        const latestWeather = await dbService.getLatestWeatherData(destination.id);
+        if (latestWeather) {
+          const dbData = {
+            temperature: latestWeather.temperature,
+            humidity: latestWeather.humidity,
+            weatherMain: latestWeather.weather_main,
+            weatherDescription: latestWeather.weather_description,
+            windSpeed: latestWeather.wind_speed,
+            recordedAt: latestWeather.recorded_at
+          };
+          
+          setWeatherMap(prev => ({
+            ...prev,
+            [destination.id]: dbData
+          }));
+        }
+
+        const coordinates = destinationCoordinates[destination.id] || 
+                          destinationCoordinates[destination.name?.toLowerCase().replace(/\s+/g, '')] ||
+                          destinationCoordinates[destination.name?.toLowerCase()];
+        
+        // Check if we already have recent weather data for this destination
+        const existingWeather = weatherMap[destination.id];
+        const sixHoursInMs = 6 * 60 * 60 * 1000;
+        const isFresh = existingWeather && 
+                        (new Date().getTime() - new Date(existingWeather.recordedAt).getTime() < sixHoursInMs);
+
+        if (coordinates && !isFresh) {
+          const weatherData = await weatherService.getWeatherByCoordinates(
+            coordinates.lat,
+            coordinates.lon,
+            coordinates.name || destination.name
+          );
+
+          if (weatherData) {
+            await dbService.saveWeatherData(destination.id, weatherData);
+            
+            const mappedData = {
+              temperature: weatherData.temperature,
+              humidity: weatherData.humidity,
+              weatherMain: weatherData.weatherMain,
+              weatherDescription: weatherData.weatherDescription,
+              windSpeed: weatherData.windSpeed,
+              recordedAt: new Date().toISOString()
+            };
+            
+            setWeatherMap(prev => ({
+              ...prev,
+              [destination.id]: mappedData
+            }));
+          }
+        }
+      } catch (error) {
+        console.error(`Error updating weather for ${destination.name}:`, error);
+      }
     }
   };
 
@@ -137,35 +238,60 @@ export default function TouristDashboard() {
 
         {/* Featured Destinations Grid */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          {featuredDestinations.map((destination, index) => (
-            <div key={destination.id} className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-              <div className="h-48 bg-gradient-to-br from-green-500 via-blue-500 to-purple-600 relative">
-                <div className="absolute inset-0 p-4 flex flex-col justify-between">
-                  <div className="flex justify-between items-start">
-                    <span className="bg-white/20 rounded-lg px-3 py-1 text-white text-sm font-medium">
-                      {destination.location}
-                    </span>
-                    <button className="bg-white/20 hover:bg-white/30 rounded-full p-2 transition-colors">
-                      <Heart className="h-4 w-4 text-white" />
-                    </button>
-                  </div>
-                  <div>
-                    <h3 className="text-white font-bold text-lg mb-2">
-                      {destination.name}
-                    </h3>
-                    <div className="flex items-center justify-between">
-                      <span className={`text-xs font-medium ${getAvailabilityColor(destination)}`}>
-                        {getAvailabilityText(destination)}
+          {featuredDestinations.map((destination, index) => {
+            const weather = weatherMap[destination.id];
+            return (
+              <div key={destination.id} className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden group hover:shadow-md transition-shadow">
+                <div className="h-48 bg-gradient-to-br from-green-500 via-blue-500 to-purple-600 relative">
+                  <div className="absolute inset-0 p-4 flex flex-col justify-between">
+                    <div className="flex justify-between items-start">
+                      <span className="bg-white/20 backdrop-blur-md rounded-lg px-3 py-1 text-white text-sm font-medium">
+                        {destination.location}
                       </span>
-                      <span className="text-white text-xs">
-                        {destination.currentOccupancy}/{destination.maxCapacity}
-                      </span>
+                      <div className="flex flex-col items-end gap-2">
+                        <button className="bg-white/20 hover:bg-white/30 backdrop-blur-md rounded-full p-2 transition-colors">
+                          <Heart className="h-4 w-4 text-white" />
+                        </button>
+                        {weather && (
+                          <div className="bg-white/20 backdrop-blur-md rounded-lg px-2 py-1 text-white text-xs font-bold flex items-center gap-1">
+                            <RefreshCw className="h-3 w-3" />
+                            {Math.round(weather.temperature)}°C
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    <div>
+                      <h3 className="text-white font-bold text-lg mb-2">
+                        {destination.name}
+                      </h3>
+                      <div className="flex items-center justify-between">
+                        <span className={`text-xs font-bold px-2 py-0.5 rounded-full bg-white/90 ${getAvailabilityColor(destination)}`}>
+                          {getAvailabilityText(destination)}
+                        </span>
+                        <span className="text-white text-xs font-medium">
+                          {destination.currentOccupancy}/{destination.maxCapacity} spots
+                        </span>
+                      </div>
                     </div>
                   </div>
                 </div>
+                {/* Weather Quick Info */}
+                <div className="p-3 bg-gray-50 border-t border-gray-100 flex items-center justify-between text-xs text-gray-500">
+                  {weather ? (
+                    <>
+                      <span className="capitalize">{weather.weatherDescription}</span>
+                      <span>Humidity: {weather.humidity}%</span>
+                    </>
+                  ) : (
+                    <span className="flex items-center gap-1">
+                      <RefreshCw className="h-3 w-3 animate-spin" />
+                      Updating weather...
+                    </span>
+                  )}
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
 
         {/* Stats Section */}

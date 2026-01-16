@@ -3,27 +3,49 @@ import { weatherMonitoringService } from '@/lib/weatherMonitoringService';
 
 // CHANGE 1: Move interval variable OUTSIDE the function to share it
 let globalInterval: NodeJS.Timeout | null = null;
+const activeWriters = new Set<WritableStreamDefaultWriter>();
+const encoder = new TextEncoder();
+
+const broadcast = async (data: any) => {
+  const message = `data: ${JSON.stringify(data)}\n\n`;
+  const encoded = encoder.encode(message);
+  
+  const writePromises = Array.from(activeWriters).map(async (writer) => {
+    try {
+      await writer.write(encoded);
+    } catch (e) {
+      console.error("Broadcast write error:", e);
+      activeWriters.delete(writer);
+    }
+  });
+  
+  await Promise.all(writePromises);
+};
 
 export async function POST(request: NextRequest) {
   try { 
-    console.log('🔄 Manual weather monitoring trigger requested');
+    console.log('🔄 Weather monitoring trigger received');
     
     if (!weatherMonitoringService.isRunning) {
       weatherMonitoringService.start();
+    } else {
+      // If already running, trigger a check in the background
+      // without making the request wait for it to complete
+      weatherMonitoringService.checkWeatherNow().catch(err => {
+        console.error('Background weather check failed:', err);
+      });
     }
-    
-    await weatherMonitoringService.checkWeatherNow();
     
     return NextResponse.json({ 
       success: true, 
-      message: 'Weather monitoring triggered successfully',
+      message: 'Weather monitoring process initiated',
       timestamp: new Date().toISOString(),
       isRunning: weatherMonitoringService.isRunning
     });
   } catch (error) {
-    console.error('❌ Error triggering weather monitoring:', error);
+    console.error('❌ Error in weather-monitor API:', error);
     return NextResponse.json(
-      { error: 'Failed to trigger weather monitoring' },
+      { error: 'Internal server error' },
       { status: 500 }
     );
   }
@@ -32,15 +54,10 @@ export async function POST(request: NextRequest) {
 export async function GET(request: NextRequest) {
   const responseStream = new TransformStream();
   const writer = responseStream.writable.getWriter();
-  const encoder = new TextEncoder();
+  activeWriters.add(writer);
 
-  const sendUpdate = async (data: any) => {
-    try {
-      await writer.write(encoder.encode(`data: ${JSON.stringify(data)}\n\n`));
-    } catch (e) {
-      console.error("Stream write error:", e);
-    }
-  };
+  // Send initial connection success
+  await writer.write(encoder.encode(`data: ${JSON.stringify({ type: 'connection_established', timestamp: new Date().toISOString() })}\n\n`));
 
   // CHANGE 2: Only start the interval if it's not already running
   if (!globalInterval) {
@@ -49,16 +66,14 @@ export async function GET(request: NextRequest) {
       console.log("📡 Server: Checking weather...");
       await weatherMonitoringService.checkWeatherNow();
       
-      // Note: This specific local sendUpdate will only trigger for the 
-      // person who opened the first connection. The background service 
-      // handles the database updates for everyone else.
-    }, 300000); 
+      // Broadcast that weather was updated
+      await broadcast({ type: 'weather_update_available', timestamp: new Date().toISOString() });
+    }, 21600000); // 6 hours
   }
 
   request.signal.onabort = () => {
     console.log("🛑 One Dashboard connection closed.");
-    // CHANGE 3: DO NOT clearInterval here.
-    // If you clear it, you stop the weather check for everyone else!
+    activeWriters.delete(writer);
     writer.close();
   };
 

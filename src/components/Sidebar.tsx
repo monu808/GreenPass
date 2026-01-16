@@ -9,7 +9,8 @@ import {
   BarChart3, 
   Settings,
   Home,
-  UserPlus
+  UserPlus,
+  CloudSun
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -20,6 +21,7 @@ const navigationItems = [
   { href: '/register', label: 'Register Tourist', icon: UserPlus },
   { href: '/analytics', label: 'Analytics', icon: BarChart3 },
   { href: '/alerts', label: 'Alerts', icon: AlertTriangle },
+  { href: '/weather', label: 'Weather Monitoring', icon: CloudSun },
   { href: '/settings', label: 'Settings', icon: Settings },
 ];
 

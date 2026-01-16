@@ -10,11 +10,54 @@ type DbDestination = Database['public']['Tables']['destinations']['Row'];
 type DbAlert = Database['public']['Tables']['alerts']['Row'];
 type DbWeatherData = Database['public']['Tables']['weather_data']['Row'];
 
+// Global cache for weather data to persist across HMR in development
+const WEATHER_CACHE_KEY = Symbol.for('greenpass.weather_cache');
+const globalWeatherCache = (global as any)[WEATHER_CACHE_KEY] || new Map<string, DbWeatherData>();
+if (typeof global !== 'undefined') {
+  (global as any)[WEATHER_CACHE_KEY] = globalWeatherCache;
+}
+
 class DatabaseService {
+  private weatherCache: Map<string, DbWeatherData> = globalWeatherCache;
+
+  constructor() {
+    // Initialize cache from localStorage if available (for browser environment)
+    if (typeof window !== 'undefined') {
+      try {
+        const savedCache = localStorage.getItem('greenpass_weather_cache');
+        if (savedCache) {
+          const parsed = JSON.parse(savedCache);
+          Object.entries(parsed).forEach(([id, data]) => {
+            this.weatherCache.set(id, data as DbWeatherData);
+          });
+          console.log('✅ Browser weather cache restored from localStorage');
+        }
+      } catch (e) {
+        console.error('Failed to restore weather cache:', e);
+      }
+    }
+  }
+
+  private persistCache() {
+    if (typeof window !== 'undefined' && this.isPlaceholderMode()) {
+      try {
+        const cacheObj = Object.fromEntries(this.weatherCache.entries());
+        localStorage.setItem('greenpass_weather_cache', JSON.stringify(cacheObj));
+      } catch (e) {
+        console.error('Failed to persist weather cache:', e);
+      }
+    }
+  }
+
+  private isPlaceholderMode(): boolean {
+    const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    return !supabase || !url || url.includes('placeholder') || url.includes('your-project');
+  }
+
   // Tourist operations
   async getTourists(userId?: string): Promise<Tourist[]> {
     try {
-      if (!supabase) {
+      if (this.isPlaceholderMode()) {
         console.log('Using mock tourists data');
         return mockData.tourists;
       }
@@ -48,7 +91,7 @@ class DatabaseService {
 
   async getTouristById(id: string): Promise<Tourist | null> {
     try {
-      if (!supabase) {
+      if (this.isPlaceholderMode()) {
         return mockData.tourists.find(t => t.id === id) || null;
       }
       const { data, error } = await supabase!
@@ -71,7 +114,7 @@ class DatabaseService {
 
   async addTourist(tourist: Database['public']['Tables']['tourists']['Insert']): Promise<Database['public']['Tables']['tourists']['Row'] | null> {
     try {
-      if (!supabase) {
+      if (this.isPlaceholderMode()) {
         console.log('Using mock addTourist');
         
         // Check ecological eligibility before adding (consistent with real DB path)
@@ -250,7 +293,7 @@ class DatabaseService {
   // Destination operations
   async getDestinations(): Promise<Database['public']['Tables']['destinations']['Row'][]> {
     try {
-      if (!supabase) {
+      if (this.isPlaceholderMode()) {
         console.log('Using mock destinations data');
         return mockData.destinations.map(d => ({
           id: d.id,
@@ -303,7 +346,7 @@ class DatabaseService {
 
   async getDestinationById(id: string): Promise<Destination | null> {
     try {
-      if (!supabase) {
+      if (this.isPlaceholderMode()) {
         const mockDest = mockData.destinations.find(d => d.id === id);
         return mockDest || null;
       }
@@ -332,7 +375,7 @@ class DatabaseService {
 
   async getCurrentOccupancy(destinationId: string): Promise<number> {
     try {
-      if (!supabase) {
+      if (this.isPlaceholderMode()) {
         return mockData.getCurrentOccupancy(destinationId);
       }
       const { data, error } = await supabase!
@@ -391,7 +434,7 @@ class DatabaseService {
   // Alert operations
   async getAlerts(destinationId?: string): Promise<Alert[]> {
     try {
-      if (!supabase) {
+      if (this.isPlaceholderMode()) {
         console.log('Using mock alerts data');
         let alerts = [...mockData.alerts];
         if (destinationId) {
@@ -446,7 +489,7 @@ class DatabaseService {
 
   async addAlert(alert: Omit<Alert, 'id' | 'timestamp'>): Promise<Alert | null> {
     try {
-      if (!supabase) return null;
+      if (this.isPlaceholderMode()) return null;
       const { data, error } = await supabase!
         .from('alerts')
         .insert({
@@ -474,7 +517,7 @@ class DatabaseService {
 
   async updateAlert(alertId: string, updates: Partial<{ isActive: boolean }>): Promise<void> {
     try {
-      if (!supabase) return;
+      if (this.isPlaceholderMode()) return;
       const { error } = await (supabase!
         .from('alerts') as any)
         .update({
@@ -494,7 +537,7 @@ class DatabaseService {
 
   async deactivateAlert(alertId: string): Promise<boolean> {
     try {
-      if (!supabase) return true;
+      if (this.isPlaceholderMode()) return true;
       const { error } = await (supabase!
         .from('alerts') as any)
         .update({ is_active: false })
@@ -572,8 +615,27 @@ class DatabaseService {
   // Weather data operations
   async saveWeatherData(destinationId: string, weatherData: any, alertInfo?: { level: string; message?: string; reason?: string }): Promise<boolean> {
     try {
-      if (!supabase) {
-        console.warn('Supabase not initialized, skipping weather data save');
+      if (this.isPlaceholderMode()) {
+        console.log('Mock saving weather data for destination:', destinationId);
+        const mockEntry: DbWeatherData = {
+          id: `mock-w-${Date.now()}`,
+          destination_id: destinationId,
+          temperature: parseFloat(weatherData.temperature.toString()),
+          humidity: parseInt(weatherData.humidity.toString()),
+          pressure: parseFloat((weatherData.pressure || 1013).toString()),
+          weather_main: weatherData.weatherMain || weatherData.weather_main || 'Clear',
+          weather_description: weatherData.weatherDescription || weatherData.weather_description || 'clear sky',
+          wind_speed: parseFloat((weatherData.windSpeed || weatherData.wind_speed || 0).toString()),
+          wind_direction: parseInt((weatherData.windDirection || weatherData.wind_direction || 0).toString()),
+          visibility: parseInt((weatherData.visibility || 10000).toString()),
+          recorded_at: new Date().toISOString(),
+          alert_level: alertInfo?.level || 'none',
+          alert_message: alertInfo?.message || null,
+          alert_reason: alertInfo?.reason || null,
+          created_at: new Date().toISOString()
+        } as DbWeatherData;
+        this.weatherCache.set(destinationId, mockEntry);
+        this.persistCache();
         return true;
       }
       console.log('Saving weather data for destination:', destinationId, weatherData);
@@ -617,24 +679,30 @@ class DatabaseService {
 
   async getLatestWeatherData(destinationId: string): Promise<DbWeatherData | null> {
     try {
-      if (!supabase) {
-        // Return dummy weather data for mock destinations
+      if (this.isPlaceholderMode()) {
+        // Return cached weather data if available
+        if (this.weatherCache.has(destinationId)) {
+          return this.weatherCache.get(destinationId) || null;
+        }
+        
+        // Return dummy weather data for mock destinations if not in cache
+        // Use an old timestamp to trigger the first fetch
         return {
           id: 'mock-weather-id',
           destination_id: destinationId,
           temperature: 22,
           humidity: 60,
           pressure: 1013,
-          weather_main: 'Clear',
-          weather_description: 'clear sky',
+          weather_main: 'Initial',
+          weather_description: 'Initial data (fetching soon...)',
           wind_speed: 5,
           wind_direction: 180,
           visibility: 10000,
-          recorded_at: new Date().toISOString(),
+          recorded_at: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(), // 24 hours ago to trigger fetch
           alert_level: 'none',
           alert_message: null,
           alert_reason: null,
-          created_at: new Date().toISOString()
+          created_at: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
         } as DbWeatherData;
       }
       const { data, error } = await supabase!
@@ -659,8 +727,7 @@ class DatabaseService {
   // Get weather alerts from weather data (replaces alerts table for weather alerts)
   async getWeatherAlerts(): Promise<Alert[]> {
     try {
-      if (!supabase) {
-        console.log('Using mock weather alerts');
+      if (this.isPlaceholderMode()) {
         return mockData.alerts.filter(a => a.type === 'weather');
       }
       const { data: weatherData, error } = await supabase!

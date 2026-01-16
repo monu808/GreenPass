@@ -362,7 +362,8 @@ export const destinationCoordinates: { [key: string]: { lat: number; lon: number
   'sonamarg': { lat: 34.2996, lon: 75.2941, name: 'Sonamarg' },
   'leh': { lat: 34.1526, lon: 77.5771, name: 'Leh' },
   'ladakh': { lat: 34.2268, lon: 77.5619, name: 'Ladakh' },
-  'katra': { lat: 32.9916, lon: 74.9455, name: 'Katra' }
+  'katra': { lat: 32.9916, lon: 74.9455, name: 'Katra' },
+  'vaishnodevi': { lat: 33.0301, lon: 74.9490, name: 'Vaishno Devi' }
 };
 
 // Create and export the weather service instance

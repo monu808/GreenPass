@@ -104,6 +104,31 @@ export interface ComplianceReport {
   createdAt: Date;
 }
 
+export interface HistoricalOccupancy {
+  date: string;
+  occupancy: number;
+  adjustedCapacity: number;
+}
+
+export interface EcologicalMetrics {
+  id: string;
+  name: string;
+  currentOccupancy: number;
+  maxCapacity: number;
+  adjustedCapacity: number;
+  utilization: number;
+  carbonFootprint: number;
+  riskLevel: 'low' | 'medium' | 'high' | 'critical';
+  sensitivity: 'low' | 'medium' | 'high' | 'critical';
+}
+
+export interface ReportApproval {
+  status: 'pending' | 'approved';
+  approvedBy?: string | null;
+  approvedAt?: Date | null;
+  createdAt: Date;
+}
+
 export interface PolicyViolation {
   id: string;
   destinationId: string;

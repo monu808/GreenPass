@@ -4,8 +4,9 @@
 import React, { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { Eye, EyeOff, Mail, Lock, MapPin } from 'lucide-react';
+import { Eye, EyeOff, Mail, Lock, MapPin, FlaskConical } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+import { isMockAuthActive } from '@/lib/mockConfig';
 import OTPVerification from '@/components/OTPVerification';
 
 type LoginMethod = 'password' | 'otp';
@@ -145,6 +146,25 @@ function LoginForm() {
     setEmail('admin@tms-india.gov.in');
     setPassword('TMS_Admin_2025!');
     setLoginMethod('password');
+  };
+
+  const handleTestLogin = async (role: 'admin' | 'tourist') => {
+    setLoading(true);
+    setError('');
+    const testEmail = role === 'admin' ? 'admin@tms-india.gov.in' : 'tourist@example.com';
+    
+    try {
+      const { error } = await signIn(testEmail, 'password123');
+      if (error) {
+        setError(error.message);
+      } else {
+        router.push('/');
+      }
+    } catch (err) {
+      setError('Test login failed');
+    } finally {
+      setLoading(false);
+    }
   };
 
   // Show OTP verification screen
@@ -353,6 +373,44 @@ function LoginForm() {
               </svg>
               Continue with Google
             </button>
+
+            {/* Quick Test Login (Temporary for testing) */}
+            {isMockAuthActive() && (
+              <div className="pt-2">
+                <div className="relative mb-4">
+                  <div className="absolute inset-0 flex items-center">
+                    <div className="w-full border-t border-dashed border-gray-300" />
+                  </div>
+                  <div className="relative flex justify-center text-xs">
+                    <span className="px-2 bg-white text-orange-500 font-semibold flex items-center gap-1">
+                      <FlaskConical className="h-3 w-3" />
+                      TEST ACCESS
+                    </span>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => handleTestLogin('admin')}
+                    disabled={loading}
+                    className="flex items-center justify-center gap-2 py-2 px-4 border border-orange-200 bg-orange-50 text-orange-700 rounded-lg text-xs font-bold hover:bg-orange-100 transition-colors disabled:opacity-50"
+                  >
+                    MOCK ADMIN
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleTestLogin('tourist')}
+                    disabled={loading}
+                    className="flex items-center justify-center gap-2 py-2 px-4 border border-orange-200 bg-orange-50 text-orange-700 rounded-lg text-xs font-bold hover:bg-orange-100 transition-colors disabled:opacity-50"
+                  >
+                    MOCK TOURIST
+                  </button>
+                </div>
+                <p className="text-[10px] text-center text-gray-400 mt-2 italic">
+                  * Mock login bypasses live authentication. Revertible via mockConfig.ts
+                </p>
+              </div>
+            )}
           </div>
 
           {/* Sign Up Link */}

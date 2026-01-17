@@ -37,6 +37,8 @@ export default function CapacityRulesPage() {
   const [isOverrideModalOpen, setIsOverrideModalOpen] = useState(false);
   const [historyDays, setHistoryDays] = useState(7);
   const [historySearch, setHistorySearch] = useState("");
+  const [isSavingOverride, setIsSavingOverride] = useState(false);
+  const [overrideError, setOverrideError] = useState<string | null>(null);
 
   // Override Form State
   const [overrideForm, setOverrideForm] = useState<{
@@ -95,23 +97,48 @@ export default function CapacityRulesPage() {
     e.preventDefault();
     if (!overrideForm.destinationId || !overrideForm.reason) return;
 
-    const policyEngine = getPolicyEngine();
-    policyEngine.setCapacityOverride({
-      destinationId: overrideForm.destinationId,
-      multiplier: overrideForm.multiplier,
-      reason: overrideForm.reason,
-      expiresAt: new Date(overrideForm.expiresAt),
-      active: true,
-    });
+    setIsSavingOverride(true);
+    setOverrideError(null);
 
-    setIsOverrideModalOpen(false);
-    await loadData();
+    try {
+      const policyEngine = getPolicyEngine();
+      policyEngine.setCapacityOverride({
+        destinationId: overrideForm.destinationId,
+        multiplier: overrideForm.multiplier,
+        reason: overrideForm.reason,
+        expiresAt: new Date(overrideForm.expiresAt),
+        active: true,
+      });
+
+      await loadData();
+      setIsOverrideModalOpen(false);
+      // Reset form on success
+      setOverrideForm({
+        destinationId: "",
+        multiplier: 0.8,
+        reason: "",
+        expiresAt: format(new Date(Date.now() + 24 * 60 * 60 * 1000), "yyyy-MM-dd'T'HH:mm"),
+      });
+    } catch (error) {
+      console.error("Error setting capacity override:", error);
+      setOverrideError(error instanceof Error ? error.message : "Failed to set capacity override. Please try again.");
+    } finally {
+      setIsSavingOverride(false);
+    }
   };
 
   const handleClearOverride = async (destinationId: string) => {
-    const policyEngine = getPolicyEngine();
-    policyEngine.clearCapacityOverride(destinationId);
-    await loadData();
+    setIsSavingOverride(true);
+    try {
+      const policyEngine = getPolicyEngine();
+      policyEngine.clearCapacityOverride(destinationId);
+      await loadData();
+    } catch (error) {
+      console.error("Error clearing capacity override:", error);
+      alert("Failed to clear override. Please try again.");
+    } finally {
+      setIsSavingOverride(false);
+    }
   };
 
   const filteredHistory = history.filter(log => 
@@ -336,18 +363,25 @@ export default function CapacityRulesPage() {
                               {hasOverride ? (
                                 <button
                                   onClick={() => handleClearOverride(dest.id)}
-                                  className="text-red-600 hover:text-red-900 flex items-center gap-1 ml-auto"
+                                  disabled={isSavingOverride}
+                                  className="text-red-600 hover:text-red-900 disabled:opacity-50 flex items-center gap-1 ml-auto"
                                 >
-                                  <XCircle className="h-4 w-4" />
+                                  {isSavingOverride ? (
+                                    <RefreshCw className="h-4 w-4 animate-spin" />
+                                  ) : (
+                                    <XCircle className="h-4 w-4" />
+                                  )}
                                   Clear Override
                                 </button>
                               ) : (
                                 <button
                                   onClick={() => {
                                     setOverrideForm({ ...overrideForm, destinationId: dest.id });
+                                    setOverrideError(null);
                                     setIsOverrideModalOpen(true);
                                   }}
-                                  className="text-green-600 hover:text-green-900"
+                                  disabled={isSavingOverride}
+                                  className="text-green-600 hover:text-green-900 disabled:opacity-50"
                                 >
                                   Override
                                 </button>
@@ -451,13 +485,21 @@ export default function CapacityRulesPage() {
                 </button>
               </div>
               <form onSubmit={handleSetOverride} className="p-6 space-y-5">
+                {overrideError && (
+                  <div className="p-3 bg-red-50 border border-red-200 rounded-lg flex items-start gap-2 text-red-700 text-sm animate-in fade-in slide-in-from-top-2 duration-200">
+                    <AlertTriangle className="h-4 w-4 mt-0.5 flex-shrink-0" />
+                    <p>{overrideError}</p>
+                  </div>
+                )}
+                
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-1">Destination</label>
                   <select
                     required
+                    disabled={isSavingOverride}
                     value={overrideForm.destinationId}
                     onChange={(e) => setOverrideForm({ ...overrideForm, destinationId: e.target.value })}
-                    className="w-full border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500 outline-none p-2 border text-gray-900"
+                    className="w-full border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500 outline-none p-2 border text-gray-900 disabled:bg-gray-50 disabled:text-gray-400"
                   >
                     <option value="" className="text-gray-900">Select a destination...</option>
                     {destinations.map((d) => (
@@ -478,9 +520,10 @@ export default function CapacityRulesPage() {
                     min="0.5"
                     max="1.0"
                     step="0.05"
+                    disabled={isSavingOverride}
                     value={overrideForm.multiplier}
                     onChange={(e) => setOverrideForm({ ...overrideForm, multiplier: parseFloat(e.target.value) })}
-                    className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-green-600"
+                    className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-green-600 disabled:opacity-50"
                   />
                   <div className="flex justify-between text-[10px] text-gray-400 mt-1">
                     <span>50% (Strict)</span>
@@ -492,10 +535,11 @@ export default function CapacityRulesPage() {
                   <label className="block text-sm font-semibold text-gray-700 mb-1">Justification</label>
                   <textarea
                     required
+                    disabled={isSavingOverride}
                     placeholder="Provide reason for this override (e.g., Local festival, emergency maintenance...)"
                     value={overrideForm.reason}
                     onChange={(e) => setOverrideForm({ ...overrideForm, reason: e.target.value })}
-                    className="w-full border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500 outline-none p-2 border min-h-[80px] text-sm text-gray-900"
+                    className="w-full border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500 outline-none p-2 border min-h-[80px] text-sm text-gray-900 disabled:bg-gray-50 disabled:text-gray-400"
                   />
                 </div>
 
@@ -507,25 +551,29 @@ export default function CapacityRulesPage() {
                   <input
                     type="datetime-local"
                     required
+                    disabled={isSavingOverride}
                     value={overrideForm.expiresAt}
                     onChange={(e) => setOverrideForm({ ...overrideForm, expiresAt: e.target.value })}
-                    className="w-full border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500 outline-none p-2 border text-sm text-gray-900"
+                    className="w-full border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500 outline-none p-2 border text-sm text-gray-900 disabled:bg-gray-50 disabled:text-gray-400"
                   />
                 </div>
 
                 <div className="pt-2 flex gap-3">
                   <button
                     type="button"
+                    disabled={isSavingOverride}
                     onClick={() => setIsOverrideModalOpen(false)}
-                    className="flex-1 px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
+                    className="flex-1 px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50"
                   >
                     Cancel
                   </button>
                   <button
                     type="submit"
-                    className="flex-1 px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 shadow-sm"
+                    disabled={isSavingOverride}
+                    className="flex-1 px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 shadow-sm disabled:opacity-50 flex items-center justify-center gap-2"
                   >
-                    Apply Override
+                    {isSavingOverride && <RefreshCw className="h-4 w-4 animate-spin" />}
+                    {isSavingOverride ? "Applying..." : "Apply Override"}
                   </button>
                 </div>
               </form>

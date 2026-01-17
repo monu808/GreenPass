@@ -1124,6 +1124,7 @@ class DatabaseService {
         const date = new Date(now);
         date.setDate(date.getDate() - i);
         const dateStr = format(date, 'MMM dd');
+        const isoDate = date.toISOString();
         
         // Base capacity for mock
         const adjustedCapacity = 100;
@@ -1132,6 +1133,7 @@ class DatabaseService {
         
         trends.push({
           date: dateStr,
+          isoDate,
           occupancy,
           adjustedCapacity
         });
@@ -1158,20 +1160,24 @@ class DatabaseService {
         date.setDate(date.getDate() - i);
         const dateStr = format(date, 'yyyy-MM-dd');
         const displayDate = format(date, 'MMM dd');
+        const isoDate = date.toISOString();
 
-        // Query tourists table for occupancy on this specific date
-        const { count, error } = await supabase!
+        // Query tourists table for occupancy on this specific date using sum of group_size
+        const { data, error } = await supabase!
           .from('tourists')
-          .select('*', { count: 'exact', head: true })
+          .select('sum:group_size.sum()')
           .eq('destination_id', destinationId)
           .lte('check_in_date', dateStr)
           .gte('check_out_date', dateStr);
 
         if (error) throw error;
 
+        const occupancy = data && data[0] ? Number((data[0] as any).sum) || 0 : 0;
+
         trends.push({
           date: displayDate,
-          occupancy: count || 0,
+          isoDate,
+          occupancy,
           adjustedCapacity: maxCapacity // In a real scenario, this would be adjusted by the policy engine
         });
       }

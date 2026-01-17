@@ -137,15 +137,23 @@ export default function EcologicalDashboard() {
       const dateMap = new Map<string, HistoricalOccupancy>();
       allTrends.forEach((destTrends: HistoricalOccupancy[]) => {
         destTrends.forEach((t: HistoricalOccupancy) => {
-          const existing = dateMap.get(t.date) || { date: t.date, occupancy: 0, adjustedCapacity: 0 };
-          dateMap.set(t.date, {
+          const existing = dateMap.get(t.isoDate) || { 
+            date: t.date, 
+            isoDate: t.isoDate, 
+            occupancy: 0, 
+            adjustedCapacity: 0 
+          };
+          dateMap.set(t.isoDate, {
             date: t.date,
+            isoDate: t.isoDate,
             occupancy: existing.occupancy + t.occupancy,
             adjustedCapacity: existing.adjustedCapacity + t.adjustedCapacity
           });
         });
       });
-      trends = Array.from(dateMap.values()).sort((a, b) => a.date.localeCompare(b.date));
+      trends = Array.from(dateMap.values()).sort((a, b) => 
+        new Date(a.isoDate).getTime() - new Date(b.isoDate).getTime()
+      );
     } else {
       trends = await dbService.getHistoricalOccupancy(selectedDestinationId, timeRange);
     }
@@ -377,7 +385,7 @@ export default function EcologicalDashboard() {
               <LineChart data={historicalTrends}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                 <XAxis 
-                  dataKey="date" 
+                  dataKey="isoDate" 
                   tick={{ fontSize: 12 }} 
                   tickFormatter={(str: string) => {
                     const date = new Date(str);

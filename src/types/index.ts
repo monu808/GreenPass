@@ -106,6 +106,7 @@ export interface ComplianceReport {
 
 export interface HistoricalOccupancy {
   date: string;
+  isoDate: string;
   occupancy: number;
   adjustedCapacity: number;
 }

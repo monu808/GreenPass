@@ -1078,25 +1078,40 @@ class DatabaseService {
   }
 
   async getHistoricalOccupancyTrends(destinationId?: string, days: number = 7) {
-    // Generate mock historical data
-    const trends = [];
-    const now = new Date();
-    
-    for (let i = days - 1; i >= 0; i--) {
-      const date = new Date(now);
-      date.setDate(date.getDate() - i);
-      const dateStr = date.toISOString().split('T')[0];
+    if (this.isPlaceholderMode()) {
+      // Generate mock historical data
+      const trends = [];
+      const now = new Date();
       
-      // Random occupancy between 40% and 90%
-      const occupancy = 40 + Math.random() * 50;
+      for (let i = days - 1; i >= 0; i--) {
+        const date = new Date(now);
+        date.setDate(date.getDate() - i);
+        const dateStr = date.toISOString().split('T')[0];
+        
+        // Random occupancy between 40% and 90%
+        const occupancy = 40 + Math.random() * 50;
+        
+        trends.push({
+          date: dateStr,
+          occupancy: Math.round(occupancy)
+        });
+      }
       
-      trends.push({
-        date: dateStr,
-        occupancy: Math.round(occupancy)
-      });
+      return trends;
     }
-    
-    return trends;
+
+    // Real data path
+    if (!destinationId) return [];
+
+    try {
+      // In production, this would query a dedicated historical table or aggregate tourists table
+      // For now, return empty until the historical tracking table is implemented
+      console.log(`Retrieving real historical trends for destination ${destinationId}`);
+      return [];
+    } catch (error) {
+      console.error('Error in getHistoricalOccupancyTrends:', error);
+      return [];
+    }
   }
 
   // Transform functions

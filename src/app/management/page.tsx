@@ -609,31 +609,31 @@ export default function TouristBookingManagement() {
                   placeholder="Search..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-sm"
+                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-sm text-gray-900"
                 />
               </div>
 
               <select
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-sm bg-white"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-sm bg-white text-gray-900"
               >
-                <option value="all">All Status</option>
-                <option value="pending">Pending</option>
-                <option value="approved">Approved</option>
-                <option value="cancelled">Cancelled</option>
-                <option value="checked-in">Checked In</option>
-                <option value="checked-out">Checked Out</option>
+                <option value="all" className="text-gray-900">All Status</option>
+                <option value="pending" className="text-gray-900">Pending</option>
+                <option value="approved" className="text-gray-900">Approved</option>
+                <option value="cancelled" className="text-gray-900">Cancelled</option>
+                <option value="checked-in" className="text-gray-900">Checked In</option>
+                <option value="checked-out" className="text-gray-900">Checked Out</option>
               </select>
 
               <select
                 value={destinationFilter}
                 onChange={(e) => setDestinationFilter(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-sm bg-white"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-sm bg-white text-gray-900"
               >
-                <option value="all">All Destinations</option>
+                <option value="all" className="text-gray-900">All Destinations</option>
                 {destinations.map((dest) => (
-                  <option key={dest.id} value={dest.id}>
+                  <option key={dest.id} value={dest.id} className="text-gray-900">
                     {dest.name}
                   </option>
                 ))}

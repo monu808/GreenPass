@@ -142,3 +142,47 @@ export interface PolicyViolation {
   reportedAt: Date;
   createdAt: Date;
 }
+
+export interface DynamicCapacityFactors {
+  ecologicalMultiplier: number;
+  weatherMultiplier: number;
+  seasonMultiplier: number;
+  utilizationMultiplier: number;
+  ecologicalIndicatorMultiplier: number;
+  overrideMultiplier: number;
+  combinedMultiplier: number;
+}
+
+export interface AdjustmentLog {
+  id: string;
+  destinationId: string;
+  timestamp: Date;
+  originalCapacity: number;
+  adjustedCapacity: number;
+  factors: DynamicCapacityFactors;
+  reason: string;
+}
+
+export interface CapacityOverride {
+  destinationId: string;
+  multiplier: number;
+  reason: string;
+  expiresAt?: Date;
+  active: boolean;
+}
+
+export interface DynamicCapacityResult {
+  adjustedCapacity: number;
+  availableSpots: number;
+  factors: DynamicCapacityFactors;
+  activeFactors: string[];
+  activeFactorFlags: {
+    ecological: boolean;
+    weather: boolean;
+    season: boolean;
+    utilization: boolean;
+    infrastructure: boolean;
+    override: boolean;
+  };
+  displayMessage: string;
+}

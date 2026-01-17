@@ -51,6 +51,7 @@ export default function AdminDashboard() {
     alertsCount: 0,
   });
   const [destinations, setDestinations] = useState<Destination[]>([]);
+  const [adjustedCapacities, setAdjustedCapacities] = useState<Record<string, number>>({});
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [weatherMap, setWeatherMap] = useState<Record<string, any>>({});
   
@@ -61,6 +62,22 @@ export default function AdminDashboard() {
   useEffect(() => {
     weatherMapRef.current = weatherMap;
   }, [weatherMap]);
+
+  // Recalculate adjusted capacities whenever weatherMap or destinations change
+  useEffect(() => {
+    const recalculateCapacities = async () => {
+      const policyEngine = getPolicyEngine();
+      const newAdjustedCapacities: Record<string, number> = {};
+      await Promise.all(destinations.map(async (dest) => {
+        newAdjustedCapacities[dest.id] = await policyEngine.getAdjustedCapacity(dest);
+      }));
+      setAdjustedCapacities(newAdjustedCapacities);
+    };
+    
+    if (destinations.length > 0) {
+      recalculateCapacities();
+    }
+  }, [weatherMap, destinations]);
 
   const [policies, setPolicies] = useState<Record<SensitivityLevel, EcologicalPolicy>>(DEFAULT_POLICIES);
   const [loading, setLoading] = useState(true);
@@ -197,6 +214,14 @@ export default function AdminDashboard() {
       }));
 
       setDestinations(transformedDestinations);
+
+      // Calculate adjusted capacities
+      const policyEngine = getPolicyEngine();
+      const newAdjustedCapacities: Record<string, number> = {};
+      await Promise.all(transformedDestinations.map(async (dest) => {
+        newAdjustedCapacities[dest.id] = await policyEngine.getAdjustedCapacity(dest);
+      }));
+      setAdjustedCapacities(newAdjustedCapacities);
 
       // Update weather data for all destinations
       updateWeatherData(transformedDestinations);
@@ -447,9 +472,8 @@ export default function AdminDashboard() {
                 </h2>
                 <div className="space-y-4">
                   {(() => {
-                    const policyEngine = getPolicyEngine();
                     return destinations.slice(0, 5).map((destination) => {
-                      const adjustedCapacity = policyEngine.getAdjustedCapacity(destination);
+                      const adjustedCapacity = adjustedCapacities[destination.id] || destination.maxCapacity;
                       const status = getCapacityStatus(destination.currentOccupancy, adjustedCapacity).status;
                       const weather = weatherMap[destination.id];
                       

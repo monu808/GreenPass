@@ -3,17 +3,18 @@
 import React, { useState, useEffect, useCallback, ChangeEvent } from 'react';
 import { 
   MapPin, Users, Navigation, Search, RefreshCw, Leaf, Heart, 
-  Filter, ArrowRight, ShieldCheck, Compass, Thermometer, Droplets 
+  Filter, ArrowRight, ShieldCheck, Compass, Thermometer, Calendar 
 } from 'lucide-react';
 import TouristLayout from '@/components/TouristLayout';
 import { getDbService } from '@/lib/databaseService';
 import { getPolicyEngine } from '@/lib/ecologicalPolicyEngine';
-import { Destination } from '@/types';
+import { Destination, DynamicCapacityResult } from '@/types';
 
 export default function TouristDestinations() {
   // 1. STATE MANAGEMENT
   const [destinations, setDestinations] = useState<Destination[]>([]);
   const [filteredDestinations, setFilteredDestinations] = useState<Destination[]>([]);
+  const [capacityResults, setCapacityResults] = useState<Record<string, DynamicCapacityResult>>({});
   const [loading, setLoading] = useState<boolean>(true);
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [selectedFilter, setSelectedFilter] = useState<'all' | 'available' | 'popular' | 'high-sensitivity'>('all');
@@ -35,7 +36,16 @@ export default function TouristDestinations() {
         ecologicalSensitivity: dest.ecological_sensitivity,
         coordinates: { latitude: dest.latitude, longitude: dest.longitude },
       }));
-      setDestinations(transformed.filter((dest) => dest.isActive));
+      const activeDestinations = transformed.filter((dest) => dest.isActive);
+      setDestinations(activeDestinations);
+
+      // Fetch dynamic capacity for each destination
+      const policyEngine = getPolicyEngine();
+      const results: Record<string, DynamicCapacityResult> = {};
+      await Promise.all(activeDestinations.map(async (d) => {
+        results[d.id] = await policyEngine.getDynamicCapacity(d);
+      }));
+      setCapacityResults(results);
     } catch (error) {
       console.error("Critical build error in data fetching:", error);
     } finally {
@@ -57,7 +67,7 @@ export default function TouristDestinations() {
 
     if (selectedFilter === 'available') {
       result = result.filter(d => {
-        const adjustedCap = policy.getAdjustedCapacity(d);
+        const adjustedCap = capacityResults[d.id]?.adjustedCapacity || d.maxCapacity;
         return d.currentOccupancy < adjustedCap * 0.75;
       });
     } else if (selectedFilter === 'popular') {
@@ -142,8 +152,8 @@ export default function TouristDestinations() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10">
             {filteredDestinations.map((d) => {
-              const policy = getPolicyEngine();
-              const adjustedCap = policy.getAdjustedCapacity(d);
+              const dynResult = capacityResults[d.id];
+              const adjustedCap = dynResult?.adjustedCapacity || d.maxCapacity;
               // FIX: Added guard to check if adjustedCap is greater than 0
               const occupancyRate = adjustedCap > 0 ? (d.currentOccupancy / adjustedCap) * 100 : 0;
 
@@ -156,12 +166,39 @@ export default function TouristDestinations() {
                       alt={d.name}
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-emerald-950/90 via-transparent to-transparent" />
+                    
+                    {/* Dynamic Capacity Indicators */}
+                    <div className="absolute top-6 right-8 flex gap-2">
+                      {dynResult?.activeFactorFlags.weather && (
+                        <div className="p-2 bg-white/20 backdrop-blur-md rounded-full text-white" title="Weather-based capacity adjustment active">
+                          <Thermometer className="h-4 w-4" />
+                        </div>
+                      )}
+                      {dynResult?.activeFactorFlags.season && (
+                        <div className="p-2 bg-white/20 backdrop-blur-md rounded-full text-white" title="Seasonal capacity adjustment active">
+                          <Calendar className="h-4 w-4" />
+                        </div>
+                      )}
+                      {dynResult?.activeFactorFlags.infrastructure && (
+                        <div className="p-2 bg-white/20 backdrop-blur-md rounded-full text-white" title="Infrastructure strain adjustment active">
+                          <Leaf className="h-4 w-4" />
+                        </div>
+                      )}
+                      {dynResult?.activeFactorFlags.override && (
+                        <div className="p-2 bg-white/20 backdrop-blur-md rounded-full text-white" title="Manual admin override active">
+                          <ShieldCheck className="h-4 w-4" />
+                        </div>
+                      )}
+                    </div>
+
                     <h3 className="absolute bottom-6 left-8 text-3xl font-black text-white tracking-tighter leading-none">{d.name}</h3>
                   </div>
                   <div className="p-8 space-y-6">
                     <div className="flex justify-between items-end">
                       <div className="space-y-1">
-                        <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Eco-Load Factor</p>
+                        <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">
+                          {dynResult?.displayMessage ? dynResult.displayMessage : 'Eco-Load Factor'}
+                        </p>
                         {/* FIX: Guarded display text for adjustedCap */}
                         <p className="text-xl font-black text-gray-900">{d.currentOccupancy} / {adjustedCap > 0 ? adjustedCap : 0}</p>
                       </div>

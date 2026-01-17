@@ -1,5 +1,5 @@
 import { supabase, createServerComponentClient } from '@/lib/supabase';
-import { Tourist, Destination, Alert, DashboardStats, ComplianceReport, PolicyViolation, HistoricalOccupancy, EcologicalMetrics } from '@/types';
+import { Tourist, Destination, Alert, DashboardStats, ComplianceReport, PolicyViolation, HistoricalOccupancy, EcologicalMetrics, AdjustmentLog, DynamicCapacityFactors } from '@/types';
 import { Database } from '@/types/database';
 import { getPolicyEngine } from './ecologicalPolicyEngine';
 import { format } from 'date-fns';
@@ -410,7 +410,7 @@ class DatabaseService {
       const destination = await this.getDestinationById(destinationId);
       if (!destination) return 0;
 
-      return getPolicyEngine().getAvailableSpots(destination);
+      return await getPolicyEngine().getAvailableSpots(destination);
     } catch (error) {
       console.error('Error in getAvailableCapacity:', error);
       return 0;
@@ -431,7 +431,7 @@ class DatabaseService {
         currentOccupancy: realTimeOccupancy
       };
       
-      return getPolicyEngine().isBookingAllowed(destinationWithRealTimeOccupancy, groupSize);
+      return await getPolicyEngine().isBookingAllowed(destinationWithRealTimeOccupancy, groupSize);
     } catch (error) {
       console.error('Error in checkBookingEligibility:', error);
       return { allowed: false, reason: 'Error checking eligibility' };
@@ -563,6 +563,37 @@ class DatabaseService {
     }
   }
 
+  async getLatestEcologicalIndicators(destinationId: string): Promise<{ soil_compaction: number; vegetation_disturbance: number; wildlife_disturbance: number; water_source_impact: number } | null> {
+    try {
+      if (this.isPlaceholderMode()) {
+        // Return some mock data for demo purposes based on destinationId hash
+        const hash = destinationId.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+        return {
+          soil_compaction: (hash % 60) + 20, // 20-80
+          vegetation_disturbance: ((hash * 2) % 50) + 10, // 10-60
+          wildlife_disturbance: ((hash * 3) % 70) + 15, // 15-85
+          water_source_impact: ((hash * 4) % 40) + 5, // 5-45
+        };
+      }
+      
+      const { data, error } = await supabase!
+        .from('compliance_reports')
+        .select('ecological_damage_indicators')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (error || !data || !(data as any).ecological_damage_indicators) {
+        return null;
+      }
+
+      return (data as any).ecological_damage_indicators;
+    } catch (error) {
+      console.error('Error fetching ecological indicators:', error);
+      return null;
+    }
+  }
+
   // Dashboard statistics
   getPolicyEngine() {
     return getPolicyEngine();
@@ -577,11 +608,14 @@ class DatabaseService {
       ]);
 
       const physicalMaxCapacity = destinations.reduce((sum, dest) => sum + (dest.max_capacity || 0), 0);
-      const adjustedMaxCapacity = destinations.reduce((sum, dest) => {
+      
+      const policyEngine = getPolicyEngine();
+      const adjustedCapacities = await Promise.all(destinations.map(async (dest) => {
         const destinationObj = this.transformDbDestinationToDestination(dest as any);
-        const policyEngine = getPolicyEngine();
-        return sum + (policyEngine.getAdjustedCapacity(destinationObj) || 0);
-      }, 0);
+        return await policyEngine.getAdjustedCapacity(destinationObj) || 0;
+      }));
+      
+      const adjustedMaxCapacity = adjustedCapacities.reduce((sum, cap) => sum + cap, 0);
       
       // Calculate current occupancy from tourist records for accuracy
       const currentOccupancy = tourists
@@ -622,6 +656,61 @@ class DatabaseService {
         capacityUtilization: 0,
         alertsCount: 0,
       };
+    }
+  }
+
+  // Capacity adjustment history operations
+  async logCapacityAdjustment(log: AdjustmentLog): Promise<void> {
+    try {
+      if (this.isPlaceholderMode()) {
+        const historyKey = 'greenpass_capacity_history';
+        const history = JSON.parse(localStorage.getItem(historyKey) || '[]');
+        history.push({
+          ...log,
+          timestamp: log.timestamp instanceof Date ? log.timestamp.toISOString() : log.timestamp
+        });
+        // Keep only last 1000 records
+        if (history.length > 1000) history.shift();
+        localStorage.setItem(historyKey, JSON.stringify(history));
+        return;
+      }
+      
+      // Fallback to compliance_reports or a dedicated table if available
+      // For now, using localStorage even in "Supabase" mode if table doesn't exist
+      // is a safe bet for this specific requirement unless we have the schema.
+      const historyKey = 'greenpass_capacity_history';
+      const history = JSON.parse(localStorage.getItem(historyKey) || '[]');
+      history.push(log);
+      localStorage.setItem(historyKey, JSON.stringify(history));
+    } catch (error) {
+      console.error('Error logging capacity adjustment:', error);
+    }
+  }
+
+  async getCapacityAdjustmentHistory(destinationId?: string, days: number = 7): Promise<AdjustmentLog[]> {
+    try {
+      const historyKey = 'greenpass_capacity_history';
+      const rawHistory = JSON.parse(localStorage.getItem(historyKey) || '[]');
+      
+      let history = rawHistory.map((item: any) => ({
+        ...item,
+        timestamp: new Date(item.timestamp)
+      }));
+
+      // Filter by date
+      const cutoff = new Date();
+      cutoff.setDate(cutoff.getDate() - days);
+      history = history.filter((item: AdjustmentLog) => item.timestamp >= cutoff);
+
+      // Filter by destination
+      if (destinationId) {
+        history = history.filter((item: AdjustmentLog) => item.destinationId === destinationId);
+      }
+
+      return history.sort((a: AdjustmentLog, b: AdjustmentLog) => b.timestamp.getTime() - a.timestamp.getTime());
+    } catch (error) {
+      console.error('Error fetching capacity history:', error);
+      return [];
     }
   }
 
@@ -1053,8 +1142,8 @@ class DatabaseService {
     const destinations = await this.getDestinations();
     const policyEngine = getPolicyEngine();
     
-    return destinations.map(d => {
-      const adjustedCapacity = policyEngine.getAdjustedCapacity(d as any);
+    return Promise.all(destinations.map(async (d) => {
+      const adjustedCapacity = await policyEngine.getAdjustedCapacity(d as any);
       const utilization = adjustedCapacity > 0 ? (d.current_occupancy / adjustedCapacity) * 100 : 0;
       
       // Carbon footprint estimate: 12.5kg CO2 per tourist (mock)
@@ -1074,7 +1163,7 @@ class DatabaseService {
                    utilization > 70 ? 'high' : 
                    utilization > 50 ? 'medium' : 'low'
       } as EcologicalMetrics;
-    });
+    }));
   }
 
   async getHistoricalOccupancyTrends(destinationId?: string, days: number = 7): Promise<{date: string, occupancy: number}[]> {

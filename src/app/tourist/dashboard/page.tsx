@@ -4,9 +4,10 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { 
   MapPin, Star, Calendar, Users, Camera, TrendingUp, 
   Award, ArrowRight, Play, Navigation, Compass, 
-  RefreshCw, Heart, Leaf, BookOpen
+  RefreshCw, Heart, Leaf 
 } from 'lucide-react';
 import TouristLayout from '@/components/TouristLayout';
+import ProtectedRoute from '@/components/ProtectedRoute';
 import { getDbService } from '@/lib/databaseService';
 import { getPolicyEngine } from '@/lib/ecologicalPolicyEngine';
 import { Destination } from '@/types';
@@ -57,11 +58,17 @@ export default function TouristDashboard() {
 
       setDestinations(transformedDestinations);
       
+      // Pre-calculate adjusted capacities
+      const adjustedCapacities: Record<string, number> = {};
+      await Promise.all(transformedDestinations.map(async (dest) => {
+        adjustedCapacities[dest.id] = await policyEngine.getAdjustedCapacity(dest);
+      }));
+
       const featured = transformedDestinations
         .filter(dest => dest.isActive)
         .sort((a, b) => {
-          const aRate = a.currentOccupancy / policyEngine.getAdjustedCapacity(a);
-          const bRate = b.currentOccupancy / policyEngine.getAdjustedCapacity(b);
+          const aRate = a.currentOccupancy / (adjustedCapacities[a.id] || a.maxCapacity);
+          const bRate = b.currentOccupancy / (adjustedCapacities[b.id] || b.maxCapacity);
           return aRate - bRate;
         })
         .slice(0, 3);
@@ -119,46 +126,47 @@ export default function TouristDashboard() {
   }
 
   return (
-    <TouristLayout>
-      <div className="max-w-7xl mx-auto space-y-10 pb-20 px-6">
-        
-        {/* HERO SECTION - UNTOUCHED (Premium Branding) */}
-        <div className="relative h-[480px] rounded-[3.5rem] overflow-hidden group shadow-2xl shadow-emerald-900/10">
-          <img 
-            src="https://images.unsplash.com/photo-1501785888041-af3ef285b470?auto=format&fit=crop&q=80" 
-            className="absolute inset-0 w-full h-full object-cover transition-transform duration-1000 group-hover:scale-110" 
-            alt="Hero Nature"
-          />
-          <div className="absolute inset-0 bg-gradient-to-r from-emerald-950/90 via-emerald-900/40 to-transparent" />
-          <div className="relative h-full flex flex-col justify-center p-12 sm:p-20 space-y-8 max-w-4xl">
-            <div className="flex items-center gap-2 text-emerald-400">
-               <Leaf className="h-5 w-5 fill-current" />
-               <span className="text-[10px] font-black tracking-[0.4em] uppercase">Beautiful World Expedition</span>
-            </div>
-            <h1 className="text-5xl sm:text-7xl font-black text-white tracking-tighter leading-none">
-              Travel Around The <br/> <span className="text-emerald-400">Beautiful World</span>
-            </h1>
-            <p className="text-emerald-50/80 font-bold text-lg max-w-xl leading-relaxed">
-              Live and take your journey. See how beautiful the world is by travelling far without hesitation.
-            </p>
-            <div className="flex gap-4">
-              <button 
-                type="button"
-                onClick={() => handleNavigation('/tourist/activities')} 
-                className="bg-white text-emerald-900 hover:bg-emerald-50 px-10 py-5 rounded-2xl font-black text-xs uppercase tracking-widest transition-all shadow-xl active:scale-95 flex items-center gap-3"
-              >
-                <Navigation className="h-4 w-4" /> Explore Now
-              </button>
-              <button 
-                type="button"
-                onClick={() => handleNavigation('/tourist/sustainability-education')} 
-                className="bg-white/10 hover:bg-white/20 backdrop-blur-md text-white px-10 py-5 rounded-2xl font-black text-xs uppercase tracking-widest transition-all border border-white/20 flex items-center gap-3"
-              >
-                <BookOpen className="h-4 w-4" /> Learn Sustainability
-              </button>
+    <ProtectedRoute>
+      <TouristLayout>
+        <div className="max-w-7xl mx-auto space-y-10 pb-20 px-6">
+          
+          {/* HERO SECTION - UNTOUCHED (Premium Branding) */}
+          <div className="relative h-[480px] rounded-[3.5rem] overflow-hidden group shadow-2xl shadow-emerald-900/10">
+            <img 
+              src="https://images.unsplash.com/photo-1501785888041-af3ef285b470?auto=format&fit=crop&q=80" 
+              className="absolute inset-0 w-full h-full object-cover transition-transform duration-1000 group-hover:scale-110" 
+              alt="Hero Nature"
+            />
+            <div className="absolute inset-0 bg-gradient-to-r from-emerald-950/90 via-emerald-900/40 to-transparent" />
+            <div className="relative h-full flex flex-col justify-center p-12 sm:p-20 space-y-8 max-w-4xl">
+              <div className="flex items-center gap-2 text-emerald-400">
+                 <Leaf className="h-5 w-5 fill-current" />
+                 <span className="text-[10px] font-black tracking-[0.4em] uppercase">Beautiful World Expedition</span>
+              </div>
+              <h1 className="text-5xl sm:text-7xl font-black text-white tracking-tighter leading-none">
+                Travel Around The <br/> <span className="text-emerald-400">Beautiful World</span>
+              </h1>
+              <p className="text-emerald-50/80 font-bold text-lg max-w-xl leading-relaxed">
+                Live and take your journey. See how beautiful the world is by travelling far without hesitation.
+              </p>
+              <div className="flex gap-4">
+                <button 
+                  type="button"
+                  onClick={() => handleNavigation('/tourist/activities')} 
+                  className="bg-white text-emerald-900 hover:bg-emerald-50 px-10 py-5 rounded-2xl font-black text-xs uppercase tracking-widest transition-all shadow-xl active:scale-95 flex items-center gap-3"
+                >
+                  <Navigation className="h-4 w-4" /> Explore Now
+                </button>
+                <button 
+                  type="button"
+                  onClick={() => alert("Sustainability Guide Loading...")} 
+                  className="bg-white/10 hover:bg-white/20 backdrop-blur-md text-white px-10 py-5 rounded-2xl font-black text-xs uppercase tracking-widest transition-all border border-white/20 flex items-center gap-3"
+                >
+                  <Play className="h-4 w-4" /> Watch Video
+                </button>
+              </div>
             </div>
           </div>
-        </div>
 
         {/* TOP DESTINATIONS SECTION */}
         <div className="space-y-6">
@@ -268,5 +276,6 @@ export default function TouristDashboard() {
 
       </div>
     </TouristLayout>
+    </ProtectedRoute>
   );
 }

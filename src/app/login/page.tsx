@@ -1,3 +1,4 @@
+// src/app/login/page.tsx (Updated with OTP login option)
 'use client';
 
 import React, { useState, useEffect, Suspense } from 'react';
@@ -5,25 +6,29 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { Eye, EyeOff, Mail, Lock, MapPin } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+import OTPVerification from '@/components/OTPVerification';
+
+type LoginMethod = 'password' | 'otp';
+type LoginStep = 'method' | 'otp';
 
 function LoginForm() {
+  const [loginMethod, setLoginMethod] = useState<LoginMethod>('password');
+  const [step, setStep] = useState<LoginStep>('method');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   
-  const { signIn, signInWithGoogle, user } = useAuth();
+  const { signIn, signUpWithOTP, verifyOTP, resendOTP, signInWithGoogle, user } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
 
   useEffect(() => {
-    // Redirect if already logged in
     if (user) {
       router.push('/');
     }
 
-    // Check for error messages from URL
     const errorParam = searchParams.get('error');
     if (errorParam) {
       switch (errorParam) {
@@ -39,7 +44,7 @@ function LoginForm() {
     }
   }, [user, router, searchParams]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handlePasswordLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError('');
@@ -59,6 +64,66 @@ function LoginForm() {
     }
   };
 
+  const handleOTPLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setError('');
+
+    try {
+      const { error } = await signUpWithOTP(email, '');
+      
+      if (error) {
+        setError(error.message);
+      } else {
+        setStep('otp');
+      }
+    } catch (err) {
+      setError('An unexpected error occurred');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleVerifyOTP = async (otp: string) => {
+    try {
+      const { error } = await verifyOTP(email, otp);
+      
+      if (error) {
+        return { 
+          success: false, 
+          error: error.message || 'Invalid OTP. Please try again.' 
+        };
+      }
+      
+      return { success: true };
+    } catch (err) {
+      return { 
+        success: false, 
+        error: 'Verification failed. Please try again.' 
+      };
+    }
+  };
+
+  const handleResendOTP = async () => {
+    try {
+      const { error } = await resendOTP(email);
+      
+      if (error) {
+        return { 
+          success: false, 
+          error: error.message || 'Failed to resend OTP. Please try again.' 
+        };
+      }
+      
+      return { success: true };
+    } catch (err) {
+      return { 
+        success: false, 
+        error: 'Failed to resend OTP. Please try again.' 
+      };
+    }
+  };
+
   const handleGoogleSignIn = async () => {
     setLoading(true);
     setError('');
@@ -70,7 +135,6 @@ function LoginForm() {
         setError(error.message);
         setLoading(false);
       }
-      // Don't set loading to false here as we're redirecting
     } catch (err) {
       setError('An unexpected error occurred');
       setLoading(false);
@@ -80,7 +144,20 @@ function LoginForm() {
   const fillAdminCredentials = () => {
     setEmail('admin@tms-india.gov.in');
     setPassword('TMS_Admin_2025!');
+    setLoginMethod('password');
   };
+
+  // Show OTP verification screen
+  if (step === 'otp') {
+    return (
+      <OTPVerification
+        email={email}
+        onVerify={handleVerifyOTP}
+        onResend={handleResendOTP}
+        onBack={() => setStep('method')}
+      />
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-50 to-blue-50 flex items-center justify-center py-8 sm:py-12 px-4 sm:px-6 lg:px-8">
@@ -100,8 +177,37 @@ function LoginForm() {
           </p>
         </div>
 
+        {/* Login Method Toggle */}
+        <div className="flex rounded-lg border border-gray-300 p-1 bg-gray-100">
+          <button
+            type="button"
+            onClick={() => setLoginMethod('password')}
+            className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-all ${
+              loginMethod === 'password'
+                ? 'bg-white text-gray-900 shadow-sm'
+                : 'text-gray-600 hover:text-gray-900'
+            }`}
+          >
+            Password
+          </button>
+          <button
+            type="button"
+            onClick={() => setLoginMethod('otp')}
+            className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-all ${
+              loginMethod === 'otp'
+                ? 'bg-white text-gray-900 shadow-sm'
+                : 'text-gray-600 hover:text-gray-900'
+            }`}
+          >
+            Email OTP
+          </button>
+        </div>
+
         {/* Form */}
-        <form className="mt-6 sm:mt-8 space-y-4 sm:space-y-6" onSubmit={handleSubmit}>
+        <form 
+          className="mt-6 sm:mt-8 space-y-4 sm:space-y-6" 
+          onSubmit={loginMethod === 'password' ? handlePasswordLogin : handleOTPLogin}
+        >
           <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 sm:p-6 space-y-4">
             {error && (
               <div className="bg-red-50 border border-red-200 rounded-lg p-3">
@@ -130,33 +236,44 @@ function LoginForm() {
               </div>
             </div>
 
-            {/* Password */}
-            <div>
-              <label htmlFor="password" className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
-                Password
-              </label>
-              <div className="relative">
-                <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                <input
-                  id="password"
-                  name="password"
-                  type={showPassword ? 'text' : 'password'}
-                  autoComplete="current-password"
-                  required
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="pl-10 pr-10 w-full px-3 py-2.5 sm:py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-gray-900 text-sm sm:text-base"
-                  placeholder="Enter your password"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 p-1"
-                >
-                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                </button>
+            {/* Password (only for password login) */}
+            {loginMethod === 'password' && (
+              <div>
+                <label htmlFor="password" className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
+                  Password
+                </label>
+                <div className="relative">
+                  <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                  <input
+                    id="password"
+                    name="password"
+                    type={showPassword ? 'text' : 'password'}
+                    autoComplete="current-password"
+                    required
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="pl-10 pr-10 w-full px-3 py-2.5 sm:py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-gray-900 text-sm sm:text-base"
+                    placeholder="Enter your password"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 p-1"
+                  >
+                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
               </div>
-            </div>
+            )}
+
+            {/* OTP Info */}
+            {loginMethod === 'otp' && (
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                <p className="text-xs text-blue-800">
+                  Click continue to receive a 6-digit verification code via email
+                </p>
+              </div>
+            )}
 
             {/* Submit Button */}
             <button
@@ -167,35 +284,37 @@ function LoginForm() {
               {loading ? (
                 <div className="flex items-center justify-center">
                   <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                  Signing in...
+                  {loginMethod === 'otp' ? 'Sending code...' : 'Signing in...'}
                 </div>
               ) : (
-                'Sign In'
+                loginMethod === 'otp' ? 'Continue with Email' : 'Sign In'
               )}
             </button>
 
             {/* Admin Login Button */}
-            <div className="grid grid-cols-2 gap-4">
-              <button
-                type="button"
-                onClick={fillAdminCredentials}
-                className="w-full bg-blue-600 text-white py-2.5 sm:py-2 px-4 rounded-lg hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors flex items-center justify-center space-x-2 font-medium text-sm sm:text-base"
-              >
-                <Lock className="h-4 w-4" />
-                <span>Admin</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setEmail('tourist@example.com');
-                  setPassword('tourist123');
-                }}
-                className="w-full bg-green-100 text-green-700 py-2.5 sm:py-2 px-4 rounded-lg hover:bg-green-200 focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition-colors flex items-center justify-center space-x-2 font-medium text-sm sm:text-base"
-              >
-                <MapPin className="h-4 w-4" />
-                <span>Tourist</span>
-              </button>
-            </div>
+            {loginMethod === 'password' && (
+              <div className="grid grid-cols-2 gap-4">
+                <button
+                  type="button"
+                  onClick={fillAdminCredentials}
+                  className="w-full bg-blue-600 text-white py-2.5 sm:py-2 px-4 rounded-lg hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors flex items-center justify-center space-x-2 font-medium text-sm sm:text-base"
+                >
+                  <Lock className="h-4 w-4" />
+                  <span>Admin</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEmail('tourist@example.com');
+                    setPassword('tourist123');
+                  }}
+                  className="w-full bg-green-100 text-green-700 py-2.5 sm:py-2 px-4 rounded-lg hover:bg-green-200 focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition-colors flex items-center justify-center space-x-2 font-medium text-sm sm:text-base"
+                >
+                  <MapPin className="h-4 w-4" />
+                  <span>Tourist</span>
+                </button>
+              </div>
+            )}
 
             {/* Divider */}
             <div className="relative py-2">
@@ -239,7 +358,7 @@ function LoginForm() {
           {/* Sign Up Link */}
           <div className="text-center pt-2">
             <p className="text-sm text-gray-600">
-              Don&apos;t have an account?{' '}
+              Don't have an account?{' '}
               <Link href="/signup" className="font-semibold text-green-600 hover:text-green-500">
                 Sign up here
               </Link>

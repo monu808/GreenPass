@@ -263,7 +263,7 @@ export default function PlanYourTripPage() {
                    <div className="space-y-1">
                       <p className="text-xs font-black text-emerald-900 uppercase">Pro Tip</p>
                       <p className="text-xs font-medium text-emerald-700/80 leading-relaxed">
-                        Add at least one "Eco-Briefing" activity per trip to maintain your GreenPass tier status.
+                        Add at least one &quot;Eco-Briefing&quot; activity per trip to maintain your GreenPass tier status.
                       </p>
                    </div>
                 </div>

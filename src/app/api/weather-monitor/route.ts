@@ -63,28 +63,34 @@ export async function GET(request: NextRequest) {
 
   // Set up shared channel subscription for THIS instance's connections
   const supabase = createServerComponentClient();
-  const channel = supabase.channel('weather-monitor-shared')
-    .on('broadcast', { event: 'weather_update' }, ({ payload }) => {
-      console.log('📥 Received shared broadcast, flushing to local SSE clients');
-      localFlush(payload);
-    })
-    .subscribe((status) => {
-      if (status === 'SUBSCRIBED') {
-        console.log('✅ Instance subscribed to shared weather channel');
-      }
-    });
+  let channel: any = null;
+  
+  if (supabase) {
+    channel = supabase.channel('weather-monitor-shared')
+      .on('broadcast', { event: 'weather_update' }, ({ payload }) => {
+        console.log('📥 Received shared broadcast, flushing to local SSE clients');
+        localFlush(payload);
+      })
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED') {
+          console.log('✅ Instance subscribed to shared weather channel');
+        }
+      });
+  } else {
+    console.warn('⚠️ Skipping Supabase channel subscription due to missing client');
+  }
 
   // Send initial connection success
   await writer.write(encoder.encode(`data: ${JSON.stringify({ 
     type: 'connection_established', 
     timestamp: new Date().toISOString(),
-    mode: 'distributed'
+    mode: supabase ? 'distributed' : 'local'
   })}\n\n`));
 
   request.signal.onabort = () => {
     console.log("🛑 One Dashboard connection closed.");
     activeWriters.delete(writer);
-    channel.unsubscribe();
+    if (channel) channel.unsubscribe();
     writer.close();
   };
 

@@ -1,7 +1,8 @@
 import { supabase, createServerComponentClient } from '@/lib/supabase';
-import { Tourist, Destination, Alert, DashboardStats } from '@/types';
+import { Tourist, Destination, Alert, DashboardStats, ComplianceReport, PolicyViolation } from '@/types';
 import { Database } from '@/types/database';
 import { getPolicyEngine } from './ecologicalPolicyEngine';
+import { format } from 'date-fns';
 import * as mockData from '@/data/mockData';
 
 // Type aliases for database types
@@ -653,14 +654,13 @@ class DatabaseService {
       console.log('Saving weather data for destination:', destinationId, weatherData);
       
       // Use service role client to bypass RLS policies for system operations
-      let client = supabase;
-      try {
-        client = createServerComponentClient();
-      } catch (e) {
-        console.warn('Service role key not available, using anon client (may fail if RLS blocks)');
+      const client = createServerComponentClient();
+      if (!client) {
+        console.warn('⚠️ SUPABASE_SERVICE_ROLE_KEY is missing. Skipping database operation.');
+        return false;
       }
       
-      const { error } = await client!
+      const { error } = await client
         .from('weather_data')
         .insert({
           destination_id: destinationId,
@@ -790,7 +790,380 @@ class DatabaseService {
     }
   }
 
+  // Compliance and Reporting operations
+  async getComplianceReports(): Promise<ComplianceReport[]> {
+    try {
+      if (this.isPlaceholderMode()) {
+        console.log('Using mock compliance reports');
+        return mockData.complianceReports || [];
+      }
+      const { data, error } = await (supabase!
+        .from('compliance_reports') as any)
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error || !data) return [];
+      return data.map(this.transformDbReportToReport);
+    } catch (error) {
+      console.error('Error in getComplianceReports:', error);
+      return [];
+    }
+  }
+
+  async getComplianceReportById(id: string): Promise<ComplianceReport | null> {
+    try {
+      if (this.isPlaceholderMode()) {
+        return (mockData.complianceReports || []).find(r => r.id === id) || null;
+      }
+      const { data, error } = await supabase!
+        .from('compliance_reports')
+        .select('*')
+        .eq('id', id)
+        .single();
+
+      if (error || !data) return null;
+      return this.transformDbReportToReport(data);
+    } catch (error) {
+      console.error('Error in getComplianceReportById:', error);
+      return null;
+    }
+  }
+
+  async createComplianceReport(report: any): Promise<ComplianceReport | null> {
+    try {
+      const dbReport = {
+        report_period: report.reportPeriod,
+        report_type: report.reportType,
+        total_tourists: report.totalTourists,
+        sustainable_capacity: report.sustainableCapacity,
+        compliance_score: report.complianceScore,
+        waste_metrics: {
+          total_waste: report.wasteMetrics.totalWaste,
+          recycled_waste: report.wasteMetrics.recycledWaste,
+          waste_reduction_target: report.wasteMetrics.wasteReductionTarget,
+        },
+        carbon_footprint: report.carbonFootprint,
+        ecological_impact_index: report.ecologicalImpactIndex,
+        ecological_damage_indicators: report.ecologicalDamageIndicators ? {
+          soil_compaction: report.ecologicalDamageIndicators.soilCompaction,
+          vegetation_disturbance: report.ecologicalDamageIndicators.vegetationDisturbance,
+          wildlife_disturbance: report.ecologicalDamageIndicators.wildlifeDisturbance,
+          water_source_impact: report.ecologicalDamageIndicators.waterSourceImpact,
+        } : null,
+        previous_period_score: report.previousPeriodScore,
+        policy_violations_count: report.policyViolationsCount,
+        total_fines: report.totalFines,
+        status: report.status || 'pending',
+      };
+
+      if (this.isPlaceholderMode()) {
+        const newReport = {
+          ...dbReport,
+          id: `report-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+          created_at: new Date().toISOString(),
+        } as any;
+        const transformed = this.transformDbReportToReport(newReport);
+        mockData.complianceReports.push(transformed);
+        return transformed;
+      }
+
+      const { data, error } = await (supabase!
+        .from('compliance_reports') as any)
+        .insert(dbReport)
+        .select()
+        .single();
+
+      if (error || !data) {
+        console.error('Error inserting compliance report:', error);
+        return null;
+      }
+      return this.transformDbReportToReport(data);
+    } catch (error) {
+      console.error('Error in createComplianceReport:', error);
+      return null;
+    }
+  }
+
+  async updateComplianceReportStatus(id: string, status: 'approved', approvedBy: string): Promise<boolean> {
+    try {
+      if (this.isPlaceholderMode()) {
+        const report = (mockData.complianceReports || []).find(r => r.id === id);
+        if (report) {
+          report.status = status;
+          report.approvedBy = approvedBy;
+          report.approvedAt = new Date();
+          return true;
+        }
+        return false;
+      }
+      const { error } = await (supabase!.from('compliance_reports') as any)
+        .update({
+          status,
+          approved_by: approvedBy,
+          approved_at: new Date().toISOString()
+        })
+        .eq('id', id);
+
+      return !error;
+    } catch (error) {
+      console.error('Error in updateComplianceReportStatus:', error);
+      return false;
+    }
+  }
+
+  async getPolicyViolations(): Promise<PolicyViolation[]> {
+    try {
+      if (this.isPlaceholderMode()) {
+        return mockData.policyViolations || [];
+      }
+      const { data, error } = await supabase!
+        .from('policy_violations')
+        .select('*, destinations(name)')
+        .order('created_at', { ascending: false });
+
+      if (error || !data) return [];
+      return data.map(v => ({
+        ...this.transformDbViolationToViolation(v),
+        destinationName: (v as any).destinations?.name
+      }));
+    } catch (error) {
+      console.error('Error in getPolicyViolations:', error);
+      return [];
+    }
+  }
+
+  async addPolicyViolation(violation: Database['public']['Tables']['policy_violations']['Insert']): Promise<PolicyViolation | null> {
+    try {
+      if (this.isPlaceholderMode()) {
+        const newViolation = {
+          ...violation,
+          id: `violation-${Date.now()}`,
+          created_at: new Date().toISOString(),
+          status: 'pending'
+        } as any;
+        mockData.policyViolations.push(this.transformDbViolationToViolation(newViolation));
+        return this.transformDbViolationToViolation(newViolation);
+      }
+      const { data, error } = await (supabase!
+        .from('policy_violations') as any)
+        .insert(violation)
+        .select()
+        .single();
+
+      if (error || !data) return null;
+      return this.transformDbViolationToViolation(data);
+    } catch (error) {
+      console.error('Error in addPolicyViolation:', error);
+      return null;
+    }
+  }
+
+  async getComplianceMetrics(period: string, type: 'monthly' | 'quarterly'): Promise<Omit<ComplianceReport, 'id' | 'status' | 'createdAt'>> {
+    const tourists = await this.getTourists();
+    const destinations = await this.getDestinations();
+    const violations = await this.getPolicyViolations();
+
+    // Filter by period
+    const filteredTourists = tourists.filter(t => {
+      const date = new Date(t.checkInDate);
+      const tMonth = date.getMonth();
+      const tYear = date.getFullYear();
+      
+      if (type === 'monthly') {
+        const [year, month] = period.split('-').map(Number);
+        return tYear === year && (tMonth + 1) === month;
+      } else {
+        // Quarterly: period is "2024-Q1" or similar
+        const [year, qPart] = period.split('-');
+        const quarter = parseInt(qPart.replace('Q', ''));
+        const startMonth = (quarter - 1) * 3;
+        const endMonth = startMonth + 2;
+        return tYear === parseInt(year) && tMonth >= startMonth && tMonth <= endMonth;
+      }
+    });
+
+    const filteredViolations = violations.filter(v => {
+      const date = new Date(v.reportedAt);
+      const vMonth = date.getMonth();
+      const vYear = date.getFullYear();
+      
+      if (type === 'monthly') {
+        const [year, month] = period.split('-').map(Number);
+        return vYear === year && (vMonth + 1) === month;
+      } else {
+        const [year, qPart] = period.split('-');
+        const quarter = parseInt(qPart.replace('Q', ''));
+        const startMonth = (quarter - 1) * 3;
+        const endMonth = startMonth + 2;
+        return vYear === parseInt(year) && vMonth >= startMonth && vMonth <= endMonth;
+      }
+    });
+
+    const totalTourists = filteredTourists.reduce((sum, t) => sum + t.groupSize, 0);
+    const sustainableCapacity = destinations.reduce((sum, d) => sum + d.max_capacity, 0);
+    
+    // Mock metrics calculation
+    const wastePerTourist = 1.5; // kg
+    const totalWaste = totalTourists * wastePerTourist;
+    const recycledWaste = totalWaste * 0.4;
+    
+    const carbonPerTourist = 12.5; // kg CO2
+    const carbonFootprint = totalTourists * carbonPerTourist;
+    
+    const totalFines = filteredViolations.reduce((sum, v) => sum + v.fineAmount, 0);
+    
+    // Get previous period report for comparison
+    const reports = await this.getComplianceReports();
+    const prevPeriod = type === 'monthly' 
+      ? format(new Date(new Date(period).setMonth(new Date(period).getMonth() - 1)), "yyyy-MM")
+      : period; // Simple MoM for now
+    const previousReport = reports.find(r => r.reportPeriod === prevPeriod);
+    
+    // Compliance score (0-100)
+    const capacityViolationFactor = sustainableCapacity > 0 ? Math.max(0, (totalTourists / sustainableCapacity) - 1) * 100 : 0;
+    const violationFactor = filteredViolations.length * 5;
+    const complianceScore = Math.max(0, 100 - capacityViolationFactor - violationFactor);
+
+    return {
+      reportPeriod: period,
+      reportType: type,
+      totalTourists,
+      sustainableCapacity,
+      complianceScore,
+      previousPeriodScore: previousReport?.complianceScore,
+      wasteMetrics: {
+        totalWaste,
+        recycledWaste,
+        wasteReductionTarget: totalWaste * 0.9,
+      },
+      carbonFootprint,
+      ecologicalImpactIndex: (100 - complianceScore) / 10,
+      ecologicalDamageIndicators: {
+        soilCompaction: sustainableCapacity > 0 ? (totalTourists / sustainableCapacity) * 0.5 : 0,
+        vegetationDisturbance: filteredViolations.filter(v => v.violationType.includes('vegetation')).length * 2,
+        wildlifeDisturbance: filteredViolations.filter(v => v.violationType.includes('wildlife')).length * 2,
+        waterSourceImpact: totalWaste / 1000,
+      },
+      policyViolationsCount: filteredViolations.length,
+      totalFines,
+    };
+  }
+
+  async getEcologicalImpactData() {
+    const destinations = await this.getDestinations();
+    const policyEngine = getPolicyEngine();
+    
+    return destinations.map(d => {
+      const adjustedCapacity = policyEngine.getAdjustedCapacity(d as any);
+      const utilization = adjustedCapacity > 0 ? (d.current_occupancy / adjustedCapacity) * 100 : 0;
+      
+      // Carbon footprint estimate: 12.5kg CO2 per tourist (mock)
+      const carbonFootprint = d.current_occupancy * 12.5;
+      
+      return {
+        id: d.id,
+        name: d.name,
+        currentOccupancy: d.current_occupancy,
+        maxCapacity: d.max_capacity,
+        adjustedCapacity,
+        utilization,
+        carbonFootprint,
+        sensitivity: d.ecological_sensitivity,
+        // Risk zone: Green <50%, Yellow 50-70%, Orange 70-85%, Red >85%
+        riskLevel: utilization > 85 ? 'critical' : 
+                   utilization > 70 ? 'high' : 
+                   utilization > 50 ? 'medium' : 'low'
+      };
+    });
+  }
+
+  async getHistoricalOccupancyTrends(destinationId?: string, days: number = 7) {
+    if (this.isPlaceholderMode()) {
+      // Generate mock historical data
+      const trends = [];
+      const now = new Date();
+      
+      for (let i = days - 1; i >= 0; i--) {
+        const date = new Date(now);
+        date.setDate(date.getDate() - i);
+        const dateStr = date.toISOString().split('T')[0];
+        
+        // Random occupancy between 40% and 90%
+        const occupancy = 40 + Math.random() * 50;
+        
+        trends.push({
+          date: dateStr,
+          occupancy: Math.round(occupancy)
+        });
+      }
+      
+      return trends;
+    }
+
+    // Real data path
+    if (!destinationId) return [];
+
+    try {
+      // In production, this would query a dedicated historical table or aggregate tourists table
+      // For now, return empty until the historical tracking table is implemented
+      console.log(`Retrieving real historical trends for destination ${destinationId}`);
+      return [];
+    } catch (error) {
+      console.error('Error in getHistoricalOccupancyTrends:', error);
+      return [];
+    }
+  }
+
   // Transform functions
+  private transformDbReportToReport(db: Database['public']['Tables']['compliance_reports']['Row']): ComplianceReport {
+    return {
+      id: db.id,
+      reportPeriod: db.report_period,
+      reportType: db.report_type,
+      totalTourists: db.total_tourists,
+      sustainableCapacity: db.sustainable_capacity,
+      complianceScore: db.compliance_score,
+      wasteMetrics: db.waste_metrics ? {
+        totalWaste: db.waste_metrics.total_waste,
+        recycledWaste: db.waste_metrics.recycled_waste,
+        wasteReductionTarget: db.waste_metrics.waste_reduction_target,
+      } : {
+        totalWaste: 0,
+        recycledWaste: 0,
+        wasteReductionTarget: 0,
+      },
+      carbonFootprint: db.carbon_footprint,
+      ecologicalImpactIndex: db.ecological_impact_index,
+      ecologicalDamageIndicators: db.ecological_damage_indicators ? {
+        soilCompaction: db.ecological_damage_indicators.soil_compaction,
+        vegetationDisturbance: db.ecological_damage_indicators.vegetation_disturbance,
+        wildlifeDisturbance: db.ecological_damage_indicators.wildlife_disturbance,
+        waterSourceImpact: db.ecological_damage_indicators.water_source_impact,
+      } : undefined,
+      previousPeriodScore: db.previous_period_score,
+      policyViolationsCount: db.policy_violations_count,
+      totalFines: db.total_fines,
+      status: db.status,
+      approvedBy: db.approved_by,
+      approvedAt: db.approved_at ? new Date(db.approved_at) : null,
+      createdAt: new Date(db.created_at)
+    };
+  }
+
+  private transformDbViolationToViolation(db: Database['public']['Tables']['policy_violations']['Row']): PolicyViolation {
+    return {
+      id: db.id,
+      destinationId: db.destination_id,
+      violationType: db.violation_type,
+      description: db.description,
+      severity: db.severity,
+      fineAmount: db.fine_amount,
+      status: db.status,
+      reportedAt: new Date(db.reported_at),
+      createdAt: new Date(db.created_at)
+    };
+  }
+
   private transformDbTouristToTourist(dbTourist: DbTourist): Tourist {
     return {
       id: dbTourist.id,
@@ -814,7 +1187,7 @@ class DatabaseService {
     };
   }
 
-  private transformDbDestinationToDestination(dbDestination: DbDestination): Destination {
+  public transformDbDestinationToDestination(dbDestination: DbDestination): Destination {
     return {
       id: dbDestination.id,
       name: dbDestination.name,

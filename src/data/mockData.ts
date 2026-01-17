@@ -1,4 +1,76 @@
-import { Destination, Tourist, BookingSlot, Alert } from '@/types';
+import { Destination, Tourist, BookingSlot, Alert, ComplianceReport, PolicyViolation } from '@/types';
+
+// Mock data for compliance reports
+export const complianceReports: ComplianceReport[] = [
+  {
+    id: 'report-1',
+    reportPeriod: '2025-12',
+    reportType: 'monthly',
+    totalTourists: 5240,
+    sustainableCapacity: 5000,
+    complianceScore: 85.5,
+    wasteMetrics: {
+      totalWaste: 7860,
+      recycledWaste: 3144,
+      wasteReductionTarget: 7000,
+    },
+    carbonFootprint: 65500,
+    ecologicalImpactIndex: 1.45,
+    policyViolationsCount: 12,
+    totalFines: 12500,
+    status: 'approved',
+    approvedBy: 'admin-1',
+    approvedAt: new Date('2026-01-02'),
+    createdAt: new Date('2026-01-01'),
+  },
+  {
+    id: 'report-2',
+    reportPeriod: '2026-01',
+    reportType: 'monthly',
+    totalTourists: 4120,
+    sustainableCapacity: 5000,
+    complianceScore: 92.0,
+    wasteMetrics: {
+      totalWaste: 6180,
+      recycledWaste: 2781,
+      wasteReductionTarget: 6000,
+    },
+    carbonFootprint: 51500,
+    ecologicalImpactIndex: 0.8,
+    policyViolationsCount: 5,
+    totalFines: 4500,
+    status: 'pending',
+    createdAt: new Date('2026-01-17'),
+  }
+];
+
+// Mock data for policy violations
+export const policyViolations: PolicyViolation[] = [
+  {
+    id: 'violation-1',
+    destinationId: 'dest-1',
+    destinationName: 'Vaishno Devi',
+    violationType: 'Illegal Camping',
+    description: 'Group of 5 found camping in restricted ecological zone.',
+    severity: 'high',
+    fineAmount: 2500,
+    status: 'paid',
+    reportedAt: new Date('2026-01-10'),
+    createdAt: new Date('2026-01-10'),
+  },
+  {
+    id: 'violation-2',
+    destinationId: 'dest-2',
+    destinationName: 'Manali',
+    violationType: 'Waste Disposal',
+    description: 'Improper disposal of non-biodegradable waste near river bank.',
+    severity: 'medium',
+    fineAmount: 1000,
+    status: 'pending',
+    reportedAt: new Date('2026-01-15'),
+    createdAt: new Date('2026-01-15'),
+  }
+];
 
 export const destinations: Destination[] = [
   {

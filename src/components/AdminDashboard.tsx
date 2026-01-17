@@ -14,8 +14,23 @@ import {
   Settings,
   Save,
   X,
-  RefreshCw
+  RefreshCw,
+  BarChart3,
+  TrendingUp,
+  Activity
 } from 'lucide-react';
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  LineChart,
+  Line,
+  Cell
+} from 'recharts';
 import { getDbService } from '@/lib/databaseService';
 import { weatherService, destinationCoordinates } from '@/lib/weatherService';
 import { getCapacityStatus, formatDateTime } from '@/lib/utils';
@@ -50,6 +65,8 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(true);
   const [editingPolicy, setEditingPolicy] = useState<SensitivityLevel | null>(null);
   const [policyForm, setPolicyForm] = useState<EcologicalPolicy | null>(null);
+  const [impactData, setImpactData] = useState<any[]>([]);
+  const [historicalTrends, setHistoricalTrends] = useState<any[]>([]);
 
   useEffect(() => {
     // 1. Load initial data when the user first opens the dashboard
@@ -102,7 +119,7 @@ export default function AdminDashboard() {
     };
   }, []);
 
-  const [activeTab, setActiveTab] = useState<'overview' | 'policies'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'policies' | 'impact'>('overview');
 
   const handleConfigure = (level: SensitivityLevel) => {
     const policyEngine = getPolicyEngine();
@@ -126,13 +143,40 @@ export default function AdminDashboard() {
   const loadDashboardData = async () => {
     try {
       const dbService = getDbService();
-      const [dashboardStats, destinationsData, alertsData] = await Promise.all([
+      const [dashboardStats, destinationsData, alertsData, ecologicalData, trendsData] = await Promise.all([
         dbService.getDashboardStats(),
         dbService.getDestinations(),
         dbService.getAlerts(),
+        dbService.getEcologicalImpactData(),
+        dbService.getHistoricalOccupancyTrends(),
       ]);
 
       setStats(dashboardStats);
+      setImpactData(ecologicalData);
+      setHistoricalTrends(trendsData);
+
+      // Check for ecological alerts
+      for (const data of ecologicalData) {
+        if (data.utilization > 70) {
+          const severity = data.utilization > 85 ? "critical" : "high";
+          const existingAlert = alertsData.find(a => a.destinationId === data.id && a.type === 'ecological' && a.isActive);
+          
+          if (!existingAlert) {
+            await dbService.addAlert({
+              type: "ecological",
+              title: `Ecological Limit Warning - ${data.name}`,
+              message: `${data.name} has reached ${Math.round(data.utilization)}% of its adjusted ecological capacity.`,
+              severity: severity as any,
+              destinationId: data.id,
+              isActive: true,
+            });
+          }
+        }
+      }
+
+      // Refresh alerts after potential new ones added
+      const updatedAlerts = await dbService.getAlerts();
+      setAlerts(updatedAlerts);
 
       // Transform destinations data to match interface
       const transformedDestinations = destinationsData.map((dest) => ({
@@ -152,7 +196,6 @@ export default function AdminDashboard() {
       }));
 
       setDestinations(transformedDestinations);
-      setAlerts(alertsData);
 
       // Update weather data for all destinations
       updateWeatherData(transformedDestinations);
@@ -333,6 +376,17 @@ export default function AdminDashboard() {
               <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-600" />
             )}
           </button>
+          <button
+            onClick={() => setActiveTab('impact')}
+            className={`pb-4 px-4 text-sm font-medium transition-colors relative ${
+              activeTab === 'impact' ? 'text-blue-600' : 'text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            Ecological Impact
+            {activeTab === 'impact' && (
+              <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-600" />
+            )}
+          </button>
         </div>
 
         {activeTab === 'overview' ? (
@@ -496,6 +550,128 @@ export default function AdminDashboard() {
               </div>
             </div>
           </>
+        ) : activeTab === 'impact' ? (
+          <div className="space-y-6">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Capacity Utilization Chart */}
+              <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-200">
+                <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                  <Activity className="h-5 w-5 mr-2 text-blue-500" />
+                  Capacity Utilization vs. Ecological Limits
+                </h2>
+                <div className="h-80 w-full">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={impactData}>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                      <XAxis dataKey="name" />
+                      <YAxis />
+                      <Tooltip 
+                        contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                        formatter={(value: any) => [`${Math.round(value)}%`, 'Utilization']}
+                      />
+                      <Bar dataKey="utilization" radius={[4, 4, 0, 0]}>
+                        {impactData.map((entry, index) => (
+                          <Cell 
+                            key={`cell-${index}`} 
+                            fill={
+                              entry.riskLevel === 'critical' ? '#ef4444' : 
+                              entry.riskLevel === 'high' ? '#f97316' : 
+                              entry.riskLevel === 'medium' ? '#eab308' : '#22c55e'
+                            } 
+                          />
+                        ))}
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+
+              {/* Historical Trends */}
+              <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-200">
+                <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                  <TrendingUp className="h-5 w-5 mr-2 text-green-500" />
+                  Occupancy Patterns (Last 7 Days)
+                </h2>
+                <div className="h-80 w-full">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={historicalTrends}>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                      <XAxis dataKey="date" />
+                      <YAxis domain={[0, 100]} />
+                      <Tooltip 
+                         contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                         formatter={(value: any) => [`${value}%`, 'Avg. Occupancy']}
+                      />
+                      <Line 
+                        type="monotone" 
+                        dataKey="occupancy" 
+                        stroke="#2563eb" 
+                        strokeWidth={2} 
+                        dot={{ r: 4, fill: '#2563eb' }}
+                        activeDot={{ r: 6 }}
+                      />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+            </div>
+
+            {/* Ecological Risk Summary Table */}
+            <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-200">
+              <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                <ShieldAlert className="h-5 w-5 mr-2 text-orange-500" />
+                Destination Risk & Impact Analysis
+              </h2>
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Destination</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Occupancy</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Adj. Capacity</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Utilization</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Carbon Est.</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Risk Level</th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {impactData.map((item) => (
+                      <tr key={item.id} className="hover:bg-gray-50">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{item.name}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.currentOccupancy}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.adjustedCapacity}</td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="flex items-center">
+                            <div className="w-16 bg-gray-200 rounded-full h-2 mr-2">
+                              <div 
+                                className={`h-2 rounded-full ${
+                                  item.utilization > 85 ? 'bg-red-500' : 
+                                  item.utilization > 70 ? 'bg-orange-500' : 
+                                  item.utilization > 50 ? 'bg-yellow-500' : 'bg-green-500'
+                                }`} 
+                                style={{ width: `${Math.min(100, item.utilization)}%` }}
+                              />
+                            </div>
+                            <span className="text-sm text-gray-700">{Math.round(item.utilization)}%</span>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.carbonFootprint} kg CO2</td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                            item.riskLevel === 'critical' ? 'bg-red-100 text-red-800' : 
+                            item.riskLevel === 'high' ? 'bg-orange-100 text-orange-800' : 
+                            item.riskLevel === 'medium' ? 'bg-yellow-100 text-yellow-800' : 'bg-green-100 text-green-800'
+                          }`}>
+                            {item.riskLevel}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
         ) : (
           <div className="space-y-6">
             {/* Policy Editor Modal/Overlay */}

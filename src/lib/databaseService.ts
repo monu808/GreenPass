@@ -1,4 +1,4 @@
-import { supabase } from '@/lib/supabase';
+import { supabase, createServerComponentClient } from '@/lib/supabase';
 import { Tourist, Destination, Alert, DashboardStats } from '@/types';
 import { Database } from '@/types/database';
 import { getPolicyEngine } from './ecologicalPolicyEngine';
@@ -652,7 +652,15 @@ class DatabaseService {
       }
       console.log('Saving weather data for destination:', destinationId, weatherData);
       
-      const { error } = await supabase!
+      // Use service role client to bypass RLS policies for system operations
+      let client = supabase;
+      try {
+        client = createServerComponentClient();
+      } catch (e) {
+        console.warn('Service role key not available, using anon client (may fail if RLS blocks)');
+      }
+      
+      const { error } = await client!
         .from('weather_data')
         .insert({
           destination_id: destinationId,
@@ -681,7 +689,7 @@ class DatabaseService {
         return false;
       }
 
-      console.log('Weather data saved successfully');
+      console.log('✅ Weather data saved successfully');
       return true;
     } catch (error) {
       console.error('Error in saveWeatherData:', error);

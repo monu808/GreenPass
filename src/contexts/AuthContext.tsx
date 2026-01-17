@@ -11,6 +11,9 @@ interface AuthContextType {
   loading: boolean;
   signIn: (email: string, password: string) => Promise<{ error: any }>;
   signUp: (email: string, password: string, name: string) => Promise<{ error: any }>;
+  signUpWithOTP: (email: string, name: string) => Promise<{ error: any }>;
+  verifyOTP: (email: string, otp: string) => Promise<{ error: any }>;
+  resendOTP: (email: string) => Promise<{ error: any }>;
   signInWithGoogle: () => Promise<{ error: any }>;
   signOut: () => Promise<{ error: any }>;
   isAdmin: boolean;
@@ -158,6 +161,61 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return { error };
   };
 
+  // New OTP-based signup
+  const signUpWithOTP = async (email: string, name: string) => {
+    if (!supabase) return { error: { message: 'Authentication service not available' } };
+    
+    try {
+      // Send OTP to email
+      const { error } = await supabase.auth.signInWithOtp({
+        email,
+        options: {
+          data: {
+            name: name,
+          },
+          shouldCreateUser: true, // Create user if doesn't exist
+        },
+      });
+      
+      return { error };
+    } catch (error) {
+      return { error };
+    }
+  };
+
+  // Verify OTP token
+  const verifyOTP = async (email: string, otp: string) => {
+    if (!supabase) return { error: { message: 'Authentication service not available' } };
+    
+    try {
+      const { error } = await supabase.auth.verifyOtp({
+        email,
+        token: otp,
+        type: 'email',
+      });
+      
+      return { error };
+    } catch (error) {
+      return { error };
+    }
+  };
+
+  // Resend OTP
+  const resendOTP = async (email: string) => {
+    if (!supabase) return { error: { message: 'Authentication service not available' } };
+    
+    try {
+      const { error } = await supabase.auth.resend({
+        type: 'signup',
+        email: email,
+      });
+      
+      return { error };
+    } catch (error) {
+      return { error };
+    }
+  };
+
   const signInWithGoogle = async () => {
     if (!supabase) return { error: { message: 'Authentication service not available' } };
     const { error } = await supabase.auth.signInWithOAuth({
@@ -191,6 +249,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     loading,
     signIn,
     signUp,
+    signUpWithOTP,
+    verifyOTP,
+    resendOTP,
     signInWithGoogle,
     signOut,
     isAdmin,

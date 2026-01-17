@@ -14,6 +14,7 @@ import {
   UserPlus,
   CloudSun,
   ClipboardCheck,
+  Sliders,
   X
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -22,6 +23,7 @@ const navigationItems = [
   { href: '/', label: 'Dashboard', icon: Home },
   { href: '/destinations', label: 'Destinations', icon: MapPin },
   { href: '/management', label: 'Tourist & Booking Management', icon: Users },
+  { href: '/management/capacity-rules', label: 'Capacity Rules', icon: Sliders },
   { href: '/management/compliance-reports', label: 'Compliance Reports', icon: ClipboardCheck },
   { href: '/register', label: 'Register Tourist', icon: UserPlus },
   { href: '/analytics', label: 'Analytics', icon: BarChart3 },

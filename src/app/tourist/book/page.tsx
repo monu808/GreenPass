@@ -7,7 +7,7 @@ import TouristLayout from '@/components/TouristLayout';
 import { getDbService } from '@/lib/databaseService';
 import { getPolicyEngine } from '@/lib/ecologicalPolicyEngine';
 import { useAuth } from '@/contexts/AuthContext';
-import { Destination, Alert } from '@/types';
+import { Destination, Alert, DynamicCapacityResult } from '@/types';
 
 function BookDestinationForm() {
   const { user } = useAuth();
@@ -21,6 +21,9 @@ function BookDestinationForm() {
   const [showSuccess, setShowSuccess] = useState(false);
   const [eligibility, setEligibility] = useState<{ allowed: boolean; reason: string | null }>({ allowed: true, reason: null });
   const [ecoAlert, setEcoAlert] = useState<Partial<Alert> | null>(null);
+  const [availableSpots, setAvailableSpots] = useState<number>(0);
+  const [adjustedCapacity, setAdjustedCapacity] = useState<number>(0);
+  const [capacityResult, setCapacityResult] = useState<DynamicCapacityResult | null>(null);
   
   const [formData, setFormData] = useState({
     name: user?.user_metadata?.name || user?.email || '',
@@ -78,6 +81,16 @@ function BookDestinationForm() {
           }
         };
         setDestination(destObj);
+        
+        // Load capacity info
+        const [available, adjusted, dynResult] = await Promise.all([
+          policyEngine.getAvailableSpots(destObj),
+          policyEngine.getAdjustedCapacity(destObj),
+          policyEngine.getDynamicCapacity(destObj)
+        ]);
+        setAvailableSpots(available);
+        setAdjustedCapacity(adjusted);
+        setCapacityResult(dynResult);
         
         // Generate ecological alert if applicable
         const alert = policyEngine.generateEcologicalAlerts(destObj);
@@ -222,7 +235,7 @@ function BookDestinationForm() {
   const getAvailabilityStatus = () => {
     if (!destination) return { text: '', color: '' };
     
-    const available = policyEngine.getAvailableSpots(destination);
+    const available = availableSpots;
     const maxPossibleAvailable = destination.maxCapacity;
     
     if (available > maxPossibleAvailable * 0.3) {
@@ -280,7 +293,6 @@ function BookDestinationForm() {
 
   const availability = getAvailabilityStatus();
   const policyEngine = getPolicyEngine();
-  const adjustedCapacity = destination ? policyEngine.getAdjustedCapacity(destination) : 0;
   const policy = destination ? policyEngine.getPolicy(destination.ecologicalSensitivity) : null;
 
   return (
@@ -310,13 +322,44 @@ function BookDestinationForm() {
                 </div>
               </div>
 
-              <div className="flex items-center space-x-6 mt-6">
+              <div className="flex flex-wrap items-center gap-3 mt-6">
                 <div className="flex items-center px-4 py-2 bg-blue-50 text-blue-700 rounded-xl border border-blue-100">
                   <Users className="h-5 w-5 mr-2" />
                   <span className="font-semibold">
-                    {getPolicyEngine().getAvailableSpots(destination)} / {destination.maxCapacity} spots free (ecological limit)
+                    {availableSpots} / {adjustedCapacity} spots free (adjusted)
                   </span>
                 </div>
+                
+                {capacityResult?.activeFactorFlags.weather && (
+                  <div className="flex items-center px-3 py-1 bg-sky-50 text-sky-700 rounded-lg border border-sky-100 text-xs font-bold">
+                    <AlertTriangle className="h-3 w-3 mr-1" />
+                    Weather Adjustment
+                  </div>
+                )}
+                {capacityResult?.activeFactorFlags.season && (
+                  <div className="flex items-center px-3 py-1 bg-amber-50 text-amber-700 rounded-lg border border-amber-100 text-xs font-bold">
+                    <Calendar className="h-3 w-3 mr-1" />
+                    Seasonal Factor
+                  </div>
+                )}
+                {capacityResult?.activeFactorFlags.utilization && (
+                  <div className="flex items-center px-3 py-1 bg-purple-50 text-purple-700 rounded-lg border border-purple-100 text-xs font-bold">
+                    <Users className="h-3 w-3 mr-1" />
+                    High Utilization
+                  </div>
+                )}
+                {capacityResult?.activeFactorFlags.infrastructure && (
+                  <div className="flex items-center px-3 py-1 bg-emerald-50 text-emerald-700 rounded-lg border border-emerald-100 text-xs font-bold">
+                    <Leaf className="h-3 w-3 mr-1" />
+                    Eco Strain
+                  </div>
+                )}
+                {capacityResult?.activeFactorFlags.override && (
+                  <div className="flex items-center px-3 py-1 bg-rose-50 text-rose-700 rounded-lg border border-rose-100 text-xs font-bold">
+                    <ShieldAlert className="h-3 w-3 mr-1" />
+                    Admin Override
+                  </div>
+                )}
               </div>
             </div>
 
@@ -329,7 +372,7 @@ function BookDestinationForm() {
                 <span className={`text-sm font-bold mt-1 ${
                   availability.text === 'Fully Booked' ? 'text-red-500' : 'text-green-500'
                 }`}>
-                  {availability.text}
+                  {capacityResult?.displayMessage || availability.text}
                 </span>
               </div>
 

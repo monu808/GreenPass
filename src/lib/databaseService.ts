@@ -654,14 +654,13 @@ class DatabaseService {
       console.log('Saving weather data for destination:', destinationId, weatherData);
       
       // Use service role client to bypass RLS policies for system operations
-      let client = supabase;
-      try {
-        client = createServerComponentClient();
-      } catch (e) {
-        console.warn('Service role key not available, using anon client (may fail if RLS blocks)');
+      const client = createServerComponentClient();
+      if (!client) {
+        console.warn('⚠️ SUPABASE_SERVICE_ROLE_KEY is missing. Skipping database operation.');
+        return false;
       }
       
-      const { error } = await client!
+      const { error } = await client
         .from('weather_data')
         .insert({
           destination_id: destinationId,

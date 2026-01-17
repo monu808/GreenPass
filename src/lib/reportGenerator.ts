@@ -34,10 +34,24 @@ export const downloadCompliancePDF = (
     startY: 60,
     head: [["Metric", "Value", "Status", "Comparison"]],
     body: [
-      ["Compliance Score", `${report.complianceScore.toFixed(1)}%`, report.complianceScore >= 80 ? "PASS" : "ACTION REQUIRED", report.previousPeriodScore ? `${(report.complianceScore - report.previousPeriodScore).toFixed(1)}% vs prev` : "N/A"],
+      [
+        "Compliance Score",
+        `${report.complianceScore.toFixed(1)}%`,
+        report.complianceScore >= 80 ? "PASS" : "ACTION REQUIRED",
+        report.previousPeriodScore !== undefined && report.previousPeriodScore !== null
+          ? `${(report.complianceScore - report.previousPeriodScore).toFixed(1)}% vs prev`
+          : "N/A",
+      ],
       ["Total Tourists", report.totalTourists.toLocaleString(), "", ""],
       ["Sustainable Capacity", report.sustainableCapacity.toLocaleString(), "", ""],
-      ["Capacity Utilization", `${((report.totalTourists / report.sustainableCapacity) * 100).toFixed(1)}%`, report.totalTourists <= report.sustainableCapacity ? "OPTIMAL" : "OVER CAPACITY", ""],
+      [
+        "Capacity Utilization",
+        report.sustainableCapacity > 0
+          ? `${((report.totalTourists / report.sustainableCapacity) * 100).toFixed(1)}%`
+          : "N/A",
+        report.totalTourists <= report.sustainableCapacity ? "OPTIMAL" : "OVER CAPACITY",
+        "",
+      ],
       ["Status", report.status.toUpperCase(), report.status === "approved" ? "OFFICIAL" : "PENDING REVIEW", ""],
     ],
     theme: "striped",
@@ -55,7 +69,14 @@ export const downloadCompliancePDF = (
     head: [["Category", "Metric", "Current Value", "Target/Limit"]],
     body: [
       ["Waste Management", "Total Waste Generated", `${report.wasteMetrics.totalWaste.toLocaleString()} kg`, "-"],
-      ["Waste Management", "Recycled Waste", `${report.wasteMetrics.recycledWaste.toLocaleString()} kg`, `${((report.wasteMetrics.recycledWaste / report.wasteMetrics.totalWaste) * 100).toFixed(1)}% rate`],
+      [
+        "Waste Management",
+        "Recycled Waste",
+        `${report.wasteMetrics.recycledWaste.toLocaleString()} kg`,
+        report.wasteMetrics.totalWaste > 0
+          ? `${((report.wasteMetrics.recycledWaste / report.wasteMetrics.totalWaste) * 100).toFixed(1)}% rate`
+          : "0.0% rate",
+      ],
       ["Waste Management", "Reduction Target", "-", `${report.wasteMetrics.wasteReductionTarget.toLocaleString()} kg`],
       ["Carbon Footprint", "Total CO2 Emissions", `${report.carbonFootprint.toLocaleString()} kg`, "N/A"],
       ["Ecological Impact", "Impact Index (0-10)", report.ecologicalImpactIndex.toFixed(2), "< 2.0 (Low Impact)"],

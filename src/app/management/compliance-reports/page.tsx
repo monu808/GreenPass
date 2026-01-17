@@ -128,6 +128,23 @@ export default function ComplianceReportsPage() {
 
   const handleExportPDF = (report: ComplianceReport) => {
     const reportViolations = violations.filter((v) => {
+      // Check if quarterly: e.g., "2024-Q1"
+      const quarterlyMatch = report.reportPeriod.match(/^(\d{4})-Q([1-4])$/);
+      
+      if (quarterlyMatch) {
+        const year = parseInt(quarterlyMatch[1]);
+        const quarter = parseInt(quarterlyMatch[2]);
+        const vDate = new Date(v.reportedAt);
+        const vYear = vDate.getFullYear();
+        const vMonth = vDate.getMonth(); // 0-11
+        
+        const startMonth = (quarter - 1) * 3;
+        const endMonth = startMonth + 2;
+        
+        return vYear === year && vMonth >= startMonth && vMonth <= endMonth;
+      }
+      
+      // Default to monthly: "YYYY-MM"
       const vPeriod = format(v.reportedAt, "yyyy-MM");
       return vPeriod === report.reportPeriod;
     });

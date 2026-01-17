@@ -130,7 +130,7 @@ export interface Database {
       alerts: {
         Row: {
           id: string;
-          type: 'capacity' | 'weather' | 'emergency' | 'maintenance';
+          type: 'capacity' | 'weather' | 'emergency' | 'maintenance' | 'ecological';
           title: string;
           message: string;
           severity: 'low' | 'medium' | 'high' | 'critical';
@@ -141,7 +141,7 @@ export interface Database {
         };
         Insert: {
           id?: string;
-          type: 'capacity' | 'weather' | 'emergency' | 'maintenance';
+          type: 'capacity' | 'weather' | 'emergency' | 'maintenance' | 'ecological';
           title: string;
           message: string;
           severity: 'low' | 'medium' | 'high' | 'critical';
@@ -152,7 +152,7 @@ export interface Database {
         };
         Update: {
           id?: string;
-          type?: 'capacity' | 'weather' | 'emergency' | 'maintenance';
+          type?: 'capacity' | 'weather' | 'emergency' | 'maintenance' | 'ecological';
           title?: string;
           message?: string;
           severity?: 'low' | 'medium' | 'high' | 'critical';
@@ -245,6 +245,127 @@ export interface Database {
           alert_level?: 'none' | 'low' | 'medium' | 'high' | 'critical';
           alert_message?: string | null;
           alert_reason?: string | null;
+        };
+      };
+      compliance_reports: {
+        Row: {
+          id: string;
+          report_period: string;
+          report_type: 'monthly' | 'quarterly';
+          total_tourists: number;
+          sustainable_capacity: number;
+          compliance_score: number;
+          waste_metrics: {
+            total_waste: number;
+            recycled_waste: number;
+            waste_reduction_target: number;
+          };
+          carbon_footprint: number;
+          ecological_impact_index: number;
+          ecological_damage_indicators?: {
+            soil_compaction: number;
+            vegetation_disturbance: number;
+            wildlife_disturbance: number;
+            water_source_impact: number;
+          };
+          previous_period_score?: number;
+          policy_violations_count: number;
+          total_fines: number;
+          status: 'pending' | 'approved';
+          approved_by: string | null;
+          approved_at: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          report_period: string;
+          report_type: 'monthly' | 'quarterly';
+          total_tourists: number;
+          sustainable_capacity: number;
+          compliance_score: number;
+          waste_metrics: {
+            total_waste: number;
+            recycled_waste: number;
+            waste_reduction_target: number;
+          };
+          carbon_footprint: number;
+          ecological_impact_index: number;
+          ecological_damage_indicators?: {
+            soil_compaction: number;
+            vegetation_disturbance: number;
+            wildlife_disturbance: number;
+            water_source_impact: number;
+          };
+          previous_period_score?: number;
+          policy_violations_count: number;
+          total_fines: number;
+          status?: 'pending' | 'approved';
+          approved_by?: string | null;
+          approved_at?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          report_period?: string;
+          report_type?: 'monthly' | 'quarterly';
+          total_tourists?: number;
+          sustainable_capacity?: number;
+          compliance_score?: number;
+          waste_metrics?: {
+            total_waste: number;
+            recycled_waste: number;
+            waste_reduction_target: number;
+          };
+          carbon_footprint?: number;
+          ecological_impact_index?: number;
+          ecological_damage_indicators?: {
+            soil_compaction: number;
+            vegetation_disturbance: number;
+            wildlife_disturbance: number;
+            water_source_impact: number;
+          };
+          previous_period_score?: number;
+          policy_violations_count?: number;
+          total_fines?: number;
+          status?: 'pending' | 'approved';
+          approved_by?: string | null;
+          approved_at?: string | null;
+          created_at?: string;
+        };
+      };
+      policy_violations: {
+        Row: {
+          id: string;
+          destination_id: string;
+          violation_type: string;
+          description: string;
+          severity: 'low' | 'medium' | 'high' | 'critical';
+          fine_amount: number;
+          status: 'pending' | 'paid' | 'contested';
+          reported_at: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          destination_id: string;
+          violation_type: string;
+          description: string;
+          severity: 'low' | 'medium' | 'high' | 'critical';
+          fine_amount: number;
+          status?: 'pending' | 'paid' | 'contested';
+          reported_at?: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          destination_id?: string;
+          violation_type?: string;
+          description?: string;
+          severity?: 'low' | 'medium' | 'high' | 'critical';
+          fine_amount?: number;
+          status?: 'pending' | 'paid' | 'contested';
+          reported_at?: string;
+          created_at?: string;
         };
       };
     };

@@ -21,6 +21,7 @@ import {
   RefreshCw,
   Play,
   Pause,
+  Leaf,
 } from "lucide-react";
 import { getDbService } from "@/lib/databaseService";
 import { weatherMonitoringService } from "@/lib/weatherMonitoringService";
@@ -195,6 +196,8 @@ export default function AlertsPage() {
         return <Zap className="h-4 w-4" />;
       case "maintenance":
         return <Settings className="h-4 w-4" />;
+      case "ecological":
+        return <Leaf className="h-4 w-4" />;
       default:
         return <AlertTriangle className="h-4 w-4" />;
     }
@@ -272,6 +275,7 @@ export default function AlertsPage() {
                   <option value="capacity">Capacity</option>
                   <option value="emergency">Emergency</option>
                   <option value="maintenance">Maintenance</option>
+                  <option value="ecological">Ecological</option>
                 </select>
               </div>
 

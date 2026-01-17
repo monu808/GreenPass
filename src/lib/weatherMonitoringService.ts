@@ -1,4 +1,4 @@
-import { weatherService, destinationCoordinates } from '@/lib/weatherService';
+import { weatherService, destinationCoordinates, WeatherData } from '@/lib/weatherService';
 import { getDbService } from '@/lib/databaseService';
 import { Destination } from '@/types';
 import { broadcast } from './messagingService';
@@ -9,7 +9,7 @@ interface WeatherMonitoringService {
 }
 
 class WeatherMonitor implements WeatherMonitoringService {
-  private lastCheckedData: Map<string, any> = new Map();
+  private lastCheckedData: Map<string, WeatherData & { timestamp: number }> = new Map();
   private lastApiCall: number = 0;
   private apiCallDelay: number = 10000; // 10 seconds between API calls
   private checkInterval: number = 21600000; // 6 hours threshold for freshness
@@ -29,8 +29,9 @@ class WeatherMonitor implements WeatherMonitoringService {
       }
 
       // Check weather for each destination with rate limiting
-      for (const destination of destinations) {
+      for (const dbDestination of destinations) {
         try {
+          const destination = dbService.transformDbDestinationToDestination(dbDestination);
           // Always check the database first to have some data (even if old)
           const latestWeather = await dbService.getLatestWeatherData(destination.id);
           
@@ -47,6 +48,8 @@ class WeatherMonitor implements WeatherMonitoringService {
               windSpeed: latestWeather.wind_speed,
               windDirection: latestWeather.wind_direction,
               visibility: latestWeather.visibility,
+              cityName: destination.name,
+              icon: '01d', // Default icon for DB records
               timestamp: recordedAt
             });
 
@@ -111,7 +114,7 @@ class WeatherMonitor implements WeatherMonitoringService {
           await this.processWeatherAlerts(destination, weatherData, true);
 
         } catch (error) {
-          console.error(`❌ Error checking weather for ${destination.name}:`, error);
+          console.error(`❌ Error checking weather for ${dbDestination.name}:`, error);
         }
       }
 
@@ -123,7 +126,7 @@ class WeatherMonitor implements WeatherMonitoringService {
   }
 
   // Helper method to process weather alerts
-  private async processWeatherAlerts(destination: any, weatherData: any, saveToDatabase: boolean = true): Promise<void> {
+  private async processWeatherAlerts(destination: Destination, weatherData: WeatherData, saveToDatabase: boolean = true): Promise<void> {
     try {
       const alertCheck = weatherService.shouldGenerateAlert(weatherData);
       let alertLevel: 'none' | 'low' | 'medium' | 'high' | 'critical' = 'none';
@@ -198,11 +201,15 @@ class WeatherMonitor implements WeatherMonitoringService {
 const MONITOR_KEY = Symbol.for('greenpass.weather_monitor');
 let weatherMonitoringService: WeatherMonitor;
 
+const globalWithMonitor = global as typeof globalThis & {
+  [MONITOR_KEY]?: WeatherMonitor;
+};
+
 if (typeof global !== 'undefined') {
-  if (!(global as any)[MONITOR_KEY]) {
-    (global as any)[MONITOR_KEY] = new WeatherMonitor();
+  if (!globalWithMonitor[MONITOR_KEY]) {
+    globalWithMonitor[MONITOR_KEY] = new WeatherMonitor();
   }
-  weatherMonitoringService = (global as any)[MONITOR_KEY];
+  weatherMonitoringService = globalWithMonitor[MONITOR_KEY]!;
 } else {
   weatherMonitoringService = new WeatherMonitor();
 }

@@ -84,6 +84,31 @@ interface WeatherCodeMapping {
   };
 }
 
+interface TomorrowRealtimeResponse {
+  data: {
+    time: string;
+    values: {
+      temperature: number;
+      humidity: number;
+      pressureSeaLevel: number;
+      windSpeed: number;
+      windDirection: number;
+      visibility: number;
+      uvIndex: number;
+      cloudCover: number;
+      precipitationProbability: number;
+      precipitationType: number;
+      weatherCode: number;
+    };
+  };
+  location: {
+    lat: number;
+    lon: number;
+    name?: string;
+    type?: string;
+  };
+}
+
 class TomorrowWeatherService {
   private apiKey: string;
   private baseUrl = 'https://api.tomorrow.io/v4/weather';
@@ -244,7 +269,7 @@ class TomorrowWeatherService {
     }
   }
 
-  private transformWeatherData(data: any, cityName: string): WeatherData {
+  private transformWeatherData(data: TomorrowRealtimeResponse, cityName: string): WeatherData {
     const values = data.data?.values || {};
     const weatherCode = values.weatherCode || 0;
     const weatherInfo = this.weatherCodeMap[weatherCode] || this.weatherCodeMap[0];

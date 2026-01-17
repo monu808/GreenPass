@@ -100,7 +100,7 @@ export default function OTPVerification({
         setOtp(['', '', '', '', '', '']);
         inputRefs.current[0]?.focus();
       }
-    } catch (err) {
+    } catch (_err) {
       setError('Verification failed. Please try again.');
       setOtp(['', '', '', '', '', '']);
       inputRefs.current[0]?.focus();
@@ -125,7 +125,7 @@ export default function OTPVerification({
       } else {
         setError(result.error || 'Failed to resend OTP. Please try again.');
       }
-    } catch (err) {
+    } catch (_err) {
       setError('Failed to resend OTP. Please try again.');
     } finally {
       setLoading(false);
@@ -146,7 +146,7 @@ export default function OTPVerification({
             Verify Your Email
           </h2>
           <p className="mt-2 text-sm text-gray-600">
-            We've sent a 6-digit code to
+            We&apos;ve sent a 6-digit code to
           </p>
           <p className="text-sm font-medium text-gray-900">{email}</p>
         </div>
@@ -200,7 +200,7 @@ export default function OTPVerification({
 
           {/* Resend Section */}
           <div className="text-center space-y-3">
-            <p className="text-sm text-gray-600">Didn't receive the code?</p>
+            <p className="text-sm text-gray-600">Didn&apos;t receive the code?</p>
             <button
               onClick={handleResend}
               disabled={loading || resendCooldown > 0}
@@ -231,7 +231,7 @@ export default function OTPVerification({
         {/* Tips */}
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
           <p className="text-xs text-blue-800">
-            <strong>Tip:</strong> Check your spam folder if you don't see the email. 
+            <strong>Tip:</strong> Check your spam folder if you don&apos;t see the email. 
             The code is valid for 10 minutes.
           </p>
         </div>

@@ -7,6 +7,10 @@ import { createServerComponentClient } from './supabase';
 export const broadcast = async (data: any) => {
   try {
     const supabase = createServerComponentClient();
+    if (!supabase) {
+      console.warn('⚠️ Supabase client is not available for broadcast (missing service role key)');
+      return;
+    }
     const channel = supabase.channel('weather-monitor-shared');
     
     // Publish to the shared channel

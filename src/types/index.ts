@@ -46,7 +46,7 @@ export interface BookingSlot {
 
 export interface Alert {
   id: string;
-  type: 'capacity' | 'weather' | 'emergency' | 'maintenance';
+  type: 'capacity' | 'weather' | 'emergency' | 'maintenance' | 'ecological';
   title: string;
   message: string;
   severity: 'low' | 'medium' | 'high' | 'critical';
@@ -73,4 +73,46 @@ export interface DashboardStats {
   todayCheckOuts: number;
   capacityUtilization: number;
   alertsCount: number;
+}
+
+export interface ComplianceReport {
+  id: string;
+  reportPeriod: string;
+  reportType: 'monthly' | 'quarterly';
+  totalTourists: number;
+  sustainableCapacity: number;
+  complianceScore: number;
+  wasteMetrics: {
+    totalWaste: number;
+    recycledWaste: number;
+    wasteReductionTarget: number;
+  };
+  carbonFootprint: number;
+  ecologicalImpactIndex: number;
+  ecologicalDamageIndicators?: {
+    soilCompaction: number;
+    vegetationDisturbance: number;
+    wildlifeDisturbance: number;
+    waterSourceImpact: number;
+  };
+  previousPeriodScore?: number;
+  policyViolationsCount: number;
+  totalFines: number;
+  status: 'pending' | 'approved';
+  approvedBy?: string | null;
+  approvedAt?: Date | null;
+  createdAt: Date;
+}
+
+export interface PolicyViolation {
+  id: string;
+  destinationId: string;
+  destinationName?: string;
+  violationType: string;
+  description: string;
+  severity: 'low' | 'medium' | 'high' | 'critical';
+  fineAmount: number;
+  status: 'pending' | 'paid' | 'contested';
+  reportedAt: Date;
+  createdAt: Date;
 }

@@ -1108,10 +1108,14 @@ class DatabaseService {
       totalTourists: db.total_tourists,
       sustainableCapacity: db.sustainable_capacity,
       complianceScore: db.compliance_score,
-      wasteMetrics: {
+      wasteMetrics: db.waste_metrics ? {
         totalWaste: db.waste_metrics.total_waste,
         recycledWaste: db.waste_metrics.recycled_waste,
         wasteReductionTarget: db.waste_metrics.waste_reduction_target,
+      } : {
+        totalWaste: 0,
+        recycledWaste: 0,
+        wasteReductionTarget: 0,
       },
       carbonFootprint: db.carbon_footprint,
       ecologicalImpactIndex: db.ecological_impact_index,

@@ -1,5 +1,5 @@
 import { supabase, createServerComponentClient } from '@/lib/supabase';
-import { Tourist, Destination, Alert, DashboardStats, ComplianceReport, PolicyViolation } from '@/types';
+import { Tourist, Destination, Alert, DashboardStats, ComplianceReport, PolicyViolation, HistoricalOccupancy, EcologicalMetrics } from '@/types';
 import { Database } from '@/types/database';
 import { getPolicyEngine } from './ecologicalPolicyEngine';
 import { format } from 'date-fns';
@@ -1049,7 +1049,7 @@ class DatabaseService {
     };
   }
 
-  async getEcologicalImpactData() {
+  async getEcologicalImpactData(): Promise<EcologicalMetrics[]> {
     const destinations = await this.getDestinations();
     const policyEngine = getPolicyEngine();
     
@@ -1068,19 +1068,19 @@ class DatabaseService {
         adjustedCapacity,
         utilization,
         carbonFootprint,
-        sensitivity: d.ecological_sensitivity,
+        sensitivity: d.ecological_sensitivity as 'low' | 'medium' | 'high' | 'critical',
         // Risk zone: Green <50%, Yellow 50-70%, Orange 70-85%, Red >85%
         riskLevel: utilization > 85 ? 'critical' : 
                    utilization > 70 ? 'high' : 
                    utilization > 50 ? 'medium' : 'low'
-      };
+      } as EcologicalMetrics;
     });
   }
 
-  async getHistoricalOccupancyTrends(destinationId?: string, days: number = 7) {
+  async getHistoricalOccupancyTrends(destinationId?: string, days: number = 7): Promise<{date: string, occupancy: number}[]> {
     if (this.isPlaceholderMode()) {
       // Generate mock historical data
-      const trends = [];
+      const trends: {date: string, occupancy: number}[] = [];
       const now = new Date();
       
       for (let i = days - 1; i >= 0; i--) {
@@ -1110,6 +1110,84 @@ class DatabaseService {
       return [];
     } catch (error) {
       console.error('Error in getHistoricalOccupancyTrends:', error);
+      return [];
+    }
+  }
+
+  async getHistoricalOccupancy(destinationId: string, days: number = 7): Promise<HistoricalOccupancy[]> {
+    if (this.isPlaceholderMode()) {
+      // Mock data fallback for demonstration
+      const trends: HistoricalOccupancy[] = [];
+      const now = new Date();
+      
+      for (let i = days - 1; i >= 0; i--) {
+        const date = new Date(now);
+        date.setDate(date.getDate() - i);
+        const dateStr = format(date, 'MMM dd');
+        const isoDate = date.toISOString();
+        
+        // Base capacity for mock
+        const adjustedCapacity = 100;
+        // Random occupancy between 30 and 95
+        const occupancy = Math.floor(Math.random() * 65) + 30;
+        
+        trends.push({
+          date: dateStr,
+          isoDate,
+          occupancy,
+          adjustedCapacity
+        });
+      }
+      
+      return trends;
+    }
+
+    try {
+      const now = new Date();
+      const trends: HistoricalOccupancy[] = [];
+
+      // Get destination max capacity
+      const { data: dest } = await supabase!
+        .from('destinations')
+        .select('max_capacity')
+        .eq('id', destinationId)
+        .single();
+      
+      const maxCapacity = (dest as any)?.max_capacity || 100;
+
+      for (let i = days - 1; i >= 0; i--) {
+        const date = new Date(now);
+        date.setDate(date.getDate() - i);
+        const dateStr = format(date, 'yyyy-MM-dd');
+        const displayDate = format(date, 'MMM dd');
+        const isoDate = date.toISOString();
+
+        // Query tourists table for occupancy on this specific date using sum of group_size
+        const { data, error } = await supabase!
+          .from('tourists')
+          .select('sum:group_size.sum()')
+          .eq('destination_id', destinationId)
+          .lte('check_in_date', dateStr)
+          .gte('check_out_date', dateStr);
+
+        if (error) throw error;
+
+        const occupancy = data && data[0] ? Number((data[0] as any).sum) || 0 : 0;
+
+        trends.push({
+          date: displayDate,
+          isoDate,
+          occupancy,
+          adjustedCapacity: maxCapacity // In a real scenario, this would be adjusted by the policy engine
+        });
+      }
+
+      return trends;
+    } catch (error) {
+      console.error('Error in getHistoricalOccupancy:', error);
+      // Return empty array or mock data on error as fallback
+      // To avoid infinite recursion, we don't call this.getHistoricalOccupancy recursively here
+      // instead we return a simple mock or empty list
       return [];
     }
   }

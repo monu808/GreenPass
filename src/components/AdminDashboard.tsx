@@ -36,6 +36,7 @@ import { weatherService, destinationCoordinates } from '@/lib/weatherService';
 import { getCapacityStatus, formatDateTime } from '@/lib/utils';
 import { DashboardStats, Destination, Alert } from '@/types';
 import { getPolicyEngine, DEFAULT_POLICIES, SensitivityLevel, EcologicalPolicy } from '@/lib/ecologicalPolicyEngine';
+import EcologicalDashboard from './EcologicalDashboard';
 
 export default function AdminDashboard() {
   const [stats, setStats] = useState<DashboardStats>({
@@ -119,7 +120,7 @@ export default function AdminDashboard() {
     };
   }, []);
 
-  const [activeTab, setActiveTab] = useState<'overview' | 'policies' | 'impact'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'policies' | 'ecological'>('overview');
 
   const handleConfigure = (level: SensitivityLevel) => {
     const policyEngine = getPolicyEngine();
@@ -302,19 +303,22 @@ export default function AdminDashboard() {
     icon: Icon,
     color,
     subtitle,
+    trend,
   }: {
     title: string;
     value: string | number;
     icon: React.ComponentType<{ className?: string }>;
     color: string;
     subtitle?: string;
+    trend?: string;
   }) => (
-    <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-200">
+    <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-200 hover:shadow-md transition-shadow">
       <div className="flex items-center justify-between">
         <div>
           <p className="text-sm font-medium text-gray-600">{title}</p>
           <p className="text-2xl font-bold text-gray-900 mt-1">{value}</p>
           {subtitle && <p className="text-xs text-gray-500 mt-1">{subtitle}</p>}
+          {trend && <p className="text-xs text-green-600 mt-1 font-medium">{trend}</p>}
         </div>
         <div className={`p-3 rounded-lg ${color}`}>
           <Icon className="h-6 w-6" />
@@ -337,18 +341,27 @@ export default function AdminDashboard() {
     <Layout requireAdmin={true}>
       <div className="space-y-6">
         {/* Header */}
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
             <h1 className="text-2xl font-bold text-gray-900">
-              Government Dashboard
+              Enhanced Government Dashboard
             </h1>
             <p className="text-gray-600">
-              Monitor and manage tourist activities across Jammu & Himachal
-              Pradesh
+              Real-time comprehensive tourist management and ecological monitoring
             </p>
           </div>
-          <div className="text-sm text-gray-500">
-            Last updated: {formatDateTime(new Date())}
+          <div className="flex items-center space-x-3">
+            <div className="text-right hidden sm:block">
+              <p className="text-xs text-gray-500">Last updated</p>
+              <p className="text-sm font-medium text-gray-700">{formatDateTime(new Date())}</p>
+            </div>
+            <button
+              onClick={() => loadDashboardData()}
+              className="p-2 text-gray-500 hover:bg-gray-100 rounded-lg transition-colors border border-gray-200"
+              title="Refresh Dashboard"
+            >
+              <RefreshCw className={`h-5 w-5 ${loading ? 'animate-spin' : ''}`} />
+            </button>
           </div>
         </div>
 
@@ -377,13 +390,14 @@ export default function AdminDashboard() {
             )}
           </button>
           <button
-            onClick={() => setActiveTab('impact')}
-            className={`pb-4 px-4 text-sm font-medium transition-colors relative ${
-              activeTab === 'impact' ? 'text-blue-600' : 'text-gray-500 hover:text-gray-700'
+            onClick={() => setActiveTab('ecological')}
+            className={`pb-4 px-4 text-sm font-medium transition-colors relative flex items-center ${
+              activeTab === 'ecological' ? 'text-blue-600' : 'text-gray-500 hover:text-gray-700'
             }`}
           >
+            <Leaf className={`h-4 w-4 mr-2 ${activeTab === 'ecological' ? 'text-blue-600' : 'text-gray-400'}`} />
             Ecological Impact
-            {activeTab === 'impact' && (
+            {activeTab === 'ecological' && (
               <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-600" />
             )}
           </button>
@@ -398,6 +412,7 @@ export default function AdminDashboard() {
                 value={stats.totalTourists}
                 icon={Users}
                 color="bg-blue-100 text-blue-600"
+                trend="Cumulative"
               />
               <StatCard
                 title="Current Occupancy"
@@ -405,18 +420,21 @@ export default function AdminDashboard() {
                 icon={MapPin}
                 color="bg-green-100 text-green-600"
                 subtitle={`${Math.round(stats.capacityUtilization)}% of ecological limit (${stats.adjustedMaxCapacity})`}
+                trend="Live tracking"
               />
               <StatCard
                 title="Pending Approvals"
                 value={stats.pendingApprovals}
                 icon={Clock}
                 color="bg-yellow-100 text-yellow-600"
+                trend={stats.pendingApprovals > 0 ? "Action needed" : "All clear"}
               />
               <StatCard
                 title="Active Alerts"
                 value={stats.alertsCount}
                 icon={AlertTriangle}
                 color="bg-red-100 text-red-600"
+                trend={stats.alertsCount > 0 ? "Monitor closely" : "Normal"}
               />
             </div>
 
@@ -550,128 +568,8 @@ export default function AdminDashboard() {
               </div>
             </div>
           </>
-        ) : activeTab === 'impact' ? (
-          <div className="space-y-6">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* Capacity Utilization Chart */}
-              <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-200">
-                <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-                  <Activity className="h-5 w-5 mr-2 text-blue-500" />
-                  Capacity Utilization vs. Ecological Limits
-                </h2>
-                <div className="h-80 w-full">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={impactData}>
-                      <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                      <XAxis dataKey="name" />
-                      <YAxis />
-                      <Tooltip 
-                        contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
-                        formatter={(value: any) => [`${Math.round(value)}%`, 'Utilization']}
-                      />
-                      <Bar dataKey="utilization" radius={[4, 4, 0, 0]}>
-                        {impactData.map((entry, index) => (
-                          <Cell 
-                            key={`cell-${index}`} 
-                            fill={
-                              entry.riskLevel === 'critical' ? '#ef4444' : 
-                              entry.riskLevel === 'high' ? '#f97316' : 
-                              entry.riskLevel === 'medium' ? '#eab308' : '#22c55e'
-                            } 
-                          />
-                        ))}
-                      </Bar>
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-              </div>
-
-              {/* Historical Trends */}
-              <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-200">
-                <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-                  <TrendingUp className="h-5 w-5 mr-2 text-green-500" />
-                  Occupancy Patterns (Last 7 Days)
-                </h2>
-                <div className="h-80 w-full">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={historicalTrends}>
-                      <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                      <XAxis dataKey="date" />
-                      <YAxis domain={[0, 100]} />
-                      <Tooltip 
-                         contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
-                         formatter={(value: any) => [`${value}%`, 'Avg. Occupancy']}
-                      />
-                      <Line 
-                        type="monotone" 
-                        dataKey="occupancy" 
-                        stroke="#2563eb" 
-                        strokeWidth={2} 
-                        dot={{ r: 4, fill: '#2563eb' }}
-                        activeDot={{ r: 6 }}
-                      />
-                    </LineChart>
-                  </ResponsiveContainer>
-                </div>
-              </div>
-            </div>
-
-            {/* Ecological Risk Summary Table */}
-            <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-200">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-                <ShieldAlert className="h-5 w-5 mr-2 text-orange-500" />
-                Destination Risk & Impact Analysis
-              </h2>
-              <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Destination</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Occupancy</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Adj. Capacity</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Utilization</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Carbon Est.</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Risk Level</th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
-                    {impactData.map((item) => (
-                      <tr key={item.id} className="hover:bg-gray-50">
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{item.name}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.currentOccupancy}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.adjustedCapacity}</td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="flex items-center">
-                            <div className="w-16 bg-gray-200 rounded-full h-2 mr-2">
-                              <div 
-                                className={`h-2 rounded-full ${
-                                  item.utilization > 85 ? 'bg-red-500' : 
-                                  item.utilization > 70 ? 'bg-orange-500' : 
-                                  item.utilization > 50 ? 'bg-yellow-500' : 'bg-green-500'
-                                }`} 
-                                style={{ width: `${Math.min(100, item.utilization)}%` }}
-                              />
-                            </div>
-                            <span className="text-sm text-gray-700">{Math.round(item.utilization)}%</span>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.carbonFootprint} kg CO2</td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                            item.riskLevel === 'critical' ? 'bg-red-100 text-red-800' : 
-                            item.riskLevel === 'high' ? 'bg-orange-100 text-orange-800' : 
-                            item.riskLevel === 'medium' ? 'bg-yellow-100 text-yellow-800' : 'bg-green-100 text-green-800'
-                          }`}>
-                            {item.riskLevel}
-                          </span>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
+        ) : activeTab === 'ecological' ? (
+          <EcologicalDashboard />
         ) : (
           <div className="space-y-6">
             {/* Policy Editor Modal/Overlay */}

@@ -353,6 +353,7 @@ function LoginForm() {
               </svg>
               Continue with Google
             </button>
+
           </div>
 
           {/* Sign Up Link */}

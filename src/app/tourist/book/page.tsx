@@ -39,7 +39,6 @@ function BookDestinationForm() {
     groupSize: 1,
     checkInDate: "",
     checkOutDate: "",
-    selectedOffset: null as CarbonOffsetOption | null,
     emergencyContact: {
       name: "",
       phone: "",
@@ -67,17 +66,33 @@ function BookDestinationForm() {
     if (destination && formData.originLocation) {
       calculateCarbonFootprint();
     }
-  }, [destination, formData.originLocation, formData.groupSize, formData.transportType]);
+  }, [destination, formData.originLocation, formData.groupSize, formData.transportType, formData.checkInDate, formData.checkOutDate]);
 
   const calculateCarbonFootprint = () => {
     if (!destination || !formData.originLocation) return;
+    
+    // Calculate actual stay nights from dates
+    let stayNights = 2; // Default fallback
+    if (formData.checkInDate && formData.checkOutDate) {
+      const start = new Date(formData.checkInDate);
+      const end = new Date(formData.checkOutDate);
+      
+      if (!isNaN(start.getTime()) && !isNaN(end.getTime())) {
+        const diffTime = end.getTime() - start.getTime();
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        
+        // Ensure at least 0 nights if dates are in reverse or same day
+        stayNights = Math.max(0, diffDays);
+      }
+    }
     
     const calculator = getCarbonCalculator();
     const result = calculator.calculateBookingFootprint(
       formData.originLocation,
       destination.id,
       formData.groupSize,
-      formData.transportType
+      formData.transportType,
+      stayNights
     );
     setCarbonFootprint(result);
   };
@@ -228,10 +243,9 @@ function BookDestinationForm() {
         user_id: user?.id || null,
         registration_date: new Date().toISOString(),
         // Environmental fields
-        origin_location: formData.originLocation,
+        origin_location_id: formData.originLocation,
+        transport_type: formData.transportType,
         carbon_footprint: carbonFootprint?.totalEmissions || 0,
-        is_offset: !!formData.selectedOffset,
-        offset_amount: formData.selectedOffset?.cost || 0,
         // Add missing required fields with defaults
         age: 0,
         gender: "prefer-not-to-say" as const,
@@ -250,9 +264,8 @@ function BookDestinationForm() {
 
       // Update user eco-points if they are logged in
       if (user?.id && carbonFootprint) {
-        const pointsToAdd = carbonFootprint.ecoPointsReward + (formData.selectedOffset?.ecoPointsBonus || 0);
-        const carbonOffset = formData.selectedOffset ? carbonFootprint.totalEmissions : 0;
-        await dbService.updateUserEcoPoints(user.id, pointsToAdd, carbonOffset);
+        const pointsToAdd = carbonFootprint.ecoPointsReward;
+        await dbService.updateUserEcoPoints(user.id, pointsToAdd, 0);
       }
       
       setShowSuccess(true);
@@ -316,7 +329,7 @@ function BookDestinationForm() {
           <div className="mb-8 relative inline-block">
             <CheckCircle className="h-20 w-20 text-green-600 mx-auto" />
             <div className="absolute -top-2 -right-2 bg-yellow-400 text-yellow-900 text-xs font-black px-2 py-1 rounded-lg shadow-sm border border-yellow-500 animate-bounce">
-              +{carbonFootprint ? (carbonFootprint.ecoPointsReward + (formData.selectedOffset?.ecoPointsBonus || 0)) : 0} PTS
+              +{carbonFootprint ? carbonFootprint.ecoPointsReward : 0} PTS
             </div>
           </div>
           
@@ -339,16 +352,9 @@ function BookDestinationForm() {
                 <div className="text-right">
                   <div className="text-xs font-bold text-gray-400 uppercase tracking-wider">Eco-Points Earned</div>
                   <div className="text-lg font-black text-green-600">
-                    +{carbonFootprint.ecoPointsReward + (formData.selectedOffset?.ecoPointsBonus || 0)}
+                    +{carbonFootprint.ecoPointsReward}
                   </div>
                 </div>
-              </div>
-            )}
-            
-            {formData.selectedOffset && (
-              <div className="bg-green-50 p-3 rounded-xl border border-green-100 flex items-center space-x-2">
-                <Leaf className="h-4 w-4 text-green-600" />
-                <span className="text-xs font-bold text-green-800">Carbon offset applied: {formData.selectedOffset.name}</span>
               </div>
             )}
           </div>
@@ -809,53 +815,6 @@ function BookDestinationForm() {
                   <p className="text-sm text-blue-800 leading-relaxed">
                     This trip's emissions are equivalent to <strong>{carbonFootprint.comparison.trees_equivalent}</strong> trees absorbing CO2 for a year, or <strong>{carbonFootprint.comparison.car_miles_equivalent}</strong> miles driven in an average car.
                   </p>
-                </div>
-              </div>
-
-              {/* Carbon Offset Options */}
-              <div className="bg-white rounded-2xl p-8 shadow-sm border border-gray-100">
-                <h3 className="text-xl font-bold text-gray-900 mb-6">Offset Your Carbon Footprint</h3>
-                <p className="text-sm text-gray-600 mb-8">
-                  Make your trip carbon-neutral by contributing to verified environmental projects. Earn bonus eco-points for every kg offset!
-                </p>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {carbonFootprint.offsetOptions.map((option) => (
-                    <div 
-                      key={option.id}
-                      onClick={() => setFormData(prev => ({ ...prev, selectedOffset: option }))}
-                      className={`cursor-pointer p-6 rounded-2xl border-2 transition-all relative ${
-                        formData.selectedOffset?.id === option.id 
-                          ? 'border-green-600 bg-green-50/30' 
-                          : 'border-gray-100 hover:border-green-200 hover:bg-gray-50/50'
-                      }`}
-                    >
-                      {formData.selectedOffset?.id === option.id && (
-                        <div className="absolute top-4 right-4 bg-green-600 text-white rounded-full p-1">
-                          <CheckCircle className="h-4 w-4" />
-                        </div>
-                      )}
-                      <div className="font-bold text-gray-900 text-lg mb-1">{option.name}</div>
-                      <div className="text-sm text-gray-500 mb-4">{option.description}</div>
-                      <div className="flex items-center justify-between mt-auto">
-                        <div className="text-green-700 font-bold">₹{option.cost}</div>
-                        <div className="text-xs font-black bg-green-100 text-green-800 px-3 py-1 rounded-full uppercase">
-                          +{option.ecoPointsBonus} Eco-Points
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-
-                <div 
-                  onClick={() => setFormData(prev => ({ ...prev, selectedOffset: null }))}
-                  className={`mt-4 cursor-pointer p-4 rounded-xl border-2 text-center transition-all ${
-                    !formData.selectedOffset 
-                      ? 'border-gray-400 bg-gray-50' 
-                      : 'border-gray-100 text-gray-400 hover:text-gray-600'
-                  }`}
-                >
-                  <span className="text-sm font-bold">Maybe later, I'll offset manually</span>
                 </div>
               </div>
 

@@ -70,8 +70,12 @@ export class CarbonFootprintCalculator {
     originId: string,
     destinationId: string,
     groupSize: number,
-    transportType: keyof typeof EMISSION_FACTORS.TRANSPORT = 'CAR_PER_KM'
+    transportType: keyof typeof EMISSION_FACTORS.TRANSPORT = 'CAR_PER_KM',
+    stayNights: number
   ): CarbonFootprintResult {
+    // Validate groupSize
+    const validatedGroupSize = groupSize > 0 ? groupSize : 1;
+    
     const origin = getOriginLocationById(originId);
     // In a real app, we'd fetch the destination from a service, 
     // but for now we'll use placeholder coords based on destinationId or common spots
@@ -82,10 +86,10 @@ export class CarbonFootprintCalculator {
       : 500; // Default distance
 
     const emissionFactor = EMISSION_FACTORS.TRANSPORT[transportType] || EMISSION_FACTORS.TRANSPORT.CAR_PER_KM;
-    const travelEmissions = distance * emissionFactor * groupSize;
-    const accommodationEmissions = EMISSION_FACTORS.ACCOMMODATION_PER_NIGHT * 2 * groupSize; // Assume 2 nights
+    const travelEmissions = distance * emissionFactor * validatedGroupSize;
+    const accommodationEmissions = EMISSION_FACTORS.ACCOMMODATION_PER_NIGHT * stayNights * validatedGroupSize;
     const totalEmissions = travelEmissions + accommodationEmissions;
-    const emissionsPerPerson = totalEmissions / groupSize;
+    const emissionsPerPerson = totalEmissions / validatedGroupSize;
 
     let impactLevel: 'low' | 'medium' | 'high' = 'low';
     if (emissionsPerPerson > 200) impactLevel = 'high';

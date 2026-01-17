@@ -178,8 +178,8 @@ export interface Database {
           name: string | null;
           role: 'tourist' | 'admin' | 'supervisor' | 'operator';
           is_admin: boolean;
-          eco_points: number;
-          total_carbon_offset: number;
+          eco_points: number | null;
+          total_carbon_offset: number | null;
           created_at: string;
           updated_at: string;
         };
@@ -189,8 +189,8 @@ export interface Database {
           name?: string | null;
           role?: 'tourist' | 'admin' | 'supervisor' | 'operator';
           is_admin?: boolean;
-          eco_points?: number;
-          total_carbon_offset?: number;
+          eco_points?: number | null;
+          total_carbon_offset?: number | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -200,8 +200,8 @@ export interface Database {
           name?: string | null;
           role?: 'tourist' | 'admin' | 'supervisor' | 'operator';
           is_admin?: boolean;
-          eco_points?: number;
-          total_carbon_offset?: number;
+          eco_points?: number | null;
+          total_carbon_offset?: number | null;
           created_at?: string;
           updated_at?: string;
         };

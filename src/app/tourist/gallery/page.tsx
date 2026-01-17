@@ -103,27 +103,49 @@ export default function PhotoGallery() {
           {filteredPhotos.map((photo) => (
             <div key={photo.id} className="group relative bg-white rounded-[3rem] overflow-hidden border border-gray-50 shadow-sm hover:shadow-2xl transition-all duration-700">
               <div 
-                className="h-60 relative overflow-hidden cursor-pointer" 
-                onClick={() => setSelectedPhoto(photo)}
-                role="button"
-                tabIndex={0}
-                onKeyDown={(e) => e.key === 'Enter' && setSelectedPhoto(photo)}
-              >
-                <img src={photo.url} className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-110" alt={photo.title} />
-                <div className="absolute inset-0 bg-emerald-950/20 group-hover:bg-transparent transition-all" />
-                <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                   <div className="p-4 bg-white/20 backdrop-blur-xl rounded-full border border-white/30 text-white shadow-2xl"><Eye className="h-6 w-6" /></div>
-                </div>
-              </div>
-              <div className="p-8 flex items-center justify-between">
-                <div>
-                  <h3 className="text-xl font-black text-gray-900 tracking-tight">{photo.title}</h3>
-                  <p className="text-gray-400 font-bold text-[10px] flex items-center gap-1 uppercase tracking-widest"><MapPin className="h-3 w-3 text-emerald-500" /> {photo.location}</p>
-                </div>
-                <div className="flex gap-2">
-                  <button type="button" onClick={() => handleAction('Like', photo.id)} className={`p-3 rounded-2xl border transition-all ${photo.isLiked ? 'bg-rose-50 border-rose-100 text-rose-500' : 'bg-gray-50 border-gray-100 text-gray-400 hover:text-emerald-600'}`}><Heart className="h-4 w-4" /></button>
-                  <button type="button" onClick={() => handleAction('Share', photo.id)} className="p-3 bg-gray-50 border border-gray-100 text-gray-400 rounded-2xl hover:text-emerald-600 transition-all"><Share2 className="h-4 w-4" /></button>
-                </div>
+  className="h-60 relative overflow-hidden cursor-pointer" 
+  onClick={() => setSelectedPhoto(photo)}
+  role="button"
+  tabIndex={0}
+  aria-label={`Open ${photo.title}`} // Added label for screen readers
+  onKeyDown={(e) => {
+    // Added support for Spacebar and Enter
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      setSelectedPhoto(photo);
+    }
+  }}
+>
+  <img src={photo.url} className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-110" alt={photo.title} />
+  <div className="absolute inset-0 bg-emerald-950/20 group-hover:bg-transparent transition-all" />
+  <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+      <div className="p-4 bg-white/20 backdrop-blur-xl rounded-full border border-white/30 text-white shadow-2xl"><Eye className="h-6 w-6" /></div>
+  </div>
+</div>
+<div className="p-8 flex items-center justify-between">
+  <div>
+    <h3 className="text-xl font-black text-gray-900 tracking-tight">{photo.title}</h3>
+    <p className="text-gray-400 font-bold text-[10px] flex items-center gap-1 uppercase tracking-widest"><MapPin className="h-3 w-3 text-emerald-500" /> {photo.location}</p>
+  </div>
+  <div className="flex gap-2">
+    <button 
+      type="button" 
+      aria-label={`Like ${photo.title}`} // Added unique label
+      aria-pressed={photo.isLiked} // Communicates if liked or not
+      onClick={() => handleAction('Like', photo.id)} 
+      className={`p-3 rounded-2xl border transition-all ${photo.isLiked ? 'bg-rose-50 border-rose-100 text-rose-500' : 'bg-gray-50 border-gray-100 text-gray-400 hover:text-emerald-600'}`}
+    >
+      <Heart className="h-4 w-4" />
+    </button>
+    <button 
+      type="button" 
+      aria-label={`Share ${photo.title}`} // Added unique label
+      onClick={() => handleAction('Share', photo.id)} 
+      className="p-3 bg-gray-50 border border-gray-100 text-gray-400 rounded-2xl hover:text-emerald-600 transition-all"
+    >
+      <Share2 className="h-4 w-4" />
+    </button>
+  </div>
               </div>
             </div>
           ))}

@@ -76,9 +76,10 @@ export default function TouristBookings() {
     alert(`${type} requested for Booking ID: ${id}`);
   };
 
-  const filteredBookings = bookings.filter(b => 
-    b.title.toLowerCase().includes(searchTerm.toLowerCase()) || 
-    b.id.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredBookings = bookings.filter(b =>
+    b.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    b.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    b.destination.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   return (
@@ -174,10 +175,11 @@ export default function TouristBookings() {
         {selectedBooking && (
           <div className="fixed inset-0 bg-emerald-950/80 backdrop-blur-2xl z-[100] flex items-center justify-center p-6 animate-in fade-in duration-300">
             <div className="relative w-full max-w-2xl bg-white rounded-[4rem] p-12 overflow-hidden shadow-2xl space-y-10">
-              <button 
+              <button
                 type="button"
-                onClick={() => setSelectedBooking(null)} 
-                className="absolute top-10 right-10 p-2 text-gray-400 hover:text-rose-500 transition-all active:scale-90"
+                aria-label="Close booking details"
+                onClick={() => setSelectedBooking(null)}
+                className="absolute top-10 right-10 p-2 text-gray-400 hover:text-rose-500 transition-all"
               >
                 <XCircle className="h-8 w-8" />
               </button>
@@ -202,7 +204,13 @@ export default function TouristBookings() {
                  </div>
                  <div className="space-y-1">
                    <p className="text-[9px] font-black text-gray-300 uppercase tracking-widest">Status</p>
-                   <p className={`font-black uppercase text-[10px] ${selectedBooking.status === 'Confirmed' ? 'text-emerald-600' : 'text-amber-500'}`}>{selectedBooking.status}</p>
+                   <p className={`font-black uppercase text-[10px] ${
+                     selectedBooking.status === 'Confirmed' ? 'text-emerald-500' : 
+                     selectedBooking.status === 'Completed' ? 'text-gray-500' : 
+                     'text-amber-500'
+                   }`}>
+                     {selectedBooking.status}
+                   </p>
                  </div>
               </div>
 

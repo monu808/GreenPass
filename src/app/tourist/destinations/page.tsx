@@ -144,29 +144,30 @@ export default function TouristDestinations() {
             {filteredDestinations.map((d) => {
               const policy = getPolicyEngine();
               const adjustedCap = policy.getAdjustedCapacity(d);
-              const occupancyRate = (d.currentOccupancy / adjustedCap) * 100;
-              
+              // FIX: Added guard to check if adjustedCap is greater than 0
+              const occupancyRate = adjustedCap > 0 ? (d.currentOccupancy / adjustedCap) * 100 : 0;
+
               return (
                 <div key={d.id} className="group bg-white rounded-[3.5rem] border border-gray-100 overflow-hidden hover:shadow-2xl transition-all duration-500">
                   <div className="h-56 relative overflow-hidden bg-emerald-900">
                     <img 
-                      src="https://images.unsplash.com/photo-1596394516093-501ba68a0ba6?w=800" 
-                      className="w-full h-full object-cover opacity-60 group-hover:scale-110 transition-transform duration-700" 
-                      alt={d.name} 
+                      src="https://images.unsplash.com/photo-1596394516093-501ba68a0ba6?w=800"
+                      className="w-full h-full object-cover opacity-60 group-hover:scale-110 transition-transform duration-700"
+                      alt={d.name}
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-emerald-950/90 via-transparent to-transparent" />
                     <h3 className="absolute bottom-6 left-8 text-3xl font-black text-white tracking-tighter leading-none">{d.name}</h3>
                   </div>
-
                   <div className="p-8 space-y-6">
                     <div className="flex justify-between items-end">
-                       <div className="space-y-1">
-                          <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Eco-Load Factor</p>
-                          <p className="text-xl font-black text-gray-900">{d.currentOccupancy} / {adjustedCap}</p>
-                       </div>
-                       <div className={`px-3 py-1 rounded-lg font-black text-[10px] uppercase ${occupancyRate > 80 ? 'bg-rose-50 text-rose-600' : 'bg-emerald-50 text-emerald-600'}`}>
-                          {Math.round(occupancyRate)}% Full
-                       </div>
+                      <div className="space-y-1">
+                        <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Eco-Load Factor</p>
+                        {/* FIX: Guarded display text for adjustedCap */}
+                        <p className="text-xl font-black text-gray-900">{d.currentOccupancy} / {adjustedCap > 0 ? adjustedCap : 0}</p>
+                      </div>
+                      <div className={`px-3 py-1 rounded-lg font-black text-[10px] uppercase ${occupancyRate > 80 ? 'bg-rose-50 text-rose-600' : 'bg-emerald-50 text-emerald-600'}`}>
+                        {Math.round(occupancyRate)}% Full
+                      </div>
                     </div>
 
                     <div className="h-2 bg-gray-50 rounded-full overflow-hidden">

@@ -161,13 +161,13 @@ export default function PlanYourTripPage() {
                       />
                       <div className="flex items-center gap-2">
                         <button 
-                          type="button" 
-                          onClick={() => removeDay(day.id)} 
-                          className="p-2 text-gray-300 hover:text-rose-500 transition-all opacity-0 group-hover:opacity-100"
-                          aria-label={`Remove day ${index + 1}`}
-                        >
-                          <Trash2 className="h-5 w-5"/>
-                        </button>
+  type="button" 
+  onClick={() => removeDay(day.id)} 
+  className="p-2 text-gray-300 hover:text-rose-500 transition-all opacity-0 group-hover:opacity-100 focus-visible:opacity-100 group-focus-within:opacity-100"
+  aria-label={`Remove day ${index + 1}`}
+>
+  <Trash2 className="h-5 w-5"/>
+</button>
                         <button 
                           type="button" 
                           onClick={() => toggleDay(day.id)} 
@@ -192,7 +192,7 @@ export default function PlanYourTripPage() {
                             <button 
                               type="button" 
                               onClick={() => setDays(days.map(d => d.id === day.id ? { ...d, activities: d.activities.filter((_, idx) => idx !== i) } : d))}
-                              className="opacity-0 group-hover/item:opacity-100 p-2 text-gray-300 hover:text-rose-500 transition-all"
+                              className="opacity-0 group-hover/item:opacity-100 group-focus-within:opacity-100 focus-visible:opacity-100 p-2 text-gray-300 hover:text-rose-500 transition-all"
                               aria-label="Remove activity"
                             >
                               <X className="h-4 w-4" />

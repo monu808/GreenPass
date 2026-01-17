@@ -141,11 +141,12 @@ export default function AdventureActivities() {
               <div className="h-56 relative overflow-hidden">
                 <img src={act.image} className="w-full h-full object-cover" alt={act.name} />
                 <button 
-                  type="button"
-                  onClick={() => handleAction('Favorite', act.name)}
-                  className="absolute top-6 right-6 p-3 bg-white/20 backdrop-blur-md rounded-2xl border border-white/20 text-white hover:bg-rose-500"
+                   type="button"
+                   aria-label="Add to favorites"
+                   onClick={() => handleAction('Favorite', act.name)}
+                  className="absolute top-6 right-6 p-3 bg-white/20 backdrop-blur-md rounded-2xl border border-white/20 text-white hover:bg-rose-500 transition-colors"
                 >
-                  <Heart className="h-5 w-5" />
+                 <Heart className="h-5 w-5" />
                 </button>
               </div>
               <div className="p-10 space-y-8">

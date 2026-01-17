@@ -68,8 +68,8 @@ function BookDestinationForm() {
     }
   }, [destination, formData.originLocation, formData.groupSize, formData.transportType, formData.checkInDate, formData.checkOutDate]);
 
-  const calculateCarbonFootprint = () => {
-    if (!destination || !formData.originLocation) return;
+  const computeBookingFootprint = (): CarbonFootprintResult | null => {
+    if (!destination || !formData.originLocation) return null;
     
     // Calculate actual stay nights from dates
     let stayNights = 2; // Default fallback
@@ -87,13 +87,19 @@ function BookDestinationForm() {
     }
     
     const calculator = getCarbonCalculator();
-    const result = calculator.calculateBookingFootprint(
+    return calculator.calculateBookingFootprint(
       formData.originLocation,
       destination.id,
       formData.groupSize,
       formData.transportType,
-      stayNights
+      stayNights,
+      destination.coordinates.latitude,
+      destination.coordinates.longitude
     );
+  };
+
+  const calculateCarbonFootprint = () => {
+    const result = computeBookingFootprint();
     setCarbonFootprint(result);
   };
 
@@ -226,6 +232,10 @@ function BookDestinationForm() {
     
     try {
       const dbService = getDbService();
+      
+      // Calculate up-to-date footprint for persistence
+      const currentFootprint = computeBookingFootprint();
+      
       const bookingData = {
         name: formData.name,
         email: formData.email,
@@ -245,7 +255,7 @@ function BookDestinationForm() {
         // Environmental fields
         origin_location_id: formData.originLocation,
         transport_type: formData.transportType,
-        carbon_footprint: carbonFootprint?.totalEmissions || 0,
+        carbon_footprint: currentFootprint?.totalEmissions || 0,
         // Add missing required fields with defaults
         age: 0,
         gender: "prefer-not-to-say" as const,
@@ -263,8 +273,8 @@ function BookDestinationForm() {
       }
 
       // Update user eco-points if they are logged in
-      if (user?.id && carbonFootprint) {
-        const pointsToAdd = carbonFootprint.ecoPointsReward;
+      if (user?.id && currentFootprint) {
+        const pointsToAdd = currentFootprint.ecoPointsReward;
         await dbService.updateUserEcoPoints(user.id, pointsToAdd, 0);
       }
       

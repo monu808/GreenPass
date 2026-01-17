@@ -71,15 +71,20 @@ export class CarbonFootprintCalculator {
     destinationId: string,
     groupSize: number,
     transportType: keyof typeof EMISSION_FACTORS.TRANSPORT = 'CAR_PER_KM',
-    stayNights: number
+    stayNights: number,
+    destLat?: number,
+    destLon?: number
   ): CarbonFootprintResult {
     // Validate groupSize
     const validatedGroupSize = groupSize > 0 ? groupSize : 1;
     
     const origin = getOriginLocationById(originId);
-    // In a real app, we'd fetch the destination from a service, 
-    // but for now we'll use placeholder coords based on destinationId or common spots
-    const destCoords = { lat: 34.0837, lon: 74.7973 }; // Default to Srinagar/Gulmarg region
+    
+    // Use passed coordinates or default fallback
+    const destCoords = { 
+      lat: destLat ?? 34.0837, 
+      lon: destLon ?? 74.7973 
+    };
 
     const distance = origin 
       ? this.calculateTravelDistance(origin.latitude, origin.longitude, destCoords.lat, destCoords.lon)

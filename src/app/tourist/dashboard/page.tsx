@@ -4,7 +4,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { 
   MapPin, Star, Calendar, Users, Camera, TrendingUp, 
   Award, ArrowRight, Play, Navigation, Compass, 
-  RefreshCw, Heart, Leaf 
+  RefreshCw, Heart, Leaf, BookOpen
 } from 'lucide-react';
 import TouristLayout from '@/components/TouristLayout';
 import { getDbService } from '@/lib/databaseService';
@@ -151,10 +151,10 @@ export default function TouristDashboard() {
               </button>
               <button 
                 type="button"
-                onClick={() => alert("Sustainability Guide Loading...")} 
+                onClick={() => handleNavigation('/tourist/sustainability-education')} 
                 className="bg-white/10 hover:bg-white/20 backdrop-blur-md text-white px-10 py-5 rounded-2xl font-black text-xs uppercase tracking-widest transition-all border border-white/20 flex items-center gap-3"
               >
-                <Play className="h-4 w-4" /> Watch Video
+                <BookOpen className="h-4 w-4" /> Learn Sustainability
               </button>
             </div>
           </div>

@@ -31,7 +31,14 @@ export default function SustainabilityEducation() {
     // Load user progress from localStorage
     const savedProgress = localStorage.getItem('sustainability-progress');
     if (savedProgress) {
-      setUserProgress(JSON.parse(savedProgress));
+      try {
+        const parsed = JSON.parse(savedProgress);
+        setUserProgress({ ...defaultUserProgress, ...parsed });
+      } catch (err) {
+        console.warn('Invalid sustainability-progress in localStorage', err);
+        localStorage.removeItem('sustainability-progress');
+        setUserProgress(defaultUserProgress);
+      }
     }
     setLoading(false);
   }, []);

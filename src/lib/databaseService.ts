@@ -1039,7 +1039,7 @@ class DatabaseService {
       carbonFootprint,
       ecologicalImpactIndex: (100 - complianceScore) / 10,
       ecologicalDamageIndicators: {
-        soilCompaction: (totalTourists / sustainableCapacity) * 0.5,
+        soilCompaction: sustainableCapacity > 0 ? (totalTourists / sustainableCapacity) * 0.5 : 0,
         vegetationDisturbance: filteredViolations.filter(v => v.violationType.includes('vegetation')).length * 2,
         wildlifeDisturbance: filteredViolations.filter(v => v.violationType.includes('wildlife')).length * 2,
         waterSourceImpact: totalWaste / 1000,

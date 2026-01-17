@@ -25,6 +25,9 @@ export interface Database {
           emergency_contact_relationship: string;
           registration_date: string;
           user_id: string | null;
+          carbon_footprint: number | null;
+          origin_location_id: string | null;
+          transport_type: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -51,6 +54,9 @@ export interface Database {
           emergency_contact_relationship: string;
           registration_date?: string;
           user_id?: string | null;
+          carbon_footprint?: number | null;
+          origin_location_id?: string | null;
+          transport_type?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -76,6 +82,9 @@ export interface Database {
           emergency_contact_relationship?: string;
           registration_date?: string;
           user_id?: string | null;
+          carbon_footprint?: number | null;
+          origin_location_id?: string | null;
+          transport_type?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -169,6 +178,8 @@ export interface Database {
           name: string | null;
           role: 'tourist' | 'admin' | 'supervisor' | 'operator';
           is_admin: boolean;
+          eco_points: number;
+          total_carbon_offset: number;
           created_at: string;
           updated_at: string;
         };
@@ -178,6 +189,8 @@ export interface Database {
           name?: string | null;
           role?: 'tourist' | 'admin' | 'supervisor' | 'operator';
           is_admin?: boolean;
+          eco_points?: number;
+          total_carbon_offset?: number;
           created_at?: string;
           updated_at?: string;
         };
@@ -187,6 +200,8 @@ export interface Database {
           name?: string | null;
           role?: 'tourist' | 'admin' | 'supervisor' | 'operator';
           is_admin?: boolean;
+          eco_points?: number;
+          total_carbon_offset?: number;
           created_at?: string;
           updated_at?: string;
         };

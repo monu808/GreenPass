@@ -17,6 +17,32 @@ export interface Tourist {
   };
   registrationDate: Date;
   userId?: string | null;
+  carbonFootprint?: number | null;
+  originLocationId?: string | null;
+  transportType?: string | null;
+}
+
+export interface CarbonFootprintResult {
+  totalEmissions: number;
+  emissionsPerPerson: number;
+  travelEmissions: number;
+  accommodationEmissions: number;
+  impactLevel: 'low' | 'medium' | 'high';
+  ecoPointsReward: number;
+  comparison: {
+    trees_equivalent: number;
+    car_miles_equivalent: number;
+    smartphone_charges: number;
+  };
+  offsetOptions: CarbonOffsetOption[];
+}
+
+export interface CarbonOffsetOption {
+  id: string;
+  name: string;
+  description: string;
+  cost: number;
+  ecoPointsBonus: number;
 }
 
 export interface Destination {

@@ -148,6 +148,9 @@ class DatabaseService {
           emergency_contact_relationship: tourist.emergency_contact_relationship,
           user_id: tourist.user_id,
           registration_date: tourist.registration_date || new Date().toISOString(),
+          carbon_footprint: tourist.carbon_footprint,
+          origin_location_id: tourist.origin_location_id,
+          transport_type: tourist.transport_type,
           age: (tourist as any).age,
           gender: (tourist as any).gender,
           address: (tourist as any).address,
@@ -1281,6 +1284,108 @@ class DatabaseService {
     }
   }
 
+  // Environmental and Eco-Points operations
+  async updateUserEcoPoints(userId: string, pointsToAdd: number, carbonOffset: number = 0): Promise<boolean> {
+    try {
+      if (this.isPlaceholderMode()) return true;
+
+      // Get current points
+      const { data: user, error: fetchError } = await (supabase!
+        .from('users') as any)
+        .select('eco_points, total_carbon_offset')
+        .eq('id', userId)
+        .single();
+
+      if (fetchError || !user) return false;
+
+      const newPoints = (user.eco_points || 0) + pointsToAdd;
+      const newOffset = (user.total_carbon_offset || 0) + carbonOffset;
+
+      const { error: updateError } = await (supabase!
+        .from('users') as any)
+        .update({ 
+          eco_points: newPoints,
+          total_carbon_offset: newOffset,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', userId);
+
+      return !updateError;
+    } catch (error) {
+      console.error('Error in updateUserEcoPoints:', error);
+      return false;
+    }
+  }
+
+  async getUserEcoStats(userId: string): Promise<{ ecoPoints: number; totalCarbonOffset: number; tripsCount: number; totalCarbonFootprint: number } | null> {
+    try {
+      if (this.isPlaceholderMode()) {
+        return { ecoPoints: 450, totalCarbonOffset: 120.5, tripsCount: 3, totalCarbonFootprint: 254.8 };
+      }
+
+      const { data: user, error: userError } = await (supabase!
+        .from('users') as any)
+        .select('eco_points, total_carbon_offset')
+        .eq('id', userId)
+        .single();
+
+      if (userError || !user) return null;
+
+      const { data: bookings, error: bookingsError, count } = await (supabase!
+        .from('tourists') as any)
+        .select('carbon_footprint', { count: 'exact' })
+        .eq('user_id', userId);
+
+      if (bookingsError) {
+        console.error('Error fetching tourist count:', bookingsError);
+      }
+
+      const totalCarbonFootprint = bookings ? bookings.reduce((sum: number, b: any) => sum + (b.carbon_footprint || 0), 0) : 0;
+
+      return {
+        ecoPoints: user.eco_points || 0,
+        totalCarbonOffset: user.total_carbon_offset || 0,
+        tripsCount: count || 0,
+        totalCarbonFootprint
+      };
+    } catch (error) {
+      console.error('Error in getUserEcoStats:', error);
+      return null;
+    }
+  }
+
+  async getAggregatedEnvironmentalStats(): Promise<{ totalCarbonFootprint: number; totalEcoPoints: number; averageFootprintPerTourist: number }> {
+    try {
+      if (this.isPlaceholderMode()) {
+        return { totalCarbonFootprint: 12500, totalEcoPoints: 45000, averageFootprintPerTourist: 15.4 };
+      }
+
+      const { data, error } = await (supabase!
+        .from('tourists') as any)
+        .select('carbon_footprint');
+
+      if (error || !data) return { totalCarbonFootprint: 0, totalEcoPoints: 0, averageFootprintPerTourist: 0 };
+
+      const totalCarbonFootprint = data.reduce((sum: number, t: any) => sum + (t.carbon_footprint || 0), 0);
+      const touristCount = data.length;
+
+      const { data: userData, error: userError } = await (supabase!
+        .from('users') as any)
+        .select('eco_points');
+
+      const totalEcoPoints = userError || !userData ? 0 : userData.reduce((sum: number, u: any) => sum + (u.eco_points || 0), 0);
+
+      return {
+        totalCarbonFootprint,
+        totalEcoPoints,
+        averageFootprintPerTourist: touristCount > 0 ? totalCarbonFootprint / touristCount : 0
+      };
+    } catch (error) {
+      console.error('Error in getAggregatedEnvironmentalStats:', error);
+      return { totalCarbonFootprint: 0, totalEcoPoints: 0, averageFootprintPerTourist: 0 };
+    }
+  }
+
   // Transform functions
   private transformDbReportToReport(db: Database['public']['Tables']['compliance_reports']['Row']): ComplianceReport {
     return {
@@ -1351,6 +1456,9 @@ class DatabaseService {
       },
       registrationDate: dbTourist.registration_date ? new Date(dbTourist.registration_date) : new Date(),
       userId: dbTourist.user_id,
+      carbonFootprint: dbTourist.carbon_footprint,
+      originLocationId: dbTourist.origin_location_id,
+      transportType: dbTourist.transport_type,
     };
   }
 

@@ -63,7 +63,7 @@ export default function TouristDestinations() {
     } else if (selectedFilter === 'popular') {
       result = result.filter(d => d.currentOccupancy > d.maxCapacity * 0.6);
     } else if (selectedFilter === 'high-sensitivity') {
-      result = result.filter(d => d.ecologicalSensitivity === 'High');
+      result = result.filter(d => d.ecologicalSensitivity === 'high');
     }
 
     setFilteredDestinations(result);

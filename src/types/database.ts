@@ -1,4 +1,4 @@
-export interface Database {
+export type Database = {
   public: {
     Tables: {
       tourists: {
@@ -383,12 +383,165 @@ export interface Database {
           created_at?: string;
         };
       };
+      waste_data: {
+        Row: {
+          id: string;
+          destination_id: string;
+          waste_type: 'plastic' | 'glass' | 'metal' | 'organic' | 'paper' | 'other';
+          quantity: number;
+          unit: string;
+          collected_at: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          destination_id: string;
+          waste_type: 'plastic' | 'glass' | 'metal' | 'organic' | 'paper' | 'other';
+          quantity: number;
+          unit?: string;
+          collected_at?: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          destination_id?: string;
+          waste_type?: 'plastic' | 'glass' | 'metal' | 'organic' | 'paper' | 'other';
+          quantity?: number;
+          unit?: string;
+          collected_at?: string;
+          created_at?: string;
+        };
+      };
+      cleanup_activities: {
+        Row: {
+          id: string;
+          destination_id: string;
+          title: string;
+          description: string;
+          start_time: string;
+          end_time: string;
+          location: string;
+          max_participants: number;
+          current_participants: number;
+          status: 'upcoming' | 'ongoing' | 'completed' | 'cancelled';
+          eco_points_reward: number;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          destination_id: string;
+          title: string;
+          description: string;
+          start_time: string;
+          end_time: string;
+          location: string;
+          max_participants: number;
+          current_participants?: number;
+          status?: 'upcoming' | 'ongoing' | 'completed' | 'cancelled';
+          eco_points_reward?: number;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          destination_id?: string;
+          title?: string;
+          description?: string;
+          start_time?: string;
+          end_time?: string;
+          location?: string;
+          max_participants?: number;
+          current_participants?: number;
+          status?: 'upcoming' | 'ongoing' | 'completed' | 'cancelled';
+          eco_points_reward?: number;
+          created_at?: string;
+        };
+      };
+      cleanup_registrations: {
+        Row: {
+          id: string;
+          activity_id: string;
+          user_id: string;
+          status: 'registered' | 'attended' | 'cancelled';
+          registered_at: string;
+          attended: boolean;
+        };
+        Insert: {
+          id?: string;
+          activity_id: string;
+          user_id: string;
+          status?: 'registered' | 'attended' | 'cancelled';
+          registered_at?: string;
+          attended?: boolean;
+        };
+        Update: {
+          id?: string;
+          activity_id?: string;
+          user_id?: string;
+          status?: 'registered' | 'attended' | 'cancelled';
+          registered_at?: string;
+          attended?: boolean;
+        };
+      };
+      eco_points_transactions: {
+        Row: {
+          id: string;
+          user_id: string;
+          points: number;
+          transaction_type: 'award' | 'redemption' | 'adjustment';
+          description: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          points: number;
+          transaction_type: 'award' | 'redemption' | 'adjustment';
+          description: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          points?: number;
+          transaction_type?: 'award' | 'redemption' | 'adjustment';
+          description?: string;
+          created_at?: string;
+        };
+      };
     };
     Views: {
       [_ in never]: never;
     };
     Functions: {
-      [_ in never]: never;
+      register_for_cleanup: {
+        Args: {
+          p_activity_id: string
+          p_user_id: string
+        }
+        Returns: boolean
+      }
+      award_eco_points: {
+        Args: {
+          p_user_id: string
+          p_points: number
+          p_description: string
+        }
+        Returns: boolean
+      }
+      update_user_eco_metrics: {
+        Args: {
+          p_user_id: string
+          p_points_to_add: number
+          p_offset_to_add: number
+        }
+        Returns: boolean
+      }
+      cancel_cleanup_registration: {
+        Args: {
+          p_registration_id: string
+        }
+        Returns: boolean
+      }
     };
     Enums: {
       [_ in never]: never;

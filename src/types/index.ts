@@ -99,6 +99,10 @@ export interface DashboardStats {
   todayCheckOuts: number;
   capacityUtilization: number;
   alertsCount: number;
+  totalWasteCollected: number;
+  activeCleanupEvents: number;
+  totalVolunteers: number;
+  recyclingRate: number;
 }
 
 export interface ComplianceReport {
@@ -212,3 +216,65 @@ export interface DynamicCapacityResult {
   };
   displayMessage: string;
 }
+
+export interface WasteData {
+  id: string;
+  destinationId: string;
+  wasteType: 'plastic' | 'glass' | 'metal' | 'organic' | 'paper' | 'other';
+  quantity: number;
+  unit: string;
+  collectedAt: Date;
+  createdAt: Date;
+}
+
+export interface WasteMetricsSummary {
+  totalWaste: number;
+  totalQuantity: number;
+  recyclingRate: number;
+  activeCleanupEvents: number;
+  totalVolunteers: number;
+  byType: Record<string, number>;
+  period: string;
+  trend: 'increasing' | 'decreasing' | 'stable';    
+}
+
+export interface CleanupActivity {
+  id: string;
+  destinationId: string;
+  title: string;
+  description: string;
+  startTime: Date;
+  endTime: Date;
+  location: string;
+  maxParticipants: number;
+  currentParticipants: number;
+  status: 'upcoming' | 'ongoing' | 'completed' | 'cancelled';
+  ecoPointsReward: number;
+  createdAt: Date;
+}
+
+export interface CleanupRegistration {
+  id: string;
+  activityId: string;
+  userId: string;
+  status: 'registered' | 'attended' | 'cancelled';
+  registeredAt: Date;
+  attended: boolean;
+}
+
+export interface EcoPointsTransaction {
+  id: string;
+  userId: string;
+  points: number;
+  transactionType: 'award' | 'redemption' | 'adjustment';
+  description: string;
+  createdAt: Date;
+}
+
+export interface EcoPointsLeaderboardEntry {
+  userId: string;
+  name: string;
+  points: number;
+  rank: number;
+}
+

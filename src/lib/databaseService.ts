@@ -1,8 +1,25 @@
 import { supabase, createServerComponentClient } from '@/lib/supabase';
-import { Tourist, Destination, Alert, DashboardStats, ComplianceReport, PolicyViolation, HistoricalOccupancy, EcologicalMetrics, AdjustmentLog, DynamicCapacityFactors } from '@/types';
+import { 
+  Tourist, 
+  Destination, 
+  Alert, 
+  DashboardStats, 
+  ComplianceReport, 
+  PolicyViolation, 
+  HistoricalOccupancy, 
+  EcologicalMetrics, 
+  AdjustmentLog, 
+  DynamicCapacityFactors,
+  WasteData,
+  WasteMetricsSummary,
+  CleanupActivity,
+  CleanupRegistration,
+  EcoPointsTransaction,
+  EcoPointsLeaderboardEntry
+} from '@/types';
 import { Database } from '@/types/database';
 import { getPolicyEngine } from './ecologicalPolicyEngine';
-import { format } from 'date-fns';
+import { format, isWithinInterval } from 'date-fns';
 import * as mockData from '@/data/mockData';
 
 // Type aliases for database types
@@ -10,6 +27,11 @@ type DbTourist = Database['public']['Tables']['tourists']['Row'];
 type DbDestination = Database['public']['Tables']['destinations']['Row'];
 type DbAlert = Database['public']['Tables']['alerts']['Row'];
 type DbWeatherData = Database['public']['Tables']['weather_data']['Row'];
+type DbWasteData = Database['public']['Tables']['waste_data']['Row'];
+type DbCleanupActivity = Database['public']['Tables']['cleanup_activities']['Row'];
+type DbCleanupRegistration = Database['public']['Tables']['cleanup_registrations']['Row'];
+type DbEcoPointsTransaction = Database['public']['Tables']['eco_points_transactions']['Row'];
+type DbUser = Database['public']['Tables']['users']['Row'];
 
 // Global cache for weather data to persist across HMR in development
 const WEATHER_CACHE_KEY = 'greenpass.weather_cache';
@@ -566,6 +588,790 @@ class DatabaseService {
     }
   }
 
+  // Waste Data Operations
+  async getWasteData(destinationId?: string): Promise<WasteData[]> {
+    try {
+      if (this.isPlaceholderMode()) {
+        let data = [...mockData.wasteData];
+        if (destinationId) {
+          data = data.filter(w => w.destinationId === destinationId);
+        }
+        return data;
+      }
+
+      let query = supabase!.from('waste_data').select('*');
+      if (destinationId) {
+        query = query.eq('destination_id', destinationId);
+      }
+
+      const { data, error } = await query.order('collected_at', { ascending: false });
+      if (error) throw error;
+      return (data || []).map(this.transformDbWasteToWaste);
+    } catch (error) {
+      console.error('Error in getWasteData:', error);
+      return [];
+    }
+  }
+
+  async getWasteDataByDateRange(startDate: Date, endDate: Date, destinationId?: string): Promise<WasteData[]> {
+    try {
+      if (this.isPlaceholderMode()) {
+        let data = mockData.wasteData.filter(w => 
+          isWithinInterval(new Date(w.collectedAt), { start: startDate, end: endDate })
+        );
+        if (destinationId) {
+          data = data.filter(w => w.destinationId === destinationId);
+        }
+        return data;
+      }
+
+      let query = supabase!
+        .from('waste_data')
+        .select('*')
+        .gte('collected_at', startDate.toISOString())
+        .lte('collected_at', endDate.toISOString());
+
+      if (destinationId) {
+        query = query.eq('destination_id', destinationId);
+      }
+
+      const { data, error } = await query.order('collected_at', { ascending: false });
+      if (error) throw error;
+      return (data || []).map(this.transformDbWasteToWaste);
+    } catch (error) {
+      console.error('Error in getWasteDataByDateRange:', error);
+      return [];
+    }
+  }
+
+  async addWasteData(waste: Database['public']['Tables']['waste_data']['Insert']): Promise<WasteData | null> {
+    try {
+      if (this.isPlaceholderMode()) {
+        const newData: DbWasteData = {
+          id: `mock-waste-${Date.now()}`,
+          destination_id: waste.destination_id,
+          waste_type: waste.waste_type,
+          quantity: waste.quantity,
+          unit: waste.unit || 'kg',
+          collected_at: waste.collected_at || new Date().toISOString(),
+          created_at: new Date().toISOString()
+        };
+        const transformed = this.transformDbWasteToWaste(newData);
+        mockData.wasteData.push(transformed);
+        return transformed;
+      }
+
+      const { data, error } = await supabase!
+        .from('waste_data')
+        .insert(waste as any)
+        .select()
+        .single();
+
+      if (error || !data) throw error;
+      return this.transformDbWasteToWaste(data);
+    } catch (error) {
+      console.error('Error in addWasteData:', error);
+      return null;
+    }
+  }
+
+  async updateWasteData(id: string, updates: Database['public']['Tables']['waste_data']['Update']): Promise<WasteData | null> {
+    try {
+      if (this.isPlaceholderMode()) {
+        const index = mockData.wasteData.findIndex(w => w.id === id);
+        if (index === -1) return null;
+        const transformedUpdates = this.transformUpdateWasteToWaste(updates);
+        mockData.wasteData[index] = { ...mockData.wasteData[index], ...transformedUpdates };
+        return mockData.wasteData[index];
+      }
+
+      const { data, error } = await (supabase!
+        .from('waste_data') as any)
+        .update(updates)
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (error || !data) throw error;
+      return this.transformDbWasteToWaste(data);
+    } catch (error) {
+      console.error('Error in updateWasteData:', error);
+      return null;
+    }
+  }
+
+  async deleteWasteData(id: string): Promise<boolean> {
+    try {
+      if (this.isPlaceholderMode()) {
+        const index = mockData.wasteData.findIndex(w => w.id === id);
+        if (index === -1) return false;
+        mockData.wasteData.splice(index, 1);
+        return true;
+      }
+
+      const { error } = await supabase!
+        .from('waste_data')
+        .delete()
+        .eq('id', id);
+
+      return !error;
+    } catch (error) {
+      console.error('Error in deleteWasteData:', error);
+      return false;
+    }
+  }
+
+  async getCollectiveImpactMetrics(): Promise<{ totalWaste: number, totalVolunteers: number }> {
+    try {
+      const summary = await this.getWasteMetricsSummary('all', 365); // Get metrics for the last year
+      return {
+        totalWaste: summary.totalWaste,
+        totalVolunteers: summary.totalVolunteers
+      };
+    } catch (error) {
+      console.error('Error in getCollectiveImpactMetrics:', error);
+      return { totalWaste: 0, totalVolunteers: 0 };
+    }
+  }
+
+  async getWasteMetricsSummary(destinationId: string = 'all', days: number = 30): Promise<WasteMetricsSummary> {
+    try {
+      const endDate = new Date();
+      const startDate = new Date();
+      startDate.setDate(startDate.getDate() - days);
+
+      let data: WasteData[] = [];
+      if (destinationId === 'all') {
+        data = await this.getWasteDataByDateRange(startDate, endDate);
+      } else {
+        data = await this.getWasteDataByDateRange(startDate, endDate, destinationId);
+      }
+      
+      const byType: Record<string, number> = {};
+      let total = 0;
+      let recycled = 0;
+      
+      data.forEach(w => {
+        byType[w.wasteType] = (byType[w.wasteType] || 0) + w.quantity;
+        total += w.quantity;
+        if (['plastic', 'glass', 'metal', 'paper'].includes(w.wasteType)) {
+          recycled += w.quantity;
+        }
+      });
+
+      const activities = await this.getCleanupActivities(destinationId === 'all' ? undefined : destinationId);
+      const activeCleanupEvents = activities.filter(a => a.status === 'ongoing' || a.status === 'upcoming').length;
+      const totalVolunteers = activities.reduce((sum, a) => sum + a.currentParticipants, 0);
+
+      return {
+        totalWaste: total,
+        totalQuantity: total,
+        recyclingRate: total > 0 ? (recycled / total) * 100 : 0,
+        activeCleanupEvents,
+        totalVolunteers,
+        byType,
+        period: `last-${days}-days`,
+        trend: 'stable'
+      };
+    } catch (error) {
+      console.error('Error in getWasteMetricsSummary:', error);
+      return {
+        totalWaste: 0,
+        totalQuantity: 0,
+        recyclingRate: 0,
+        activeCleanupEvents: 0,
+        totalVolunteers: 0,
+        byType: {},
+        period: `last-${days}-days`,
+        trend: 'stable'
+      };
+    }
+  }
+
+  // Cleanup Activity Operations
+  async updateCleanupRegistration(registrationId: string, updates: Partial<CleanupRegistration>): Promise<boolean> {
+    try {
+      if (this.isPlaceholderMode()) {
+        const index = mockData.cleanupRegistrations.findIndex(r => r.id === registrationId);
+        if (index === -1) return false;
+        
+        mockData.cleanupRegistrations[index] = {
+          ...mockData.cleanupRegistrations[index],
+          ...updates,
+          // Handle specific field mapping if necessary
+          attended: updates.attended !== undefined ? updates.attended : mockData.cleanupRegistrations[index].attended,
+        };
+        return true;
+      } else {
+        const dbUpdates: any = {};
+        if (updates.activityId !== undefined) dbUpdates.activity_id = updates.activityId;
+        if (updates.userId !== undefined) dbUpdates.user_id = updates.userId;
+        if (updates.status !== undefined) dbUpdates.status = updates.status;
+        if (updates.registeredAt !== undefined) {
+          dbUpdates.registered_at = updates.registeredAt instanceof Date 
+            ? updates.registeredAt.toISOString() 
+            : updates.registeredAt;
+        }
+        if (updates.attended !== undefined) dbUpdates.attended = updates.attended;
+        
+        // Map common metadata fields if present
+        if ((updates as any).createdAt !== undefined) dbUpdates.created_at = (updates as any).createdAt;
+        if ((updates as any).updatedAt !== undefined) dbUpdates.updated_at = (updates as any).updatedAt;
+
+        const { error } = await (supabase!
+          .from('cleanup_registrations') as any)
+          .update(dbUpdates)
+          .eq('id', registrationId);
+          
+        if (error) throw error;
+        return true;
+      }
+    } catch (error) {
+      console.error('Error in updateCleanupRegistration:', error);
+      return false;
+    }
+  }
+
+  async getCleanupActivities(destinationId?: string): Promise<CleanupActivity[]> {
+    try {
+      if (this.isPlaceholderMode()) {
+        let activities = [...mockData.cleanupActivities];
+        if (destinationId) {
+          activities = activities.filter(a => a.destinationId === destinationId);
+        }
+        return activities;
+      }
+
+      let query = supabase!.from('cleanup_activities').select('*');
+      if (destinationId) {
+        query = query.eq('destination_id', destinationId);
+      }
+
+      const { data, error } = await query.order('start_time', { ascending: true });
+      if (error) throw error;
+      return (data || []).map(this.transformDbCleanupActivityToCleanupActivity);
+    } catch (error) {
+      console.error('Error in getCleanupActivities:', error);
+      return [];
+    }
+  }
+
+  async getUpcomingCleanupActivities(): Promise<CleanupActivity[]> {
+    try {
+      if (this.isPlaceholderMode()) {
+        return mockData.cleanupActivities.filter(a => 
+          new Date(a.startTime) > new Date() && a.status === 'upcoming'
+        );
+      }
+
+      const { data, error } = await supabase!
+        .from('cleanup_activities')
+        .select('*')
+        .gt('start_time', new Date().toISOString())
+        .eq('status', 'upcoming')
+        .order('start_time', { ascending: true });
+
+      if (error) throw error;
+      return (data || []).map(this.transformDbCleanupActivityToCleanupActivity);
+    } catch (error) {
+      console.error('Error in getUpcomingCleanupActivities:', error);
+      return [];
+    }
+  }
+
+  async getCleanupActivityById(id: string): Promise<CleanupActivity | null> {
+    try {
+      if (this.isPlaceholderMode()) {
+        return mockData.cleanupActivities.find(a => a.id === id) || null;
+      }
+
+      const { data, error } = await supabase!
+        .from('cleanup_activities')
+        .select('*')
+        .eq('id', id)
+        .single();
+
+      if (error || !data) return null;
+      return this.transformDbCleanupActivityToCleanupActivity(data);
+    } catch (error) {
+      console.error('Error in getCleanupActivityById:', error);
+      return null;
+    }
+  }
+
+  async createCleanupActivity(activity: Database['public']['Tables']['cleanup_activities']['Insert']): Promise<CleanupActivity | null> {
+    try {
+      if (this.isPlaceholderMode()) {
+        const newActivity: DbCleanupActivity = {
+          id: `mock-cleanup-${Date.now()}`,
+          destination_id: activity.destination_id,
+          title: activity.title,
+          description: activity.description || '',
+          start_time: activity.start_time,
+          end_time: activity.end_time,
+          location: activity.location || '',
+          max_participants: activity.max_participants,
+          current_participants: 0,
+          status: 'upcoming',
+          eco_points_reward: activity.eco_points_reward || 0,
+          created_at: new Date().toISOString()
+        };
+        const transformed = this.transformDbCleanupActivityToCleanupActivity(newActivity);
+        mockData.cleanupActivities.push(transformed);
+        return transformed;
+      }
+
+      const { data, error } = await (supabase!
+        .from('cleanup_activities') as any)
+        .insert(activity)
+        .select()
+        .single();
+
+      if (error || !data) throw error;
+      return this.transformDbCleanupActivityToCleanupActivity(data);
+    } catch (error) {
+      console.error('Error in createCleanupActivity:', error);
+      return null;
+    }
+  }
+
+  async updateCleanupActivity(id: string, updates: Database['public']['Tables']['cleanup_activities']['Update']): Promise<CleanupActivity | null> {
+    try {
+      if (this.isPlaceholderMode()) {
+        const index = mockData.cleanupActivities.findIndex(a => a.id === id);
+        if (index === -1) return null;
+        
+        // Transform the snake_case updates to camelCase before merging
+        const transformedUpdates = this.transformUpdateCleanupToCleanup(updates);
+        mockData.cleanupActivities[index] = { 
+          ...mockData.cleanupActivities[index], 
+          ...transformedUpdates 
+        };
+        return mockData.cleanupActivities[index];
+      }
+
+      const { data, error } = await (supabase!
+        .from('cleanup_activities') as any)
+        .update(updates)
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (error || !data) throw error;
+      return this.transformDbCleanupActivityToCleanupActivity(data);
+    } catch (error) {
+      console.error('Error in updateCleanupActivity:', error);
+      return null;
+    }
+  }
+
+  async cancelCleanupActivity(id: string): Promise<boolean> {
+    try {
+      if (this.isPlaceholderMode()) {
+        const index = mockData.cleanupActivities.findIndex(a => a.id === id);
+        if (index === -1) return false;
+        mockData.cleanupActivities[index].status = 'cancelled';
+        return true;
+      }
+
+      const { error } = await (supabase!
+        .from('cleanup_activities') as any)
+        .update({ status: 'cancelled' })
+        .eq('id', id);
+
+      return !error;
+    } catch (error) {
+      console.error('Error in cancelCleanupActivity:', error);
+      return false;
+    }
+  }
+
+  // Registration Operations
+  async registerForCleanup(activityId: string, userId: string): Promise<boolean> {
+    try {
+      if (this.isPlaceholderMode()) {
+        const activity = await this.getCleanupActivityById(activityId);
+        if (!activity || activity.status !== 'upcoming') return false;
+        
+        // Atomic check and increment in mock mode
+        const actIndex = mockData.cleanupActivities.findIndex(a => a.id === activityId);
+        if (actIndex === -1) return false;
+        
+        const targetActivity = mockData.cleanupActivities[actIndex];
+        if (targetActivity.currentParticipants >= targetActivity.maxParticipants) {
+          return false;
+        }
+
+        const newReg: DbCleanupRegistration = {
+          id: `mock-reg-${Date.now()}`,
+          activity_id: activityId,
+          user_id: userId,
+          status: 'registered',
+          attended: false,
+          registered_at: new Date().toISOString()
+        };
+        
+        mockData.cleanupRegistrations.push(this.transformDbCleanupRegistrationToCleanupRegistration(newReg));
+        targetActivity.currentParticipants += 1;
+        
+        return true;
+      }
+
+      // Use an atomic RPC call to handle registration and participant increment
+      // This prevents race conditions and overbooking.
+      // SQL for this RPC (register_for_cleanup):
+      /*
+      CREATE OR REPLACE FUNCTION register_for_cleanup(p_activity_id UUID, p_user_id UUID)
+      RETURNS BOOLEAN AS $$
+      DECLARE
+        v_current INT;
+        v_max INT;
+        v_status TEXT;
+      BEGIN
+        -- Get current status and capacity with a row-level lock
+        SELECT current_participants, max_participants, status 
+        INTO v_current, v_max, v_status
+        FROM cleanup_activities 
+        WHERE id = p_activity_id 
+        FOR UPDATE;
+
+        IF v_status != 'upcoming' THEN
+          RETURN FALSE;
+        END IF;
+
+        IF v_current >= v_max THEN
+          RETURN FALSE;
+        END IF;
+
+        -- Insert registration
+        INSERT INTO cleanup_registrations (activity_id, user_id, status)
+        VALUES (p_activity_id, p_user_id, 'registered');
+
+        -- Increment participants
+        UPDATE cleanup_activities 
+        SET current_participants = current_participants + 1 
+        WHERE id = p_activity_id;
+
+        RETURN TRUE;
+      EXCEPTION WHEN OTHERS THEN
+        RETURN FALSE;
+      END;
+      $$ LANGUAGE plpgsql;
+      */
+      const { data, error } = await supabase!.rpc('register_for_cleanup', {
+        p_activity_id: activityId,
+        p_user_id: userId
+      } as any);
+
+      if (error) {
+        console.error('RPC Error in registerForCleanup:', error);
+        throw error;
+      }
+
+      return !!data;
+    } catch (error) {
+      console.error('Error in registerForCleanup:', error);
+      return false;
+    }
+  }
+
+  async cancelCleanupRegistration(registrationId: string): Promise<boolean> {
+    try {
+      if (this.isPlaceholderMode()) {
+        const reg = mockData.cleanupRegistrations.find(r => r.id === registrationId);
+        if (!reg) return false;
+
+        const index = mockData.cleanupRegistrations.findIndex(r => r.id === registrationId);
+        mockData.cleanupRegistrations.splice(index, 1);
+        
+        const actIndex = mockData.cleanupActivities.findIndex(a => a.id === reg.activityId);
+        if (actIndex !== -1) {
+          mockData.cleanupActivities[actIndex].currentParticipants -= 1;
+        }
+        return true;
+      }
+
+      // Use an atomic RPC call to handle cancellation and participant decrement
+      // SQL for this RPC (cancel_cleanup_registration):
+      /*
+      CREATE OR REPLACE FUNCTION cancel_cleanup_registration(p_registration_id UUID)
+      RETURNS BOOLEAN AS $$
+      DECLARE
+        v_activity_id UUID;
+      BEGIN
+        -- Get activity_id before deleting
+        SELECT activity_id INTO v_activity_id
+        FROM cleanup_registrations
+        WHERE id = p_registration_id;
+
+        IF v_activity_id IS NULL THEN
+          RETURN FALSE;
+        END IF;
+
+        -- Delete registration
+        DELETE FROM cleanup_registrations
+        WHERE id = p_registration_id;
+
+        -- Decrement participants (ensure it doesn't go below 0)
+        UPDATE cleanup_activities
+        SET current_participants = GREATEST(0, current_participants - 1)
+        WHERE id = v_activity_id;
+
+        RETURN TRUE;
+      EXCEPTION WHEN OTHERS THEN
+        RETURN FALSE;
+      END;
+      $$ LANGUAGE plpgsql;
+      */
+      const { data, error } = await supabase!.rpc('cancel_cleanup_registration', {
+        p_registration_id: registrationId
+      } as any);
+
+      if (error) {
+        console.error('RPC Error in cancelCleanupRegistration:', error);
+        throw error;
+      }
+      
+      return !!data;
+    } catch (error) {
+      console.error('Error in cancelCleanupRegistration:', error);
+      return false;
+    }
+  }
+
+  async confirmCleanupAttendance(registrationId: string): Promise<boolean> {
+    try {
+      let reg: any;
+      if (this.isPlaceholderMode()) {
+        const index = mockData.cleanupRegistrations.findIndex(r => r.id === registrationId);
+        if (index === -1) return false;
+        
+        // Only award if not already attended
+        if (mockData.cleanupRegistrations[index].attended) return true;
+
+        mockData.cleanupRegistrations[index].attended = true;
+        mockData.cleanupRegistrations[index].status = 'attended';
+        reg = mockData.cleanupRegistrations[index];
+      } else {
+        // Atomic update only if attended is false
+        const { data, error } = await (supabase!
+          .from('cleanup_registrations') as any)
+          .update({ attended: true, status: 'attended' })
+          .eq('id', registrationId)
+          .eq('attended', false)
+          .select()
+          .single();
+        
+        // If error or no row returned, check if it's already attended
+        if (error || !data) {
+          // If the record exists but was already attended, just return true
+          const { data: existing } = await (supabase!
+            .from('cleanup_registrations')
+            .select('attended')
+            .eq('id', registrationId)
+            .single() as any);
+            
+          if (existing?.attended) return true;
+          if (error) throw error;
+          return false;
+        }
+        
+        reg = data;
+      }
+
+      // Award eco-points
+      const activityId = this.isPlaceholderMode() ? reg.activityId : reg.activity_id;
+      const activity = await this.getCleanupActivityById(activityId);
+      if (activity && activity.ecoPointsReward > 0) {
+        const userId = this.isPlaceholderMode() ? reg.userId : reg.user_id;
+        await this.awardEcoPoints(userId, activity.ecoPointsReward, `Participated in ${activity.title}`);
+      }
+
+      return true;
+    } catch (error) {
+      console.error('Error in confirmCleanupAttendance:', error);
+      return false;
+    }
+  }
+
+  async getUserCleanupRegistrations(userId: string): Promise<CleanupRegistration[]> {
+    try {
+      if (this.isPlaceholderMode()) {
+        if (userId === 'all') return mockData.cleanupRegistrations;
+        return mockData.cleanupRegistrations.filter(r => r.userId === userId);
+      }
+
+      let query = supabase!.from('cleanup_registrations').select('*');
+      if (userId !== 'all') {
+        query = query.eq('user_id', userId);
+      }
+
+      const { data, error } = await query;
+      if (error) throw error;
+      return (data || []).map(this.transformDbCleanupRegistrationToCleanupRegistration);
+    } catch (error) {
+      console.error('Error in getUserCleanupRegistrations:', error);
+      return [];
+    }
+  }
+
+  async getCleanupRegistrationsByActivity(activityId: string): Promise<CleanupRegistration[]> {
+    try {
+      if (this.isPlaceholderMode()) {
+        return mockData.cleanupRegistrations.filter(r => r.activityId === activityId);
+      }
+
+      const { data, error } = await supabase!
+        .from('cleanup_registrations')
+        .select('*')
+        .eq('activity_id', activityId);
+
+      if (error) throw error;
+      return (data || []).map(this.transformDbCleanupRegistrationToCleanupRegistration);
+    } catch (error) {
+      console.error('Error in getCleanupRegistrationsByActivity:', error);
+      return [];
+    }
+  }
+
+  // Eco-points Operations
+  async getEcoPointsBalance(userId: string): Promise<number> {
+    try {
+      if (this.isPlaceholderMode()) {
+        return 450; // Mock balance
+      }
+
+      const { data, error } = await supabase!
+        .from('users')
+        .select('eco_points')
+        .eq('id', userId)
+        .single();
+
+      if (error) throw error;
+      return (data as any)?.eco_points || 0;
+    } catch (error) {
+      console.error('Error in getEcoPointsBalance:', error);
+      return 0;
+    }
+  }
+
+  async awardEcoPoints(userId: string, points: number, description: string): Promise<boolean> {
+    try {
+      if (this.isPlaceholderMode()) {
+        mockData.ecoPointsTransactions.push({
+          id: `mock-trans-${Date.now()}`,
+          userId,
+          points,
+          transactionType: 'award',
+          description,
+          createdAt: new Date(),
+        });
+        return true;
+      }
+
+      // Use an atomic RPC call to award points and log the transaction.
+      // This avoids race conditions (lost increments) that occur with read-then-write patterns.
+      // SQL for this RPC (award_eco_points):
+      /*
+      CREATE OR REPLACE FUNCTION award_eco_points(p_user_id UUID, p_points INTEGER, p_description TEXT)
+      RETURNS BOOLEAN AS $$
+      BEGIN
+        -- Add transaction record
+        INSERT INTO eco_points_transactions (user_id, points, transaction_type, description)
+        VALUES (p_user_id, p_points, 'award', p_description);
+
+        -- Atomic increment of user balance
+        UPDATE users 
+        SET eco_points = COALESCE(eco_points, 0) + p_points 
+        WHERE id = p_user_id;
+
+        RETURN TRUE;
+      EXCEPTION WHEN OTHERS THEN
+        RETURN FALSE;
+      END;
+      $$ LANGUAGE plpgsql;
+      */
+      const { data, error } = await supabase!.rpc('award_eco_points', {
+        p_user_id: userId,
+        p_points: points,
+        p_description: description
+      } as any);
+
+      if (error) {
+        console.error('RPC Error in awardEcoPoints:', error);
+        throw error;
+      }
+
+      return !!data;
+    } catch (error) {
+      console.error('Error in awardEcoPoints:', error);
+      return false;
+    }
+  }
+
+  async getEcoPointsHistory(userId: string): Promise<EcoPointsTransaction[]> {
+    try {
+      if (this.isPlaceholderMode()) {
+        return mockData.ecoPointsTransactions.filter(t => t.userId === userId);
+      }
+
+      const { data, error } = await supabase!
+        .from('eco_points_transactions')
+        .select('*')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      return (data || []).map(this.transformDbEcoPointsTransactionToEcoPointsTransaction);
+    } catch (error) {
+      console.error('Error in getEcoPointsHistory:', error);
+      return [];
+    }
+  }
+
+  async getUserImpactTier(userId: string): Promise<string> {
+    try {
+      const balance = await this.getEcoPointsBalance(userId);
+      if (balance >= 1000) return 'Diamond Guardian';
+      if (balance >= 500) return 'Gold Guardian';
+      if (balance >= 200) return 'Silver Guardian';
+      if (balance >= 50) return 'Bronze Guardian';
+      return 'Eco Novice';
+    } catch (error) {
+      console.error('Error in getUserImpactTier:', error);
+      return 'Eco Novice';
+    }
+  }
+
+  async getEcoPointsLeaderboard(limit: number = 10): Promise<EcoPointsLeaderboardEntry[]> {
+    try {
+      if (this.isPlaceholderMode()) {
+        return [
+          { userId: 'u1', name: 'Eco Warrior', points: 1200, rank: 1 },
+          { userId: 'u2', name: 'Green Traveler', points: 950, rank: 2 },
+          { userId: 'u3', name: 'Nature Lover', points: 800, rank: 3 },
+        ];
+      }
+
+      const { data, error } = await supabase!
+        .from('users')
+        .select('id, name, eco_points')
+        .order('eco_points', { ascending: false })
+        .limit(limit);
+
+      if (error) throw error;
+      return (data as any[] || []).map((u, index) => ({
+        userId: u.id,
+        name: u.name || 'Anonymous',
+        points: u.eco_points || 0,
+        rank: index + 1
+      }));
+    } catch (error) {
+      console.error('Error in getEcoPointsLeaderboard:', error);
+      return [];
+    }
+  }
+
   async getLatestEcologicalIndicators(destinationId: string): Promise<{ soil_compaction: number; vegetation_disturbance: number; wildlife_disturbance: number; water_source_impact: number } | null> {
     try {
       if (this.isPlaceholderMode()) {
@@ -604,10 +1410,11 @@ class DatabaseService {
 
   async getDashboardStats(): Promise<DashboardStats> {
     try {
-      const [tourists, destinations, alerts] = await Promise.all([
+      const [tourists, destinations, alerts, wasteMetrics] = await Promise.all([
         this.getTourists(),
         this.getDestinations(),
         this.getAlerts(),
+        this.getWasteMetricsSummary()
       ]);
 
       const physicalMaxCapacity = destinations.reduce((sum, dest) => sum + (dest.max_capacity || 0), 0);
@@ -645,6 +1452,10 @@ class DatabaseService {
         todayCheckOuts,
         capacityUtilization: adjustedMaxCapacity > 0 ? (currentOccupancy / adjustedMaxCapacity) * 100 : 0,
         alertsCount: alerts.length,
+        totalWasteCollected: wasteMetrics.totalWaste,
+        activeCleanupEvents: wasteMetrics.activeCleanupEvents,
+        totalVolunteers: wasteMetrics.totalVolunteers,
+        recyclingRate: wasteMetrics.recyclingRate
       };
     } catch (error) {
       console.error('Error in getDashboardStats:', error);
@@ -658,6 +1469,10 @@ class DatabaseService {
         todayCheckOuts: 0,
         capacityUtilization: 0,
         alertsCount: 0,
+        totalWasteCollected: 0,
+        activeCleanupEvents: 0,
+        totalVolunteers: 0,
+        recyclingRate: 0
       };
     }
   }
@@ -1289,28 +2104,38 @@ class DatabaseService {
     try {
       if (this.isPlaceholderMode()) return true;
 
-      // Get current points
-      const { data: user, error: fetchError } = await (supabase!
-        .from('users') as any)
-        .select('eco_points, total_carbon_offset')
-        .eq('id', userId)
-        .single();
+      // Use an atomic RPC call to update eco-points and carbon offset.
+      // This prevents race conditions (lost increments) that occur with read-then-write patterns.
+      // SQL for this RPC (update_user_eco_metrics):
+      /*
+      CREATE OR REPLACE FUNCTION update_user_eco_metrics(p_user_id UUID, p_points_to_add INTEGER, p_offset_to_add DOUBLE PRECISION)
+      RETURNS BOOLEAN AS $$
+      BEGIN
+        UPDATE users 
+        SET 
+          eco_points = COALESCE(eco_points, 0) + p_points_to_add,
+          total_carbon_offset = COALESCE(total_carbon_offset, 0) + p_offset_to_add,
+          updated_at = NOW()
+        WHERE id = p_user_id;
 
-      if (fetchError || !user) return false;
+        RETURN TRUE;
+      EXCEPTION WHEN OTHERS THEN
+        RETURN FALSE;
+      END;
+      $$ LANGUAGE plpgsql;
+      */
+      const { data, error } = await supabase!.rpc('update_user_eco_metrics', {
+        p_user_id: userId,
+        p_points_to_add: pointsToAdd,
+        p_offset_to_add: carbonOffset
+      } as any);
 
-      const newPoints = (user.eco_points || 0) + pointsToAdd;
-      const newOffset = (user.total_carbon_offset || 0) + carbonOffset;
+      if (error) {
+        console.error('RPC Error in updateUserEcoPoints:', error);
+        throw error;
+      }
 
-      const { error: updateError } = await (supabase!
-        .from('users') as any)
-        .update({ 
-          eco_points: newPoints,
-          total_carbon_offset: newOffset,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', userId);
-
-      return !updateError;
+      return !!data;
     } catch (error) {
       console.error('Error in updateUserEcoPoints:', error);
       return false;
@@ -1490,6 +2315,84 @@ class DatabaseService {
       destinationId: dbAlert.destination_id || undefined,
       timestamp: new Date(dbAlert.created_at),
       isActive: dbAlert.is_active,
+    };
+  }
+
+  private transformDbWasteToWaste(db: DbWasteData): WasteData {
+    return {
+      id: db.id,
+      destinationId: db.destination_id,
+      wasteType: db.waste_type as any,
+      quantity: db.quantity,
+      unit: db.unit,
+      collectedAt: new Date(db.collected_at),
+      createdAt: new Date(db.created_at),
+    };
+  }
+
+  private transformUpdateWasteToWaste(updates: Database['public']['Tables']['waste_data']['Update']): Partial<WasteData> {
+    const result: Partial<WasteData> = {};
+    if (updates.destination_id) result.destinationId = updates.destination_id;
+    if (updates.waste_type) result.wasteType = updates.waste_type as any;
+    if (updates.quantity !== undefined) result.quantity = updates.quantity;
+    if (updates.unit) result.unit = updates.unit;
+    if (updates.collected_at) result.collectedAt = new Date(updates.collected_at);
+    if (updates.created_at) result.createdAt = new Date(updates.created_at);
+    return result;
+  }
+
+  private transformDbCleanupActivityToCleanupActivity(db: DbCleanupActivity): CleanupActivity {
+    return {
+      id: db.id,
+      destinationId: db.destination_id,
+      title: db.title,
+      description: db.description,
+      startTime: new Date(db.start_time),
+      endTime: new Date(db.end_time),
+      location: db.location,
+      maxParticipants: db.max_participants,
+      currentParticipants: db.current_participants,
+      status: db.status as any,
+      ecoPointsReward: db.eco_points_reward,
+      createdAt: new Date(db.created_at),
+    };
+  }
+
+  private transformUpdateCleanupToCleanup(updates: Database['public']['Tables']['cleanup_activities']['Update']): Partial<CleanupActivity> {
+    const result: Partial<CleanupActivity> = {};
+    if (updates.destination_id) result.destinationId = updates.destination_id;
+    if (updates.title) result.title = updates.title;
+    if (updates.description) result.description = updates.description;
+    if (updates.start_time) result.startTime = new Date(updates.start_time);
+    if (updates.end_time) result.endTime = new Date(updates.end_time);
+    if (updates.location) result.location = updates.location;
+    if (updates.max_participants !== undefined) result.maxParticipants = updates.max_participants;
+    if (updates.current_participants !== undefined) result.currentParticipants = updates.current_participants;
+    if (updates.status) result.status = updates.status as any;
+    if (updates.eco_points_reward !== undefined) result.ecoPointsReward = updates.eco_points_reward;
+    if (updates.created_at) result.createdAt = new Date(updates.created_at);
+    return result;
+  }
+
+  private transformDbCleanupRegistrationToCleanupRegistration(db: DbCleanupRegistration): CleanupRegistration {
+    return {
+      id: db.id,
+      activityId: db.activity_id,
+      userId: db.user_id,
+      status: db.status as any,
+      registeredAt: new Date(db.registered_at),
+      attended: db.attended,
+    };
+  }
+
+  private transformDbEcoPointsTransactionToEcoPointsTransaction(db: DbEcoPointsTransaction): EcoPointsTransaction {
+    return {
+      id: db.id,
+      userId: db.user_id,
+      points: db.points,
+      transactionType: db.transaction_type as any,
+      description: db.description,
+      createdAt: new Date(db.created_at),
     };
   }
 }

@@ -422,7 +422,7 @@ const WeatherDashboard: React.FC = () => {
         ))}
       </div>
     </div>
-  );"}]}
+  );
 };
 
 export default WeatherDashboard;

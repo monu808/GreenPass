@@ -73,8 +73,10 @@ export default function TouristDashboard() {
       const featured = transformedDestinations
         .filter(dest => dest.isActive)
         .sort((a, b) => {
-          const aRate = a.currentOccupancy / (calculatedAdjustedCapacities[a.id] || a.maxCapacity);
-          const bRate = b.currentOccupancy / (calculatedAdjustedCapacities[b.id] || b.maxCapacity);
+          const aCap = calculatedAdjustedCapacities[a.id] ?? a.maxCapacity;
+          const bCap = calculatedAdjustedCapacities[b.id] ?? b.maxCapacity;
+          const aRate = aCap === 0 ? 0 : a.currentOccupancy / aCap;
+          const bRate = bCap === 0 ? 0 : b.currentOccupancy / bCap;
           return aRate - bRate;
         })
         .slice(0, 3);
@@ -236,13 +238,13 @@ export default function TouristDashboard() {
                              <EcoSensitivityBadge level={dest.ecologicalSensitivity} />
                              <EcoCapacityAlert 
                                currentOccupancy={dest.currentOccupancy} 
-                               adjustedCapacity={adjustedCapacities[dest.id] || dest.maxCapacity}
+                               adjustedCapacity={adjustedCapacities[dest.id] ?? dest.maxCapacity}
                              />
                              <h3 className="text-3xl font-black tracking-tighter leading-none">{dest.name}</h3>
                            </div>
                           <div className="flex flex-col items-end gap-1">
                             <div className="bg-black/20 backdrop-blur-sm px-3 py-1 rounded-lg text-[10px] font-bold flex items-center gap-1.5">
-                               <Users className="h-3 w-3" /> {dest.currentOccupancy} / {adjustedCapacities[dest.id] || dest.maxCapacity} (eco-adjusted)
+                               <Users className="h-3 w-3" /> {dest.currentOccupancy} / {adjustedCapacities[dest.id] ?? dest.maxCapacity} (eco-adjusted)
                             </div>
                             <div className="text-[9px] text-white/70 font-medium">
                               Physical Max: {dest.maxCapacity}
@@ -259,8 +261,8 @@ export default function TouristDashboard() {
 
                   {/* Eco-Friendly Alternatives Section */}
                   {(() => {
-                    const adjCap = adjustedCapacities[dest.id] || dest.maxCapacity;
-                    const occupancyRate = dest.currentOccupancy / adjCap;
+                    const adjCap = adjustedCapacities[dest.id] ?? dest.maxCapacity;
+                    const occupancyRate = adjCap === 0 ? 0 : dest.currentOccupancy / adjCap;
                     const isHighImpact = occupancyRate >= 0.7;
                     
                     if (!isHighImpact) return null;
@@ -287,7 +289,7 @@ export default function TouristDashboard() {
                                 <div className="flex items-center gap-3">
                                   <EcoSensitivityBadge level={alt.ecologicalSensitivity} className="scale-75 origin-left" />
                                   <span className="text-[9px] font-bold text-gray-400 uppercase">
-                                    {alt.currentOccupancy} / {adjustedCapacities[alt.id] || alt.maxCapacity} active
+                                    {alt.currentOccupancy} / {adjustedCapacities[alt.id] ?? alt.maxCapacity} active
                                   </span>
                                 </div>
                               </div>

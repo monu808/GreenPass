@@ -83,7 +83,7 @@ export default function TouristDestinations() {
 
     if (selectedFilter === 'available') {
       result = result.filter(d => {
-        const adjustedCap = capacityResults[d.id]?.adjustedCapacity || d.maxCapacity;
+        const adjustedCap = capacityResults[d.id]?.adjustedCapacity ?? d.maxCapacity;
         return d.currentOccupancy < adjustedCap * 0.75;
       });
     } else if (selectedFilter === 'popular') {
@@ -230,7 +230,7 @@ export default function TouristDestinations() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10">
             {filteredDestinations.map((d) => {
               const dynResult = capacityResults[d.id];
-              const adjustedCap = dynResult?.adjustedCapacity || d.maxCapacity;
+              const adjustedCap = dynResult?.adjustedCapacity ?? d.maxCapacity;
               const occupancyRate = adjustedCap > 0 ? (d.currentOccupancy / adjustedCap) * 100 : 0;
               
               const sustainabilityScore = calculateSustainabilityScore(d);
@@ -390,7 +390,11 @@ export default function TouristDestinations() {
                                     <div className="flex items-center gap-2">
                                       <EcoSensitivityBadge level={alt.ecologicalSensitivity} className="scale-[0.6] origin-left" />
                                       <span className="text-[8px] font-bold text-gray-400 uppercase">
-                                        {Math.round((alt.currentOccupancy / (capacityResults[alt.id]?.adjustedCapacity || alt.maxCapacity)) * 100)}% load
+                                        {(() => {
+                                          const denominator = capacityResults[alt.id]?.adjustedCapacity ?? alt.maxCapacity ?? undefined;
+                                          const percent = (!denominator || denominator <= 0) ? 0 : Math.round((alt.currentOccupancy / denominator) * 100);
+                                          return `${percent}% load`;
+                                        })()}
                                       </span>
                                     </div>
                                   </div>

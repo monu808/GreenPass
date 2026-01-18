@@ -114,22 +114,42 @@ function BookDestinationForm() {
       const policyEngine = getPolicyEngine();
       const fetchedDestinations = await dbService.getDestinations();
       
-      const mappedDestinations: Destination[] = fetchedDestinations.map(d => ({
-        id: d.id,
-        name: d.name,
-        location: d.location,
-        maxCapacity: d.max_capacity,
-        currentOccupancy: d.current_occupancy,
-        description: d.description,
-        guidelines: d.guidelines as string[],
-        isActive: d.is_active,
-        ecologicalSensitivity: d.ecological_sensitivity as any,
-        coordinates: {
-          latitude: d.latitude,
-          longitude: d.longitude
-        },
-        sustainabilityFeatures: d.sustainability_features as any
-      }));
+      const mappedDestinations: Destination[] = fetchedDestinations.map(d => {
+        // Validate ecological sensitivity against allowed enum literals
+        const validSensitivities: Destination['ecologicalSensitivity'][] = ['low', 'medium', 'high', 'critical'];
+        const ecologicalSensitivity = validSensitivities.includes(d.ecological_sensitivity as any) 
+          ? (d.ecological_sensitivity as Destination['ecologicalSensitivity'])
+          : 'medium';
+
+        // Normalize sustainability features to expected shape or safe default
+        const rawFeatures = d.sustainability_features as any;
+        const sustainabilityFeatures: Destination['sustainabilityFeatures'] = rawFeatures ? {
+          hasRenewableEnergy: Boolean(rawFeatures.hasRenewableEnergy),
+          wasteManagementLevel: ['basic', 'advanced', 'certified'].includes(rawFeatures.wasteManagementLevel)
+            ? rawFeatures.wasteManagementLevel
+            : 'basic',
+          localEmploymentRatio: typeof rawFeatures.localEmploymentRatio === 'number' ? rawFeatures.localEmploymentRatio : 0,
+          communityFundShare: typeof rawFeatures.communityFundShare === 'number' ? rawFeatures.communityFundShare : 0,
+          wildlifeProtectionProgram: Boolean(rawFeatures.wildlifeProtectionProgram)
+        } : undefined;
+
+        return {
+          id: d.id,
+          name: d.name,
+          location: d.location,
+          maxCapacity: d.max_capacity,
+          currentOccupancy: d.current_occupancy,
+          description: d.description,
+          guidelines: Array.isArray(d.guidelines) ? d.guidelines : [],
+          isActive: d.is_active,
+          ecologicalSensitivity,
+          coordinates: {
+            latitude: d.latitude,
+            longitude: d.longitude
+          },
+          sustainabilityFeatures
+        };
+      });
 
       setAllDestinationsState(mappedDestinations);
       const found = mappedDestinations.find(d => d.id === destinationId);

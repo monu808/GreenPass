@@ -7,8 +7,11 @@ import {
   Award, Zap, Scale, Trash2, X, Info
 } from 'lucide-react';
 import TouristLayout from '@/components/TouristLayout';
+import EcoSensitivityBadge from '@/components/EcoSensitivityBadge';
+import EcoCapacityAlert from '@/components/EcoCapacityAlert';
 import { getDbService } from '@/lib/databaseService';
 import { getPolicyEngine } from '@/lib/ecologicalPolicyEngine';
+import { getEcoFriendlyAlternatives } from '@/lib/recommendationEngine';
 import { destinations as allDestinations } from '@/data/mockData';
 import { 
   calculateSustainabilityScore, 
@@ -26,9 +29,10 @@ export default function TouristDestinations() {
   const [capacityResults, setCapacityResults] = useState<Record<string, DynamicCapacityResult>>({});
   const [loading, setLoading] = useState<boolean>(true);
   const [searchTerm, setSearchTerm] = useState<string>('');
-  const [selectedFilter, setSelectedFilter] = useState<'all' | 'available' | 'popular' | 'high-sensitivity' | 'low-carbon' | 'community-friendly' | 'wildlife-safe'>('all');
+  const [selectedFilter, setSelectedFilter] = useState<'all' | 'available' | 'popular' | 'high-sensitivity' | 'low-carbon' | 'community-friendly' | 'wildlife-safe' | 'eco-friendly'>('all');
   const [comparisonList, setComparisonList] = useState<Destination[]>([]);
   const [isComparisonOpen, setIsComparisonOpen] = useState(false);
+  const [expandedAlternatives, setExpandedAlternatives] = useState<Record<string, boolean>>({});
 
   // 2. DATA LOADING LOGIC (Direct Database Sync)
   const loadData = async (): Promise<void> => {
@@ -79,7 +83,7 @@ export default function TouristDestinations() {
 
     if (selectedFilter === 'available') {
       result = result.filter(d => {
-        const adjustedCap = capacityResults[d.id]?.adjustedCapacity || d.maxCapacity;
+        const adjustedCap = capacityResults[d.id]?.adjustedCapacity ?? d.maxCapacity;
         return d.currentOccupancy < adjustedCap * 0.75;
       });
     } else if (selectedFilter === 'popular') {
@@ -92,6 +96,8 @@ export default function TouristDestinations() {
       result = result.filter(d => getEcoImpactCategory(d) === 'community-friendly');
     } else if (selectedFilter === 'wildlife-safe') {
       result = result.filter(d => getEcoImpactCategory(d) === 'wildlife-safe');
+    } else if (selectedFilter === 'eco-friendly') {
+      result = result.filter(d => d.ecologicalSensitivity === 'low' || d.ecologicalSensitivity === 'medium');
     }
 
     // Rank by sustainability score
@@ -104,7 +110,32 @@ export default function TouristDestinations() {
     setFilteredDestinations(result);
   }, [destinations, searchTerm, selectedFilter]);
 
-  useEffect(() => { loadData(); }, []);
+  useEffect(() => { 
+    loadData(); 
+
+    // Set up real-time SSE connection
+    const eventSource = new EventSource('/api/weather-monitor');
+    
+    eventSource.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        console.log('🔔 Real-time update received:', data.type);
+        
+        // Refresh data on any relevant update
+        if (data.type === 'weather_update_available' || 
+            data.type === 'capacity_update' || 
+            data.type === 'weather_update') {
+          loadData();
+        }
+      } catch (err) {
+        console.error('Error parsing SSE message:', err);
+      }
+    };
+
+    return () => {
+      eventSource.close();
+    };
+  }, []);
   useEffect(() => { filterData(); }, [filterData]);
 
   // 4. ACTION HANDLERS
@@ -143,7 +174,7 @@ export default function TouristDestinations() {
           <div className="space-y-4">
             <div className="flex items-center gap-2 text-emerald-600">
               <Compass className="h-5 w-5" />
-              <span className="text-[10px] font-black tracking-[0.4em] uppercase">Managed Eco-Trails</span>
+              <span className="text-[9px] font-bold tracking-[0.3em] uppercase opacity-70">Managed Eco-Trails</span>
             </div>
             <h1 className="text-6xl font-black text-gray-900 tracking-tighter leading-none">
               Explore <span className="text-emerald-600">Nature</span>
@@ -173,12 +204,12 @@ export default function TouristDestinations() {
             </div>
 
             <div className="flex bg-gray-100 p-1.5 rounded-[1.8rem] border border-gray-100 overflow-x-auto scrollbar-hide">
-              {['all', 'available', 'popular', 'high-sensitivity', 'low-carbon', 'community-friendly', 'wildlife-safe'].map((filter) => (
+              {['all', 'available', 'popular', 'high-sensitivity', 'low-carbon', 'community-friendly', 'wildlife-safe', 'eco-friendly'].map((filter) => (
                 <button
                   key={filter}
                   type="button"
                   onClick={() => setSelectedFilter(filter as any)}
-                  className={`px-6 py-3 rounded-[1.5rem] text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${
+                  className={`px-6 py-3 rounded-[1.5rem] text-[9px] font-bold uppercase tracking-wider transition-all whitespace-nowrap ${
                     selectedFilter === filter ? "bg-white text-emerald-600 shadow-sm" : "text-gray-400 hover:text-gray-600"
                   }`}
                 >
@@ -199,7 +230,7 @@ export default function TouristDestinations() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10">
             {filteredDestinations.map((d) => {
               const dynResult = capacityResults[d.id];
-              const adjustedCap = dynResult?.adjustedCapacity || d.maxCapacity;
+              const adjustedCap = dynResult?.adjustedCapacity ?? d.maxCapacity;
               const occupancyRate = adjustedCap > 0 ? (d.currentOccupancy / adjustedCap) * 100 : 0;
               
               const sustainabilityScore = calculateSustainabilityScore(d);
@@ -254,15 +285,30 @@ export default function TouristDestinations() {
                       </div>
                     </div>
 
-                    <h3 className="absolute bottom-6 left-8 text-3xl font-black text-white tracking-tighter leading-none">{d.name}</h3>
+                    <div className="absolute bottom-6 left-8 flex flex-col gap-2">
+                       <EcoSensitivityBadge level={d.ecologicalSensitivity} className="w-fit" />
+                       <h3 className="text-3xl font-black text-white tracking-tighter leading-none">{d.name}</h3>
+                     </div>
                   </div>
                   <div className="p-8 space-y-6">
+                    <EcoCapacityAlert 
+                      currentOccupancy={d.currentOccupancy} 
+                      adjustedCapacity={adjustedCap}
+                    />
                     <div className="flex justify-between items-end">
                       <div className="space-y-1">
-                        <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">
-                          {dynResult?.displayMessage ? dynResult.displayMessage : 'Eco-Load Factor'}
+                        <p className="text-[8px] font-bold text-gray-400 uppercase tracking-wider">
+                          {dynResult?.displayMessage ? dynResult.displayMessage : 'Live Occupancy'}
                         </p>
-                        <p className="text-xl font-black text-gray-900">{d.currentOccupancy} / {adjustedCap > 0 ? adjustedCap : 0}</p>
+                        <div className="flex items-baseline gap-2">
+                          <p className="text-3xl font-black text-gray-900">
+                            {d.currentOccupancy}
+                          </p>
+                          <p className="text-[10px] font-bold text-gray-400 uppercase">Active</p>
+                        </div>
+                        <p className="text-[10px] font-bold text-gray-400">
+                          (Eco-Limit: {adjustedCap} <span className="mx-1 opacity-20">|</span> Max: {d.maxCapacity})
+                        </p>
                       </div>
                       <div className={`px-3 py-1 rounded-lg font-black text-[10px] uppercase ${occupancyRate > 80 ? 'bg-rose-50 text-rose-600' : 'bg-emerald-50 text-emerald-600'}`}>
                         {Math.round(occupancyRate)}% Full
@@ -305,6 +351,61 @@ export default function TouristDestinations() {
                          Secure Permit
                        </button>
                     </div>
+
+                    {/* Eco-Friendly Alternatives Expandable */}
+                    {occupancyRate >= 70 && (
+                      <div className="pt-4 border-t border-gray-100 space-y-3">
+                        <button
+                          onClick={() => setExpandedAlternatives(prev => ({ ...prev, [d.id]: !prev[d.id] }))}
+                          className="w-full flex items-center justify-between text-[9px] font-bold text-emerald-600 uppercase tracking-wider hover:text-emerald-700 transition-colors"
+                        >
+                          <span className="flex items-center gap-2">
+                            <Leaf className="h-3.5 w-3.5" />
+                            {expandedAlternatives[d.id] ? 'Hide Alternatives' : 'See Eco-Friendly Alternatives'}
+                          </span>
+                          <ArrowRight className={`h-3.5 w-3.5 transition-transform duration-300 ${expandedAlternatives[d.id] ? 'rotate-90' : ''}`} />
+                        </button>
+
+                        {expandedAlternatives[d.id] && (
+                          <div className="space-y-3 animate-in fade-in slide-in-from-top-2 duration-300">
+                            <p className="text-[10px] text-gray-400 font-bold italic">
+                              High occupancy detected. Consider these lower-impact valleys:
+                            </p>
+                            <div className="grid grid-cols-1 gap-2">
+                              {getEcoFriendlyAlternatives(
+                                d, 
+                                destinations, 
+                                Object.fromEntries(Object.entries(capacityResults).map(([id, res]) => [id, res.adjustedCapacity]))
+                              ).map(alt => (
+                                <button
+                                  key={alt.id}
+                                  onClick={() => {
+                                    setSearchTerm(alt.name);
+                                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                                  }}
+                                  className="bg-gray-50 p-3 rounded-2xl border border-gray-100 flex items-center justify-between group hover:border-emerald-200 hover:bg-emerald-50/30 transition-all text-left"
+                                >
+                                  <div className="space-y-1">
+                                    <h5 className="text-[11px] font-black text-gray-900 group-hover:text-emerald-600 transition-colors">{alt.name}</h5>
+                                    <div className="flex items-center gap-2">
+                                      <EcoSensitivityBadge level={alt.ecologicalSensitivity} className="scale-[0.6] origin-left" />
+                                      <span className="text-[8px] font-bold text-gray-400 uppercase">
+                                        {(() => {
+                                          const denominator = capacityResults[alt.id]?.adjustedCapacity ?? alt.maxCapacity ?? undefined;
+                                          const percent = (!denominator || denominator <= 0) ? 0 : Math.round((alt.currentOccupancy / denominator) * 100);
+                                          return `${percent}% load`;
+                                        })()}
+                                      </span>
+                                    </div>
+                                  </div>
+                                  <ArrowRight className="h-3 w-3 text-emerald-400 group-hover:translate-x-1 transition-transform" />
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </div>
               );

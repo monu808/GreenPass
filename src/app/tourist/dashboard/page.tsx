@@ -8,8 +8,11 @@ import {
 } from 'lucide-react';
 import TouristLayout from '@/components/TouristLayout';
 import ProtectedRoute from '@/components/ProtectedRoute';
+import EcoSensitivityBadge from '@/components/EcoSensitivityBadge';
+import EcoCapacityAlert from '@/components/EcoCapacityAlert';
 import { getDbService } from '@/lib/databaseService';
 import { getPolicyEngine } from '@/lib/ecologicalPolicyEngine';
+import { getEcoFriendlyAlternatives } from '@/lib/recommendationEngine';
 import { Destination } from '@/types';
 
 // BUILD FIX: Explicit interface for weather to prevent 'any' type build failures
@@ -25,6 +28,7 @@ export default function TouristDashboard() {
   const [destinations, setDestinations] = useState<Destination[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [featuredDestinations, setFeaturedDestinations] = useState<Destination[]>([]);
+  const [adjustedCapacities, setAdjustedCapacities] = useState<Record<string, number>>({});
   
   // Use the interface here instead of 'any'
   const [weatherMap, setWeatherMap] = useState<Record<string, WeatherData>>({});
@@ -60,16 +64,19 @@ export default function TouristDashboard() {
       setDestinations(transformedDestinations);
       
       // Pre-calculate adjusted capacities
-      const adjustedCapacities: Record<string, number> = {};
+      const calculatedAdjustedCapacities: Record<string, number> = {};
       await Promise.all(transformedDestinations.map(async (dest) => {
-        adjustedCapacities[dest.id] = await policyEngine.getAdjustedCapacity(dest);
+        calculatedAdjustedCapacities[dest.id] = await policyEngine.getAdjustedCapacity(dest);
       }));
+      setAdjustedCapacities(calculatedAdjustedCapacities);
 
       const featured = transformedDestinations
         .filter(dest => dest.isActive)
         .sort((a, b) => {
-          const aRate = a.currentOccupancy / (adjustedCapacities[a.id] || a.maxCapacity);
-          const bRate = b.currentOccupancy / (adjustedCapacities[b.id] || b.maxCapacity);
+          const aCap = calculatedAdjustedCapacities[a.id] ?? a.maxCapacity;
+          const bCap = calculatedAdjustedCapacities[b.id] ?? b.maxCapacity;
+          const aRate = aCap === 0 ? 0 : a.currentOccupancy / aCap;
+          const bRate = bCap === 0 ? 0 : b.currentOccupancy / bCap;
           return aRate - bRate;
         })
         .slice(0, 3);
@@ -108,6 +115,29 @@ export default function TouristDashboard() {
 
   useEffect(() => {
     loadTouristData();
+
+    // Set up real-time SSE connection
+    const eventSource = new EventSource('/api/weather-monitor');
+    
+    eventSource.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        console.log('🔔 Real-time update received:', data.type);
+        
+        // Refresh data on any relevant update
+        if (data.type === 'weather_update_available' || 
+            data.type === 'capacity_update' || 
+            data.type === 'weather_update') {
+          loadTouristData();
+        }
+      } catch (err) {
+        console.error('Error parsing SSE message:', err);
+      }
+    };
+
+    return () => {
+      eventSource.close();
+    };
   }, [loadTouristData]);
 
   // BOT FIX: Standardized navigation handler
@@ -186,34 +216,90 @@ export default function TouristDashboard() {
             {featuredDestinations.map((dest) => {
               const weather = weatherMap[dest.id];
               return (
-                <div key={dest.id} className="group bg-white rounded-[2.5rem] border border-gray-100 overflow-hidden shadow-sm hover:shadow-2xl transition-all duration-500">
-                  <div className="h-60 relative overflow-hidden bg-emerald-900">
-                    {/* Background visual for card */}
-                    <img 
-                      src="https://images.unsplash.com/photo-1596394516093-501ba68a0ba6?w=800" 
-                      className="w-full h-full object-cover opacity-50 transition-transform duration-700 group-hover:scale-110" 
-                      alt={dest.name} 
-                    />
-                    <div className="absolute inset-0 p-8 flex flex-col justify-between z-10 text-white">
-                      <div className="flex justify-between items-start">
-                        <span className="bg-white/20 backdrop-blur-md rounded-xl px-4 py-2 text-[10px] font-black border border-white/10">{dest.location}</span>
-                        <div className="flex flex-col items-end gap-2">
-                           <button type="button" onClick={() => alert('Saved to Journal!')} className="bg-white/20 p-2.5 rounded-full border border-white/10 hover:bg-rose-500 transition-colors"><Heart className="h-4 w-4"/></button>
-                           {weather && <div className="bg-white/20 backdrop-blur-md rounded-xl px-3 py-1 text-[10px] font-black border border-white/10">{Math.round(weather.temperature)}°C</div>}
+                <div key={dest.id} className="space-y-4">
+                  <div className="group bg-white rounded-[2.5rem] border border-gray-100 overflow-hidden shadow-sm hover:shadow-2xl transition-all duration-500">
+                    <div className="h-60 relative overflow-hidden bg-emerald-900">
+                      {/* Background visual for card */}
+                      <img 
+                        src="https://images.unsplash.com/photo-1596394516093-501ba68a0ba6?w=800" 
+                        className="w-full h-full object-cover opacity-50 transition-transform duration-700 group-hover:scale-110" 
+                        alt={dest.name} 
+                      />
+                      <div className="absolute inset-0 p-8 flex flex-col justify-between z-10 text-white">
+                        <div className="flex justify-between items-start">
+                          <span className="bg-white/20 backdrop-blur-md rounded-xl px-4 py-2 text-[10px] font-black border border-white/10">{dest.location}</span>
+                          <div className="flex flex-col items-end gap-2">
+                             <button type="button" onClick={() => alert('Saved to Journal!')} className="bg-white/20 p-2.5 rounded-full border border-white/10 hover:bg-rose-500 transition-colors"><Heart className="h-4 w-4"/></button>
+                             {weather && <div className="bg-white/20 backdrop-blur-md rounded-xl px-3 py-1 text-[10px] font-black border border-white/10">{Math.round(weather.temperature)}°C</div>}
+                          </div>
                         </div>
-                      </div>
-                      <div className="flex justify-between items-end">
-                        <h3 className="text-3xl font-black tracking-tighter leading-none">{dest.name}</h3>
-                        <div className="bg-black/20 backdrop-blur-sm px-3 py-1 rounded-lg text-[10px] font-bold flex items-center gap-1.5">
-                           <Users className="h-3 w-3" /> {dest.currentOccupancy}/{dest.maxCapacity}
+                        <div className="flex justify-between items-end">
+                          <div className="flex flex-col gap-2">
+                             <EcoSensitivityBadge level={dest.ecologicalSensitivity} />
+                             <EcoCapacityAlert 
+                               currentOccupancy={dest.currentOccupancy} 
+                               adjustedCapacity={adjustedCapacities[dest.id] ?? dest.maxCapacity}
+                             />
+                             <h3 className="text-3xl font-black tracking-tighter leading-none">{dest.name}</h3>
+                           </div>
+                          <div className="flex flex-col items-end gap-1">
+                            <div className="bg-black/20 backdrop-blur-sm px-3 py-1 rounded-lg text-[10px] font-bold flex items-center gap-1.5">
+                               <Users className="h-3 w-3" /> {dest.currentOccupancy} / {adjustedCapacities[dest.id] ?? dest.maxCapacity} (eco-adjusted)
+                            </div>
+                            <div className="text-[9px] text-white/70 font-medium">
+                              Physical Max: {dest.maxCapacity}
+                            </div>
+                          </div>
                         </div>
                       </div>
                     </div>
+                    <div className="p-6 bg-gray-50/50 border-t border-gray-100 flex items-center justify-between text-[11px] text-gray-500 font-bold uppercase tracking-widest">
+                      <span className="flex items-center gap-2"><Compass className="h-4 w-4 text-emerald-500" /> {weather?.weatherMain || "Cloudy"}</span>
+                      <span className="flex items-center gap-2"><RefreshCw className="h-4 w-4 text-emerald-500" /> Humidity: {weather?.humidity || "45"}%</span>
+                    </div>
                   </div>
-                  <div className="p-6 bg-gray-50/50 border-t border-gray-100 flex items-center justify-between text-[11px] text-gray-500 font-bold uppercase tracking-widest">
-                    <span className="flex items-center gap-2"><Compass className="h-4 w-4 text-emerald-500" /> {weather?.weatherMain || "Cloudy"}</span>
-                    <span className="flex items-center gap-2"><RefreshCw className="h-4 w-4 text-emerald-500" /> Humidity: {weather?.humidity || "45"}%</span>
-                  </div>
+
+                  {/* Eco-Friendly Alternatives Section */}
+                  {(() => {
+                    const adjCap = adjustedCapacities[dest.id] ?? dest.maxCapacity;
+                    const occupancyRate = adjCap === 0 ? 0 : dest.currentOccupancy / adjCap;
+                    const isHighImpact = occupancyRate >= 0.7;
+                    
+                    if (!isHighImpact) return null;
+
+                    const alternatives = getEcoFriendlyAlternatives(dest, destinations, adjustedCapacities);
+                    if (alternatives.length === 0) return null;
+
+                    return (
+                      <div className="bg-emerald-50/50 rounded-[2rem] p-6 border border-emerald-100 animate-in slide-in-from-bottom-4 duration-500">
+                        <div className="flex items-center gap-2 mb-4">
+                          <Leaf className="h-4 w-4 text-emerald-600" />
+                          <h4 className="text-[10px] font-black text-emerald-900 uppercase tracking-widest">Eco-Friendly Alternatives</h4>
+                        </div>
+                        <p className="text-[11px] text-emerald-800/70 font-bold mb-4">Consider these lower-impact alternatives to reduce ecological pressure on {dest.name}:</p>
+                        <div className="grid grid-cols-1 gap-3">
+                          {alternatives.map(alt => (
+                            <button
+                              key={alt.id}
+                              onClick={() => handleNavigation(`/tourist/destinations?search=${alt.name}`)}
+                              className="bg-white p-4 rounded-2xl border border-emerald-100 flex items-center justify-between group hover:border-emerald-300 hover:shadow-md transition-all text-left"
+                            >
+                              <div className="space-y-1">
+                                <h5 className="text-sm font-black text-gray-900 group-hover:text-emerald-600 transition-colors">{alt.name}</h5>
+                                <div className="flex items-center gap-3">
+                                  <EcoSensitivityBadge level={alt.ecologicalSensitivity} className="scale-75 origin-left" />
+                                  <span className="text-[9px] font-bold text-gray-400 uppercase">
+                                    {alt.currentOccupancy} / {adjustedCapacities[alt.id] ?? alt.maxCapacity} active
+                                  </span>
+                                </div>
+                              </div>
+                              <ArrowRight className="h-4 w-4 text-emerald-400 group-hover:translate-x-1 transition-transform" />
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })()}
                 </div>
               );
             })}

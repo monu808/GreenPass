@@ -149,7 +149,7 @@ class TomorrowWeatherService {
     this.apiKey = apiKey;
   }
 
-  async getWeatherByCoordinates(lat: number, lon: number, cityName: string = 'Unknown Location'): Promise<WeatherData | null> {
+  async getWeatherByCoordinates(lat: number, lon: number, cityName: string = 'Unknown Location', signal?: AbortSignal): Promise<WeatherData | null> {
     try {
       const fields = [
         'temperature',
@@ -166,9 +166,9 @@ class TomorrowWeatherService {
       ].join(',');
 
       const url = `${this.baseUrl}/realtime?location=${lat},${lon}&fields=${fields}&units=metric&apikey=${this.apiKey}`;
-      
+
       console.log(`🌐 Requesting weather data for ${cityName}...`);
-      const response = await fetch(url);
+      const response = await fetch(url, { signal });
 
       if (response.status === 429) {
         console.warn(`⚠️ Rate limit exceeded for ${cityName}, using fallback weather data`);
@@ -195,7 +195,7 @@ class TomorrowWeatherService {
     // Generate realistic weather data based on location and season
     const baseTemp = this.getSeasonalTemperature(lat);
     const variation = (Math.random() - 0.5) * 10; // ±5°C variation
-    
+
     return {
       temperature: Math.round((baseTemp + variation) * 10) / 10,
       humidity: Math.round(50 + Math.random() * 40), // 50-90%
@@ -218,15 +218,15 @@ class TomorrowWeatherService {
   private getSeasonalTemperature(lat: number): number {
     const month = new Date().getMonth(); // 0-11
     const isWinter = month < 3 || month > 9;
-    
+
     // Base temperature by latitude zones
     let baseTemp = 20; // Default moderate temperature
-    
+
     if (Math.abs(lat) > 60) baseTemp = isWinter ? -5 : 10; // Arctic/Antarctic
     else if (Math.abs(lat) > 40) baseTemp = isWinter ? 5 : 25; // Temperate
     else if (Math.abs(lat) > 23) baseTemp = isWinter ? 15 : 30; // Subtropical
     else baseTemp = isWinter ? 25 : 35; // Tropical
-    
+
     return baseTemp;
   }
 
@@ -255,7 +255,7 @@ class TomorrowWeatherService {
       ].join(',');
 
       const url = `${this.baseUrl}/forecast?location=${lat},${lon}&fields=${fields}&units=metric&timesteps=1d&endTime=${this.getEndTime(days)}&apikey=${this.apiKey}`;
-      
+
       const response = await fetch(url);
 
       if (!response.ok) {
@@ -355,14 +355,14 @@ class TomorrowWeatherService {
   getWeatherIcon(weatherCode: number, isDay: boolean = true): string {
     const mapping = this.weatherCodeMap[weatherCode] || this.weatherCodeMap[0];
     let icon = mapping.icon;
-    
+
     // Adjust for day/night
     if (!isDay && (icon === '01d' || icon === '01n')) {
       icon = '01n';
     } else if (!isDay && icon.endsWith('d')) {
       icon = icon.replace('d', 'n');
     }
-    
+
     return icon;
   }
 }
@@ -379,7 +379,7 @@ export const destinationCoordinates: { [key: string]: { lat: number; lon: number
   'spiti': { lat: 32.2466, lon: 78.0265, name: 'Spiti Valley' },
   'spitivalley': { lat: 32.2466, lon: 78.0265, name: 'Spiti Valley' },
   'kinnaur': { lat: 31.6089, lon: 78.4697, name: 'Kinnaur' },
-  
+
   // Jammu and Kashmir
   'srinagar': { lat: 34.0837, lon: 74.7973, name: 'Srinagar' },
   'jammu': { lat: 32.7266, lon: 74.8570, name: 'Jammu' },

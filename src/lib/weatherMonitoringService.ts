@@ -8,6 +8,10 @@ interface WeatherMonitoringService {
   isRunning: boolean;
 }
 
+/**
+ * Service for monitoring weather conditions across all registered destinations.
+ * Handles periodic checks, data caching, and alert generation.
+ */
 class WeatherMonitor implements WeatherMonitoringService {
   private lastCheckedData: Map<string, WeatherData & { timestamp: number }> = new Map();
   private lastApiCall: number = 0;
@@ -16,6 +20,12 @@ class WeatherMonitor implements WeatherMonitoringService {
   public readonly isRunning: boolean = true; // Service is always active (handled by app-load or external cron)
   private isScanning: boolean = false;
 
+  /**
+   * Triggers an immediate check of weather conditions for all destinations.
+   * Respects rate limiting and cache freshness to minimize API usage.
+   * 
+   * @returns {Promise<void>} Resolves when the monitoring cycle is complete.
+   */
   async checkWeatherNow(): Promise<void> {
     if (this.isScanning) {
       console.log('🔒 Weather scan already in progress. Skipping.');
@@ -135,7 +145,14 @@ class WeatherMonitor implements WeatherMonitoringService {
     }
   }
 
-  // Helper method to process weather alerts
+  /**
+   * Analyzes weather data to determine if alerts should be generated.
+   * If alerts are generated, they are saved to the database and broadcast via SSE.
+   * 
+   * @param {Destination} destination - The destination being checked.
+   * @param {WeatherData} weatherData - Current weather conditions.
+   * @param {boolean} [saveToDatabase=true] - Whether to persist the check results to the DB.
+   */
   private async processWeatherAlerts(destination: Destination, weatherData: WeatherData, saveToDatabase: boolean = true): Promise<void> {
     try {
       const alertCheck = weatherService.shouldGenerateAlert(weatherData);

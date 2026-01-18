@@ -109,6 +109,10 @@ interface TomorrowRealtimeResponse {
   };
 }
 
+/**
+ * Service for fetching weather data from Tomorrow.io API.
+ * Handles API requests, rate limiting fallback, and data transformation.
+ */
 class TomorrowWeatherService {
   private apiKey: string;
   private baseUrl = 'https://api.tomorrow.io/v4/weather';
@@ -149,6 +153,15 @@ class TomorrowWeatherService {
     this.apiKey = apiKey;
   }
 
+  /**
+   * Fetches real-time weather data for a specific location.
+   * 
+   * @param {number} lat - Latitude of the location.
+   * @param {number} lon - Longitude of the location.
+   * @param {string} [cityName='Unknown Location'] - Name of the city/location for logging.
+   * @param {AbortSignal} [signal] - Optional signal to abort the fetch request.
+   * @returns {Promise<WeatherData | null>} Weather data or null if fetch fails.
+   */
   async getWeatherByCoordinates(lat: number, lon: number, cityName: string = 'Unknown Location', signal?: AbortSignal): Promise<WeatherData | null> {
     try {
       const fields = [
@@ -236,6 +249,14 @@ class TomorrowWeatherService {
     return commonCodes[Math.floor(Math.random() * commonCodes.length)];
   }
 
+  /**
+   * Fetches weather forecast for a specific location.
+   * 
+   * @param {number} lat - Latitude of the location.
+   * @param {number} lon - Longitude of the location.
+   * @param {number} [days=5] - Number of days to forecast.
+   * @returns {Promise<TomorrowApiResponse | null>} Forecast data or null if fetch fails.
+   */
   async getForecastByCoordinates(lat: number, lon: number, days: number = 5): Promise<TomorrowApiResponse | null> {
     try {
       const fields = [
@@ -309,6 +330,12 @@ class TomorrowWeatherService {
     return endDate.toISOString();
   }
 
+  /**
+   * Evaluates weather data against safety thresholds to generate alerts.
+   * 
+   * @param {WeatherData} weatherData - The weather data to evaluate.
+   * @returns {{ shouldAlert: boolean; reason: string }} Alert status and reason.
+   */
   shouldGenerateAlert(weatherData: WeatherData): { shouldAlert: boolean; reason: string } {
     const alerts = [];
 
@@ -352,6 +379,13 @@ class TomorrowWeatherService {
     };
   }
 
+  /**
+   * Retrieves the appropriate icon code for a given weather condition.
+   * 
+   * @param {number} weatherCode - The Tomorrow.io weather code.
+   * @param {boolean} [isDay=true] - Whether it is currently daytime.
+   * @returns {string} The icon code (e.g., '01d').
+   */
   getWeatherIcon(weatherCode: number, isDay: boolean = true): string {
     const mapping = this.weatherCodeMap[weatherCode] || this.weatherCodeMap[0];
     let icon = mapping.icon;

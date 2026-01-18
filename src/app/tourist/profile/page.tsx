@@ -28,8 +28,13 @@ import {
   TrendingUp,
   Clock,
   ChevronRight,
-  Check
+  Check,
+  Leaf,
+  Wind,
+  Info
 } from 'lucide-react';
+import { getDbService } from '@/lib/databaseService';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface UserProfile {
   id: string;
@@ -46,6 +51,15 @@ interface UserProfile {
   favoriteDestination: string;
   travelStyle: string[];
   languages: string[];
+  ecoPoints?: number;
+  totalCarbonOffset?: number;
+  ecoHistory?: {
+    id: string;
+    type: string;
+    points: number;
+    description: string;
+    date: Date;
+  }[];
 }
 
 interface TravelStats {
@@ -67,9 +81,11 @@ interface Achievement {
 }
 
 export default function MyProfile() {
+  const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<string>('profile');
   const [isEditing, setIsEditing] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
   const [userProfile, setUserProfile] = useState<UserProfile>({
     id: '1',
@@ -85,8 +101,46 @@ export default function MyProfile() {
     totalDistance: 15000,
     favoriteDestination: 'Manali',
     travelStyle: ['Adventure', 'Photography', 'Eco-Tourism'],
-    languages: ['Hindi', 'English', 'Punjabi']
+    languages: ['Hindi', 'English', 'Punjabi'],
+    ecoPoints: 450,
+    totalCarbonOffset: 120.5
   });
+
+  React.useEffect(() => {
+     const fetchEcoData = async () => {
+       if (!user?.id) {
+         setIsLoading(false);
+         return;
+       }
+
+       try {
+         const db = getDbService();
+         const stats = await db.getUserEcoStats(user.id);
+         const history = await db.getEcoPointsHistory(user.id);
+         
+         if (stats) {
+          setUserProfile(prev => ({
+            ...prev,
+            ecoPoints: stats.ecoPoints,
+            totalCarbonOffset: stats.totalCarbonOffset,
+            totalTrips: stats.tripsCount,
+            ecoHistory: history.map(h => ({
+              id: h.id,
+              type: h.transactionType,
+              points: h.points,
+              description: h.description,
+              date: new Date(h.createdAt)
+            }))
+          }));
+        }
+      } catch (error) {
+        console.error('Error fetching eco data:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchEcoData();
+  }, [user]);
 
   const travelStats: TravelStats = {
     placesVisited: 25,
@@ -157,6 +211,7 @@ export default function MyProfile() {
 
   const tabs = [
     { id: 'profile', label: 'Profile Info', icon: User },
+    { id: 'eco', label: 'Eco Dashboard', icon: Leaf },
     { id: 'stats', label: 'Travel Stats', icon: TrendingUp },
     { id: 'achievements', label: 'Achievements', icon: Award },
     { id: 'settings', label: 'Settings', icon: Settings }
@@ -166,68 +221,78 @@ export default function MyProfile() {
     <TouristLayout>
       <div className="space-y-6">
         {/* Header */}
-        <div className="bg-gradient-to-r from-purple-600 to-indigo-600 rounded-xl p-6 text-white">
-          <div className="flex items-start justify-between">
-            <div className="flex items-center space-x-4">
+        <div className="bg-gradient-to-r from-purple-600 to-indigo-600 rounded-xl p-4 sm:p-6 text-white">
+          <div className="flex flex-col sm:flex-row items-center sm:items-start justify-between space-y-4 sm:space-y-0 text-center sm:text-left">
+            <div className="flex flex-col sm:flex-row items-center space-y-4 sm:space-y-0 sm:space-x-4">
               <div className="relative">
-                <div className="w-20 h-20 bg-white/20 rounded-full flex items-center justify-center">
-                  <User className="h-10 w-10 text-white" />
+                <div className="w-20 h-20 sm:w-24 sm:h-24 bg-white/20 rounded-full flex items-center justify-center border-4 border-white/30">
+                  <User className="h-10 w-10 sm:h-12 sm:w-12 text-white" />
                 </div>
-                <button className="absolute -bottom-1 -right-1 w-6 h-6 bg-white rounded-full flex items-center justify-center text-purple-600">
-                  <Camera className="h-3 w-3" />
+                <button className="absolute -bottom-1 -right-1 w-8 h-8 bg-white rounded-full flex items-center justify-center text-purple-600 shadow-lg active:scale-90 transition-transform">
+                  <Camera className="h-4 w-4" />
                 </button>
               </div>
               <div>
-                <h1 className="text-2xl font-bold">{userProfile.name}</h1>
-                <p className="text-purple-100">{userProfile.location}</p>
-                <p className="text-sm text-purple-200">Member since {new Date(userProfile.joinDate).toLocaleDateString()}</p>
+                <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">{userProfile.name}</h1>
+                <p className="text-purple-100 flex items-center justify-center sm:justify-start">
+                  <MapPin className="h-3 w-3 mr-1" />
+                  {userProfile.location}
+                </p>
+                <p className="text-sm text-purple-200 mt-1">Member since {new Date(userProfile.joinDate).toLocaleDateString()}</p>
               </div>
             </div>
             <button
               onClick={() => setIsEditing(!isEditing)}
-              className="flex items-center px-4 py-2 bg-white/20 rounded-lg text-sm hover:bg-white/30 transition-colors"
+              className="w-full sm:w-auto flex items-center justify-center px-6 py-3 bg-white/20 rounded-xl text-sm font-semibold hover:bg-white/30 transition-all active:scale-95"
             >
               <Edit className="h-4 w-4 mr-2" />
               Edit Profile
             </button>
           </div>
           
-          <div className="mt-6 grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div className="text-center">
-              <div className="text-2xl font-bold">{userProfile.totalTrips}</div>
-              <div className="text-sm text-purple-200">Total Trips</div>
+          <div className="mt-8 grid grid-cols-2 sm:grid-cols-5 gap-4">
+            <div className="text-center p-3 bg-white/10 rounded-xl">
+              <div className="text-xl sm:text-2xl font-bold">{userProfile.totalTrips}</div>
+              <div className="text-[10px] sm:text-xs uppercase tracking-wider text-purple-200">Total Trips</div>
             </div>
-            <div className="text-center">
-              <div className="text-2xl font-bold">{travelStats.placesVisited}</div>
-              <div className="text-sm text-purple-200">Places Visited</div>
+            <div className="text-center p-3 bg-white/10 rounded-xl border border-emerald-400/30">
+              <div className="text-xl sm:text-2xl font-bold text-emerald-300 flex items-center justify-center gap-1">
+                <Award className="h-5 w-5" />
+                {userProfile.ecoPoints}
+              </div>
+              <div className="text-[10px] sm:text-xs uppercase tracking-wider text-emerald-200/70 font-black">Eco-Points</div>
             </div>
-            <div className="text-center">
-              <div className="text-2xl font-bold">{(userProfile.totalDistance / 1000).toFixed(1)}k</div>
-              <div className="text-sm text-purple-200">KM Traveled</div>
+            <div className="text-center p-3 bg-white/10 rounded-xl">
+              <div className="text-xl sm:text-2xl font-bold">{travelStats.placesVisited}</div>
+              <div className="text-[10px] sm:text-xs uppercase tracking-wider text-purple-200">Places</div>
             </div>
-            <div className="text-center">
-              <div className="text-2xl font-bold">{travelStats.averageRating}</div>
-              <div className="text-sm text-purple-200">Avg Rating</div>
+            <div className="text-center p-3 bg-white/10 rounded-xl">
+              <div className="text-xl sm:text-2xl font-bold">{(userProfile.totalDistance / 1000).toFixed(1)}k</div>
+              <div className="text-[10px] sm:text-xs uppercase tracking-wider text-purple-200">KM</div>
+            </div>
+            <div className="text-center p-3 bg-white/10 rounded-xl">
+              <div className="text-xl sm:text-2xl font-bold">{travelStats.averageRating}</div>
+              <div className="text-[10px] sm:text-xs uppercase tracking-wider text-purple-200">Rating</div>
             </div>
           </div>
         </div>
 
         {/* Navigation Tabs */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200">
-          <div className="flex overflow-x-auto">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+          <div className="flex overflow-x-auto scrollbar-hide">
             {tabs.map((tab) => {
               const IconComponent = tab.icon;
               return (
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  className={`flex items-center space-x-2 px-6 py-4 text-sm font-medium whitespace-nowrap border-b-2 transition-colors ${
+                  className={`flex items-center space-x-2 px-5 sm:px-8 py-4 text-sm font-bold whitespace-nowrap border-b-4 transition-all ${
                     activeTab === tab.id
-                      ? 'border-purple-600 text-purple-600 bg-purple-50'
-                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+                      ? 'border-purple-600 text-purple-600 bg-purple-50/50'
+                      : 'border-transparent text-gray-400 hover:text-gray-600 hover:bg-gray-50'
                   }`}
                 >
-                  <IconComponent className="h-4 w-4" />
+                  <IconComponent className={`h-4 w-4 ${activeTab === tab.id ? 'animate-pulse' : ''}`} />
                   <span>{tab.label}</span>
                 </button>
               );
@@ -236,23 +301,23 @@ export default function MyProfile() {
         </div>
 
         {/* Content */}
-        <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
+        <div className="bg-white rounded-2xl p-5 sm:p-8 shadow-sm border border-gray-200">
           {activeTab === 'profile' && (
-            <div className="space-y-6">
-              <div className="flex items-center justify-between">
-                <h2 className="text-2xl font-bold text-gray-900">Profile Information</h2>
+            <div className="space-y-8">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <h2 className="text-xl sm:text-2xl font-black text-gray-900 uppercase tracking-tight">Profile Information</h2>
                 {isEditing && (
-                  <div className="flex space-x-2">
+                  <div className="flex space-x-3">
                     <button
                       onClick={handleSaveProfile}
-                      className="flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                      className="flex-1 sm:flex-none flex items-center justify-center px-5 py-2.5 bg-emerald-600 text-white rounded-xl font-bold hover:bg-emerald-700 transition-all shadow-md shadow-emerald-100 active:scale-95"
                     >
                       <Save className="h-4 w-4 mr-2" />
                       Save
                     </button>
                     <button
                       onClick={handleCancelEdit}
-                      className="flex items-center px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
+                      className="flex-1 sm:flex-none flex items-center justify-center px-5 py-2.5 bg-gray-100 text-gray-600 rounded-xl font-bold hover:bg-gray-200 transition-all active:scale-95"
                     >
                       <X className="h-4 w-4 mr-2" />
                       Cancel
@@ -261,87 +326,97 @@ export default function MyProfile() {
                 )}
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Full Name</label>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div className="space-y-5">
+                  <div className="group">
+                    <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-1.5 group-focus-within:text-purple-600 transition-colors">Full Name</label>
                     {isEditing ? (
                       <input
                         type="text"
                         value={userProfile.name}
                         onChange={(e) => setUserProfile({...userProfile, name: e.target.value})}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                        className="w-full px-4 py-3 bg-gray-50 border-2 border-gray-100 rounded-xl focus:ring-4 focus:ring-purple-100 focus:border-purple-500 transition-all outline-none"
                       />
                     ) : (
-                      <p className="text-gray-900">{userProfile.name}</p>
+                      <div className="p-3.5 bg-gray-50 rounded-xl border-2 border-transparent hover:border-gray-100 transition-all">
+                        <p className="text-gray-900 font-semibold">{userProfile.name}</p>
+                      </div>
                     )}
                   </div>
 
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Email</label>
+                  <div className="group">
+                    <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-1.5 group-focus-within:text-purple-600 transition-colors">Email Address</label>
                     {isEditing ? (
                       <input
                         type="email"
                         value={userProfile.email}
                         onChange={(e) => setUserProfile({...userProfile, email: e.target.value})}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                        className="w-full px-4 py-3 bg-gray-50 border-2 border-gray-100 rounded-xl focus:ring-4 focus:ring-purple-100 focus:border-purple-500 transition-all outline-none"
                       />
                     ) : (
-                      <p className="text-gray-900">{userProfile.email}</p>
+                      <div className="p-3.5 bg-gray-50 rounded-xl border-2 border-transparent hover:border-gray-100 transition-all">
+                        <p className="text-gray-900 font-semibold">{userProfile.email}</p>
+                      </div>
                     )}
                   </div>
 
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Phone</label>
+                  <div className="group">
+                    <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-1.5 group-focus-within:text-purple-600 transition-colors">Phone Number</label>
                     {isEditing ? (
                       <input
                         type="tel"
                         value={userProfile.phone}
                         onChange={(e) => setUserProfile({...userProfile, phone: e.target.value})}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                        className="w-full px-4 py-3 bg-gray-50 border-2 border-gray-100 rounded-xl focus:ring-4 focus:ring-purple-100 focus:border-purple-500 transition-all outline-none"
                       />
                     ) : (
-                      <p className="text-gray-900">{userProfile.phone}</p>
+                      <div className="p-3.5 bg-gray-50 rounded-xl border-2 border-transparent hover:border-gray-100 transition-all">
+                        <p className="text-gray-900 font-semibold">{userProfile.phone}</p>
+                      </div>
                     )}
                   </div>
 
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Location</label>
+                  <div className="group">
+                    <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-1.5 group-focus-within:text-purple-600 transition-colors">Location</label>
                     {isEditing ? (
                       <input
                         type="text"
                         value={userProfile.location}
                         onChange={(e) => setUserProfile({...userProfile, location: e.target.value})}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                        className="w-full px-4 py-3 bg-gray-50 border-2 border-gray-100 rounded-xl focus:ring-4 focus:ring-purple-100 focus:border-purple-500 transition-all outline-none"
                       />
                     ) : (
-                      <p className="text-gray-900">{userProfile.location}</p>
+                      <div className="p-3.5 bg-gray-50 rounded-xl border-2 border-transparent hover:border-gray-100 transition-all">
+                        <p className="text-gray-900 font-semibold">{userProfile.location}</p>
+                      </div>
                     )}
                   </div>
                 </div>
 
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Date of Birth</label>
+                <div className="space-y-5">
+                  <div className="group">
+                    <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-1.5 group-focus-within:text-purple-600 transition-colors">Date of Birth</label>
                     {isEditing ? (
                       <input
                         type="date"
                         value={userProfile.dateOfBirth}
                         onChange={(e) => setUserProfile({...userProfile, dateOfBirth: e.target.value})}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                        className="w-full px-4 py-3 bg-gray-50 border-2 border-gray-100 rounded-xl focus:ring-4 focus:ring-purple-100 focus:border-purple-500 transition-all outline-none"
                       />
                     ) : (
-                      <p className="text-gray-900">{new Date(userProfile.dateOfBirth).toLocaleDateString()}</p>
+                      <div className="p-3.5 bg-gray-50 rounded-xl border-2 border-transparent hover:border-gray-100 transition-all">
+                        <p className="text-gray-900 font-semibold">{new Date(userProfile.dateOfBirth).toLocaleDateString()}</p>
+                      </div>
                     )}
                   </div>
 
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Travel Styles</label>
-                    <div className="flex flex-wrap gap-2">
+                  <div className="group">
+                    <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-1.5">Travel Interests</label>
+                    <div className="flex flex-wrap gap-2 pt-1">
                       {userProfile.travelStyle.map((style, index) => (
                         <span
                           key={index}
-                          className="px-3 py-1 bg-purple-100 text-purple-700 rounded-full text-sm"
+                          className="px-4 py-1.5 bg-purple-50 text-purple-700 rounded-full text-xs font-bold border border-purple-100"
                         >
                           {style}
                         </span>
@@ -349,13 +424,13 @@ export default function MyProfile() {
                     </div>
                   </div>
 
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Languages</label>
-                    <div className="flex flex-wrap gap-2">
+                  <div className="group">
+                    <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-1.5">Languages Spoken</label>
+                    <div className="flex flex-wrap gap-2 pt-1">
                       {userProfile.languages.map((language, index) => (
                         <span
                           key={index}
-                          className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm"
+                          className="px-4 py-1.5 bg-blue-50 text-blue-700 rounded-full text-xs font-bold border border-blue-100"
                         >
                           {language}
                         </span>
@@ -363,26 +438,159 @@ export default function MyProfile() {
                     </div>
                   </div>
 
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Favorite Destination</label>
-                    <p className="text-gray-900">{userProfile.favoriteDestination}</p>
+                  <div className="group">
+                    <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-1.5">Favorite Destination</label>
+                    <div className="p-3.5 bg-gray-50 rounded-xl border-2 border-transparent hover:border-gray-100 transition-all">
+                      <p className="text-gray-900 font-semibold">{userProfile.favoriteDestination}</p>
+                    </div>
                   </div>
                 </div>
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Bio</label>
+              <div className="group">
+                <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-1.5 group-focus-within:text-purple-600 transition-colors">About Me</label>
                 {isEditing ? (
                   <textarea
                     value={userProfile.bio}
                     onChange={(e) => setUserProfile({...userProfile, bio: e.target.value})}
                     rows={4}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                    className="w-full px-4 py-3 bg-gray-50 border-2 border-gray-100 rounded-xl focus:ring-4 focus:ring-purple-100 focus:border-purple-500 transition-all outline-none resize-none"
                   />
                 ) : (
-                  <p className="text-gray-900">{userProfile.bio}</p>
+                  <div className="p-4 bg-gray-50 rounded-2xl border-2 border-transparent hover:border-gray-100 transition-all">
+                    <p className="text-gray-700 leading-relaxed font-medium">{userProfile.bio}</p>
+                  </div>
                 )}
               </div>
+            </div>
+          )}
+
+          {activeTab === 'eco' && (
+            <div className="space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-500">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
+                <div className="space-y-1">
+                  <h2 className="text-3xl font-black text-gray-900 tracking-tight uppercase">Environmental Impact</h2>
+                  <p className="text-emerald-600 font-bold text-sm">Your contribution to sustainable tourism</p>
+                </div>
+                <div className="flex items-center gap-4 bg-emerald-50 px-6 py-4 rounded-[2rem] border border-emerald-100 shadow-sm">
+                  <div className="p-3 bg-emerald-500 rounded-2xl text-white">
+                    <Award className="h-6 w-6" />
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">Balance</p>
+                    <p className="text-2xl font-black text-gray-900">{userProfile.ecoPoints} <span className="text-xs text-gray-400">PTS</span></p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                <div className="bg-white p-8 rounded-[3rem] border border-gray-100 shadow-sm space-y-4 group hover:shadow-xl transition-all duration-500">
+                  <div className="h-14 w-14 bg-blue-50 rounded-2xl flex items-center justify-center text-blue-500 group-hover:bg-blue-500 group-hover:text-white transition-colors duration-500">
+                    <Wind className="h-7 w-7" />
+                  </div>
+                  <div className="space-y-1">
+                    <h3 className="text-lg font-black text-gray-900 uppercase tracking-tight">Total Offset</h3>
+                    <p className="text-3xl font-black text-blue-600">{userProfile.totalCarbonOffset?.toFixed(1)} <span className="text-sm text-gray-400">KG</span></p>
+                  </div>
+                  <p className="text-xs text-gray-400 font-medium leading-relaxed">Amount of CO2 you have successfully offset through our verified environmental projects.</p>
+                </div>
+
+                <div className="bg-white p-8 rounded-[3rem] border border-gray-100 shadow-sm space-y-4 group hover:shadow-xl transition-all duration-500">
+                  <div className="h-14 w-14 bg-emerald-50 rounded-2xl flex items-center justify-center text-emerald-500 group-hover:bg-emerald-500 group-hover:text-white transition-colors duration-500">
+                    <Leaf className="h-7 w-7" />
+                  </div>
+                  <div className="space-y-1">
+                    <h3 className="text-lg font-black text-gray-900 uppercase tracking-tight">Eco-Trips</h3>
+                    <p className="text-3xl font-black text-emerald-600">{userProfile.totalTrips} <span className="text-sm text-gray-400">TRIPS</span></p>
+                  </div>
+                  <p className="text-xs text-gray-400 font-medium leading-relaxed">Number of journeys completed with our sustainability tracking and guidelines.</p>
+                </div>
+
+                <div className="bg-emerald-900 p-8 rounded-[3rem] shadow-xl space-y-4 relative overflow-hidden group">
+                  <div className="absolute -right-4 -bottom-4 opacity-10 group-hover:scale-110 transition-transform duration-700">
+                    <TrendingUp className="h-32 w-32 text-white" />
+                  </div>
+                  <div className="h-14 w-14 bg-white/10 rounded-2xl flex items-center justify-center text-emerald-400">
+                    <Award className="h-7 w-7" />
+                  </div>
+                  <div className="space-y-1 relative z-10">
+                    <h3 className="text-lg font-black text-white uppercase tracking-tight">Eco-Rank</h3>
+                    <p className="text-3xl font-black text-emerald-400 uppercase">Guardian</p>
+                  </div>
+                  <p className="text-xs text-emerald-100/60 font-medium leading-relaxed relative z-10">You are in the top 15% of sustainable travelers this month!</p>
+                </div>
+              </div>
+
+              <div className="bg-gray-50 rounded-[3rem] p-10 border border-gray-100">
+                <div className="flex items-start gap-6">
+                  <div className="p-4 bg-white rounded-3xl shadow-sm">
+                    <Info className="h-6 w-6 text-emerald-600" />
+                  </div>
+                  <div className="space-y-4 flex-1">
+                    <h3 className="text-xl font-black text-gray-900 uppercase tracking-tight">How to earn Eco-Points?</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div className="flex items-center gap-4 bg-white p-4 rounded-2xl shadow-sm border border-gray-50">
+                        <div className="h-2 w-2 rounded-full bg-emerald-500"></div>
+                        <p className="text-xs font-bold text-gray-600">Choose low-carbon transport options for your trips.</p>
+                      </div>
+                      <div className="flex items-center gap-4 bg-white p-4 rounded-2xl shadow-sm border border-gray-50">
+                        <div className="h-2 w-2 rounded-full bg-emerald-500"></div>
+                        <p className="text-xs font-bold text-gray-600">Stay at certified eco-friendly accommodations.</p>
+                      </div>
+                      <div className="flex items-center gap-4 bg-white p-4 rounded-2xl shadow-sm border border-gray-50">
+                        <div className="h-2 w-2 rounded-full bg-emerald-500"></div>
+                        <p className="text-xs font-bold text-gray-600">Offset your carbon footprint during booking.</p>
+                      </div>
+                      <div className="flex items-center gap-4 bg-white p-4 rounded-2xl shadow-sm border border-gray-50">
+                        <div className="h-2 w-2 rounded-full bg-emerald-500"></div>
+                        <p className="text-xs font-bold text-gray-600">Participate in local environmental cleanup drives.</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {userProfile.ecoHistory && userProfile.ecoHistory.length > 0 && (
+                <div className="space-y-6">
+                  <h3 className="text-xl font-black text-gray-900 uppercase tracking-tight">Points History</h3>
+                  <div className="bg-white rounded-[2rem] border border-gray-100 overflow-hidden shadow-sm">
+                    <table className="w-full">
+                      <thead>
+                        <tr className="bg-gray-50 border-b border-gray-100">
+                          <th className="px-6 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Description</th>
+                          <th className="px-6 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Type</th>
+                          <th className="px-6 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Points</th>
+                          <th className="px-6 py-4 text-right text-[10px] font-black text-gray-400 uppercase tracking-widest">Date</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-50">
+                        {userProfile.ecoHistory.map(item => (
+                          <tr key={item.id} className="hover:bg-gray-50/50 transition-colors">
+                            <td className="px-6 py-4">
+                              <p className="text-sm font-bold text-gray-900">{item.description}</p>
+                            </td>
+                            <td className="px-6 py-4">
+                              <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${
+                                item.type === 'award' ? 'bg-emerald-50 text-emerald-600' : 'bg-blue-50 text-blue-600'
+                              }`}>
+                                {item.type}
+                              </span>
+                            </td>
+                            <td className="px-6 py-4">
+                              <span className={`text-sm font-black ${item.points > 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                                {item.points > 0 ? '+' : ''}{item.points}
+                              </span>
+                            </td>
+                            <td className="px-6 py-4 text-right">
+                              <p className="text-xs text-gray-400 font-bold">{new Date(item.date).toLocaleDateString()}</p>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 

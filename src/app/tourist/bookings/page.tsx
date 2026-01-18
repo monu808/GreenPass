@@ -3,547 +3,430 @@
 import React, { useState } from 'react';
 import TouristLayout from '@/components/TouristLayout';
 import { 
-  Calendar, 
-  MapPin, 
-  Clock, 
-  Users, 
-  Phone, 
-  Mail, 
-  CreditCard, 
-  CheckCircle, 
-  XCircle, 
-  AlertCircle,
-  Eye,
-  Edit,
-  Download,
-  RefreshCw,
-  Filter,
-  Search,
-  ChevronDown,
-  ChevronRight,
-  Star,
-  Car,
-  Home,
-  Mountain,
-  Camera,
-  Plane,
-  Train
+  Calendar, MapPin, Users, CheckCircle, Eye, 
+  Search, Leaf, XCircle, CreditCard, Clock, ChevronRight, Download,
+  TrendingDown, TrendingUp, Award, Wind
 } from 'lucide-react';
+import { getDbService } from '@/lib/databaseService';
+import { useAuth } from '@/contexts/AuthContext';
 
+// Explicit Interface for Build Success
 interface Booking {
   id: string;
-  type: 'accommodation' | 'activity' | 'transport' | 'package';
   title: string;
+  destinationId: string;
   destination: string;
   startDate: string;
   endDate: string;
-  guests: number;
+  status: 'Confirmed' | 'Pending' | 'Completed';
   totalAmount: number;
-  status: 'confirmed' | 'pending' | 'cancelled' | 'completed';
-  bookingDate: string;
-  confirmationCode: string;
-  provider: string;
-  contact: {
-    phone: string;
-    email: string;
-  };
-  details: any;
+  guests: number;
   image: string;
+  carbonFootprint?: number;
+  isOffset?: boolean;
+  ecoPointsEarned?: number;
+  breakdown?: {
+    travel: number;
+    accommodation: number;
+    activities: number;
+  };
 }
 
 export default function TouristBookings() {
-  const [activeTab, setActiveTab] = useState<string>('all');
-  const [searchTerm, setSearchTerm] = useState('');
-  const [sortBy, setSortBy] = useState<string>('date');
+  const { user } = useAuth();
+  const [searchTerm, setSearchTerm] = useState<string>('');
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
+  const [ecoStats, setEcoStats] = useState<{ ecoPoints: number; totalCarbonOffset: number; tripsCount: number; totalCarbonFootprint: number } | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const bookings: Booking[] = [
-    {
-      id: 'BK001',
-      type: 'package',
-      title: 'Complete Manali Tour Package',
-      destination: 'Manali, Himachal Pradesh',
-      startDate: '2024-02-15',
-      endDate: '2024-02-20',
-      guests: 2,
+  // LOGIC: Increased data array with 4 unique bookings
+  const [bookings] = useState<Booking[]>([
+    { 
+      id: 'BK-9901', 
+      title: 'Solang Valley Expedition', 
+      destinationId: 'manali-solang',
+      destination: 'Manali, HP', 
+      startDate: '2026-02-15', 
+      endDate: '2026-02-20',
+      status: 'Confirmed', 
       totalAmount: 25000,
-      status: 'confirmed',
-      bookingDate: '2024-01-10',
-      confirmationCode: 'MNL123456',
-      provider: 'Mountain Adventures',
-      contact: {
-        phone: '+91 98765 43210',
-        email: 'booking@mountainadv.com'
-      },
-      details: {
-        inclusions: ['Hotel Stay', 'Meals', 'Sightseeing', 'Transport'],
-        itinerary: ['Arrival in Manali', 'Rohtang Pass Visit', 'Solang Valley', 'Local Sightseeing', 'Departure']
-      },
-      image: '/api/placeholder/300/200'
-    },
-    {
-      id: 'BK002',
-      type: 'accommodation',
-      title: 'Hotel Pine Valley',
-      destination: 'Shimla, Himachal Pradesh',
-      startDate: '2024-03-10',
-      endDate: '2024-03-13',
-      guests: 4,
-      totalAmount: 12000,
-      status: 'confirmed',
-      bookingDate: '2024-02-01',
-      confirmationCode: 'SML789012',
-      provider: 'Hotel Pine Valley',
-      contact: {
-        phone: '+91 98765 12345',
-        email: 'reservations@pinevalley.com'
-      },
-      details: {
-        roomType: 'Deluxe Double Room',
-        amenities: ['WiFi', 'Breakfast', 'Room Service', 'Parking'],
-        checkIn: '14:00',
-        checkOut: '11:00'
-      },
-      image: '/api/placeholder/300/200'
-    },
-    {
-      id: 'BK003',
-      type: 'activity',
-      title: 'River Rafting Adventure',
-      destination: 'Rishikesh, Uttarakhand',
-      startDate: '2024-04-05',
-      endDate: '2024-04-05',
-      guests: 6,
-      totalAmount: 3600,
-      status: 'pending',
-      bookingDate: '2024-03-15',
-      confirmationCode: 'RSH345678',
-      provider: 'Ganga Adventures',
-      contact: {
-        phone: '+91 98765 67890',
-        email: 'info@gangaadv.com'
-      },
-      details: {
-        duration: '4 hours',
-        difficulty: 'Moderate',
-        equipment: 'Provided',
-        safety: 'Certified instructors'
-      },
-      image: '/api/placeholder/300/200'
-    },
-    {
-      id: 'BK004',
-      type: 'transport',
-      title: 'Delhi to Manali Bus',
-      destination: 'Manali',
-      startDate: '2024-02-14',
-      endDate: '2024-02-15',
       guests: 2,
-      totalAmount: 1800,
-      status: 'confirmed',
-      bookingDate: '2024-01-08',
-      confirmationCode: 'BUS901234',
-      provider: 'HPTDC',
-      contact: {
-        phone: '+91 98765 11111',
-        email: 'booking@hptdc.gov.in'
-      },
-      details: {
-        busType: 'Volvo AC Sleeper',
-        departureTime: '18:00',
-        arrivalTime: '08:00',
-        boardingPoint: 'Kashmere Gate ISBT'
-      },
-      image: '/api/placeholder/300/200'
+      image: 'https://images.unsplash.com/photo-1596401057633-54a8fe8ef647?w=800',
+      carbonFootprint: 145.5,
+      isOffset: true,
+      ecoPointsEarned: 120,
+      breakdown: { travel: 85, accommodation: 40, activities: 20.5 }
     },
-    {
-      id: 'BK005',
-      type: 'package',
-      title: 'Kashmir Valley Tour',
-      destination: 'Srinagar, Jammu & Kashmir',
-      startDate: '2023-12-20',
-      endDate: '2023-12-25',
+    { 
+      id: 'BK-8842', 
+      title: 'Spiti Winter Trek', 
+      destinationId: 'spiti-kaza',
+      destination: 'Kaza, HP', 
+      startDate: '2026-03-10', 
+      endDate: '2026-03-18',
+      status: 'Pending', 
+      totalAmount: 42000,
+      guests: 1,
+      image: 'https://images.unsplash.com/photo-1517649763962-0c623066013b?w=800',
+      carbonFootprint: 210.2,
+      isOffset: false,
+      ecoPointsEarned: 45,
+      breakdown: { travel: 160, accommodation: 35, activities: 15.2 }
+    },
+    { 
+      id: 'BK-7721', 
+      title: 'Dal Lake Houseboat Stay', 
+      destinationId: 'srinagar-dal-lake',
+      destination: 'Srinagar, J&K', 
+      startDate: '2026-04-05', 
+      endDate: '2026-04-08',
+      status: 'Confirmed', 
+      totalAmount: 18500,
       guests: 3,
-      totalAmount: 35000,
-      status: 'completed',
-      bookingDate: '2023-11-15',
-      confirmationCode: 'KSH567890',
-      provider: 'Kashmir Travels',
-      contact: {
-        phone: '+91 98765 22222',
-        email: 'info@kashmirtravels.com'
-      },
-      details: {
-        inclusions: ['Houseboat Stay', 'Shikara Rides', 'Gulmarg Trip', 'All Meals'],
-        highlights: ['Dal Lake', 'Gulmarg', 'Pahalgam', 'Sonamarg']
-      },
-      image: '/api/placeholder/300/200'
+      image: 'https://images.unsplash.com/photo-1530866495547-0840404652c0?w=800',
+      carbonFootprint: 85.0,
+      isOffset: true,
+      ecoPointsEarned: 95,
+      breakdown: { travel: 45, accommodation: 30, activities: 10 }
+    },
+    { 
+      id: 'BK-6610', 
+      title: 'Bir Billing Paragliding', 
+      destinationId: 'bir-billing',
+      destination: 'Bir, HP', 
+      startDate: '2025-11-12', 
+      endDate: '2025-11-13',
+      status: 'Completed', 
+      totalAmount: 4500,
+      guests: 1,
+      image: 'https://images.unsplash.com/photo-1533130061792-64b345e4a833?w=800',
+      carbonFootprint: 35.5,
+      isOffset: false,
+      ecoPointsEarned: 15,
+      breakdown: { travel: 25, accommodation: 5, activities: 5.5 }
     }
-  ];
+  ]);
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'confirmed':
-        return 'bg-green-100 text-green-800 border-green-200';
-      case 'pending':
-        return 'bg-yellow-100 text-yellow-800 border-yellow-200';
-      case 'cancelled':
-        return 'bg-red-100 text-red-800 border-red-200';
-      case 'completed':
-        return 'bg-blue-100 text-blue-800 border-blue-200';
-      default:
-        return 'bg-gray-100 text-gray-800 border-gray-200';
-    }
-  };
-
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'confirmed':
-        return <CheckCircle className="h-4 w-4" />;
-      case 'pending':
-        return <AlertCircle className="h-4 w-4" />;
-      case 'cancelled':
-        return <XCircle className="h-4 w-4" />;
-      case 'completed':
-        return <CheckCircle className="h-4 w-4" />;
-      default:
-        return <Clock className="h-4 w-4" />;
-    }
-  };
-
-  const getTypeIcon = (type: string) => {
-    switch (type) {
-      case 'accommodation':
-        return <Home className="h-5 w-5" />;
-      case 'activity':
-        return <Mountain className="h-5 w-5" />;
-      case 'transport':
-        return <Car className="h-5 w-5" />;
-      case 'package':
-        return <Camera className="h-5 w-5" />;
-      default:
-        return <MapPin className="h-5 w-5" />;
-    }
-  };
-
-  const filteredBookings = bookings
-    .filter(booking => 
-      (activeTab === 'all' || booking.status === activeTab) &&
-      (booking.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-       booking.destination.toLowerCase().includes(searchTerm.toLowerCase()))
-    )
-    .sort((a, b) => {
-      if (sortBy === 'date') {
-        return new Date(b.bookingDate).getTime() - new Date(a.bookingDate).getTime();
-      } else if (sortBy === 'amount') {
-        return b.totalAmount - a.totalAmount;
-      } else {
-        return a.title.localeCompare(b.title);
+  React.useEffect(() => {
+    const fetchEcoStats = async () => {
+      if (!user?.id) {
+        setIsLoading(false);
+        return;
       }
-    });
+      
+      try {
+        const db = getDbService();
+        const stats = await db.getUserEcoStats(user.id);
+        setEcoStats(stats);
+      } catch (error) {
+        console.error('Error fetching eco stats:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchEcoStats();
+  }, [user]);
 
-  const tabs = [
-    { id: 'all', label: 'All Bookings', count: bookings.length },
-    { id: 'confirmed', label: 'Confirmed', count: bookings.filter(b => b.status === 'confirmed').length },
-    { id: 'pending', label: 'Pending', count: bookings.filter(b => b.status === 'pending').length },
-    { id: 'completed', label: 'Completed', count: bookings.filter(b => b.status === 'completed').length },
-    { id: 'cancelled', label: 'Cancelled', count: bookings.filter(b => b.status === 'cancelled').length }
-  ];
+  const handleAction = (type: string, id: string): void => {
+    alert(`${type} requested for Booking ID: ${id}`);
+  };
+
+  const filteredBookings = bookings.filter(b =>
+    b.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    b.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    b.destination.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   return (
     <TouristLayout>
-      <div className="space-y-6">
-        {/* Header */}
-        <div className="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-xl p-6 text-white">
-          <h1 className="text-3xl font-bold mb-2">My Bookings</h1>
-          <p className="text-blue-100">Manage and track all your travel bookings</p>
-        </div>
-
-        {/* Search and Filter */}
-        <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
-          <div className="flex flex-col sm:flex-row gap-4">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-              <input
-                type="text"
-                placeholder="Search bookings..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900"
-              />
+      <div className="max-w-7xl mx-auto space-y-10 pb-20 px-6">
+        
+        {/* PREMIUM HEADER */}
+        <div className="pt-10 flex flex-col md:flex-row justify-between items-end gap-6 border-b border-gray-100 pb-10">
+          <div className="space-y-4 text-center md:text-left">
+            <div className="flex items-center gap-2 text-emerald-600 justify-center md:justify-start">
+               <CheckCircle className="h-5 w-5" />
+               <span className="text-[10px] font-black tracking-[0.4em] uppercase">Expedition History</span>
             </div>
-            <div className="flex gap-3">
-              <select
-                value={sortBy}
-                onChange={(e) => setSortBy(e.target.value)}
-                className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 bg-white"
-              >
-                <option value="date">Sort by Date</option>
-                <option value="amount">Sort by Amount</option>
-                <option value="name">Sort by Name</option>
-              </select>
-              <button className="flex items-center px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
-                <Filter className="h-4 w-4 mr-2" />
-                Filter
-              </button>
-            </div>
+            <h1 className="text-6xl font-black text-gray-900 tracking-tighter leading-none">
+              My <span className="text-emerald-600">Bookings</span>
+            </h1>
+          </div>
+          <div className="flex flex-col items-end gap-2">
+            <p className="text-gray-400 font-bold max-w-xs text-sm leading-relaxed text-right hidden md:block">
+              Review your upcoming adventures and download your eco-permits.
+            </p>
           </div>
         </div>
 
-        {/* Tabs */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200">
-          <div className="flex overflow-x-auto">
-            {tabs.map((tab) => (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center space-x-2 px-6 py-4 text-sm font-medium whitespace-nowrap border-b-2 transition-colors ${
-                  activeTab === tab.id
-                    ? 'border-blue-600 text-blue-600 bg-blue-50'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50'
-                }`}
-              >
-                <span>{tab.label}</span>
-                <span className={`px-2 py-1 rounded-full text-xs ${
-                  activeTab === tab.id ? 'bg-blue-100 text-blue-600' : 'bg-gray-100 text-gray-600'
-                }`}>
-                  {tab.count}
-                </span>
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Bookings List */}
-        <div className="space-y-4">
-          {filteredBookings.length === 0 ? (
-            <div className="bg-white rounded-xl p-8 text-center shadow-sm border border-gray-200">
-              <Calendar className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">No bookings found</h3>
-              <p className="text-gray-500">Try adjusting your search or filter criteria.</p>
-            </div>
-          ) : (
-            filteredBookings.map((booking) => (
-              <div key={booking.id} className="bg-white rounded-xl p-6 shadow-sm border border-gray-200 hover:border-blue-300 transition-colors">
-                <div className="flex items-start justify-between mb-4">
-                  <div className="flex items-start space-x-4">
-                    <div className="w-16 h-16 bg-gray-200 rounded-lg flex-shrink-0" />
-                    <div className="flex-1">
-                      <div className="flex items-center space-x-2 mb-2">
-                        {getTypeIcon(booking.type)}
-                        <h3 className="text-lg font-semibold text-gray-900">{booking.title}</h3>
-                        <span className={`px-3 py-1 rounded-full text-xs font-medium border ${getStatusColor(booking.status)}`}>
-                          {getStatusIcon(booking.status)}
-                          <span className="ml-1 capitalize">{booking.status}</span>
-                        </span>
-                      </div>
-                      <div className="flex items-center text-gray-600 mb-1">
-                        <MapPin className="h-4 w-4 mr-1" />
-                        <span className="text-sm">{booking.destination}</span>
-                      </div>
-                      <div className="flex items-center text-gray-600 mb-1">
-                        <Calendar className="h-4 w-4 mr-1" />
-                        <span className="text-sm">
-                          {new Date(booking.startDate).toLocaleDateString()} - {new Date(booking.endDate).toLocaleDateString()}
-                        </span>
-                      </div>
-                      <div className="flex items-center text-gray-600">
-                        <Users className="h-4 w-4 mr-1" />
-                        <span className="text-sm">{booking.guests} guests</span>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <div className="text-2xl font-bold text-gray-900 mb-1">₹{booking.totalAmount.toLocaleString()}</div>
-                    <div className="text-sm text-gray-500">Booking ID: {booking.id}</div>
-                  </div>
-                </div>
-
-                <div className="border-t border-gray-200 pt-4">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-4 text-sm text-gray-600">
-                      <span>Booked on {new Date(booking.bookingDate).toLocaleDateString()}</span>
-                      <span>•</span>
-                      <span>Confirmation: {booking.confirmationCode}</span>
-                      <span>•</span>
-                      <span>Provider: {booking.provider}</span>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <button
-                        onClick={() => setSelectedBooking(booking)}
-                        className="flex items-center px-3 py-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                      >
-                        <Eye className="h-4 w-4 mr-1" />
-                        View Details
-                      </button>
-                      {booking.status === 'confirmed' && (
-                        <button className="flex items-center px-3 py-1.5 text-gray-600 hover:bg-gray-50 rounded-lg transition-colors">
-                          <Edit className="h-4 w-4 mr-1" />
-                          Modify
-                        </button>
-                      )}
-                      <button className="flex items-center px-3 py-1.5 text-gray-600 hover:bg-gray-50 rounded-lg transition-colors">
-                        <Download className="h-4 w-4 mr-1" />
-                        Download
-                      </button>
-                      {booking.status === 'pending' && (
-                        <button className="flex items-center px-3 py-1.5 text-red-600 hover:bg-red-50 rounded-lg transition-colors">
-                          <XCircle className="h-4 w-4 mr-1" />
-                          Cancel
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                </div>
+        {/* ECO SUMMARY CARD */}
+        {ecoStats && (
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 animate-in fade-in slide-in-from-top-4 duration-700">
+            <div className="bg-gradient-to-br from-emerald-500 to-teal-600 rounded-[2.5rem] p-8 text-white shadow-xl shadow-emerald-200/50 relative overflow-hidden group">
+              <div className="absolute -right-4 -bottom-4 opacity-10 group-hover:scale-110 transition-transform duration-700">
+                <Award className="h-32 w-32" />
               </div>
-            ))
-          )}
-        </div>
+              <p className="text-[10px] font-black uppercase tracking-[0.2em] mb-4 opacity-80">Total Eco-Points</p>
+              <div className="flex items-end gap-2">
+                <span className="text-5xl font-black tracking-tighter leading-none">{ecoStats.ecoPoints}</span>
+                <span className="text-xs font-bold mb-1">PTS</span>
+              </div>
+            </div>
 
-        {/* Booking Details Modal */}
-        {selectedBooking && (
-          <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-300">
-            <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto transform animate-in zoom-in-95 duration-300">
-              <div className="p-6">
-                <div className="flex items-center justify-between mb-6">
-                  <h2 className="text-2xl font-bold text-gray-900">Booking Details</h2>
-                  <button
-                    onClick={() => setSelectedBooking(null)}
-                    className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100"
-                  >
-                    <XCircle className="h-6 w-6" />
-                  </button>
-                </div>
+            <div className="bg-white rounded-[2.5rem] p-8 border border-emerald-100 shadow-sm relative overflow-hidden group">
+              <div className="absolute -right-4 -bottom-4 opacity-5 group-hover:scale-110 transition-transform duration-700 text-emerald-600">
+                <Leaf className="h-32 w-32" />
+              </div>
+              <p className="text-[10px] font-black uppercase tracking-[0.2em] mb-4 text-gray-400">Total Bookings</p>
+              <div className="flex items-end gap-2">
+                <span className="text-5xl font-black tracking-tighter leading-none text-gray-900">{ecoStats.tripsCount}</span>
+                <span className="text-xs font-bold mb-1 text-gray-400 uppercase">Trips</span>
+              </div>
+            </div>
 
-                <div className="space-y-6">
-                  {/* Basic Info */}
-                  <div className="bg-gray-50 rounded-lg p-4">
-                    <div className="flex items-center justify-between mb-4">
-                      <div className="flex items-center space-x-3">
-                        {getTypeIcon(selectedBooking.type)}
-                        <h3 className="text-xl font-semibold text-gray-900">{selectedBooking.title}</h3>
-                      </div>
-                      <span className={`px-3 py-1 rounded-full text-sm font-medium border ${getStatusColor(selectedBooking.status)}`}>
-                        {getStatusIcon(selectedBooking.status)}
-                        <span className="ml-1 capitalize">{selectedBooking.status}</span>
-                      </span>
-                    </div>
-                    
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                      <div>
-                        <span className="font-medium text-gray-700">Destination:</span>
-                        <p className="text-gray-900">{selectedBooking.destination}</p>
-                      </div>
-                      <div>
-                        <span className="font-medium text-gray-700">Dates:</span>
-                        <p className="text-gray-900">
-                          {new Date(selectedBooking.startDate).toLocaleDateString()} - {new Date(selectedBooking.endDate).toLocaleDateString()}
-                        </p>
-                      </div>
-                      <div>
-                        <span className="font-medium text-gray-700">Guests:</span>
-                        <p className="text-gray-900">{selectedBooking.guests} people</p>
-                      </div>
-                      <div>
-                        <span className="font-medium text-gray-700">Total Amount:</span>
-                        <p className="text-gray-900 font-semibold">₹{selectedBooking.totalAmount.toLocaleString()}</p>
-                      </div>
-                    </div>
-                  </div>
+            <div className="bg-white rounded-[2.5rem] p-8 border border-emerald-100 shadow-sm relative overflow-hidden group">
+              <div className="absolute -right-4 -bottom-4 opacity-5 group-hover:scale-110 transition-transform duration-700 text-rose-600">
+                <TrendingUp className="h-32 w-32" />
+              </div>
+              <p className="text-[10px] font-black uppercase tracking-[0.2em] mb-4 text-gray-400">Cumulative Footprint</p>
+              <div className="flex items-end gap-2">
+                <span className="text-5xl font-black tracking-tighter leading-none text-gray-900">{ecoStats.totalCarbonFootprint.toFixed(1)}</span>
+                <span className="text-xs font-bold mb-1 text-gray-400 uppercase">KG CO2</span>
+              </div>
+            </div>
 
-                  {/* Provider Info */}
-                  <div>
-                    <h4 className="font-semibold text-gray-900 mb-3">Provider Information</h4>
-                    <div className="bg-white border border-gray-200 rounded-lg p-4">
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-                        <div>
-                          <span className="font-medium text-gray-700">Provider:</span>
-                          <p className="text-gray-900">{selectedBooking.provider}</p>
-                        </div>
-                        <div>
-                          <span className="font-medium text-gray-700">Phone:</span>
-                          <p className="text-gray-900">{selectedBooking.contact.phone}</p>
-                        </div>
-                        <div>
-                          <span className="font-medium text-gray-700">Email:</span>
-                          <p className="text-gray-900">{selectedBooking.contact.email}</p>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Booking Details */}
-                  <div>
-                    <h4 className="font-semibold text-gray-900 mb-3">Booking Details</h4>
-                    <div className="bg-white border border-gray-200 rounded-lg p-4">
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                        <div>
-                          <span className="font-medium text-gray-700">Booking ID:</span>
-                          <p className="text-gray-900">{selectedBooking.id}</p>
-                        </div>
-                        <div>
-                          <span className="font-medium text-gray-700">Confirmation Code:</span>
-                          <p className="text-gray-900 font-mono">{selectedBooking.confirmationCode}</p>
-                        </div>
-                        <div>
-                          <span className="font-medium text-gray-700">Booking Date:</span>
-                          <p className="text-gray-900">{new Date(selectedBooking.bookingDate).toLocaleDateString()}</p>
-                        </div>
-                        <div>
-                          <span className="font-medium text-gray-700">Type:</span>
-                          <p className="text-gray-900 capitalize">{selectedBooking.type}</p>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Additional Details */}
-                  {selectedBooking.details && (
-                    <div>
-                      <h4 className="font-semibold text-gray-900 mb-3">Additional Information</h4>
-                      <div className="bg-white border border-gray-200 rounded-lg p-4">
-                        {Object.entries(selectedBooking.details).map(([key, value]) => (
-                          <div key={key} className="mb-3 last:mb-0">
-                            <span className="font-medium text-gray-700 capitalize">{key.replace(/([A-Z])/g, ' $1')}:</span>
-                            {Array.isArray(value) ? (
-                              <ul className="mt-1 list-disc list-inside text-gray-900 text-sm">
-                                {value.map((item, index) => (
-                                  <li key={index}>{item}</li>
-                                ))}
-                              </ul>
-                            ) : (
-                              <p className="text-gray-900">{String(value)}</p>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                {/* Action Buttons */}
-                <div className="flex justify-end space-x-3 mt-6 pt-6 border-t border-gray-200">
-                  <button className="flex items-center px-4 py-2 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
-                    <Download className="h-4 w-4 mr-2" />
-                    Download
-                  </button>
-                  {selectedBooking.status === 'confirmed' && (
-                    <button className="flex items-center px-4 py-2 text-blue-600 border border-blue-300 rounded-lg hover:bg-blue-50 transition-colors">
-                      <Edit className="h-4 w-4 mr-2" />
-                      Modify Booking
-                    </button>
-                  )}
-                  {selectedBooking.status === 'pending' && (
-                    <button className="flex items-center px-4 py-2 text-red-600 border border-red-300 rounded-lg hover:bg-red-50 transition-colors">
-                      <XCircle className="h-4 w-4 mr-2" />
-                      Cancel Booking
-                    </button>
-                  )}
-                </div>
+            <div className="bg-emerald-50 rounded-[2.5rem] p-8 border border-emerald-100 shadow-sm relative overflow-hidden group">
+              <div className="absolute -right-4 -bottom-4 opacity-10 group-hover:scale-110 transition-transform duration-700 text-emerald-600">
+                <Wind className="h-32 w-32" />
+              </div>
+              <p className="text-[10px] font-black uppercase tracking-[0.2em] mb-4 text-emerald-600">Offset Contribution</p>
+              <div className="flex items-end gap-2">
+                <span className="text-5xl font-black tracking-tighter leading-none text-emerald-700">{ecoStats.totalCarbonOffset.toFixed(1)}</span>
+                <span className="text-xs font-bold mb-1 text-emerald-600 uppercase">KG CO2</span>
               </div>
             </div>
           </div>
         )}
+
+        {/* SEARCH BAR */}
+        <div className="relative group max-w-2xl">
+          <label htmlFor="booking-search" className="sr-only">Search bookings</label>
+          <Search className="absolute left-6 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400 group-focus-within:text-emerald-500 transition-colors" />
+          <input
+            id="booking-search"
+            type="text"
+            placeholder="Search by ID or destination..."
+            value={searchTerm}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchTerm(e.target.value)}
+            className="w-full pl-16 pr-8 py-5 bg-white border border-gray-100 rounded-[2rem] font-bold text-gray-700 outline-none focus:ring-4 focus:ring-emerald-500/5 transition-all shadow-sm"
+          />
+        </div>
+
+        {/* BOOKINGS LIST (More images here) */}
+        <div className="grid grid-cols-1 gap-8">
+          {filteredBookings.map((booking) => (
+            <div key={booking.id} className="group bg-white rounded-[3rem] border border-gray-50 overflow-hidden shadow-sm hover:shadow-2xl transition-all duration-500 flex flex-col lg:flex-row">
+              <div className="lg:w-80 h-56 lg:h-auto relative overflow-hidden">
+                <img src={booking.image} className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-110" alt={booking.title} />
+                <div className="absolute inset-0 bg-emerald-950/20" />
+                <div className="absolute top-6 left-6">
+                   <span className={`px-4 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg ${
+                     booking.status === 'Confirmed' ? 'bg-emerald-500 text-white' : 
+                     booking.status === 'Pending' ? 'bg-amber-400 text-amber-950' : 'bg-gray-400 text-white'
+                   }`}>
+                     {booking.status}
+                   </span>
+                </div>
+              </div>
+
+              <div className="flex-1 p-10 flex flex-col md:flex-row justify-between items-center gap-8">
+                <div className="space-y-4 text-center md:text-left">
+                  <div className="flex items-center justify-center md:justify-start gap-3">
+                    <h3 className="text-3xl font-black text-gray-900 tracking-tighter group-hover:text-emerald-600 transition-colors">{booking.title}</h3>
+                    {booking.carbonFootprint && (
+                      <div className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider ${
+                        booking.carbonFootprint < 100 ? 'bg-emerald-100 text-emerald-700' :
+                        booking.carbonFootprint < 200 ? 'bg-amber-100 text-amber-700' :
+                        'bg-rose-100 text-rose-700'
+                      }`}>
+                        <Leaf className="h-3 w-3" />
+                        {booking.carbonFootprint} kg CO2
+                      </div>
+                    )}
+                    {booking.isOffset && (
+                      <div className="flex items-center gap-1.5 px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-[10px] font-black uppercase tracking-wider">
+                        <Wind className="h-3 w-3" />
+                        Offset
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex flex-wrap justify-center md:justify-start gap-6 text-gray-400 font-bold text-xs">
+                     <span className="flex items-center gap-1.5"><MapPin className="h-4 w-4 text-emerald-500" /> {booking.destination}</span>
+                     <span className="flex items-center gap-1.5"><Calendar className="h-4 w-4 text-emerald-500" /> {booking.startDate}</span>
+                     <span className="flex items-center gap-1.5"><Users className="h-4 w-4 text-emerald-500" /> {booking.guests} Guests</span>
+                     {booking.ecoPointsEarned && (
+                       <span className="flex items-center gap-1.5 text-emerald-600 font-black"><Award className="h-4 w-4" /> +{booking.ecoPointsEarned} Pts</span>
+                     )}
+                  </div>
+                </div>
+
+                <div className="flex flex-col items-center md:items-end gap-5">
+                  <div className="text-right">
+                    <p className="text-[10px] font-black text-gray-300 uppercase tracking-widest">Amount Paid</p>
+                    <p className="text-4xl font-black text-emerald-600 tracking-tighter leading-none">₹{booking.totalAmount.toLocaleString()}</p>
+                  </div>
+                  <div className="flex gap-3">
+                    <button 
+                      type="button"
+                      onClick={() => setSelectedBooking(booking)}
+                      className="px-8 py-3.5 bg-gray-900 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-emerald-600 transition-all flex items-center gap-2 active:scale-95 shadow-xl"
+                    >
+                      <Eye className="h-4 w-4" /> Details
+                    </button>
+                    <button 
+                      type="button"
+                      onClick={() => handleAction('Download', booking.id)}
+                      className="p-3.5 border border-gray-100 text-gray-400 rounded-xl hover:text-emerald-600 hover:border-emerald-100 transition-all"
+                      aria-label="Download Invoice"
+                    >
+                      <Download className="h-5 w-5" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* DETAILS MODAL */}
+        {selectedBooking && (
+          <div className="fixed inset-0 bg-emerald-950/80 backdrop-blur-2xl z-[100] flex items-center justify-center p-6 animate-in fade-in duration-300">
+            <div className="relative w-full max-w-2xl bg-white rounded-[4rem] p-12 overflow-hidden shadow-2xl space-y-10">
+              <button
+                type="button"
+                aria-label="Close booking details"
+                onClick={() => setSelectedBooking(null)}
+                className="absolute top-10 right-10 p-2 text-gray-400 hover:text-rose-500 transition-all"
+              >
+                <XCircle className="h-8 w-8" />
+              </button>
+              
+              <div className="space-y-2">
+                <p className="text-[10px] font-black text-emerald-600 uppercase tracking-[0.3em]">Official Expedition Log</p>
+                <h2 className="text-5xl font-black text-gray-900 tracking-tighter">Booking Details</h2>
+              </div>
+
+              <div className="grid grid-cols-2 gap-8 py-8 border-t border-gray-100">
+                 <div className="space-y-1">
+                   <p className="text-[9px] font-black text-gray-300 uppercase tracking-widest">Booking Ref</p>
+                   <p className="font-black text-gray-900">{selectedBooking.id}</p>
+                 </div>
+                 <div className="space-y-1">
+                   <p className="text-[9px] font-black text-gray-300 uppercase tracking-widest">Expedition</p>
+                   <p className="font-black text-gray-900">{selectedBooking.title}</p>
+                 </div>
+                 <div className="space-y-1">
+                   <p className="text-[9px] font-black text-gray-300 uppercase tracking-widest">Travel Period</p>
+                   <p className="font-black text-gray-900">{selectedBooking.startDate} to {selectedBooking.endDate}</p>
+                 </div>
+                 <div className="space-y-1">
+                   <p className="text-[9px] font-black text-gray-300 uppercase tracking-widest">Status</p>
+                   <p className={`font-black uppercase text-[10px] ${
+                     selectedBooking.status === 'Confirmed' ? 'text-emerald-500' : 
+                     selectedBooking.status === 'Completed' ? 'text-gray-500' : 
+                     'text-amber-500'
+                   }`}>
+                     {selectedBooking.status}
+                   </p>
+                 </div>
+              </div>
+
+              {/* ENVIRONMENTAL IMPACT SECTION */}
+              <div className="bg-emerald-50/50 rounded-[2.5rem] p-8 border border-emerald-100 space-y-6">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="p-3 bg-emerald-500 rounded-2xl text-white shadow-lg shadow-emerald-200">
+                      <Leaf className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <h4 className="text-sm font-black text-gray-900 uppercase tracking-tight">Environmental Impact</h4>
+                      <p className="text-[10px] font-bold text-emerald-600 uppercase tracking-widest">Eco-conscious Journey</p>
+                    </div>
+                  </div>
+                  {selectedBooking.ecoPointsEarned && (
+                    <div className="flex items-center gap-2 px-4 py-2 bg-white rounded-xl border border-emerald-100 shadow-sm">
+                      <Award className="h-4 w-4 text-emerald-500" />
+                      <span className="text-xs font-black text-emerald-700">+{selectedBooking.ecoPointsEarned} Pts</span>
+                    </div>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-3 gap-6">
+                  <div className="p-4 bg-white rounded-2xl border border-emerald-50 shadow-sm space-y-1">
+                    <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest">Travel</p>
+                    <p className="text-lg font-black text-gray-900">{selectedBooking.breakdown?.travel.toFixed(1)} <span className="text-[10px] text-gray-400">kg</span></p>
+                  </div>
+                  <div className="p-4 bg-white rounded-2xl border border-emerald-50 shadow-sm space-y-1">
+                    <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest">Stay</p>
+                    <p className="text-lg font-black text-gray-900">{selectedBooking.breakdown?.accommodation.toFixed(1)} <span className="text-[10px] text-gray-400">kg</span></p>
+                  </div>
+                  <div className="p-4 bg-white rounded-2xl border border-emerald-50 shadow-sm space-y-1">
+                    <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest">Activities</p>
+                    <p className="text-lg font-black text-gray-900">{selectedBooking.breakdown?.activities.toFixed(1)} <span className="text-[10px] text-gray-400">kg</span></p>
+                  </div>
+                </div>
+
+                <div className="p-6 bg-white rounded-3xl border border-emerald-50 shadow-sm space-y-4">
+                  <div className="flex items-center justify-between">
+                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Total Carbon Footprint</p>
+                    <p className="text-xl font-black text-emerald-600">{selectedBooking.carbonFootprint?.toFixed(1)} kg CO2e</p>
+                  </div>
+                  
+                  {/* IMPACT VISUALIZATION */}
+                  <div className="space-y-3">
+                    <div className="h-2 w-full bg-gray-100 rounded-full overflow-hidden flex">
+                      <div className="h-full bg-emerald-500" style={{ width: '40%' }}></div>
+                      <div className="h-full bg-amber-400" style={{ width: '30%' }}></div>
+                      <div className="h-full bg-blue-400" style={{ width: '30%' }}></div>
+                    </div>
+                    <div className="flex justify-between text-[9px] font-bold text-gray-400 uppercase tracking-tighter">
+                      <span className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-emerald-500"></div> Travel</span>
+                      <span className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-amber-400"></div> Accommodation</span>
+                      <span className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-blue-400"></div> Activities</span>
+                    </div>
+                  </div>
+
+                  <div className="pt-4 border-t border-gray-50 flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Wind className={`h-5 w-5 ${selectedBooking.isOffset ? 'text-blue-500' : 'text-gray-300'}`} />
+                      <p className="text-[10px] font-black text-gray-600 uppercase tracking-widest">
+                        {selectedBooking.isOffset ? 'Footprint Fully Offset' : 'Not Offset'}
+                      </p>
+                    </div>
+                    {selectedBooking.isOffset && (
+                      <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-lg text-[8px] font-black uppercase">Verified Clean Energy Project</span>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between p-8 bg-gray-50 rounded-3xl border border-gray-100">
+                 <div className="flex items-center gap-4 text-emerald-600">
+                    <CreditCard className="h-8 w-8" />
+                    <div><p className="text-[9px] font-black uppercase text-gray-400">Total Price</p><p className="text-2xl font-black">₹{selectedBooking.totalAmount.toLocaleString()}</p></div>
+                 </div>
+                 <button 
+                   type="button"
+                   onClick={() => handleAction('Contact Support', selectedBooking.id)}
+                   className="px-6 py-3 bg-white text-[10px] font-black uppercase tracking-widest border border-gray-100 rounded-xl hover:bg-emerald-600 hover:text-white transition-all shadow-sm"
+                 >
+                   Help Desk
+                 </button>
+              </div>
+            </div>
+          </div>
+        )}
+
       </div>
     </TouristLayout>
   );

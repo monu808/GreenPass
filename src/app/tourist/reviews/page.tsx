@@ -5,11 +5,9 @@ import TouristLayout from '@/components/TouristLayout';
 import { 
   Star, 
   ThumbsUp, 
-  ThumbsDown, 
   MessageCircle, 
   Share2, 
   Flag, 
-  Filter,
   Search,
   Calendar,
   MapPin,
@@ -20,9 +18,7 @@ import {
   BarChart3,
   Users,
   Heart,
-  Edit3,
-  Plus,
-  ChevronDown
+  Edit3
 } from 'lucide-react';
 
 interface Review {

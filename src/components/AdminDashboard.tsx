@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import Layout from "@/components/Layout";
 import {
   Users,
@@ -13,13 +13,33 @@ import {
   ShieldAlert,
   Settings,
   Save,
-  X
+  X,
+  RefreshCw,
+  BarChart3,
+  TrendingUp,
+  Activity,
+  Trash2,
+  Calendar,
+  Recycle
 } from 'lucide-react';
-import { dbService } from '@/lib/databaseService';
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  LineChart,
+  Line,
+  Cell
+} from 'recharts';
+import { getDbService } from '@/lib/databaseService';
 import { weatherService, destinationCoordinates } from '@/lib/weatherService';
 import { getCapacityStatus, formatDateTime } from '@/lib/utils';
 import { DashboardStats, Destination, Alert } from '@/types';
-import { policyEngine, DEFAULT_POLICIES, SensitivityLevel, EcologicalPolicy } from '@/lib/ecologicalPolicyEngine';
+import { getPolicyEngine, DEFAULT_POLICIES, SensitivityLevel, EcologicalPolicy } from '@/lib/ecologicalPolicyEngine';
+import EcologicalDashboard from './EcologicalDashboard';
 
 export default function AdminDashboard() {
   const [stats, setStats] = useState<DashboardStats>({
@@ -32,22 +52,102 @@ export default function AdminDashboard() {
     todayCheckOuts: 0,
     capacityUtilization: 0,
     alertsCount: 0,
+    totalWasteCollected: 0,
+    activeCleanupEvents: 0,
+    totalVolunteers: 0,
+    recyclingRate: 0,
   });
   const [destinations, setDestinations] = useState<Destination[]>([]);
+  const [adjustedCapacities, setAdjustedCapacities] = useState<Record<string, number>>({});
   const [alerts, setAlerts] = useState<Alert[]>([]);
+  const [weatherMap, setWeatherMap] = useState<Record<string, any>>({});
+  
+  // Ref to track the latest weatherMap state and avoid stale closures in async flows
+  const weatherMapRef = useRef<Record<string, any>>({});
+  
+  // Sync ref with state
+  useEffect(() => {
+    weatherMapRef.current = weatherMap;
+  }, [weatherMap]);
+
+  // Recalculate adjusted capacities whenever weatherMap or destinations change
+  useEffect(() => {
+    const recalculateCapacities = async () => {
+      const policyEngine = getPolicyEngine();
+      const newAdjustedCapacities: Record<string, number> = {};
+      await Promise.all(destinations.map(async (dest) => {
+        newAdjustedCapacities[dest.id] = await policyEngine.getAdjustedCapacity(dest);
+      }));
+      setAdjustedCapacities(newAdjustedCapacities);
+    };
+    
+    if (destinations.length > 0) {
+      recalculateCapacities();
+    }
+  }, [weatherMap, destinations]);
+
   const [policies, setPolicies] = useState<Record<SensitivityLevel, EcologicalPolicy>>(DEFAULT_POLICIES);
   const [loading, setLoading] = useState(true);
   const [editingPolicy, setEditingPolicy] = useState<SensitivityLevel | null>(null);
   const [policyForm, setPolicyForm] = useState<EcologicalPolicy | null>(null);
+  const [impactData, setImpactData] = useState<any[]>([]);
+  const [historicalTrends, setHistoricalTrends] = useState<any[]>([]);
 
   useEffect(() => {
+    // 1. Load initial data when the user first opens the dashboard
     loadDashboardData();
+    const policyEngine = getPolicyEngine();
     setPolicies(policyEngine.getAllPolicies());
+
+    // 2. Real-Time Connection (Issue #21 Requirement)
+    // This connects the dashboard to the "live pipe" we created in route.ts
+    const eventSource = new EventSource('/api/weather-monitor');
+
+    eventSource.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        console.log("🚀 Real-time weather update received from server:", data);
+        
+        const isWeatherUpdate = data.type === 'weather_update' || data.type === 'weather_update_available';
+
+        // If the update contains specific destination weather, update it directly
+        if (isWeatherUpdate && data.destinationId && data.weather) {
+          setWeatherMap(prev => ({
+            ...prev,
+            [data.destinationId]: {
+              temperature: data.weather.temperature,
+              humidity: data.weather.humidity,
+              weatherMain: data.weather.weatherMain,
+              weatherDescription: data.weather.weatherDescription,
+              windSpeed: data.weather.windSpeed,
+              recordedAt: new Date().toISOString()
+            }
+          }));
+        } else {
+          // Fallback to full reload for other update types (like general available signal)
+          loadDashboardData(); 
+        }
+      } catch (err) {
+        console.error("Error parsing real-time data:", err);
+      }
+    };
+
+    eventSource.onerror = (err) => {
+      //  Remove .close() to allow the browser to auto-reconnect.
+      // The Spec for EventSource automatically handles retries.
+      console.error("SSE connection interrupted. Browser is attempting to reconnect...");
+    };
+
+    // 3. Cleanup: Stop listening if the user navigates away from the dashboard
+    return () => {
+      eventSource.close();
+    };
   }, []);
 
-  const [activeTab, setActiveTab] = useState<'overview' | 'policies'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'policies' | 'ecological'>('overview');
 
   const handleConfigure = (level: SensitivityLevel) => {
+    const policyEngine = getPolicyEngine();
     const policy = policies[level] || policyEngine.getPolicy(level);
     setPolicyForm({ ...policy });
     setEditingPolicy(level);
@@ -55,6 +155,7 @@ export default function AdminDashboard() {
 
   const handleSavePolicy = () => {
     if (editingPolicy && policyForm) {
+      const policyEngine = getPolicyEngine();
       policyEngine.updatePolicy(editingPolicy, policyForm);
       setPolicies(policyEngine.getAllPolicies());
       setEditingPolicy(null);
@@ -66,13 +167,49 @@ export default function AdminDashboard() {
 
   const loadDashboardData = async () => {
     try {
-      const [dashboardStats, destinationsData, alertsData] = await Promise.all([
+      const dbService = getDbService();
+      const [
+        dashboardStats, 
+        destinationsData, 
+        alertsData, 
+        ecologicalData, 
+        trendsData,
+        wasteMetrics
+      ] = await Promise.all([
         dbService.getDashboardStats(),
         dbService.getDestinations(),
         dbService.getAlerts(),
+        dbService.getEcologicalImpactData(),
+        dbService.getHistoricalOccupancyTrends(),
+        dbService.getWasteMetricsSummary(),
       ]);
 
       setStats(dashboardStats);
+      setImpactData(ecologicalData);
+      setHistoricalTrends(trendsData);
+
+      // Check for ecological alerts
+      for (const data of ecologicalData) {
+        if (data.utilization > 70) {
+          const severity = data.utilization > 85 ? "critical" : "high";
+          const existingAlert = alertsData.find(a => a.destinationId === data.id && a.type === 'ecological' && a.isActive);
+          
+          if (!existingAlert) {
+            await dbService.addAlert({
+              type: "ecological",
+              title: `Ecological Limit Warning - ${data.name}`,
+              message: `${data.name} has reached ${Math.round(data.utilization)}% of its adjusted ecological capacity.`,
+              severity: severity as any,
+              destinationId: data.id,
+              isActive: true,
+            });
+          }
+        }
+      }
+
+      // Refresh alerts after potential new ones added
+      const updatedAlerts = await dbService.getAlerts();
+      setAlerts(updatedAlerts);
 
       // Transform destinations data to match interface
       const transformedDestinations = destinationsData.map((dest) => ({
@@ -92,7 +229,14 @@ export default function AdminDashboard() {
       }));
 
       setDestinations(transformedDestinations);
-      setAlerts(alertsData);
+
+      // Calculate adjusted capacities
+      const policyEngine = getPolicyEngine();
+      const newAdjustedCapacities: Record<string, number> = {};
+      await Promise.all(transformedDestinations.map(async (dest) => {
+        newAdjustedCapacities[dest.id] = await policyEngine.getAdjustedCapacity(dest);
+      }));
+      setAdjustedCapacities(newAdjustedCapacities);
 
       // Update weather data for all destinations
       updateWeatherData(transformedDestinations);
@@ -103,15 +247,46 @@ export default function AdminDashboard() {
     }
   };
 
-  useEffect(() => {
-    loadDashboardData();
-  }, [loadDashboardData]);
+  
 
   const updateWeatherData = async (destinations: Destination[]) => {
+    const newWeatherMap: Record<string, any> = {};
+    const dbService = getDbService();
+
     for (const destination of destinations) {
-      const coordinates = destinationCoordinates[destination.id];
-      if (coordinates) {
-        try {
+      try {
+        // First, try to get the latest weather from the database
+        const latestWeather = await dbService.getLatestWeatherData(destination.id);
+        if (latestWeather) {
+          const dbData = {
+            temperature: latestWeather.temperature,
+            humidity: latestWeather.humidity,
+            weatherMain: latestWeather.weather_main,
+            weatherDescription: latestWeather.weather_description,
+            windSpeed: latestWeather.wind_speed,
+            recordedAt: latestWeather.recorded_at
+          };
+          newWeatherMap[destination.id] = dbData;
+          
+          // Update state immediately for this destination
+          setWeatherMap(prev => ({
+            ...prev,
+            [destination.id]: dbData
+          }));
+        }
+
+        const coordinates = destinationCoordinates[destination.id] || 
+                          destinationCoordinates[destination.name?.toLowerCase().replace(/\s+/g, '')] ||
+                          destinationCoordinates[destination.name?.toLowerCase()];
+        
+        // Check if we already have recent weather data for this destination using the ref
+        // to avoid stale closures in this async loop
+        const existingWeather = weatherMapRef.current[destination.id];
+        const sixHoursInMs = 6 * 60 * 60 * 1000;
+        const isFresh = existingWeather && 
+                        (new Date().getTime() - new Date(existingWeather.recordedAt).getTime() < sixHoursInMs);
+
+        if (coordinates && !isFresh) {
           const weatherData = await weatherService.getWeatherByCoordinates(
             coordinates.lat,
             coordinates.lon,
@@ -121,6 +296,23 @@ export default function AdminDashboard() {
           if (weatherData) {
             // Save weather data to database
             await dbService.saveWeatherData(destination.id, weatherData);
+
+            const mappedData = {
+              temperature: weatherData.temperature,
+              humidity: weatherData.humidity,
+              weatherMain: weatherData.weatherMain,
+              weatherDescription: weatherData.weatherDescription,
+              windSpeed: weatherData.windSpeed,
+              recordedAt: new Date().toISOString()
+            };
+
+            newWeatherMap[destination.id] = mappedData;
+            
+            // Update state with fresh API data
+            setWeatherMap(prev => ({
+              ...prev,
+              [destination.id]: mappedData
+            }));
 
             // Check if we should generate a weather alert
             const alertCheck = weatherService.shouldGenerateAlert(weatherData);
@@ -135,12 +327,12 @@ export default function AdminDashboard() {
               });
             }
           }
-        } catch (error) {
-          console.error(
-            `Error updating weather for ${destination.name}:`,
-            error
-          );
         }
+      } catch (error) {
+        console.error(
+          `Error updating weather for ${destination.name}:`,
+          error
+        );
       }
     }
   };
@@ -151,19 +343,22 @@ export default function AdminDashboard() {
     icon: Icon,
     color,
     subtitle,
+    trend,
   }: {
     title: string;
     value: string | number;
     icon: React.ComponentType<{ className?: string }>;
     color: string;
     subtitle?: string;
+    trend?: string;
   }) => (
-    <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-200">
+    <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-200 hover:shadow-md transition-shadow">
       <div className="flex items-center justify-between">
         <div>
           <p className="text-sm font-medium text-gray-600">{title}</p>
           <p className="text-2xl font-bold text-gray-900 mt-1">{value}</p>
           {subtitle && <p className="text-xs text-gray-500 mt-1">{subtitle}</p>}
+          {trend && <p className="text-xs text-green-600 mt-1 font-medium">{trend}</p>}
         </div>
         <div className={`p-3 rounded-lg ${color}`}>
           <Icon className="h-6 w-6" />
@@ -186,18 +381,27 @@ export default function AdminDashboard() {
     <Layout requireAdmin={true}>
       <div className="space-y-6">
         {/* Header */}
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
             <h1 className="text-2xl font-bold text-gray-900">
-              Government Dashboard
+              Enhanced Government Dashboard
             </h1>
             <p className="text-gray-600">
-              Monitor and manage tourist activities across Jammu & Himachal
-              Pradesh
+              Real-time comprehensive tourist management and ecological monitoring
             </p>
           </div>
-          <div className="text-sm text-gray-500">
-            Last updated: {formatDateTime(new Date())}
+          <div className="flex items-center space-x-3">
+            <div className="text-right hidden sm:block">
+              <p className="text-xs text-gray-500">Last updated</p>
+              <p className="text-sm font-medium text-gray-700">{formatDateTime(new Date())}</p>
+            </div>
+            <button
+              onClick={() => loadDashboardData()}
+              className="p-2 text-gray-500 hover:bg-gray-100 rounded-lg transition-colors border border-gray-200"
+              title="Refresh Dashboard"
+            >
+              <RefreshCw className={`h-5 w-5 ${loading ? 'animate-spin' : ''}`} />
+            </button>
           </div>
         </div>
 
@@ -225,6 +429,18 @@ export default function AdminDashboard() {
               <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-600" />
             )}
           </button>
+          <button
+            onClick={() => setActiveTab('ecological')}
+            className={`pb-4 px-4 text-sm font-medium transition-colors relative flex items-center ${
+              activeTab === 'ecological' ? 'text-blue-600' : 'text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            <Leaf className={`h-4 w-4 mr-2 ${activeTab === 'ecological' ? 'text-blue-600' : 'text-gray-400'}`} />
+            Ecological Impact
+            {activeTab === 'ecological' && (
+              <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-600" />
+            )}
+          </button>
         </div>
 
         {activeTab === 'overview' ? (
@@ -236,6 +452,7 @@ export default function AdminDashboard() {
                 value={stats.totalTourists}
                 icon={Users}
                 color="bg-blue-100 text-blue-600"
+                trend="Cumulative"
               />
               <StatCard
                 title="Current Occupancy"
@@ -243,18 +460,57 @@ export default function AdminDashboard() {
                 icon={MapPin}
                 color="bg-green-100 text-green-600"
                 subtitle={`${Math.round(stats.capacityUtilization)}% of ecological limit (${stats.adjustedMaxCapacity})`}
+                trend="Live tracking"
               />
               <StatCard
                 title="Pending Approvals"
                 value={stats.pendingApprovals}
                 icon={Clock}
                 color="bg-yellow-100 text-yellow-600"
+                trend={stats.pendingApprovals > 0 ? "Action needed" : "All clear"}
               />
               <StatCard
                 title="Active Alerts"
                 value={stats.alertsCount}
                 icon={AlertTriangle}
                 color="bg-red-100 text-red-600"
+                trend={stats.alertsCount > 0 ? "Monitor closely" : "Normal"}
+              />
+            </div>
+
+            {/* Environmental Stats Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              <StatCard
+                title="Waste Collected"
+                value={`${stats.totalWasteCollected} kg`}
+                icon={Trash2}
+                color="bg-emerald-100 text-emerald-600"
+                subtitle="This month"
+                trend="+12% from last month"
+              />
+              <StatCard
+                title="Cleanup Activities"
+                value={stats.activeCleanupEvents}
+                icon={Calendar}
+                color="bg-teal-100 text-teal-600"
+                subtitle="Active & Scheduled"
+                trend="4 upcoming events"
+              />
+              <StatCard
+                title="Active Volunteers"
+                value={stats.totalVolunteers}
+                icon={Users}
+                color="bg-indigo-100 text-indigo-600"
+                subtitle="Community members"
+                trend="+25 new this week"
+              />
+              <StatCard
+                title="Recycling Rate"
+                value={`${stats.recyclingRate}%`}
+                icon={Recycle}
+                color="bg-cyan-100 text-cyan-600"
+                subtitle="Diverted from landfill"
+                trend="Goal: 45%"
               />
             </div>
 
@@ -266,50 +522,86 @@ export default function AdminDashboard() {
                   Destinations Overview
                 </h2>
                 <div className="space-y-4">
-                  {destinations.slice(0, 5).map((destination) => {
-                    const adjustedCapacity = policyEngine.getAdjustedCapacity(destination);
-                    const status = getCapacityStatus(destination.currentOccupancy, adjustedCapacity).status;
-                    
-                    return (
-                      <div key={destination.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                        <div className="flex items-center space-x-3">
-                          <MapPin className="h-5 w-5 text-gray-400" />
-                          <div>
-                            <p className="font-medium text-gray-900">{destination.name}</p>
-                            <div className="flex items-center text-sm text-gray-600">
-                              <span>{destination.location}</span>
-                              <span className="mx-2 text-gray-300">•</span>
-                              <span className={`flex items-center ${
-                                destination.ecologicalSensitivity === 'critical' ? 'text-red-600' :
-                                destination.ecologicalSensitivity === 'high' ? 'text-orange-600' :
-                                destination.ecologicalSensitivity === 'medium' ? 'text-yellow-600' : 'text-green-600'
+                  {(() => {
+                    return destinations.slice(0, 5).map((destination) => {
+                      const adjustedCapacity = adjustedCapacities[destination.id] || destination.maxCapacity;
+                      const status = getCapacityStatus(destination.currentOccupancy, adjustedCapacity).status;
+                      const weather = weatherMap[destination.id];
+                      
+                      return (
+                        <div key={destination.id} className="flex flex-col p-4 bg-gray-50 rounded-lg border border-gray-100 hover:shadow-sm transition-shadow">
+                          <div className="flex items-center justify-between mb-3">
+                            <div className="flex items-center space-x-3">
+                              <MapPin className="h-5 w-5 text-gray-400" />
+                              <div>
+                                <p className="font-medium text-gray-900">{destination.name}</p>
+                                <div className="flex items-center text-sm text-gray-600">
+                                  <span>{destination.location}</span>
+                                  <span className="mx-2 text-gray-300">•</span>
+                                  <span className={`flex items-center ${
+                                    destination.ecologicalSensitivity === 'critical' ? 'text-red-600' :
+                                    destination.ecologicalSensitivity === 'high' ? 'text-orange-600' :
+                                    destination.ecologicalSensitivity === 'medium' ? 'text-yellow-600' : 'text-green-600'
+                                  }`}>
+                                    <Leaf className="h-3 w-3 mr-1" />
+                                    {destination.ecologicalSensitivity}
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+                            <div className="text-right">
+                              <div className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                                status === 'low'
+                                  ? 'bg-green-100 text-green-800'
+                                  : status === 'medium'
+                                  ? 'bg-yellow-100 text-yellow-800'
+                                  : 'bg-red-100 text-red-800'
                               }`}>
-                                <Leaf className="h-3 w-3 mr-1" />
-                                {destination.ecologicalSensitivity}
-                              </span>
+                                {status}
+                              </div>
+                              <p className="text-sm text-gray-600 mt-1">
+                                {destination.currentOccupancy}/{adjustedCapacity}
+                                {adjustedCapacity < destination.maxCapacity && (
+                                  <span className="text-xs text-orange-500 ml-1">(! limit)</span>
+                                )}
+                              </p>
                             </div>
                           </div>
-                        </div>
-                        <div className="text-right">
-                          <div className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                            status === 'low'
-                              ? 'bg-green-100 text-green-800'
-                              : status === 'medium'
-                              ? 'bg-yellow-100 text-yellow-800'
-                              : 'bg-red-100 text-red-800'
-                          }`}>
-                            {status}
-                          </div>
-                          <p className="text-sm text-gray-600 mt-1">
-                            {destination.currentOccupancy}/{adjustedCapacity}
-                            {adjustedCapacity < destination.maxCapacity && (
-                              <span className="text-xs text-orange-500 ml-1">(! limit)</span>
+
+                          {/* Weather Section */}
+                          <div className="mt-2 pt-3 border-t border-gray-200">
+                            {weather ? (
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center space-x-3">
+                                  <span className="text-xl font-bold text-gray-900">
+                                    {Math.round(weather.temperature)}°C
+                                  </span>
+                                  <div className="text-xs text-gray-500">
+                                    <p className="font-medium text-gray-700 capitalize">
+                                      {weather.weatherDescription}
+                                    </p>
+                                    <p>Humidity: {weather.humidity}%</p>
+                                  </div>
+                                </div>
+                                <div className="text-right text-[10px] text-gray-400">
+                                  <p>Wind: {weather.windSpeed}m/s</p>
+                                  <p>Updated: {new Date(weather.recordedAt).toLocaleTimeString()}</p>
+                                </div>
+                              </div>
+                            ) : (
+                              <div className="flex items-center justify-between text-xs text-gray-400">
+                                <div className="flex items-center space-x-2">
+                                  <RefreshCw className="h-3 w-3 animate-spin" />
+                                  <span>Loading weather...</span>
+                                </div>
+                                <span>--°C</span>
+                              </div>
                             )}
-                          </p>
+                          </div>
                         </div>
-                      </div>
-                    );
-                  })}
+                      );
+                    });
+                  })()}
                 </div>
               </div>
 
@@ -351,6 +643,8 @@ export default function AdminDashboard() {
               </div>
             </div>
           </>
+        ) : activeTab === 'ecological' ? (
+          <EcologicalDashboard />
         ) : (
           <div className="space-y-6">
             {/* Policy Editor Modal/Overlay */}

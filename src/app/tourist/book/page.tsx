@@ -11,7 +11,6 @@ import {
   calculateSustainabilityScore, 
   findLowImpactAlternatives 
 } from '@/lib/sustainabilityScoring';
-import { destinations as allDestinations } from '@/data/mockData';
 import { ORIGIN_LOCATIONS, getOriginLocationById } from '@/data/originLocations';
 import { useAuth } from '@/contexts/AuthContext';
 import { Destination, Alert, DynamicCapacityResult, CarbonFootprintResult, CarbonOffsetOption } from '@/types';
@@ -23,6 +22,7 @@ function BookDestinationForm() {
   const destinationId = searchParams.get('destination');
   
   const [destination, setDestination] = useState<Destination | null>(null);
+  const [allDestinationsState, setAllDestinationsState] = useState<Destination[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
@@ -112,39 +112,43 @@ function BookDestinationForm() {
     try {
       const dbService = getDbService();
       const policyEngine = getPolicyEngine();
-      const destinations = await dbService.getDestinations();
-      const found = destinations.find(d => d.id === destinationId);
+      const fetchedDestinations = await dbService.getDestinations();
+      
+      const mappedDestinations: Destination[] = fetchedDestinations.map(d => ({
+        id: d.id,
+        name: d.name,
+        location: d.location,
+        maxCapacity: d.max_capacity,
+        currentOccupancy: d.current_occupancy,
+        description: d.description,
+        guidelines: d.guidelines as string[],
+        isActive: d.is_active,
+        ecologicalSensitivity: d.ecological_sensitivity as any,
+        coordinates: {
+          latitude: d.latitude,
+          longitude: d.longitude
+        },
+        sustainabilityFeatures: d.sustainability_features as any
+      }));
+
+      setAllDestinationsState(mappedDestinations);
+      const found = mappedDestinations.find(d => d.id === destinationId);
       
       if (found) {
-        const destObj: Destination = {
-          id: found.id,
-          name: found.name,
-          location: found.location,
-          maxCapacity: found.max_capacity,
-          currentOccupancy: found.current_occupancy,
-          description: found.description,
-          guidelines: found.guidelines,
-          isActive: found.is_active,
-          ecologicalSensitivity: found.ecological_sensitivity,
-          coordinates: {
-            latitude: found.latitude,
-            longitude: found.longitude
-          }
-        };
-        setDestination(destObj);
+        setDestination(found);
         
         // Load capacity info
         const [available, adjusted, dynResult] = await Promise.all([
-          policyEngine.getAvailableSpots(destObj),
-          policyEngine.getAdjustedCapacity(destObj),
-          policyEngine.getDynamicCapacity(destObj)
+          policyEngine.getAvailableSpots(found),
+          policyEngine.getAdjustedCapacity(found),
+          policyEngine.getDynamicCapacity(found)
         ]);
         setAvailableSpots(available);
         setAdjustedCapacity(adjusted);
         setCapacityResult(dynResult);
         
         // Generate ecological alert if applicable
-        const alert = policyEngine.generateEcologicalAlerts(destObj);
+        const alert = policyEngine.generateEcologicalAlerts(found);
         setEcoAlert(alert);
       }
     } catch (error) {
@@ -868,7 +872,7 @@ function BookDestinationForm() {
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {findLowImpactAlternatives(allDestinations, destination).map((alt) => {
+                {findLowImpactAlternatives(allDestinationsState, destination).map((alt) => {
                   const score = calculateSustainabilityScore(alt);
                   return (
                     <div key={alt.id} className="bg-white p-4 rounded-xl border border-emerald-100 flex gap-4 items-center group hover:shadow-md transition-all">

@@ -1145,17 +1145,37 @@ class DatabaseService {
       if (this.isPlaceholderMode()) {
         const index = mockData.cleanupRegistrations.findIndex(r => r.id === registrationId);
         if (index === -1) return false;
+        
+        // Only award if not already attended
+        if (mockData.cleanupRegistrations[index].attended) return true;
+
         mockData.cleanupRegistrations[index].attended = true;
         mockData.cleanupRegistrations[index].status = 'attended';
         reg = mockData.cleanupRegistrations[index];
       } else {
+        // Atomic update only if attended is false
         const { data, error } = await (supabase!
           .from('cleanup_registrations') as any)
           .update({ attended: true, status: 'attended' })
           .eq('id', registrationId)
+          .eq('attended', false)
           .select()
           .single();
-        if (error) throw error;
+        
+        // If error or no row returned, check if it's already attended
+        if (error || !data) {
+          // If the record exists but was already attended, just return true
+          const { data: existing } = await (supabase!
+            .from('cleanup_registrations')
+            .select('attended')
+            .eq('id', registrationId)
+            .single() as any);
+            
+          if (existing?.attended) return true;
+          if (error) throw error;
+          return false;
+        }
+        
         reg = data;
       }
 
@@ -1253,7 +1273,7 @@ class DatabaseService {
       // This avoids race conditions (lost increments) that occur with read-then-write patterns.
       // SQL for this RPC (award_eco_points):
       /*
-      CREATE OR REPLACE FUNCTION award_eco_points(p_user_id UUID, p_points INT, p_description TEXT)
+      CREATE OR REPLACE FUNCTION award_eco_points(p_user_id UUID, p_points INTEGER, p_description TEXT)
       RETURNS BOOLEAN AS $$
       BEGIN
         -- Add transaction record
@@ -2088,7 +2108,7 @@ class DatabaseService {
       // This prevents race conditions (lost increments) that occur with read-then-write patterns.
       // SQL for this RPC (update_user_eco_metrics):
       /*
-      CREATE OR REPLACE FUNCTION update_user_eco_metrics(p_user_id UUID, p_points_to_add INT, p_offset_to_add FLOAT)
+      CREATE OR REPLACE FUNCTION update_user_eco_metrics(p_user_id UUID, p_points_to_add INTEGER, p_offset_to_add DOUBLE PRECISION)
       RETURNS BOOLEAN AS $$
       BEGIN
         UPDATE users 

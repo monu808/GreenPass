@@ -53,6 +53,13 @@ interface UserProfile {
   languages: string[];
   ecoPoints?: number;
   totalCarbonOffset?: number;
+  ecoHistory?: {
+    id: string;
+    type: string;
+    points: number;
+    description: string;
+    date: Date;
+  }[];
 }
 
 interface TravelStats {
@@ -109,12 +116,21 @@ export default function MyProfile() {
        try {
          const db = getDbService();
          const stats = await db.getUserEcoStats(user.id);
+         const history = await db.getEcoPointsHistory(user.id);
+         
          if (stats) {
           setUserProfile(prev => ({
             ...prev,
             ecoPoints: stats.ecoPoints,
             totalCarbonOffset: stats.totalCarbonOffset,
-            totalTrips: stats.tripsCount
+            totalTrips: stats.tripsCount,
+            ecoHistory: history.map(h => ({
+              id: h.id,
+              type: h.transactionType,
+              points: h.points,
+              description: h.description,
+              date: new Date(h.createdAt)
+            }))
           }));
         }
       } catch (error) {
@@ -533,6 +549,48 @@ export default function MyProfile() {
                   </div>
                 </div>
               </div>
+
+              {userProfile.ecoHistory && userProfile.ecoHistory.length > 0 && (
+                <div className="space-y-6">
+                  <h3 className="text-xl font-black text-gray-900 uppercase tracking-tight">Points History</h3>
+                  <div className="bg-white rounded-[2rem] border border-gray-100 overflow-hidden shadow-sm">
+                    <table className="w-full">
+                      <thead>
+                        <tr className="bg-gray-50 border-b border-gray-100">
+                          <th className="px-6 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Description</th>
+                          <th className="px-6 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Type</th>
+                          <th className="px-6 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Points</th>
+                          <th className="px-6 py-4 text-right text-[10px] font-black text-gray-400 uppercase tracking-widest">Date</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-50">
+                        {userProfile.ecoHistory.map(item => (
+                          <tr key={item.id} className="hover:bg-gray-50/50 transition-colors">
+                            <td className="px-6 py-4">
+                              <p className="text-sm font-bold text-gray-900">{item.description}</p>
+                            </td>
+                            <td className="px-6 py-4">
+                              <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${
+                                item.type === 'award' ? 'bg-emerald-50 text-emerald-600' : 'bg-blue-50 text-blue-600'
+                              }`}>
+                                {item.type}
+                              </span>
+                            </td>
+                            <td className="px-6 py-4">
+                              <span className={`text-sm font-black ${item.points > 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                                {item.points > 0 ? '+' : ''}{item.points}
+                              </span>
+                            </td>
+                            <td className="px-6 py-4 text-right">
+                              <p className="text-xs text-gray-400 font-bold">{new Date(item.date).toLocaleDateString()}</p>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 

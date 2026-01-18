@@ -17,7 +17,10 @@ import {
   RefreshCw,
   BarChart3,
   TrendingUp,
-  Activity
+  Activity,
+  Trash2,
+  Calendar,
+  Recycle
 } from 'lucide-react';
 import {
   BarChart,
@@ -49,6 +52,10 @@ export default function AdminDashboard() {
     todayCheckOuts: 0,
     capacityUtilization: 0,
     alertsCount: 0,
+    totalWasteCollected: 0,
+    activeCleanupEvents: 0,
+    totalVolunteers: 0,
+    recyclingRate: 0,
   });
   const [destinations, setDestinations] = useState<Destination[]>([]);
   const [adjustedCapacities, setAdjustedCapacities] = useState<Record<string, number>>({});
@@ -161,12 +168,20 @@ export default function AdminDashboard() {
   const loadDashboardData = async () => {
     try {
       const dbService = getDbService();
-      const [dashboardStats, destinationsData, alertsData, ecologicalData, trendsData] = await Promise.all([
+      const [
+        dashboardStats, 
+        destinationsData, 
+        alertsData, 
+        ecologicalData, 
+        trendsData,
+        wasteMetrics
+      ] = await Promise.all([
         dbService.getDashboardStats(),
         dbService.getDestinations(),
         dbService.getAlerts(),
         dbService.getEcologicalImpactData(),
         dbService.getHistoricalOccupancyTrends(),
+        dbService.getWasteMetricsSummary(),
       ]);
 
       setStats(dashboardStats);
@@ -460,6 +475,42 @@ export default function AdminDashboard() {
                 icon={AlertTriangle}
                 color="bg-red-100 text-red-600"
                 trend={stats.alertsCount > 0 ? "Monitor closely" : "Normal"}
+              />
+            </div>
+
+            {/* Environmental Stats Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              <StatCard
+                title="Waste Collected"
+                value={`${stats.totalWasteCollected} kg`}
+                icon={Trash2}
+                color="bg-emerald-100 text-emerald-600"
+                subtitle="This month"
+                trend="+12% from last month"
+              />
+              <StatCard
+                title="Cleanup Activities"
+                value={stats.activeCleanupEvents}
+                icon={Calendar}
+                color="bg-teal-100 text-teal-600"
+                subtitle="Active & Scheduled"
+                trend="4 upcoming events"
+              />
+              <StatCard
+                title="Active Volunteers"
+                value={stats.totalVolunteers}
+                icon={Users}
+                color="bg-indigo-100 text-indigo-600"
+                subtitle="Community members"
+                trend="+25 new this week"
+              />
+              <StatCard
+                title="Recycling Rate"
+                value={`${stats.recyclingRate}%`}
+                icon={Recycle}
+                color="bg-cyan-100 text-cyan-600"
+                subtitle="Diverted from landfill"
+                trend="Goal: 45%"
               />
             </div>
 

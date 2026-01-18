@@ -1,4 +1,107 @@
-import { Destination, Tourist, BookingSlot, Alert, ComplianceReport, PolicyViolation } from '@/types';
+import { Destination, Tourist, BookingSlot, Alert, ComplianceReport, PolicyViolation, WasteData, CleanupActivity, CleanupRegistration, EcoPointsTransaction } from '@/types';
+
+// Mock data for waste tracking
+export const wasteData: WasteData[] = [
+  {
+    id: 'waste-1',
+    destinationId: 'dest-1',
+    wasteType: 'plastic',
+    quantity: 150,
+    unit: 'kg',
+    collectedAt: new Date('2026-01-15'),
+    createdAt: new Date('2026-01-15'),
+  },
+  {
+    id: 'waste-2',
+    destinationId: 'dest-1',
+    wasteType: 'organic',
+    quantity: 350,
+    unit: 'kg',
+    collectedAt: new Date('2026-01-16'),
+    createdAt: new Date('2026-01-16'),
+  }
+];
+
+// Mock data for cleanup activities
+export const cleanupActivities: CleanupActivity[] = [
+  {
+    id: 'cleanup-1',
+    destinationId: 'dest-1',
+    title: 'Trikuta Hills Spring Cleanup',
+    description: 'Annual spring cleanup event to preserve the ecological balance of the Trikuta Hills.',
+    startTime: new Date('2026-02-15T09:00:00'),
+    endTime: new Date('2026-02-15T13:00:00'),
+    location: 'Trikuta Hills Base Camp',
+    maxParticipants: 50,
+    currentParticipants: 25,
+    status: 'upcoming',
+    ecoPointsReward: 100,
+    createdAt: new Date('2026-01-10'),
+  },
+  {
+    id: 'cleanup-2',
+    destinationId: 'dest-2',
+    title: 'Beas River Bank Restoration',
+    description: 'Volunteer event to remove waste from the banks of Beas River.',
+    startTime: new Date('2026-02-20T10:00:00'),
+    endTime: new Date('2026-02-20T14:00:00'),
+    location: 'Beas River Bank, Manali',
+    maxParticipants: 30,
+    currentParticipants: 25,
+    status: 'upcoming',
+    ecoPointsReward: 150,
+    createdAt: new Date('2026-01-12'),
+  }
+];
+
+// Mock data for cleanup registrations
+export const cleanupRegistrations: CleanupRegistration[] = [
+  {
+    id: 'reg-1',
+    activityId: 'cleanup-1',
+    userId: 'user-1',
+    status: 'attended',
+    registeredAt: new Date('2026-01-15'),
+    attended: true,
+  },
+  {
+    id: 'reg-2',
+    activityId: 'cleanup-1',
+    userId: 'user-2',
+    status: 'attended',
+    registeredAt: new Date('2026-01-15'),
+    attended: true,
+  },
+  {
+    id: 'reg-3',
+    activityId: 'cleanup-2',
+    userId: 'user-3',
+    status: 'attended',
+    registeredAt: new Date('2026-01-16'),
+    attended: true,
+  }
+];
+
+// Mock data for eco-points transactions
+export const ecoPointsTransactions: EcoPointsTransaction[] = [
+  {
+    id: 'trans-1',
+    userId: 'user-1',
+    points: 50,
+    transactionType: 'award',
+    description: 'Participated in Beach Cleanup',
+    createdAt: new Date('2026-01-10'),
+  },
+  {
+    id: 'trans-2',
+    userId: 'user-1',
+    points: -10,
+    transactionType: 'redemption',
+    description: 'Redeemed for eco-friendly kit',
+    createdAt: new Date('2026-01-12'),
+  }
+];
+
 
 // Mock data for compliance reports
 export const complianceReports: ComplianceReport[] = [

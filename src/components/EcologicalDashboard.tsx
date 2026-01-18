@@ -9,7 +9,11 @@ import {
   AlertTriangle,
   CheckCircle,
   XCircle,
-  RefreshCw
+  RefreshCw,
+  Trash2,
+  Recycle,
+  Users,
+  Calendar
 } from "lucide-react";
 import {
   BarChart,
@@ -25,7 +29,7 @@ import {
   Legend
 } from "recharts";
 import { getDbService } from "@/lib/databaseService";
-import { Alert, Destination, HistoricalOccupancy, EcologicalMetrics } from "@/types";
+import { Alert, Destination, HistoricalOccupancy, EcologicalMetrics, WasteMetricsSummary, CleanupActivity } from "@/types";
 import { getPolicyEngine } from "@/lib/ecologicalPolicyEngine";
 import { formatDateTime } from "@/lib/utils";
 import { 
@@ -104,10 +108,63 @@ export default function EcologicalDashboard() {
     totalCarbon: 0,
     totalWaste: 0
   });
+  const [wasteMetrics, setWasteMetrics] = useState<WasteMetricsSummary | null>(null);
+  const [upcomingCleanups, setUpcomingCleanups] = useState<CleanupActivity[]>([]);
+  const [perDestinationWaste, setPerDestinationWaste] = useState<any[]>([]);
+  const [wasteTrendData, setWasteTrendData] = useState<any[]>([]);
+  const [wasteDistributionData, setWasteDistributionData] = useState<any[]>([]);
+  const [wasteTimeRange, setWasteTimeRange] = useState(30);
 
   useEffect(() => {
     loadEcologicalData();
   }, [timeRange, selectedDestinationId]);
+
+  useEffect(() => {
+    loadWasteTrend();
+  }, [wasteTimeRange]);
+
+  const loadWasteTrend = async () => {
+    try {
+      const dbService = getDbService();
+      const endDate = new Date();
+      const startDate = new Date();
+      startDate.setDate(endDate.getDate() - wasteTimeRange);
+      
+      const data = await dbService.getWasteDataByDateRange(startDate, endDate);
+      
+      // Process data for chart
+      const trend: any[] = [];
+      for (let i = wasteTimeRange; i >= 0; i--) {
+        const d = new Date();
+        d.setDate(endDate.getDate() - i);
+        const dateStr = d.toISOString().split('T')[0];
+        const quantity = data
+          .filter(w => w.collectedAt.toISOString().split('T')[0] === dateStr)
+          .reduce((sum, w) => sum + w.quantity, 0);
+        
+        trend.push({
+          date: dateStr,
+          quantity
+        });
+      }
+      setWasteTrendData(trend);
+
+      // Process distribution data (grouped by type)
+      const types: Record<string, number> = {};
+      data.forEach(w => {
+        types[w.wasteType] = (types[w.wasteType] || 0) + w.quantity;
+      });
+      
+      const distribution = Object.entries(types).map(([name, value]) => ({
+        name: name.charAt(0).toUpperCase() + name.slice(1),
+        value
+      })).sort((a, b) => b.value - a.value);
+      
+      setWasteDistributionData(distribution);
+    } catch (err) {
+      console.error("Error loading waste trend:", err);
+    }
+  };
 
   const loadEcologicalData = async (isRefresh = false) => {
     if (isRefresh) setRefreshing(true);
@@ -118,10 +175,29 @@ export default function EcologicalDashboard() {
       const dbService = getDbService();
       
       // Load all necessary data in parallel
-      const [impactData, alertsData] = await Promise.all([
+      const [impactData, alertsData, wasteStats, cleanups] = await Promise.all([
         dbService.getEcologicalImpactData(),
-        dbService.getAlerts()
+        dbService.getAlerts(),
+        dbService.getWasteMetricsSummary(),
+        dbService.getUpcomingCleanupActivities()
       ]);
+
+      setWasteMetrics(wasteStats);
+      setUpcomingCleanups(cleanups.slice(0, 3)); // Only show top 3 upcoming
+
+      // Fetch per-destination waste data
+      const destWaste = await Promise.all(
+        impactData.map(async (d) => {
+          const summary = await dbService.getWasteMetricsSummary(d.id);
+          return {
+            id: d.id,
+            name: d.name,
+            totalWaste: summary.totalWaste,
+            byType: summary.byType
+          };
+        })
+      );
+      setPerDestinationWaste(destWaste);
 
       // Handle historical trends based on selection
       let trends: HistoricalOccupancy[] = [];
@@ -536,6 +612,241 @@ export default function EcologicalDashboard() {
         
         <div className="mt-6 pt-6 border-t border-gray-100 text-[10px] text-gray-400 leading-relaxed">
           <strong>Methodology Footnote:</strong> Environmental impact estimations are derived from the GreenPass Ecological Policy Engine. Carbon calculations use CO2e (Carbon Dioxide Equivalent) metrics incorporating transportation, energy use, and site maintenance baselines. Waste metrics include both recyclable and non-recyclable solid waste generated on-site. All multipliers are dynamically adjusted based on the ecological sensitivity of the specific destination zone.
+        </div>
+      </div>
+
+      {/* Waste Management Section */}
+      <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-200">
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-lg font-semibold text-gray-900 flex items-center">
+            <Trash2 className="h-5 w-5 mr-2 text-emerald-600" />
+            Waste Management & Circular Economy
+          </h2>
+          <button 
+            className="text-emerald-600 hover:text-emerald-700 text-sm font-medium flex items-center"
+            onClick={() => window.location.href = '/management/waste-tracking'}
+          >
+            Detailed Analytics
+            <TrendingUp className="h-4 w-4 ml-1" />
+          </button>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+          {/* Recycling Rate Card */}
+          <div className="bg-emerald-50 rounded-xl p-5 border border-emerald-100 flex flex-col justify-between">
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm font-medium text-emerald-700">Recycling Rate</span>
+                <Recycle className="h-5 w-5 text-emerald-600" />
+              </div>
+              <p className="text-3xl font-bold text-emerald-900">{wasteMetrics?.recyclingRate || 0}%</p>
+              <div className="mt-2 w-full bg-emerald-200 rounded-full h-2">
+                <div 
+                  className="bg-emerald-600 h-2 rounded-full" 
+                  style={{ width: `${wasteMetrics?.recyclingRate || 0}%` }}
+                ></div>
+              </div>
+            </div>
+            <p className="text-xs text-emerald-600 mt-3 flex items-center">
+              <TrendingUp className="h-3 w-3 mr-1" />
+              +2.5% improvement this month
+            </p>
+          </div>
+
+          {/* Waste Diverted Card */}
+          <div className="bg-teal-50 rounded-xl p-5 border border-teal-100 flex flex-col justify-between">
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm font-medium text-teal-700">Waste Diverted</span>
+                <CheckCircle className="h-5 w-5 text-teal-600" />
+              </div>
+              <p className="text-3xl font-bold text-teal-900">{((wasteMetrics?.totalQuantity || 0) * (wasteMetrics?.recyclingRate || 0) / 100).toFixed(1)} kg</p>
+              <p className="text-xs text-teal-600 mt-1">Total materials recycled</p>
+            </div>
+            <p className="text-xs text-teal-600 mt-3">Equivalent to 45 trees saved</p>
+          </div>
+
+          {/* Cleanup Activity Preview */}
+          <div className="bg-indigo-50 rounded-xl p-5 border border-indigo-100 flex flex-col justify-between">
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm font-medium text-indigo-700">Next Cleanup</span>
+                <Calendar className="h-5 w-5 text-indigo-600" />
+              </div>
+              {upcomingCleanups.length > 0 ? (
+                <div>
+                  <p className="text-sm font-bold text-indigo-900 truncate">{upcomingCleanups[0].title}</p>
+                  <p className="text-xs text-indigo-700 mt-1">
+                    {new Date(upcomingCleanups[0].startTime).toLocaleDateString(undefined, { month: "short", day: "numeric" })} at {upcomingCleanups[0].location}
+                  </p>
+                </div>
+              ) : (
+                <p className="text-sm text-indigo-600">No upcoming events</p>
+              )}
+            </div>
+            <div className="flex items-center justify-between mt-3">
+              <div className="flex -space-x-2">
+                {[1, 2, 3].map(i => (
+                  <div key={i} className="h-6 w-6 rounded-full bg-indigo-200 border-2 border-white flex items-center justify-center text-[8px] font-bold text-indigo-700">
+                    <Users className="h-3 w-3" />
+                  </div>
+                ))}
+                <div className="h-6 w-6 rounded-full bg-indigo-100 border-2 border-white flex items-center justify-center text-[8px] font-bold text-indigo-700">
+                  +12
+                </div>
+              </div>
+              <button className="text-[10px] bg-indigo-600 text-white px-2 py-1 rounded hover:bg-indigo-700 transition-colors">
+                Manage
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Waste Charts Section */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+          {/* Trend Chart */}
+          <div className="bg-white p-6 rounded-xl border border-gray-100 shadow-sm">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
+              <h3 className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                <TrendingUp className="h-4 w-4 text-emerald-600" />
+                Waste Collection Trend (kg)
+              </h3>
+              <div className="flex bg-gray-100 p-1 rounded-md">
+                {[30, 90, 365].map((days) => (
+                  <button
+                    key={days}
+                    onClick={() => setWasteTimeRange(days)}
+                    className={`px-3 py-1 text-xs font-medium rounded-md transition-all ${
+                      wasteTimeRange === days
+                        ? "bg-white text-emerald-600 shadow-sm"
+                        : "text-gray-500 hover:text-gray-700"
+                    }`}
+                  >
+                    {days === 30 ? "30d" : days === 90 ? "90d" : "1y"}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="h-64 w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={wasteTrendData}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                  <XAxis 
+                    dataKey="date" 
+                    tick={{ fontSize: 10, fill: "#64748b" }} 
+                    axisLine={false}
+                    tickLine={false}
+                    tickFormatter={(str: string) => {
+                      const date = new Date(str);
+                      return date.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+                    }}
+                  />
+                  <YAxis 
+                    tick={{ fontSize: 10, fill: "#64748b" }}
+                    axisLine={false}
+                    tickLine={false}
+                  />
+                  <Tooltip 
+                    contentStyle={{ 
+                      borderRadius: "12px", 
+                      border: "none", 
+                      boxShadow: "0 10px 15px -3px rgb(0 0 0 / 0.1)",
+                      fontSize: "12px"
+                    }}
+                  />
+                  <Line 
+                    type="monotone" 
+                    dataKey="quantity" 
+                    name="Waste (kg)"
+                    stroke="#10b981" 
+                    strokeWidth={2} 
+                    dot={{ r: 3, fill: "#10b981", strokeWidth: 2, stroke: "#fff" }}
+                    activeDot={{ r: 5, strokeWidth: 0 }}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+
+          {/* Distribution Chart */}
+          <div className="bg-white p-6 rounded-xl border border-gray-100 shadow-sm">
+            <h3 className="text-sm font-semibold text-gray-700 flex items-center gap-2 mb-6">
+              <Recycle className="h-4 w-4 text-emerald-600" />
+              Waste Type Distribution
+            </h3>
+            <div className="h-64 w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={wasteDistributionData} layout="vertical">
+                  <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#f1f5f9" />
+                  <XAxis type="number" hide />
+                  <YAxis 
+                    dataKey="name" 
+                    type="category" 
+                    tick={{ fontSize: 10, fill: "#64748b" }} 
+                    axisLine={false}
+                    tickLine={false}
+                    width={80}
+                  />
+                  <Tooltip 
+                    cursor={{ fill: '#f8fafc' }}
+                    contentStyle={{ 
+                      borderRadius: "12px", 
+                      border: "none", 
+                      boxShadow: "0 10px 15px -3px rgb(0 0 0 / 0.1)",
+                      fontSize: "12px"
+                    }}
+                  />
+                  <Bar dataKey="value" name="Quantity (kg)" radius={[0, 4, 4, 0]}>
+                    {wasteDistributionData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={['#10b981', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6'][index % 5]} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        </div>
+
+        <div className="overflow-x-auto">
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Destination</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total Collected</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type Distribution</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Sustainability Score</th>
+              </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {perDestinationWaste.map((item) => (
+                <tr key={item.id} className="hover:bg-gray-50">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{item.name}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    <span className="font-semibold text-gray-700">{item.totalWaste.toLocaleString()} kg</span>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    <div className="flex gap-1">
+                      {Object.entries(item.byType || {}).slice(0, 3).map(([type, qty]: [string, any]) => (
+                        <span key={type} className="text-[10px] bg-gray-100 px-1.5 py-0.5 rounded text-gray-600 capitalize">
+                          {type}: {qty}kg
+                        </span>
+                      ))}
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="flex items-center">
+                      <div className="flex text-yellow-400 mr-2">
+                        {[1, 2, 3, 4, 5].map((star) => (
+                          <Leaf key={star} className={`h-3 w-3 ${star <= 4 ? 'fill-current text-emerald-500' : 'text-gray-300'}`} />
+                        ))}
+                      </div>
+                      <span className="text-xs text-gray-500">Good</span>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       </div>
 

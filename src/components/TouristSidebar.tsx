@@ -23,7 +23,9 @@ import {
   CloudRain,
   CloudSnow,
   CloudLightning,
-  X
+  X,
+  Leaf,
+  Sparkles
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -36,6 +38,7 @@ const touristNavItems = [
   { name: 'Photo Gallery', href: '/tourist/gallery', icon: Camera },
   { name: 'Adventure Activities', href: '/tourist/activities', icon: Mountain },
   { name: 'Eco Tourism', href: '/tourist/eco-tourism', icon: TreePine },
+  { name: 'Eco Initiatives', href: '/tourist/eco-initiatives', icon: Leaf },
   { name: 'Reviews & Ratings', href: '/tourist/reviews', icon: Star },
   { name: 'Travel Guide', href: '/tourist/guide', icon: Info },
   { name: 'Weather Monitoring', href: '/weather', icon: CloudSun },

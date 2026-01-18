@@ -195,6 +195,13 @@ export const destinations: Destination[] = [
     coordinates: {
       latitude: 33.0305,
       longitude: 74.9496
+    },
+    sustainabilityFeatures: {
+      hasRenewableEnergy: false,
+      wasteManagementLevel: 'basic',
+      localEmploymentRatio: 0.45,
+      communityFundShare: 0.03,
+      wildlifeProtectionProgram: true
     }
   },
   {
@@ -216,6 +223,13 @@ export const destinations: Destination[] = [
     coordinates: {
       latitude: 32.2396,
       longitude: 77.1887
+    },
+    sustainabilityFeatures: {
+      hasRenewableEnergy: true,
+      wasteManagementLevel: 'advanced',
+      localEmploymentRatio: 0.75, // Increased for community-friendly
+      communityFundShare: 0.08,
+      wildlifeProtectionProgram: false
     }
   },
   {
@@ -237,6 +251,13 @@ export const destinations: Destination[] = [
     coordinates: {
       latitude: 31.1048,
       longitude: 77.1734
+    },
+    sustainabilityFeatures: {
+      hasRenewableEnergy: false,
+      wasteManagementLevel: 'advanced',
+      localEmploymentRatio: 0.55,
+      communityFundShare: 0.04,
+      wildlifeProtectionProgram: false
     }
   },
   {
@@ -258,6 +279,13 @@ export const destinations: Destination[] = [
     coordinates: {
       latitude: 32.2190,
       longitude: 76.3234
+    },
+    sustainabilityFeatures: {
+      hasRenewableEnergy: true,
+      wasteManagementLevel: 'certified',
+      localEmploymentRatio: 0.85, // Increased
+      communityFundShare: 0.12,
+      wildlifeProtectionProgram: true // Should be wildlife-safe
     }
   },
   {
@@ -279,6 +307,13 @@ export const destinations: Destination[] = [
     coordinates: {
       latitude: 32.2985,
       longitude: 78.0339
+    },
+    sustainabilityFeatures: {
+      hasRenewableEnergy: true,
+      wasteManagementLevel: 'certified',
+      localEmploymentRatio: 0.95, // Increased
+      communityFundShare: 0.15,
+      wildlifeProtectionProgram: true // Should be wildlife-safe
     }
   }
 ];

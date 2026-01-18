@@ -50,6 +50,7 @@ export default function TouristDashboard() {
         guidelines: dest.guidelines || [], // Ensure array fallback
         isActive: dest.is_active,
         ecologicalSensitivity: dest.ecological_sensitivity,
+        sustainabilityFeatures: dest.sustainability_features,
         coordinates: {
           latitude: dest.latitude,
           longitude: dest.longitude

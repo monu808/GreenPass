@@ -337,8 +337,12 @@ class DatabaseService {
           guidelines: d.guidelines,
           is_active: d.isActive,
           ecological_sensitivity: d.ecologicalSensitivity as any,
-          created_at: new Date().toISOString()
-        } as any));
+          sustainability_features: d.sustainabilityFeatures,
+          latitude: d.coordinates.latitude,
+          longitude: d.coordinates.longitude,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        }));
       }
       // Fetch destinations and their current occupancy from tourists table in one go
       const { data: destinations, error: destError } = await supabase!
@@ -993,6 +997,12 @@ class DatabaseService {
         const activity = await this.getCleanupActivityById(activityId);
         if (!activity || activity.status !== 'upcoming') return false;
         
+        // Duplicate check in mock mode
+        const existingReg = mockData.cleanupRegistrations.find(
+          r => r.activityId === activityId && r.userId === userId
+        );
+        if (existingReg) return false;
+
         // Atomic check and increment in mock mode
         const actIndex = mockData.cleanupActivities.findIndex(a => a.id === activityId);
         if (actIndex === -1) return false;
@@ -1019,6 +1029,21 @@ class DatabaseService {
 
       // Use an atomic RPC call to handle registration and participant increment
       // This prevents race conditions and overbooking.
+
+      // Duplicate check in production mode as a guard
+      const { data: existingReg, error: checkError } = await supabase!
+        .from('cleanup_registrations')
+        .select('id')
+        .eq('activity_id', activityId)
+        .eq('user_id', userId)
+        .maybeSingle();
+
+      if (checkError) {
+        console.error('Error checking for duplicate registration:', checkError);
+      } else if (existingReg) {
+        return false;
+      }
+
       // SQL for this RPC (register_for_cleanup):
       /*
       CREATE OR REPLACE FUNCTION register_for_cleanup(p_activity_id UUID, p_user_id UUID)
@@ -1036,6 +1061,14 @@ class DatabaseService {
         FOR UPDATE;
 
         IF v_status != 'upcoming' THEN
+          RETURN FALSE;
+        END IF;
+
+        -- Check for duplicate registration
+        IF EXISTS (
+          SELECT 1 FROM cleanup_registrations 
+          WHERE activity_id = p_activity_id AND user_id = p_user_id
+        ) THEN
           RETURN FALSE;
         END IF;
 

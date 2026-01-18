@@ -59,6 +59,13 @@ export interface Destination {
     latitude: number;
     longitude: number;
   };
+  sustainabilityFeatures?: {
+    hasRenewableEnergy: boolean;
+    wasteManagementLevel: 'basic' | 'advanced' | 'certified';
+    localEmploymentRatio: number;
+    communityFundShare: number;
+    wildlifeProtectionProgram: boolean;
+  };
 }
 
 export interface BookingSlot {
@@ -276,5 +283,40 @@ export interface EcoPointsLeaderboardEntry {
   name: string;
   points: number;
   rank: number;
+}
+
+export type EcoImpactCategory = 'low-carbon' | 'community-friendly' | 'wildlife-safe';
+
+export interface SustainabilityScore {
+  overallScore: number;
+  ecologicalSensitivity: number;
+  capacityUtilization: number;
+  carbonFootprint: number;
+  breakdown: {
+    ecologicalWeight: number;
+    capacityWeight: number;
+    carbonWeight: number;
+  };
+}
+
+export interface CarbonOffsetInfo {
+  estimatedCO2: number;
+  offsetCost: number;
+  offsetProjects: string[];
+}
+
+export interface CommunityMetrics {
+  localEmploymentRate: number;
+  communityFundContribution: number;
+  localSourcingPercentage: number;
+  culturalPreservationIndex: number;
+}
+
+export interface EcoComparisonData {
+  destinationId: string;
+  destinationName: string;
+  sustainabilityScore: SustainabilityScore;
+  impactCategory: EcoImpactCategory;
+  carbonOffset: CarbonOffsetInfo;
 }
 

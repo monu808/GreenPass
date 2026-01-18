@@ -100,6 +100,7 @@ export type Database = {
           guidelines: string[];
           is_active: boolean;
           ecological_sensitivity: 'low' | 'medium' | 'high' | 'critical';
+          sustainability_features?: any;
           latitude: number;
           longitude: number;
           created_at: string;
@@ -115,6 +116,7 @@ export type Database = {
           guidelines: string[];
           is_active?: boolean;
           ecological_sensitivity: 'low' | 'medium' | 'high' | 'critical';
+          sustainability_features?: any;
           latitude: number;
           longitude: number;
           created_at?: string;
@@ -130,6 +132,7 @@ export type Database = {
           guidelines?: string[];
           is_active?: boolean;
           ecological_sensitivity?: 'low' | 'medium' | 'high' | 'critical';
+          sustainability_features?: any;
           latitude?: number;
           longitude?: number;
           created_at?: string;

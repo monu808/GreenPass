@@ -7,6 +7,10 @@ import TouristLayout from '@/components/TouristLayout';
 import { getDbService } from '@/lib/databaseService';
 import { getPolicyEngine } from '@/lib/ecologicalPolicyEngine';
 import { getCarbonCalculator } from '@/lib/carbonFootprintCalculator';
+import { 
+  calculateSustainabilityScore, 
+  findLowImpactAlternatives 
+} from '@/lib/sustainabilityScoring';
 import { ORIGIN_LOCATIONS, getOriginLocationById } from '@/data/originLocations';
 import { useAuth } from '@/contexts/AuthContext';
 import { Destination, Alert, DynamicCapacityResult, CarbonFootprintResult, CarbonOffsetOption } from '@/types';
@@ -18,6 +22,7 @@ function BookDestinationForm() {
   const destinationId = searchParams.get('destination');
   
   const [destination, setDestination] = useState<Destination | null>(null);
+  const [allDestinationsState, setAllDestinationsState] = useState<Destination[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
@@ -107,39 +112,63 @@ function BookDestinationForm() {
     try {
       const dbService = getDbService();
       const policyEngine = getPolicyEngine();
-      const destinations = await dbService.getDestinations();
-      const found = destinations.find(d => d.id === destinationId);
+      const fetchedDestinations = await dbService.getDestinations();
+      
+      const mappedDestinations: Destination[] = fetchedDestinations.map(d => {
+        // Validate ecological sensitivity against allowed enum literals
+        const validSensitivities: Destination['ecologicalSensitivity'][] = ['low', 'medium', 'high', 'critical'];
+        const ecologicalSensitivity = validSensitivities.includes(d.ecological_sensitivity as any) 
+          ? (d.ecological_sensitivity as Destination['ecologicalSensitivity'])
+          : 'medium';
+
+        // Normalize sustainability features to expected shape or safe default
+        const rawFeatures = d.sustainability_features as any;
+        const sustainabilityFeatures: Destination['sustainabilityFeatures'] = rawFeatures ? {
+          hasRenewableEnergy: Boolean(rawFeatures.hasRenewableEnergy),
+          wasteManagementLevel: ['basic', 'advanced', 'certified'].includes(rawFeatures.wasteManagementLevel)
+            ? rawFeatures.wasteManagementLevel
+            : 'basic',
+          localEmploymentRatio: typeof rawFeatures.localEmploymentRatio === 'number' ? rawFeatures.localEmploymentRatio : 0,
+          communityFundShare: typeof rawFeatures.communityFundShare === 'number' ? rawFeatures.communityFundShare : 0,
+          wildlifeProtectionProgram: Boolean(rawFeatures.wildlifeProtectionProgram)
+        } : undefined;
+
+        return {
+          id: d.id,
+          name: d.name,
+          location: d.location,
+          maxCapacity: d.max_capacity,
+          currentOccupancy: d.current_occupancy,
+          description: d.description,
+          guidelines: Array.isArray(d.guidelines) ? d.guidelines : [],
+          isActive: d.is_active,
+          ecologicalSensitivity,
+          coordinates: {
+            latitude: d.latitude,
+            longitude: d.longitude
+          },
+          sustainabilityFeatures
+        };
+      });
+
+      setAllDestinationsState(mappedDestinations);
+      const found = mappedDestinations.find(d => d.id === destinationId);
       
       if (found) {
-        const destObj: Destination = {
-          id: found.id,
-          name: found.name,
-          location: found.location,
-          maxCapacity: found.max_capacity,
-          currentOccupancy: found.current_occupancy,
-          description: found.description,
-          guidelines: found.guidelines,
-          isActive: found.is_active,
-          ecologicalSensitivity: found.ecological_sensitivity,
-          coordinates: {
-            latitude: found.latitude,
-            longitude: found.longitude
-          }
-        };
-        setDestination(destObj);
+        setDestination(found);
         
         // Load capacity info
         const [available, adjusted, dynResult] = await Promise.all([
-          policyEngine.getAvailableSpots(destObj),
-          policyEngine.getAdjustedCapacity(destObj),
-          policyEngine.getDynamicCapacity(destObj)
+          policyEngine.getAvailableSpots(found),
+          policyEngine.getAdjustedCapacity(found),
+          policyEngine.getDynamicCapacity(found)
         ]);
         setAvailableSpots(available);
         setAdjustedCapacity(adjusted);
         setCapacityResult(dynResult);
         
         // Generate ecological alert if applicable
-        const alert = policyEngine.generateEcologicalAlerts(destObj);
+        const alert = policyEngine.generateEcologicalAlerts(found);
         setEcoAlert(alert);
       }
     } catch (error) {
@@ -845,6 +874,53 @@ function BookDestinationForm() {
                     </div>
                   ))}
                 </div>
+              </div>
+            </div>
+          )}
+
+          {/* Low Impact Alternatives Section */}
+          {destination && (destination.ecologicalSensitivity === 'high' || destination.ecologicalSensitivity === 'critical' || availableSpots < 5) && (
+            <div className="bg-emerald-50 rounded-2xl p-8 border border-emerald-200">
+              <div className="flex items-center space-x-3 mb-6">
+                <div className="bg-emerald-100 p-2 rounded-lg">
+                  <Leaf className="h-6 w-6 text-emerald-700" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold text-emerald-900 tracking-tight leading-none">High Ecological Impact Detected</h3>
+                  <p className="text-emerald-700 text-xs font-bold mt-1 uppercase tracking-widest">Consider these low-impact alternatives</p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {findLowImpactAlternatives(allDestinationsState, destination).map((alt) => {
+                  const score = calculateSustainabilityScore(alt);
+                  return (
+                    <div key={alt.id} className="bg-white p-4 rounded-xl border border-emerald-100 flex gap-4 items-center group hover:shadow-md transition-all">
+                      <div className="h-16 w-16 rounded-lg bg-emerald-50 overflow-hidden flex-shrink-0">
+                        <img src="https://images.unsplash.com/photo-1501785888041-af3ef285b470?w=200" className="w-full h-full object-cover group-hover:scale-110 transition-transform" alt={alt.name} />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex justify-between items-start">
+                          <h4 className="font-bold text-gray-900 truncate text-sm">{alt.name}</h4>
+                          <span className="px-2 py-0.5 rounded-md text-[8px] font-black uppercase bg-emerald-50 text-emerald-600 border border-emerald-100">
+                            {score.overallScore}
+                          </span>
+                        </div>
+                        <p className="text-[10px] text-gray-500 line-clamp-1">{alt.description}</p>
+                        <button 
+                          type="button"
+                          onClick={() => {
+                            router.push(`/tourist/book?destination=${alt.id}`);
+                            window.location.reload(); // Force reload to update destination state
+                          }}
+                          className="text-[9px] font-black text-emerald-600 uppercase tracking-widest mt-1 hover:underline"
+                        >
+                          Switch to this destination
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             </div>
           )}

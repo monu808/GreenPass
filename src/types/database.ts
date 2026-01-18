@@ -1,4 +1,4 @@
-export type Database = {
+export interface Database {
   public: {
     Tables: {
       tourists: {
@@ -25,9 +25,6 @@ export type Database = {
           emergency_contact_relationship: string;
           registration_date: string;
           user_id: string | null;
-          carbon_footprint: number | null;
-          origin_location_id: string | null;
-          transport_type: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -54,9 +51,6 @@ export type Database = {
           emergency_contact_relationship: string;
           registration_date?: string;
           user_id?: string | null;
-          carbon_footprint?: number | null;
-          origin_location_id?: string | null;
-          transport_type?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -82,9 +76,6 @@ export type Database = {
           emergency_contact_relationship?: string;
           registration_date?: string;
           user_id?: string | null;
-          carbon_footprint?: number | null;
-          origin_location_id?: string | null;
-          transport_type?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -139,7 +130,7 @@ export type Database = {
       alerts: {
         Row: {
           id: string;
-          type: 'capacity' | 'weather' | 'emergency' | 'maintenance' | 'ecological';
+          type: 'capacity' | 'weather' | 'emergency' | 'maintenance';
           title: string;
           message: string;
           severity: 'low' | 'medium' | 'high' | 'critical';
@@ -150,7 +141,7 @@ export type Database = {
         };
         Insert: {
           id?: string;
-          type: 'capacity' | 'weather' | 'emergency' | 'maintenance' | 'ecological';
+          type: 'capacity' | 'weather' | 'emergency' | 'maintenance';
           title: string;
           message: string;
           severity: 'low' | 'medium' | 'high' | 'critical';
@@ -161,7 +152,7 @@ export type Database = {
         };
         Update: {
           id?: string;
-          type?: 'capacity' | 'weather' | 'emergency' | 'maintenance' | 'ecological';
+          type?: 'capacity' | 'weather' | 'emergency' | 'maintenance';
           title?: string;
           message?: string;
           severity?: 'low' | 'medium' | 'high' | 'critical';
@@ -178,8 +169,6 @@ export type Database = {
           name: string | null;
           role: 'tourist' | 'admin' | 'supervisor' | 'operator';
           is_admin: boolean;
-          eco_points: number | null;
-          total_carbon_offset: number | null;
           created_at: string;
           updated_at: string;
         };
@@ -189,8 +178,6 @@ export type Database = {
           name?: string | null;
           role?: 'tourist' | 'admin' | 'supervisor' | 'operator';
           is_admin?: boolean;
-          eco_points?: number | null;
-          total_carbon_offset?: number | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -200,8 +187,6 @@ export type Database = {
           name?: string | null;
           role?: 'tourist' | 'admin' | 'supervisor' | 'operator';
           is_admin?: boolean;
-          eco_points?: number | null;
-          total_carbon_offset?: number | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -262,286 +247,12 @@ export type Database = {
           alert_reason?: string | null;
         };
       };
-      compliance_reports: {
-        Row: {
-          id: string;
-          report_period: string;
-          report_type: 'monthly' | 'quarterly';
-          total_tourists: number;
-          sustainable_capacity: number;
-          compliance_score: number;
-          waste_metrics: {
-            total_waste: number;
-            recycled_waste: number;
-            waste_reduction_target: number;
-          };
-          carbon_footprint: number;
-          ecological_impact_index: number;
-          ecological_damage_indicators?: {
-            soil_compaction: number;
-            vegetation_disturbance: number;
-            wildlife_disturbance: number;
-            water_source_impact: number;
-          };
-          previous_period_score?: number;
-          policy_violations_count: number;
-          total_fines: number;
-          status: 'pending' | 'approved';
-          approved_by: string | null;
-          approved_at: string | null;
-          created_at: string;
-        };
-        Insert: {
-          id?: string;
-          report_period: string;
-          report_type: 'monthly' | 'quarterly';
-          total_tourists: number;
-          sustainable_capacity: number;
-          compliance_score: number;
-          waste_metrics: {
-            total_waste: number;
-            recycled_waste: number;
-            waste_reduction_target: number;
-          };
-          carbon_footprint: number;
-          ecological_impact_index: number;
-          ecological_damage_indicators?: {
-            soil_compaction: number;
-            vegetation_disturbance: number;
-            wildlife_disturbance: number;
-            water_source_impact: number;
-          };
-          previous_period_score?: number;
-          policy_violations_count: number;
-          total_fines: number;
-          status?: 'pending' | 'approved';
-          approved_by?: string | null;
-          approved_at?: string | null;
-          created_at?: string;
-        };
-        Update: {
-          id?: string;
-          report_period?: string;
-          report_type?: 'monthly' | 'quarterly';
-          total_tourists?: number;
-          sustainable_capacity?: number;
-          compliance_score?: number;
-          waste_metrics?: {
-            total_waste: number;
-            recycled_waste: number;
-            waste_reduction_target: number;
-          };
-          carbon_footprint?: number;
-          ecological_impact_index?: number;
-          ecological_damage_indicators?: {
-            soil_compaction: number;
-            vegetation_disturbance: number;
-            wildlife_disturbance: number;
-            water_source_impact: number;
-          };
-          previous_period_score?: number;
-          policy_violations_count?: number;
-          total_fines?: number;
-          status?: 'pending' | 'approved';
-          approved_by?: string | null;
-          approved_at?: string | null;
-          created_at?: string;
-        };
-      };
-      policy_violations: {
-        Row: {
-          id: string;
-          destination_id: string;
-          violation_type: string;
-          description: string;
-          severity: 'low' | 'medium' | 'high' | 'critical';
-          fine_amount: number;
-          status: 'pending' | 'paid' | 'contested';
-          reported_at: string;
-          created_at: string;
-        };
-        Insert: {
-          id?: string;
-          destination_id: string;
-          violation_type: string;
-          description: string;
-          severity: 'low' | 'medium' | 'high' | 'critical';
-          fine_amount: number;
-          status?: 'pending' | 'paid' | 'contested';
-          reported_at?: string;
-          created_at?: string;
-        };
-        Update: {
-          id?: string;
-          destination_id?: string;
-          violation_type?: string;
-          description?: string;
-          severity?: 'low' | 'medium' | 'high' | 'critical';
-          fine_amount?: number;
-          status?: 'pending' | 'paid' | 'contested';
-          reported_at?: string;
-          created_at?: string;
-        };
-      };
-      waste_data: {
-        Row: {
-          id: string;
-          destination_id: string;
-          waste_type: 'plastic' | 'glass' | 'metal' | 'organic' | 'paper' | 'other';
-          quantity: number;
-          unit: string;
-          collected_at: string;
-          created_at: string;
-        };
-        Insert: {
-          id?: string;
-          destination_id: string;
-          waste_type: 'plastic' | 'glass' | 'metal' | 'organic' | 'paper' | 'other';
-          quantity: number;
-          unit?: string;
-          collected_at?: string;
-          created_at?: string;
-        };
-        Update: {
-          id?: string;
-          destination_id?: string;
-          waste_type?: 'plastic' | 'glass' | 'metal' | 'organic' | 'paper' | 'other';
-          quantity?: number;
-          unit?: string;
-          collected_at?: string;
-          created_at?: string;
-        };
-      };
-      cleanup_activities: {
-        Row: {
-          id: string;
-          destination_id: string;
-          title: string;
-          description: string;
-          start_time: string;
-          end_time: string;
-          location: string;
-          max_participants: number;
-          current_participants: number;
-          status: 'upcoming' | 'ongoing' | 'completed' | 'cancelled';
-          eco_points_reward: number;
-          created_at: string;
-        };
-        Insert: {
-          id?: string;
-          destination_id: string;
-          title: string;
-          description: string;
-          start_time: string;
-          end_time: string;
-          location: string;
-          max_participants: number;
-          current_participants?: number;
-          status?: 'upcoming' | 'ongoing' | 'completed' | 'cancelled';
-          eco_points_reward?: number;
-          created_at?: string;
-        };
-        Update: {
-          id?: string;
-          destination_id?: string;
-          title?: string;
-          description?: string;
-          start_time?: string;
-          end_time?: string;
-          location?: string;
-          max_participants?: number;
-          current_participants?: number;
-          status?: 'upcoming' | 'ongoing' | 'completed' | 'cancelled';
-          eco_points_reward?: number;
-          created_at?: string;
-        };
-      };
-      cleanup_registrations: {
-        Row: {
-          id: string;
-          activity_id: string;
-          user_id: string;
-          status: 'registered' | 'attended' | 'cancelled';
-          registered_at: string;
-          attended: boolean;
-        };
-        Insert: {
-          id?: string;
-          activity_id: string;
-          user_id: string;
-          status?: 'registered' | 'attended' | 'cancelled';
-          registered_at?: string;
-          attended?: boolean;
-        };
-        Update: {
-          id?: string;
-          activity_id?: string;
-          user_id?: string;
-          status?: 'registered' | 'attended' | 'cancelled';
-          registered_at?: string;
-          attended?: boolean;
-        };
-      };
-      eco_points_transactions: {
-        Row: {
-          id: string;
-          user_id: string;
-          points: number;
-          transaction_type: 'award' | 'redemption' | 'adjustment';
-          description: string;
-          created_at: string;
-        };
-        Insert: {
-          id?: string;
-          user_id: string;
-          points: number;
-          transaction_type: 'award' | 'redemption' | 'adjustment';
-          description: string;
-          created_at?: string;
-        };
-        Update: {
-          id?: string;
-          user_id?: string;
-          points?: number;
-          transaction_type?: 'award' | 'redemption' | 'adjustment';
-          description?: string;
-          created_at?: string;
-        };
-      };
     };
     Views: {
       [_ in never]: never;
     };
     Functions: {
-      register_for_cleanup: {
-        Args: {
-          p_activity_id: string
-          p_user_id: string
-        }
-        Returns: boolean
-      }
-      award_eco_points: {
-        Args: {
-          p_user_id: string
-          p_points: number
-          p_description: string
-        }
-        Returns: boolean
-      }
-      update_user_eco_metrics: {
-        Args: {
-          p_user_id: string
-          p_points_to_add: number
-          p_offset_to_add: number
-        }
-        Returns: boolean
-      }
-      cancel_cleanup_registration: {
-        Args: {
-          p_registration_id: string
-        }
-        Returns: boolean
-      }
+      [_ in never]: never;
     };
     Enums: {
       [_ in never]: never;

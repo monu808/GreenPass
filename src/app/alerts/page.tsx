@@ -21,9 +21,8 @@ import {
   RefreshCw,
   Play,
   Pause,
-  Leaf,
 } from "lucide-react";
-import { getDbService } from "@/lib/databaseService";
+import { dbService } from "@/lib/databaseService";
 import { weatherMonitoringService } from "@/lib/weatherMonitoringService";
 import { Alert, Destination } from "@/types";
 
@@ -44,7 +43,6 @@ export default function AlertsPage() {
   const loadData = useCallback(async () => {
     try {
       setLoading(true);
-      const dbService = getDbService();
       const [regularAlerts, weatherAlerts, destinationsData] =
         await Promise.all([
           dbService.getAlerts(), // Get non-weather alerts from alerts table
@@ -142,7 +140,6 @@ export default function AlertsPage() {
 
   const handleToggleAlert = async (alertId: string, isActive: boolean) => {
     try {
-      const dbService = getDbService();
       await dbService.updateAlert(alertId, { isActive: !isActive });
       await loadData(); // Reload data
     } catch (error) {
@@ -196,8 +193,6 @@ export default function AlertsPage() {
         return <Zap className="h-4 w-4" />;
       case "maintenance":
         return <Settings className="h-4 w-4" />;
-      case "ecological":
-        return <Leaf className="h-4 w-4" />;
       default:
         return <AlertTriangle className="h-4 w-4" />;
     }
@@ -233,7 +228,6 @@ export default function AlertsPage() {
     const handleSubmit = async (e: React.FormEvent) => {
       e.preventDefault();
       try {
-        const dbService = getDbService();
         await dbService.addAlert({
           type: formData.type as any,
           title: formData.title,
@@ -275,7 +269,6 @@ export default function AlertsPage() {
                   <option value="capacity">Capacity</option>
                   <option value="emergency">Emergency</option>
                   <option value="maintenance">Maintenance</option>
-                  <option value="ecological">Ecological</option>
                 </select>
               </div>
 

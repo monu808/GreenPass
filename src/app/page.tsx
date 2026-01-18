@@ -15,7 +15,7 @@ export default function RootPage() {
     // If user is authenticated, redirect to appropriate dashboard
     if (!loading && user) {
       if (isAdmin) {
-        router.push('/dashboard'); 
+        router.push('/dashboard');
       } else {
         router.push('/tourist/dashboard');
       }
@@ -30,14 +30,13 @@ export default function RootPage() {
     );
   }
 
-  // If user is logged in, the useEffect will handle the redirect
-  // We return a loading state or nothing while the redirect happens
+  // If user is logged in, show dashboard
   if (user) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600"></div>
-      </div>
-    );
+    if (isAdmin) {
+      return <AdminDashboard />;
+    } else {
+      return <TouristDashboard />;
+    }
   }
 
   // If not logged in, show home/landing page

@@ -24,8 +24,7 @@ export const createClientComponentClient = () => {
 export const createServerComponentClient = () => {
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!supabaseUrl || !serviceRoleKey) {
-    console.warn('⚠️ SUPABASE_SERVICE_ROLE_KEY is missing. Using null client for server component.');
-    return null;
+    throw new Error('Missing Supabase environment variables for server client');
   }
   return createClient<Database>(
     supabaseUrl,

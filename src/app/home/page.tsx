@@ -11,25 +11,25 @@ export default function HomePage() {
       <nav className="bg-white/80 backdrop-blur-sm border-b border-gray-200 fixed w-full z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
-            <div className="flex items-center space-x-2 sm:space-x-3">
-              <div className="p-1.5 sm:p-2 bg-green-600 rounded-lg">
-                <Mountain className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
+            <div className="flex items-center space-x-3">
+              <div className="p-2 bg-green-600 rounded-lg">
+                <Mountain className="h-6 w-6 text-white" />
               </div>
               <div>
-                <h1 className="text-lg sm:text-xl font-bold text-gray-900 leading-none">GreenPass</h1>
-                <p className="text-[10px] sm:text-xs text-gray-600">Tourist Management</p>
+                <h1 className="text-xl font-bold text-gray-900">GreenPass</h1>
+                <p className="text-xs text-gray-600">Tourist Management System</p>
               </div>
             </div>
-            <div className="flex items-center space-x-2 sm:space-x-4">
+            <div className="flex items-center space-x-4">
               <Link
                 href="/login"
-                className="px-3 py-1.5 sm:px-4 sm:py-2 text-xs sm:text-sm font-medium text-gray-700 hover:text-green-600 transition-colors"
+                className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-green-600 transition-colors"
               >
                 Login
               </Link>
               <Link
                 href="/signup"
-                className="px-3 py-1.5 sm:px-4 sm:py-2 text-xs sm:text-sm font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 transition-colors"
+                className="px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 transition-colors"
               >
                 Sign Up
               </Link>
@@ -39,26 +39,26 @@ export default function HomePage() {
       </nav>
 
       {/* Hero Section */}
-      <div className="pt-24 sm:pt-32 pb-12 sm:pb-20 px-4 sm:px-6 lg:px-8">
+      <div className="pt-32 pb-20 px-4 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto">
           <div className="text-center">
-            <h1 className="text-3xl sm:text-5xl font-bold text-gray-900 mb-4 sm:mb-6 leading-tight">
+            <h1 className="text-5xl font-bold text-gray-900 mb-6">
               Explore Paradise Responsibly
             </h1>
-            <p className="text-base sm:text-xl text-gray-600 mb-8 max-w-3xl mx-auto px-2 leading-relaxed">
+            <p className="text-xl text-gray-600 mb-8 max-w-3xl mx-auto">
               Discover the breathtaking beauty of Jammu & Himachal Pradesh with our 
               sustainable tourism management platform. Book, explore, and protect nature.
             </p>
-            <div className="flex flex-col sm:flex-row justify-center items-center space-y-3 sm:space-y-0 sm:space-x-4 px-4 sm:px-0">
+            <div className="flex justify-center space-x-4">
               <Link
                 href="/login"
-                className="w-full sm:w-auto px-8 py-3 sm:py-4 text-base sm:text-lg font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 transition-all transform hover:scale-105 shadow-lg text-center"
+                className="px-8 py-4 text-lg font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 transition-all transform hover:scale-105 shadow-lg"
               >
                 Get Started
               </Link>
               <Link
                 href="#features"
-                className="w-full sm:w-auto px-8 py-3 sm:py-4 text-base sm:text-lg font-medium text-green-600 bg-white border-2 border-green-600 rounded-lg hover:bg-green-50 transition-all text-center"
+                className="px-8 py-4 text-lg font-medium text-green-600 bg-white border-2 border-green-600 rounded-lg hover:bg-green-50 transition-all"
               >
                 Learn More
               </Link>
@@ -66,8 +66,8 @@ export default function HomePage() {
           </div>
 
           {/* Features Grid */}
-          <div id="features" className="mt-20 sm:mt-24 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8">
-            <div className="bg-white p-6 sm:p-8 rounded-xl shadow-lg hover:shadow-xl transition-all border border-gray-100">
+          <div id="features" className="mt-24 grid md:grid-cols-3 gap-8">
+            <div className="bg-white p-8 rounded-xl shadow-lg hover:shadow-xl transition-all">
               <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center mb-4">
                 <MapPin className="h-6 w-6 text-green-600" />
               </div>
@@ -80,7 +80,7 @@ export default function HomePage() {
               </p>
             </div>
 
-            <div className="bg-white p-6 sm:p-8 rounded-xl shadow-lg hover:shadow-xl transition-all border border-gray-100">
+            <div className="bg-white p-8 rounded-xl shadow-lg hover:shadow-xl transition-all">
               <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center mb-4">
                 <Calendar className="h-6 w-6 text-blue-600" />
               </div>
@@ -93,7 +93,7 @@ export default function HomePage() {
               </p>
             </div>
 
-            <div className="bg-white p-6 sm:p-8 rounded-xl shadow-lg hover:shadow-xl transition-all border border-gray-100">
+            <div className="bg-white p-8 rounded-xl shadow-lg hover:shadow-xl transition-all">
               <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center mb-4">
                 <Leaf className="h-6 w-6 text-purple-600" />
               </div>
@@ -106,7 +106,7 @@ export default function HomePage() {
               </p>
             </div>
 
-            <div className="bg-white p-6 sm:p-8 rounded-xl shadow-lg hover:shadow-xl transition-all border border-gray-100">
+            <div className="bg-white p-8 rounded-xl shadow-lg hover:shadow-xl transition-all">
               <div className="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center mb-4">
                 <Shield className="h-6 w-6 text-orange-600" />
               </div>
@@ -119,7 +119,7 @@ export default function HomePage() {
               </p>
             </div>
 
-            <div className="bg-white p-6 sm:p-8 rounded-xl shadow-lg hover:shadow-xl transition-all border border-gray-100">
+            <div className="bg-white p-8 rounded-xl shadow-lg hover:shadow-xl transition-all">
               <div className="w-12 h-12 bg-red-100 rounded-lg flex items-center justify-center mb-4">
                 <TrendingUp className="h-6 w-6 text-red-600" />
               </div>
@@ -132,7 +132,7 @@ export default function HomePage() {
               </p>
             </div>
 
-            <div className="bg-white p-6 sm:p-8 rounded-xl shadow-lg hover:shadow-xl transition-all border border-gray-100">
+            <div className="bg-white p-8 rounded-xl shadow-lg hover:shadow-xl transition-all">
               <div className="w-12 h-12 bg-teal-100 rounded-lg flex items-center justify-center mb-4">
                 <Mountain className="h-6 w-6 text-teal-600" />
               </div>
@@ -147,16 +147,16 @@ export default function HomePage() {
           </div>
 
           {/* CTA Section */}
-          <div className="mt-20 sm:mt-24 bg-gradient-to-r from-green-600 to-blue-600 rounded-2xl p-8 sm:p-12 text-center mx-4 sm:mx-0">
-            <h2 className="text-2xl sm:text-3xl font-bold text-white mb-4">
+          <div className="mt-24 bg-gradient-to-r from-green-600 to-blue-600 rounded-2xl p-12 text-center">
+            <h2 className="text-3xl font-bold text-white mb-4">
               Ready to Start Your Journey?
             </h2>
-            <p className="text-lg sm:text-xl text-green-50 mb-8">
+            <p className="text-xl text-green-50 mb-8">
               Join thousands of travelers exploring responsibly
             </p>
             <Link
               href="/signup"
-              className="w-full sm:w-auto inline-block px-8 py-4 text-base sm:text-lg font-medium text-green-600 bg-white rounded-lg hover:bg-gray-50 transition-all transform hover:scale-105 shadow-lg"
+              className="inline-block px-8 py-4 text-lg font-medium text-green-600 bg-white rounded-lg hover:bg-gray-50 transition-all transform hover:scale-105 shadow-lg"
             >
               Create Free Account
             </Link>

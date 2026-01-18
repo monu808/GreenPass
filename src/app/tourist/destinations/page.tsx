@@ -1,234 +1,289 @@
-'use client';
+"use client";
 
-import React, { useState, useEffect, useCallback, ChangeEvent } from 'react';
-import { 
-  MapPin, Users, Navigation, Search, RefreshCw, Leaf, Heart, 
-  Filter, ArrowRight, ShieldCheck, Compass, Thermometer, Calendar 
-} from 'lucide-react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { MapPin, Star, Users, Heart, Camera, Calendar, Navigation } from 'lucide-react';
 import TouristLayout from '@/components/TouristLayout';
-import { getDbService } from '@/lib/databaseService';
-import { getPolicyEngine } from '@/lib/ecologicalPolicyEngine';
-import { Destination, DynamicCapacityResult } from '@/types';
+import { dbService } from '@/lib/databaseService';
+import { policyEngine } from '@/lib/ecologicalPolicyEngine';
+import { Destination } from '@/types';
 
 export default function TouristDestinations() {
-  // 1. STATE MANAGEMENT
   const [destinations, setDestinations] = useState<Destination[]>([]);
-  const [filteredDestinations, setFilteredDestinations] = useState<Destination[]>([]);
-  const [capacityResults, setCapacityResults] = useState<Record<string, DynamicCapacityResult>>({});
-  const [loading, setLoading] = useState<boolean>(true);
-  const [searchTerm, setSearchTerm] = useState<string>('');
-  const [selectedFilter, setSelectedFilter] = useState<'all' | 'available' | 'popular' | 'high-sensitivity'>('all');
+  const [filteredDestinations, setFilteredDestinations] = useState<
+    Destination[]
+  >([]);
+  const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [selectedFilter, setSelectedFilter] = useState<
+    "all" | "available" | "popular"
+  >("all");
 
-  // 2. DATA LOADING LOGIC (Direct Database Sync)
-  const loadData = async (): Promise<void> => {
+  const loadDestinations = async () => {
     try {
-      const dbService = getDbService();
-      const data = await dbService.getDestinations();
-      const transformed: Destination[] = data.map((dest) => ({
+      const destinationsData = await dbService.getDestinations();
+
+      const transformedDestinations = destinationsData.map((dest) => ({
         id: dest.id,
         name: dest.name,
         location: dest.location,
         maxCapacity: dest.max_capacity,
         currentOccupancy: dest.current_occupancy,
         description: dest.description,
-        guidelines: dest.guidelines || [],
+        guidelines: dest.guidelines,
         isActive: dest.is_active,
         ecologicalSensitivity: dest.ecological_sensitivity,
-        coordinates: { latitude: dest.latitude, longitude: dest.longitude },
+        coordinates: {
+          latitude: dest.latitude,
+          longitude: dest.longitude,
+        },
       }));
-      const activeDestinations = transformed.filter((dest) => dest.isActive);
-      setDestinations(activeDestinations);
 
-      // Fetch dynamic capacity for each destination
-      const policyEngine = getPolicyEngine();
-      const results: Record<string, DynamicCapacityResult> = {};
-      await Promise.all(activeDestinations.map(async (d) => {
-        results[d.id] = await policyEngine.getDynamicCapacity(d);
-      }));
-      setCapacityResults(results);
+      setDestinations(transformedDestinations.filter((dest) => dest.isActive));
     } catch (error) {
-      console.error("Critical build error in data fetching:", error);
+      console.error("Error loading destinations:", error);
     } finally {
       setLoading(false);
     }
   };
 
-  // 3. FILTERING ENGINE (Using Policy Engine for dynamic capacity)
-  const filterData = useCallback((): void => {
-    let result = [...destinations];
-    const policy = getPolicyEngine();
+  const filterDestinations = useCallback(() => {
+    let filtered = destinations;
 
+    // Apply search filter
     if (searchTerm) {
-      result = result.filter(d => 
-        d.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        d.location.toLowerCase().includes(searchTerm.toLowerCase())
+      filtered = filtered.filter(dest => 
+        dest.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        dest.location.toLowerCase().includes(searchTerm.toLowerCase())
       );
     }
 
-    if (selectedFilter === 'available') {
-      result = result.filter(d => {
-        const adjustedCap = capacityResults[d.id]?.adjustedCapacity || d.maxCapacity;
-        return d.currentOccupancy < adjustedCap * 0.75;
-      });
-    } else if (selectedFilter === 'popular') {
-      result = result.filter(d => d.currentOccupancy > d.maxCapacity * 0.6);
-    } else if (selectedFilter === 'high-sensitivity') {
-      result = result.filter(d => d.ecologicalSensitivity === 'high');
+    // Apply category filter
+    switch (selectedFilter) {
+      case 'available':
+        filtered = filtered.filter(dest => {
+          const adjustedCapacity = policyEngine.getAdjustedCapacity(dest);
+          return dest.currentOccupancy < adjustedCapacity * 0.8;
+        });
+        break;
+      case 'popular':
+        filtered = filtered.filter(dest => {
+          const adjustedCapacity = policyEngine.getAdjustedCapacity(dest);
+          return dest.currentOccupancy > adjustedCapacity * 0.5;
+        });
+        break;
     }
 
-    setFilteredDestinations(result);
+    setFilteredDestinations(filtered);
   }, [destinations, searchTerm, selectedFilter]);
 
-  useEffect(() => { loadData(); }, []);
-  useEffect(() => { filterData(); }, [filterData]);
+  useEffect(() => {
+    loadDestinations();
+  }, []);
 
-  // 4. ACTION HANDLERS
-  const handleAction = (type: string, id: string): void => {
-    if (type === 'book') window.location.href = `/tourist/book?destination=${id}`;
-    if (type === 'like') alert(`Trail ${id} added to your eco-journal!`);
+  useEffect(() => {
+    filterDestinations();
+  }, [filterDestinations]);
+
+  const getAvailabilityStatus = (destination: Destination) => {
+    const adjustedCapacity = policyEngine.getAdjustedCapacity(destination);
+    const occupancyRate = destination.currentOccupancy / adjustedCapacity;
+    if (occupancyRate < 0.6) return { text: 'Great Availability', color: 'text-green-600 bg-green-100' };
+    if (occupancyRate < 0.8) return { text: 'Limited Spots', color: 'text-yellow-600 bg-yellow-100' };
+    return { text: 'Almost Full', color: 'text-red-600 bg-red-100' };
+  };
+
+  const getEcoSensitivityInfo = (level: string) => {
+    switch (level) {
+      case 'low': return { icon: '🌱', label: 'Low Sensitivity', color: 'text-green-600' };
+      case 'medium': return { icon: '🍃', label: 'Medium Sensitivity', color: 'text-yellow-600' };
+      case 'high': return { icon: '🌿', label: 'High Sensitivity', color: 'text-orange-600' };
+      case 'critical': return { icon: '🌲', label: 'Critical Area', color: 'text-red-600' };
+      default: return { icon: '🌱', label: 'Eco-friendly', color: 'text-green-600' };
+    }
+  };
+
+  const DestinationCard = ({ destination }: { destination: Destination }) => {
+    const adjustedCapacity = policyEngine.getAdjustedCapacity(destination);
+    const occupancyRate = destination.currentOccupancy / adjustedCapacity;
+    const isOverCapacity = occupancyRate > 1;
+    const availability = isOverCapacity ? { text: 'Over Capacity', color: 'text-white bg-red-600' } :
+                        occupancyRate < 0.6 ? { text: 'Great Availability', color: 'text-green-600 bg-green-100' } :
+                        occupancyRate < 0.8 ? { text: 'Limited Spots', color: 'text-yellow-600 bg-yellow-100' } :
+                        { text: 'Almost Full', color: 'text-red-600 bg-red-100' };
+
+    return (
+      <div className="bg-white rounded-2xl overflow-hidden shadow-lg border border-gray-100 hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
+        {/* Image Placeholder with Gradient */}
+        <div className="h-56 bg-gradient-to-br from-green-400 via-blue-500 to-purple-600 relative">
+          <div className="absolute inset-0 bg-black bg-opacity-20"></div>
+          <div className="absolute top-4 right-4 flex space-x-2">
+            <button className="bg-white bg-opacity-90 rounded-full p-2 hover:bg-opacity-100 transition-all shadow-sm">
+              <Heart className="h-4 w-4 text-gray-600" />
+            </button>
+          </div>
+          <div className="absolute bottom-4 left-4">
+            <div className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${availability.color} shadow-sm`}>
+              {availability.text}
+            </div>
+          </div>
+        </div>
+
+        <div className="p-6">
+          {/* Header */}
+          <div className="flex items-start justify-between mb-3">
+            <div>
+              <h3 className="text-xl font-bold text-gray-900 mb-1">
+                {destination.name}
+              </h3>
+              <p className="text-gray-600 flex items-center text-sm">
+                <MapPin className="h-4 w-4 mr-1" />
+                {destination.location}
+              </p>
+            </div>
+            <div className="text-right">
+              <div className="flex items-center space-x-1 mb-1">
+                <Star className="h-4 w-4 text-yellow-400 fill-current" />
+                <span className="text-sm font-medium">4.5</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Description */}
+          <p className="text-gray-600 text-sm mb-4 line-clamp-2">
+            {destination.description}
+          </p>
+
+          {/* Capacity Info */}
+          <div className="flex flex-col space-y-2 mb-4">
+            <div className="flex items-center justify-between text-sm">
+              <div className="flex items-center text-gray-500">
+                <Users className="h-4 w-4 mr-1" />
+                <span>{destination.currentOccupancy}/{adjustedCapacity}</span>
+              </div>
+              <span className={`font-medium ${
+                isOverCapacity ? 'text-red-700 font-bold' :
+                occupancyRate < 0.6 ? 'text-green-600' :
+                occupancyRate < 0.8 ? 'text-yellow-600' : 'text-red-600'
+              }`}>
+                {isOverCapacity ? 'Over Capacity' : `${Math.round(occupancyRate * 100)}% Full`}
+              </span>
+            </div>
+            <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
+              <div 
+                className={`h-full transition-all duration-500 ${
+                  occupancyRate < 0.6 ? 'bg-green-500' :
+                  occupancyRate < 0.8 ? 'bg-yellow-500' : 'bg-red-500'
+                }`}
+                style={{ width: `${Math.min(100, occupancyRate * 100)}%` }}
+              ></div>
+            </div>
+          </div>
+
+          {/* Action Buttons */}
+          <div className="flex space-x-3">
+            <button 
+              onClick={() => window.location.href = `/tourist/book?destination=${destination.id}`}
+              className="flex-1 bg-gradient-to-r from-green-600 to-blue-600 text-white py-3 px-4 rounded-xl font-medium hover:from-green-700 hover:to-blue-700 transition-all hover:shadow-md active:scale-95 flex items-center justify-center"
+            >
+              <Calendar className="h-4 w-4 mr-2" />
+              Book Now
+            </button>
+            <button className="flex-1 border border-gray-300 text-gray-700 py-3 px-4 rounded-xl font-medium hover:bg-gray-50 transition-colors flex items-center justify-center">
+              <Navigation className="h-4 w-4 mr-2" />
+              Directions
+            </button>
+          </div>
+        </div>
+      </div>
+    );
   };
 
   return (
     <TouristLayout>
-      <div className="max-w-7xl mx-auto space-y-12 pb-20 px-6">
-        
-        {/* HEADER */}
-        <div className="pt-10 flex flex-col md:flex-row justify-between items-end gap-6 border-b border-gray-100 pb-12">
-          <div className="space-y-4">
-            <div className="flex items-center gap-2 text-emerald-600">
-              <Compass className="h-5 w-5" />
-              <span className="text-[10px] font-black tracking-[0.4em] uppercase">Managed Eco-Trails</span>
-            </div>
-            <h1 className="text-6xl font-black text-gray-900 tracking-tighter leading-none">
-              Explore <span className="text-emerald-600">Nature</span>
-            </h1>
-          </div>
-          <div className="text-right space-y-2">
-            <p className="text-gray-400 font-bold max-w-sm text-sm leading-relaxed">
-              Live occupancy tracking across Himalayan valleys to ensure sustainable tourism.
-            </p>
-          </div>
+      <div className="space-y-8">
+        {/* Header */}
+        <div className="text-center">
+          <h1 className="text-4xl font-bold text-gray-900 mb-4">
+            Discover Amazing Destinations
+          </h1>
+          <p className="text-lg text-gray-600 max-w-2xl mx-auto">
+            Explore the breathtaking beauty of Jammu & Himachal Pradesh. From
+            snow-capped mountains to serene valleys.
+          </p>
         </div>
 
-        {/* SEARCH & FILTER BAR */}
-        <div className="bg-white rounded-[2.5rem] p-4 shadow-sm border border-gray-100 space-y-4">
-          <div className="flex flex-col lg:flex-row gap-4">
-            <div className="flex-1 relative group">
-              <label htmlFor="dest-search-input" className="sr-only">Search valley destinations</label>
-              <Search className="absolute left-6 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400 group-focus-within:text-emerald-500 transition-colors" />
+        {/* Search and Filters */}
+        <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+          <div className="flex flex-col md:flex-row gap-4">
+            {/* Search */}
+            <div className="flex-1">
               <input
-                id="dest-search-input"
                 type="text"
-                placeholder="Search by valley, town, or state..."
+                placeholder="Search destinations, locations..."
                 value={searchTerm}
-                onChange={(e: ChangeEvent<HTMLInputElement>) => setSearchTerm(e.target.value)}
-                className="w-full pl-16 pr-8 py-5 bg-gray-50 border-none rounded-[1.8rem] font-bold text-gray-700 outline-none focus:ring-4 focus:ring-emerald-500/5 transition-all"
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent"
               />
             </div>
 
-            <div className="flex bg-gray-100 p-1.5 rounded-[1.8rem] border border-gray-100 overflow-x-auto">
-              {['all', 'available', 'popular', 'high-sensitivity'].map((filter) => (
+            {/* Filters */}
+            <div className="flex space-x-2">
+              {[
+                { key: "all", label: "All Places" },
+                { key: "available", label: "Available" },
+                { key: "popular", label: "Popular" },
+              ].map((filter) => (
                 <button
-                  key={filter}
-                  type="button"
-                  onClick={() => setSelectedFilter(filter as any)}
-                  className={`px-6 py-3 rounded-[1.5rem] text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${
-                    selectedFilter === filter ? "bg-white text-emerald-600 shadow-sm" : "text-gray-400 hover:text-gray-600"
+                  key={filter.key}
+                  onClick={() => setSelectedFilter(filter.key as any)}
+                  className={`px-6 py-3 rounded-xl font-medium transition-colors ${
+                    selectedFilter === filter.key
+                      ? "bg-gradient-to-r from-green-600 to-blue-600 text-white"
+                      : "bg-gray-100 text-gray-700 hover:bg-gray-200"
                   }`}
                 >
-                  {filter.replace('-', ' ')}
+                  {filter.label}
                 </button>
               ))}
             </div>
           </div>
         </div>
 
-        {/* DESTINATIONS LIST */}
+        {/* Results Count */}
+        <div className="flex items-center justify-between">
+          <p className="text-gray-600">
+            {filteredDestinations.length} destination
+            {filteredDestinations.length !== 1 ? "s" : ""} found
+          </p>
+          <select className="border border-gray-300 rounded-lg px-3 py-2 text-sm">
+            <option>Sort by Popularity</option>
+            <option>Sort by Availability</option>
+            <option>Sort by Name</option>
+          </select>
+        </div>
+
+        {/* Destinations Grid */}
         {loading ? (
-          <div className="flex flex-col items-center justify-center py-32 space-y-4">
-            <RefreshCw className="h-12 w-12 text-emerald-500 animate-spin" />
-            <p className="text-emerald-600 font-black text-[10px] uppercase tracking-widest">Updating Trail Data...</p>
+          <div className="flex items-center justify-center py-12">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600"></div>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10">
-            {filteredDestinations.map((d) => {
-              const dynResult = capacityResults[d.id];
-              const adjustedCap = dynResult?.adjustedCapacity || d.maxCapacity;
-              // FIX: Added guard to check if adjustedCap is greater than 0
-              const occupancyRate = adjustedCap > 0 ? (d.currentOccupancy / adjustedCap) * 100 : 0;
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {filteredDestinations.map((destination) => (
+              <DestinationCard key={destination.id} destination={destination} />
+            ))}
+          </div>
+        )}
 
-              return (
-                <div key={d.id} className="group bg-white rounded-[3.5rem] border border-gray-100 overflow-hidden hover:shadow-2xl transition-all duration-500">
-                  <div className="h-56 relative overflow-hidden bg-emerald-900">
-                    <img 
-                      src="https://images.unsplash.com/photo-1596394516093-501ba68a0ba6?w=800"
-                      className="w-full h-full object-cover opacity-60 group-hover:scale-110 transition-transform duration-700"
-                      alt={d.name}
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-emerald-950/90 via-transparent to-transparent" />
-                    
-                    {/* Dynamic Capacity Indicators */}
-                    <div className="absolute top-6 right-8 flex gap-2">
-                      {dynResult?.activeFactorFlags.weather && (
-                        <div className="p-2 bg-white/20 backdrop-blur-md rounded-full text-white" title="Weather-based capacity adjustment active">
-                          <Thermometer className="h-4 w-4" />
-                        </div>
-                      )}
-                      {dynResult?.activeFactorFlags.season && (
-                        <div className="p-2 bg-white/20 backdrop-blur-md rounded-full text-white" title="Seasonal capacity adjustment active">
-                          <Calendar className="h-4 w-4" />
-                        </div>
-                      )}
-                      {dynResult?.activeFactorFlags.infrastructure && (
-                        <div className="p-2 bg-white/20 backdrop-blur-md rounded-full text-white" title="Infrastructure strain adjustment active">
-                          <Leaf className="h-4 w-4" />
-                        </div>
-                      )}
-                      {dynResult?.activeFactorFlags.override && (
-                        <div className="p-2 bg-white/20 backdrop-blur-md rounded-full text-white" title="Manual admin override active">
-                          <ShieldCheck className="h-4 w-4" />
-                        </div>
-                      )}
-                    </div>
-
-                    <h3 className="absolute bottom-6 left-8 text-3xl font-black text-white tracking-tighter leading-none">{d.name}</h3>
-                  </div>
-                  <div className="p-8 space-y-6">
-                    <div className="flex justify-between items-end">
-                      <div className="space-y-1">
-                        <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">
-                          {dynResult?.displayMessage ? dynResult.displayMessage : 'Eco-Load Factor'}
-                        </p>
-                        {/* FIX: Guarded display text for adjustedCap */}
-                        <p className="text-xl font-black text-gray-900">{d.currentOccupancy} / {adjustedCap > 0 ? adjustedCap : 0}</p>
-                      </div>
-                      <div className={`px-3 py-1 rounded-lg font-black text-[10px] uppercase ${occupancyRate > 80 ? 'bg-rose-50 text-rose-600' : 'bg-emerald-50 text-emerald-600'}`}>
-                        {Math.round(occupancyRate)}% Full
-                      </div>
-                    </div>
-
-                    <div className="h-2 bg-gray-50 rounded-full overflow-hidden">
-                       <div 
-                         className={`h-full transition-all duration-1000 ${occupancyRate > 80 ? 'bg-rose-500' : 'bg-emerald-500'}`} 
-                         style={{ width: `${Math.min(100, occupancyRate)}%` }} 
-                       />
-                    </div>
-
-                    <p className="text-gray-400 text-sm font-medium line-clamp-2">{d.description}</p>
-
-                    <div className="flex gap-3">
-                       <button 
-                         type="button"
-                         onClick={() => handleAction('book', d.id)}
-                         className="flex-1 py-4 bg-emerald-600 text-white rounded-[1.5rem] font-black text-[10px] uppercase tracking-widest shadow-xl active:scale-95 hover:bg-emerald-700 transition-all"
-                       >
-                         Secure Permit
-                       </button>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
+        {filteredDestinations.length === 0 && !loading && (
+          <div className="text-center py-12">
+            <MapPin className="h-16 w-16 text-gray-400 mx-auto mb-4" />
+            <h3 className="text-xl font-semibold text-gray-900 mb-2">
+              No destinations found
+            </h3>
+            <p className="text-gray-600">
+              Try adjusting your search or filters
+            </p>
           </div>
         )}
       </div>

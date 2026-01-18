@@ -1,16 +1,12 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Bell, Search, User, LogOut, Settings, Shield, UserCircle, ChevronDown, Key, Users, BarChart3, FileText, Activity, Database, AlertTriangle, Menu } from 'lucide-react';
+import { Bell, Search, User, LogOut, Settings, Shield, UserCircle, ChevronDown, Key, Users, BarChart3, FileText, Activity, Database, AlertTriangle } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 
-interface HeaderProps {
-  onMenuClick?: () => void;
-}
-
-export default function Header({ onMenuClick }: HeaderProps) {
+export default function Header() {
   const { user, signOut, isAdmin } = useAuth();
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [showAuthDropdown, setShowAuthDropdown] = useState(false);
@@ -32,31 +28,22 @@ export default function Header({ onMenuClick }: HeaderProps) {
   };
 
   return (
-    <header className="bg-white border-b border-gray-200 h-16 fixed top-0 right-0 left-0 lg:left-64 z-30 shadow-sm transition-all duration-300">
-      <div className="flex items-center justify-between h-full px-4 lg:px-6">
-        <div className="flex items-center flex-1">
-          <button
-            onClick={onMenuClick}
-            className="p-2 mr-4 text-gray-600 lg:hidden hover:bg-gray-100 rounded-lg transition-colors"
-          >
-            <Menu className="h-6 w-6" />
-          </button>
-          
-          {/* Search */}
-          <div className="flex-1 max-w-md hidden md:block">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-              <input
-                type="text"
-                placeholder="Search tourists, destinations..."
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-sm"
-              />
-            </div>
+    <header className="bg-white border-b border-gray-200 h-16 fixed top-0 right-0 left-64 z-30 shadow-sm">
+      <div className="flex items-center justify-between h-full px-6">
+        {/* Search */}
+        <div className="flex-1 max-w-md">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+            <input
+              type="text"
+              placeholder="Search tourists, destinations..."
+              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+            />
           </div>
         </div>
 
         {/* Right side */}
-        <div className="flex items-center space-x-2 lg:space-x-4">
+        <div className="flex items-center space-x-4">
           {/* Notifications */}
           <button className="relative p-2 text-gray-400 hover:text-gray-600 transition-colors">
             <Bell className="h-5 w-5" />
@@ -67,11 +54,11 @@ export default function Header({ onMenuClick }: HeaderProps) {
           <div className="relative">
             <button
               onClick={() => setShowUserMenu(!showUserMenu)}
-              className="flex items-center space-x-2 lg:space-x-3 px-2 lg:px-3 py-2 rounded-lg hover:bg-gray-50 transition-all focus:outline-none"
+              className="flex items-center space-x-3 px-3 py-2 rounded-lg hover:bg-gray-50 transition-all focus:outline-none"
             >
-              <div className="text-right hidden sm:block">
+              <div className="text-right">
                 <p className="text-sm font-medium text-gray-900">
-                  {user?.user_metadata?.name || user?.email?.split('@')[0] || 'User'}
+                  {user?.user_metadata?.name || user?.email || 'User'}
                 </p>
                 <p className="text-xs text-gray-500">
                   {isAdmin ? 'Administrator' : 'Tourist'}

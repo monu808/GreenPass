@@ -33,9 +33,7 @@ const WeatherCard: React.FC<WeatherCardProps> = ({
   const [error, setError] = useState<string | null>(null);
 
   const fetchWeatherData = useCallback(async () => {
-    const coordinates = destinationCoordinates[destinationId] || 
-                      destinationCoordinates[destinationName?.toLowerCase().replace(/\s+/g, '')] ||
-                      destinationCoordinates[destinationName?.toLowerCase()];
+    const coordinates = destinationCoordinates[destinationId];
     if (!coordinates) {
       setError("Location not found");
       return;

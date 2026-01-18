@@ -12,7 +12,7 @@ import {
   Activity,
   Target
 } from 'lucide-react';
-import { getDbService } from '@/lib/databaseService';
+import { dbService } from '@/lib/databaseService';
 
 interface AnalyticsData {
   totalTourists: number;
@@ -36,7 +36,6 @@ export default function AnalyticsPage() {
   const loadAnalytics = async () => {
     try {
       setLoading(true);
-      const dbService = getDbService();
       
       // Get raw data
       const [tourists, destinations] = await Promise.all([

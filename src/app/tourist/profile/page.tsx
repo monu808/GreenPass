@@ -28,8 +28,13 @@ import {
   TrendingUp,
   Clock,
   ChevronRight,
-  Check
+  Check,
+  Leaf,
+  Wind,
+  Info
 } from 'lucide-react';
+import { getDbService } from '@/lib/databaseService';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface UserProfile {
   id: string;
@@ -46,6 +51,8 @@ interface UserProfile {
   favoriteDestination: string;
   travelStyle: string[];
   languages: string[];
+  ecoPoints?: number;
+  totalCarbonOffset?: number;
 }
 
 interface TravelStats {
@@ -67,9 +74,11 @@ interface Achievement {
 }
 
 export default function MyProfile() {
+  const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<string>('profile');
   const [isEditing, setIsEditing] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
   const [userProfile, setUserProfile] = useState<UserProfile>({
     id: '1',
@@ -85,8 +94,37 @@ export default function MyProfile() {
     totalDistance: 15000,
     favoriteDestination: 'Manali',
     travelStyle: ['Adventure', 'Photography', 'Eco-Tourism'],
-    languages: ['Hindi', 'English', 'Punjabi']
+    languages: ['Hindi', 'English', 'Punjabi'],
+    ecoPoints: 450,
+    totalCarbonOffset: 120.5
   });
+
+  React.useEffect(() => {
+     const fetchEcoData = async () => {
+       if (!user?.id) {
+         setIsLoading(false);
+         return;
+       }
+
+       try {
+         const db = getDbService();
+         const stats = await db.getUserEcoStats(user.id);
+         if (stats) {
+          setUserProfile(prev => ({
+            ...prev,
+            ecoPoints: stats.ecoPoints,
+            totalCarbonOffset: stats.totalCarbonOffset,
+            totalTrips: stats.tripsCount
+          }));
+        }
+      } catch (error) {
+        console.error('Error fetching eco data:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchEcoData();
+  }, [user]);
 
   const travelStats: TravelStats = {
     placesVisited: 25,
@@ -157,6 +195,7 @@ export default function MyProfile() {
 
   const tabs = [
     { id: 'profile', label: 'Profile Info', icon: User },
+    { id: 'eco', label: 'Eco Dashboard', icon: Leaf },
     { id: 'stats', label: 'Travel Stats', icon: TrendingUp },
     { id: 'achievements', label: 'Achievements', icon: Award },
     { id: 'settings', label: 'Settings', icon: Settings }
@@ -195,10 +234,17 @@ export default function MyProfile() {
             </button>
           </div>
           
-          <div className="mt-8 grid grid-cols-2 sm:grid-cols-4 gap-4">
+          <div className="mt-8 grid grid-cols-2 sm:grid-cols-5 gap-4">
             <div className="text-center p-3 bg-white/10 rounded-xl">
               <div className="text-xl sm:text-2xl font-bold">{userProfile.totalTrips}</div>
               <div className="text-[10px] sm:text-xs uppercase tracking-wider text-purple-200">Total Trips</div>
+            </div>
+            <div className="text-center p-3 bg-white/10 rounded-xl border border-emerald-400/30">
+              <div className="text-xl sm:text-2xl font-bold text-emerald-300 flex items-center justify-center gap-1">
+                <Award className="h-5 w-5" />
+                {userProfile.ecoPoints}
+              </div>
+              <div className="text-[10px] sm:text-xs uppercase tracking-wider text-emerald-200/70 font-black">Eco-Points</div>
             </div>
             <div className="text-center p-3 bg-white/10 rounded-xl">
               <div className="text-xl sm:text-2xl font-bold">{travelStats.placesVisited}</div>
@@ -399,6 +445,93 @@ export default function MyProfile() {
                     <p className="text-gray-700 leading-relaxed font-medium">{userProfile.bio}</p>
                   </div>
                 )}
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'eco' && (
+            <div className="space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-500">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
+                <div className="space-y-1">
+                  <h2 className="text-3xl font-black text-gray-900 tracking-tight uppercase">Environmental Impact</h2>
+                  <p className="text-emerald-600 font-bold text-sm">Your contribution to sustainable tourism</p>
+                </div>
+                <div className="flex items-center gap-4 bg-emerald-50 px-6 py-4 rounded-[2rem] border border-emerald-100 shadow-sm">
+                  <div className="p-3 bg-emerald-500 rounded-2xl text-white">
+                    <Award className="h-6 w-6" />
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">Balance</p>
+                    <p className="text-2xl font-black text-gray-900">{userProfile.ecoPoints} <span className="text-xs text-gray-400">PTS</span></p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                <div className="bg-white p-8 rounded-[3rem] border border-gray-100 shadow-sm space-y-4 group hover:shadow-xl transition-all duration-500">
+                  <div className="h-14 w-14 bg-blue-50 rounded-2xl flex items-center justify-center text-blue-500 group-hover:bg-blue-500 group-hover:text-white transition-colors duration-500">
+                    <Wind className="h-7 w-7" />
+                  </div>
+                  <div className="space-y-1">
+                    <h3 className="text-lg font-black text-gray-900 uppercase tracking-tight">Total Offset</h3>
+                    <p className="text-3xl font-black text-blue-600">{userProfile.totalCarbonOffset?.toFixed(1)} <span className="text-sm text-gray-400">KG</span></p>
+                  </div>
+                  <p className="text-xs text-gray-400 font-medium leading-relaxed">Amount of CO2 you have successfully offset through our verified environmental projects.</p>
+                </div>
+
+                <div className="bg-white p-8 rounded-[3rem] border border-gray-100 shadow-sm space-y-4 group hover:shadow-xl transition-all duration-500">
+                  <div className="h-14 w-14 bg-emerald-50 rounded-2xl flex items-center justify-center text-emerald-500 group-hover:bg-emerald-500 group-hover:text-white transition-colors duration-500">
+                    <Leaf className="h-7 w-7" />
+                  </div>
+                  <div className="space-y-1">
+                    <h3 className="text-lg font-black text-gray-900 uppercase tracking-tight">Eco-Trips</h3>
+                    <p className="text-3xl font-black text-emerald-600">{userProfile.totalTrips} <span className="text-sm text-gray-400">TRIPS</span></p>
+                  </div>
+                  <p className="text-xs text-gray-400 font-medium leading-relaxed">Number of journeys completed with our sustainability tracking and guidelines.</p>
+                </div>
+
+                <div className="bg-emerald-900 p-8 rounded-[3rem] shadow-xl space-y-4 relative overflow-hidden group">
+                  <div className="absolute -right-4 -bottom-4 opacity-10 group-hover:scale-110 transition-transform duration-700">
+                    <TrendingUp className="h-32 w-32 text-white" />
+                  </div>
+                  <div className="h-14 w-14 bg-white/10 rounded-2xl flex items-center justify-center text-emerald-400">
+                    <Award className="h-7 w-7" />
+                  </div>
+                  <div className="space-y-1 relative z-10">
+                    <h3 className="text-lg font-black text-white uppercase tracking-tight">Eco-Rank</h3>
+                    <p className="text-3xl font-black text-emerald-400 uppercase">Guardian</p>
+                  </div>
+                  <p className="text-xs text-emerald-100/60 font-medium leading-relaxed relative z-10">You are in the top 15% of sustainable travelers this month!</p>
+                </div>
+              </div>
+
+              <div className="bg-gray-50 rounded-[3rem] p-10 border border-gray-100">
+                <div className="flex items-start gap-6">
+                  <div className="p-4 bg-white rounded-3xl shadow-sm">
+                    <Info className="h-6 w-6 text-emerald-600" />
+                  </div>
+                  <div className="space-y-4 flex-1">
+                    <h3 className="text-xl font-black text-gray-900 uppercase tracking-tight">How to earn Eco-Points?</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div className="flex items-center gap-4 bg-white p-4 rounded-2xl shadow-sm border border-gray-50">
+                        <div className="h-2 w-2 rounded-full bg-emerald-500"></div>
+                        <p className="text-xs font-bold text-gray-600">Choose low-carbon transport options for your trips.</p>
+                      </div>
+                      <div className="flex items-center gap-4 bg-white p-4 rounded-2xl shadow-sm border border-gray-50">
+                        <div className="h-2 w-2 rounded-full bg-emerald-500"></div>
+                        <p className="text-xs font-bold text-gray-600">Stay at certified eco-friendly accommodations.</p>
+                      </div>
+                      <div className="flex items-center gap-4 bg-white p-4 rounded-2xl shadow-sm border border-gray-50">
+                        <div className="h-2 w-2 rounded-full bg-emerald-500"></div>
+                        <p className="text-xs font-bold text-gray-600">Offset your carbon footprint during booking.</p>
+                      </div>
+                      <div className="flex items-center gap-4 bg-white p-4 rounded-2xl shadow-sm border border-gray-50">
+                        <div className="h-2 w-2 rounded-full bg-emerald-500"></div>
+                        <p className="text-xs font-bold text-gray-600">Participate in local environmental cleanup drives.</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           )}

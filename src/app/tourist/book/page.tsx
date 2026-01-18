@@ -2,12 +2,14 @@
 
 import React, { useState, useEffect, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { Calendar, Users, MapPin, Clock, Star, AlertTriangle, CheckCircle, Leaf, ShieldAlert, XCircle, RefreshCw } from 'lucide-react';
+import { Calendar, Users, MapPin, Clock, Star, AlertTriangle, CheckCircle, Leaf, ShieldAlert, XCircle, RefreshCw, Globe, TreePine, Zap, Flame, Info } from 'lucide-react';
 import TouristLayout from '@/components/TouristLayout';
 import { getDbService } from '@/lib/databaseService';
 import { getPolicyEngine } from '@/lib/ecologicalPolicyEngine';
+import { getCarbonCalculator } from '@/lib/carbonFootprintCalculator';
+import { ORIGIN_LOCATIONS, getOriginLocationById } from '@/data/originLocations';
 import { useAuth } from '@/contexts/AuthContext';
-import { Destination, Alert, DynamicCapacityResult } from '@/types';
+import { Destination, Alert, DynamicCapacityResult, CarbonFootprintResult, CarbonOffsetOption } from '@/types';
 
 function BookDestinationForm() {
   const { user } = useAuth();
@@ -31,6 +33,8 @@ function BookDestinationForm() {
     phone: '',
     nationality: '',
     idProof: '',
+    originLocation: '',
+    transportType: 'CAR_PER_KM' as 'FLIGHT_PER_KM' | 'TRAIN_PER_KM' | 'BUS_PER_KM' | 'CAR_PER_KM',
     ecoPermitNumber: '',
     groupSize: 1,
     checkInDate: "",
@@ -44,6 +48,7 @@ function BookDestinationForm() {
     acknowledged: false
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [carbonFootprint, setCarbonFootprint] = useState<CarbonFootprintResult | null>(null);
 
   useEffect(() => {
     if (destinationId) {
@@ -56,6 +61,47 @@ function BookDestinationForm() {
       checkEligibility(formData.groupSize);
     }
   }, [formData.groupSize, destination]);
+
+  useEffect(() => {
+    if (destination && formData.originLocation) {
+      calculateCarbonFootprint();
+    }
+  }, [destination, formData.originLocation, formData.groupSize, formData.transportType, formData.checkInDate, formData.checkOutDate]);
+
+  const computeBookingFootprint = (): CarbonFootprintResult | null => {
+    if (!destination || !formData.originLocation) return null;
+    
+    // Calculate actual stay nights from dates
+    let stayNights = 2; // Default fallback
+    if (formData.checkInDate && formData.checkOutDate) {
+      const start = new Date(formData.checkInDate);
+      const end = new Date(formData.checkOutDate);
+      
+      if (!isNaN(start.getTime()) && !isNaN(end.getTime())) {
+        const diffTime = end.getTime() - start.getTime();
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        
+        // Ensure at least 0 nights if dates are in reverse or same day
+        stayNights = Math.max(0, diffDays);
+      }
+    }
+    
+    const calculator = getCarbonCalculator();
+    return calculator.calculateBookingFootprint(
+      formData.originLocation,
+      destination.id,
+      formData.groupSize,
+      formData.transportType,
+      stayNights,
+      destination.coordinates.latitude,
+      destination.coordinates.longitude
+    );
+  };
+
+  const calculateCarbonFootprint = () => {
+    const result = computeBookingFootprint();
+    setCarbonFootprint(result);
+  };
 
   const loadDestination = async () => {
     try {
@@ -141,7 +187,7 @@ function BookDestinationForm() {
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
-    const required = ['name', 'email', 'phone', 'nationality', 'idProof', 'checkInDate', 'checkOutDate'];
+    const required = ['name', 'email', 'phone', 'nationality', 'idProof', 'originLocation', 'checkInDate', 'checkOutDate'];
     
     for (const field of required) {
       if (!formData[field as keyof typeof formData]) {
@@ -186,6 +232,10 @@ function BookDestinationForm() {
     
     try {
       const dbService = getDbService();
+      
+      // Calculate up-to-date footprint for persistence
+      const currentFootprint = computeBookingFootprint();
+      
       const bookingData = {
         name: formData.name,
         email: formData.email,
@@ -200,23 +250,32 @@ function BookDestinationForm() {
         emergency_contact_name: formData.emergencyContact.name,
         emergency_contact_phone: formData.emergencyContact.phone,
         emergency_contact_relationship: formData.emergencyContact.relationship,
-        user_id: null, // Set to null to avoid foreign key constraint
+        user_id: user?.id || null,
         registration_date: new Date().toISOString(),
+        // Environmental fields
+        origin_location_id: formData.originLocation,
+        transport_type: formData.transportType,
+        carbon_footprint: currentFootprint?.totalEmissions || 0,
         // Add missing required fields with defaults
-        age: 0, // Default age, consider collecting this in the form
+        age: 0,
         gender: "prefer-not-to-say" as const,
-        address: "", // Default empty address, consider collecting this in the form
-        pin_code: "", // Default empty pin code, consider collecting this in the form
-        id_proof_type: "aadhaar" as const, // Default ID proof type, consider deriving from idProof or adding a selector
+        address: "",
+        pin_code: "",
+        id_proof_type: "aadhaar" as const,
       };
       
       console.log('Submitting booking data:', bookingData);
-      console.log('Destination:', destination);
       
       const result = await dbService.addTourist(bookingData);
       
       if (!result) {
         throw new Error("Failed to create booking - no result returned");
+      }
+
+      // Update user eco-points if they are logged in
+      if (user?.id && currentFootprint) {
+        const pointsToAdd = currentFootprint.ecoPointsReward;
+        await dbService.updateUserEcoPoints(user.id, pointsToAdd, 0);
       }
       
       setShowSuccess(true);
@@ -277,14 +336,39 @@ function BookDestinationForm() {
     return (
       <TouristLayout>
         <div className="max-w-2xl mx-auto text-center py-12">
-          <CheckCircle className="h-16 w-16 text-green-600 mx-auto mb-6" />
+          <div className="mb-8 relative inline-block">
+            <CheckCircle className="h-20 w-20 text-green-600 mx-auto" />
+            <div className="absolute -top-2 -right-2 bg-yellow-400 text-yellow-900 text-xs font-black px-2 py-1 rounded-lg shadow-sm border border-yellow-500 animate-bounce">
+              +{carbonFootprint ? carbonFootprint.ecoPointsReward : 0} PTS
+            </div>
+          </div>
+          
           <h2 className="text-3xl font-bold text-gray-900 mb-4">
             Booking Submitted Successfully!
           </h2>
-          <p className="text-lg text-gray-600 mb-6">
-            Your booking request for <strong>{destination.name}</strong> has
-            been submitted and is pending approval.
-          </p>
+          
+          <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm mb-8 text-left space-y-4">
+            <p className="text-gray-600">
+              Your booking request for <strong className="text-gray-900">{destination.name}</strong> has
+              been submitted and is pending approval.
+            </p>
+            
+            {carbonFootprint && (
+              <div className="pt-4 border-t border-gray-50 flex items-center justify-between">
+                <div>
+                  <div className="text-xs font-bold text-gray-400 uppercase tracking-wider">Carbon Footprint</div>
+                  <div className="text-lg font-black text-gray-900">{carbonFootprint.totalEmissions.toFixed(2)} kg CO2e</div>
+                </div>
+                <div className="text-right">
+                  <div className="text-xs font-bold text-gray-400 uppercase tracking-wider">Eco-Points Earned</div>
+                  <div className="text-lg font-black text-green-600">
+                    +{carbonFootprint.ecoPointsReward}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+          
           <p className="text-gray-500">Redirecting to your bookings page...</p>
         </div>
       </TouristLayout>
@@ -523,6 +607,49 @@ function BookDestinationForm() {
                 {errors.idProof && <p className="text-xs text-red-500 font-bold mt-1">{errors.idProof}</p>}
               </div>
 
+              <div className="space-y-2">
+                <label className="text-sm font-bold text-gray-600">Origin Location *</label>
+                <select
+                  name="originLocation"
+                  value={formData.originLocation}
+                  onChange={handleInputChange}
+                  required
+                  className={`w-full px-4 py-4 bg-white border ${errors.originLocation ? 'border-red-500' : 'border-gray-200'} rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all outline-none text-gray-900`}
+                >
+                  <option value="">Select your origin state/region</option>
+                  {ORIGIN_LOCATIONS.map(location => (
+                    <option key={location.id} value={location.id}>
+                      {location.name}
+                    </option>
+                  ))}
+                </select>
+                {errors.originLocation && <p className="text-xs text-red-500 font-bold mt-1">{errors.originLocation}</p>}
+                <p className="text-xs text-gray-500 mt-1 flex items-center">
+                  <Info className="h-3 w-3 mr-1" />
+                  Used to calculate your travel carbon footprint
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-bold text-gray-600">Transport Type *</label>
+                <select
+                  name="transportType"
+                  value={formData.transportType}
+                  onChange={handleInputChange}
+                  required
+                  className="w-full px-4 py-4 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all outline-none appearance-none text-gray-900"
+                >
+                  <option value="TRAIN_PER_KM">Train (Eco-Friendly)</option>
+                  <option value="BUS_PER_KM">Public Bus (Eco-Friendly)</option>
+                  <option value="CAR_PER_KM">Car / Private Vehicle</option>
+                  <option value="FLIGHT_PER_KM">Flight</option>
+                </select>
+                <p className="text-xs text-gray-500 mt-1 flex items-center">
+                  <Leaf className="h-3 w-3 mr-1 text-green-600" />
+                  Public transport significantly reduces your footprint!
+                </p>
+              </div>
+
               {(destination.ecologicalSensitivity === 'high' || destination.ecologicalSensitivity === 'critical') && policy?.requiresPermit && (
                 <div className="space-y-2">
                   <label className="text-sm font-bold text-gray-600">Ecological Permit Number *</label>
@@ -650,6 +777,77 @@ function BookDestinationForm() {
               </div>
             </div>
           </div>
+
+          {/* Environmental Impact & Sustainability */}
+          {carbonFootprint && (
+            <div className="space-y-6">
+              {/* Carbon Footprint Display */}
+              <div className="bg-white rounded-2xl p-8 shadow-sm border border-gray-100">
+                <div className="flex items-center justify-between mb-8">
+                  <h3 className="text-2xl font-bold text-gray-900">Environmental Impact</h3>
+                  <div className={`px-4 py-1 rounded-full text-xs font-bold uppercase tracking-wider ${
+                    carbonFootprint.impactLevel === 'low' ? 'bg-green-100 text-green-700' :
+                    carbonFootprint.impactLevel === 'medium' ? 'bg-yellow-100 text-yellow-700' :
+                    'bg-red-100 text-red-700'
+                  }`}>
+                    {carbonFootprint.impactLevel} Impact
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  <div className="bg-gray-50 rounded-2xl p-6 border border-gray-100 text-center">
+                    <div className="bg-white w-12 h-12 rounded-xl flex items-center justify-center mx-auto mb-4 shadow-sm">
+                      <Globe className="h-6 w-6 text-blue-600" />
+                    </div>
+                    <div className="text-2xl font-black text-gray-900">{carbonFootprint.totalEmissions.toFixed(2)}</div>
+                    <div className="text-xs font-bold text-gray-500 uppercase">kg CO2e Total</div>
+                  </div>
+
+                  <div className="bg-gray-50 rounded-2xl p-6 border border-gray-100 text-center">
+                    <div className="bg-white w-12 h-12 rounded-xl flex items-center justify-center mx-auto mb-4 shadow-sm">
+                      <Zap className="h-6 w-6 text-amber-600" />
+                    </div>
+                    <div className="text-2xl font-black text-gray-900">{carbonFootprint.emissionsPerPerson.toFixed(2)}</div>
+                    <div className="text-xs font-bold text-gray-500 uppercase">kg CO2e / Person</div>
+                  </div>
+
+                  <div className="bg-gray-50 rounded-2xl p-6 border border-gray-100 text-center">
+                    <div className="bg-white w-12 h-12 rounded-xl flex items-center justify-center mx-auto mb-4 shadow-sm">
+                      <TreePine className="h-6 w-6 text-green-600" />
+                    </div>
+                    <div className="text-2xl font-black text-gray-900">{carbonFootprint.ecoPointsReward}</div>
+                    <div className="text-xs font-bold text-gray-500 uppercase">Eco-Points Potential</div>
+                  </div>
+                </div>
+
+                <div className="mt-8 p-4 bg-blue-50/50 rounded-xl border border-blue-100 flex items-start space-x-3">
+                  <Info className="h-5 w-5 text-blue-600 mt-0.5" />
+                  <p className="text-sm text-blue-800 leading-relaxed">
+                    This trip's emissions are equivalent to <strong>{carbonFootprint.comparison.trees_equivalent}</strong> trees absorbing CO2 for a year, or <strong>{carbonFootprint.comparison.car_miles_equivalent}</strong> miles driven in an average car.
+                  </p>
+                </div>
+              </div>
+
+              {/* Sustainability Tips */}
+              <div className="bg-emerald-900 rounded-2xl p-8 text-white shadow-xl shadow-emerald-100/50">
+                <div className="flex items-center space-x-3 mb-6">
+                  <div className="bg-emerald-800 p-2 rounded-lg">
+                    <Leaf className="h-6 w-6 text-emerald-300" />
+                  </div>
+                  <h3 className="text-xl font-bold">Sustainability Tips for {destination.name}</h3>
+                </div>
+                
+                <div className="space-y-4">
+                  {getCarbonCalculator().getSustainabilityTips(destination.ecologicalSensitivity).map((tip, idx) => (
+                    <div key={idx} className="flex items-start space-x-3">
+                      <div className="mt-1.5 h-1.5 w-1.5 rounded-full bg-emerald-400 flex-shrink-0" />
+                      <p className="text-emerald-50 text-sm leading-relaxed">{tip}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Additional Information & Acknowledgement */}
           <div className="bg-white rounded-2xl p-8 shadow-sm border border-gray-100">

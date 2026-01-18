@@ -803,9 +803,24 @@ class DatabaseService {
         };
         return true;
       } else {
+        const dbUpdates: any = {};
+        if (updates.activityId !== undefined) dbUpdates.activity_id = updates.activityId;
+        if (updates.userId !== undefined) dbUpdates.user_id = updates.userId;
+        if (updates.status !== undefined) dbUpdates.status = updates.status;
+        if (updates.registeredAt !== undefined) {
+          dbUpdates.registered_at = updates.registeredAt instanceof Date 
+            ? updates.registeredAt.toISOString() 
+            : updates.registeredAt;
+        }
+        if (updates.attended !== undefined) dbUpdates.attended = updates.attended;
+        
+        // Map common metadata fields if present
+        if ((updates as any).createdAt !== undefined) dbUpdates.created_at = (updates as any).createdAt;
+        if ((updates as any).updatedAt !== undefined) dbUpdates.updated_at = (updates as any).updatedAt;
+
         const { error } = await (supabase!
           .from('cleanup_registrations') as any)
-          .update(updates)
+          .update(dbUpdates)
           .eq('id', registrationId);
           
         if (error) throw error;
@@ -1062,19 +1077,10 @@ class DatabaseService {
 
   async cancelCleanupRegistration(registrationId: string): Promise<boolean> {
     try {
-      const registrations = this.isPlaceholderMode() ? mockData.cleanupRegistrations : [];
-      let reg: any;
-      
       if (this.isPlaceholderMode()) {
-        reg = registrations.find(r => r.id === registrationId);
-      } else {
-        const { data } = await supabase!.from('cleanup_registrations').select('*').eq('id', registrationId).single();
-        reg = data;
-      }
+        const reg = mockData.cleanupRegistrations.find(r => r.id === registrationId);
+        if (!reg) return false;
 
-      if (!reg) return false;
-
-      if (this.isPlaceholderMode()) {
         const index = mockData.cleanupRegistrations.findIndex(r => r.id === registrationId);
         mockData.cleanupRegistrations.splice(index, 1);
         
@@ -1085,15 +1091,48 @@ class DatabaseService {
         return true;
       }
 
-      const { error: delError } = await supabase!.from('cleanup_registrations').delete().eq('id', registrationId);
-      if (delError) throw delError;
+      // Use an atomic RPC call to handle cancellation and participant decrement
+      // SQL for this RPC (cancel_cleanup_registration):
+      /*
+      CREATE OR REPLACE FUNCTION cancel_cleanup_registration(p_registration_id UUID)
+      RETURNS BOOLEAN AS $$
+      DECLARE
+        v_activity_id UUID;
+      BEGIN
+        -- Get activity_id before deleting
+        SELECT activity_id INTO v_activity_id
+        FROM cleanup_registrations
+        WHERE id = p_registration_id;
 
-      const { data: activity } = await supabase!.from('cleanup_activities').select('current_participants').eq('id', reg.activity_id).single();
-      if (activity) {
-        await (supabase!.from('cleanup_activities') as any).update({ current_participants: Math.max(0, (activity as any).current_participants - 1) }).eq('id', reg.activity_id);
+        IF v_activity_id IS NULL THEN
+          RETURN FALSE;
+        END IF;
+
+        -- Delete registration
+        DELETE FROM cleanup_registrations
+        WHERE id = p_registration_id;
+
+        -- Decrement participants (ensure it doesn't go below 0)
+        UPDATE cleanup_activities
+        SET current_participants = GREATEST(0, current_participants - 1)
+        WHERE id = v_activity_id;
+
+        RETURN TRUE;
+      EXCEPTION WHEN OTHERS THEN
+        RETURN FALSE;
+      END;
+      $$ LANGUAGE plpgsql;
+      */
+      const { data, error } = await supabase!.rpc('cancel_cleanup_registration', {
+        p_registration_id: registrationId
+      } as any);
+
+      if (error) {
+        console.error('RPC Error in cancelCleanupRegistration:', error);
+        throw error;
       }
       
-      return true;
+      return !!data;
     } catch (error) {
       console.error('Error in cancelCleanupRegistration:', error);
       return false;

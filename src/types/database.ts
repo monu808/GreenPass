@@ -536,6 +536,12 @@ export type Database = {
         }
         Returns: boolean
       }
+      cancel_cleanup_registration: {
+        Args: {
+          p_registration_id: string
+        }
+        Returns: boolean
+      }
     };
     Enums: {
       [_ in never]: never;

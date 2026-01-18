@@ -1,4 +1,4 @@
-export interface Database {
+export type Database = {
   public: {
     Tables: {
       tourists: {
@@ -513,7 +513,29 @@ export interface Database {
       [_ in never]: never;
     };
     Functions: {
-      [_ in never]: never;
+      register_for_cleanup: {
+        Args: {
+          p_activity_id: string
+          p_user_id: string
+        }
+        Returns: boolean
+      }
+      award_eco_points: {
+        Args: {
+          p_user_id: string
+          p_points: number
+          p_description: string
+        }
+        Returns: boolean
+      }
+      update_user_eco_metrics: {
+        Args: {
+          p_user_id: string
+          p_points_to_add: number
+          p_offset_to_add: number
+        }
+        Returns: boolean
+      }
     };
     Enums: {
       [_ in never]: never;

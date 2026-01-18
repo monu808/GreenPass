@@ -1046,7 +1046,7 @@ class DatabaseService {
       const { data, error } = await supabase!.rpc('register_for_cleanup', {
         p_activity_id: activityId,
         p_user_id: userId
-      });
+      } as any);
 
       if (error) {
         console.error('RPC Error in registerForCleanup:', error);
@@ -1236,7 +1236,7 @@ class DatabaseService {
         p_user_id: userId,
         p_points: points,
         p_description: description
-      });
+      } as any);
 
       if (error) {
         console.error('RPC Error in awardEcoPoints:', error);
@@ -2069,7 +2069,7 @@ class DatabaseService {
         p_user_id: userId,
         p_points_to_add: pointsToAdd,
         p_offset_to_add: carbonOffset
-      });
+      } as any);
 
       if (error) {
         console.error('RPC Error in updateUserEcoPoints:', error);

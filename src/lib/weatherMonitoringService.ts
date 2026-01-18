@@ -3,6 +3,9 @@ import { getDbService } from '@/lib/databaseService';
 import { Destination } from '@/types';
 import { broadcast } from './messagingService';
 
+/**
+ * Interface definition for a weather monitoring service.
+ */
 interface WeatherMonitoringService {
   checkWeatherNow: () => Promise<void>;
   isRunning: boolean;

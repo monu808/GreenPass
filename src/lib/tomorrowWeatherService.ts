@@ -1,3 +1,6 @@
+/**
+ * Normalized weather data structure used across the application.
+ */
 interface WeatherData {
   temperature: number;
   humidity: number;
@@ -15,6 +18,9 @@ interface WeatherData {
   precipitationType?: string;
 }
 
+/**
+ * Structure of the response from Tomorrow.io Forecast API.
+ */
 interface TomorrowApiResponse {
   timelines: {
     minutely?: Array<{
@@ -84,6 +90,9 @@ interface WeatherCodeMapping {
   };
 }
 
+/**
+ * Structure of the response from Tomorrow.io Realtime API.
+ */
 interface TomorrowRealtimeResponse {
   data: {
     time: string;
@@ -401,7 +410,10 @@ class TomorrowWeatherService {
   }
 }
 
-// Destination coordinates for major tourist locations in Jammu and Himachal Pradesh
+/**
+ * Predefined coordinates for major tourist destinations supported by the application.
+ * Used to map destination names to lat/lon for weather queries.
+ */
 export const destinationCoordinates: { [key: string]: { lat: number; lon: number; name: string } } = {
   // Himachal Pradesh
   'manali': { lat: 32.2396, lon: 77.1887, name: 'Manali' },

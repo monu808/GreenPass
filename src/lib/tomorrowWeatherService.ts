@@ -206,6 +206,10 @@ class TomorrowWeatherService {
       console.log(`✅ Successfully fetched weather data for ${cityName}`);
       return this.transformWeatherData(data, cityName);
     } catch (error) {
+      if ((error as { name?: string })?.name === 'AbortError') {
+        console.log(`⏹️ Weather fetch aborted for ${cityName}`);
+        return null;
+      }
       console.error('Error fetching weather data from Tomorrow.io:', error);
       console.log(`📋 Generating fallback weather data for ${cityName}`);
       return this.getFallbackWeatherData(lat, lon, cityName);

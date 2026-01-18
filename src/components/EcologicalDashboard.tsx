@@ -110,7 +110,7 @@ export default function EcologicalDashboard() {
   });
   const [wasteMetrics, setWasteMetrics] = useState<WasteMetricsSummary | null>(null);
   const [upcomingCleanups, setUpcomingCleanups] = useState<CleanupActivity[]>([]);
-  const [perDestinationWaste, setPerDestinationWaste] = useState<any[]>([]);
+  const [destinationsWaste, setDestinationsWaste] = useState<any[]>([]);
   const [wasteTrendData, setWasteTrendData] = useState<any[]>([]);
   const [wasteDistributionData, setWasteDistributionData] = useState<any[]>([]);
   const [wasteTimeRange, setWasteTimeRange] = useState(30);
@@ -175,29 +175,39 @@ export default function EcologicalDashboard() {
       const dbService = getDbService();
       
       // Load all necessary data in parallel
-      const [impactData, alertsData, wasteStats, cleanups] = await Promise.all([
+      const [impactMetricsData, alertsData, wasteStats, cleanups, allWasteData] = await Promise.all([
         dbService.getEcologicalImpactData(),
         dbService.getAlerts(),
         dbService.getWasteMetricsSummary(),
-        dbService.getUpcomingCleanupActivities()
+        dbService.getUpcomingCleanupActivities(),
+        dbService.getWasteData() // Batch fetch all waste records
       ]);
 
       setWasteMetrics(wasteStats);
       setUpcomingCleanups(cleanups.slice(0, 3)); // Only show top 3 upcoming
 
-      // Fetch per-destination waste data
-      const destWaste = await Promise.all(
-        impactData.map(async (d) => {
-          const summary = await dbService.getWasteMetricsSummary(d.id);
-          return {
-            id: d.id,
-            name: d.name,
-            totalWaste: summary.totalWaste,
-            byType: summary.byType
-          };
-        })
-      );
-      setPerDestinationWaste(destWaste);
+      // Aggregate waste data by destination
+      const wasteByDest = allWasteData.reduce((acc: Record<string, { total: number, byType: Record<string, number> }>, w) => {
+        if (!acc[w.destinationId]) {
+          acc[w.destinationId] = { total: 0, byType: {} };
+        }
+        acc[w.destinationId].total += w.quantity;
+        acc[w.destinationId].byType[w.wasteType] = (acc[w.destinationId].byType[w.wasteType] || 0) + w.quantity;
+        return acc;
+      }, {});
+
+      // Build aggregated destination waste array
+      const destinationWasteData = impactMetricsData.map((d) => {
+        const stats = wasteByDest[d.id] || { total: 0, byType: {} };
+        return {
+          id: d.id,
+          name: d.name,
+          totalWaste: stats.total,
+          byType: stats.byType
+        };
+      });
+      
+      setDestinationsWaste(destinationWasteData);
 
       // Handle historical trends based on selection
       let trends: HistoricalOccupancy[] = [];
@@ -206,7 +216,7 @@ export default function EcologicalDashboard() {
         // For simplicity in mock data, we'll fetch for each and sum them up
         // In a real DB this would be a single grouped query
         const allTrends = await Promise.all(
-          impactData.map(d => dbService.getHistoricalOccupancy(d.id, timeRange))
+          impactMetricsData.map(d => dbService.getHistoricalOccupancy(d.id, timeRange))
         );
         
         // Merge trends by date
@@ -234,7 +244,7 @@ export default function EcologicalDashboard() {
       trends = await dbService.getHistoricalOccupancy(selectedDestinationId, timeRange);
     }
 
-    const typedImpactData = impactData as EcologicalMetrics[];
+    const typedImpactData = impactMetricsData as EcologicalMetrics[];
     setDestinations(typedImpactData);
     setHistoricalTrends(trends);
     
@@ -818,7 +828,7 @@ export default function EcologicalDashboard() {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {perDestinationWaste.map((item) => (
+              {destinationsWaste.map((item) => (
                 <tr key={item.id} className="hover:bg-gray-50">
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{item.name}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">

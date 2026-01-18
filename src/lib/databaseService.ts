@@ -680,7 +680,8 @@ class DatabaseService {
       if (this.isPlaceholderMode()) {
         const index = mockData.wasteData.findIndex(w => w.id === id);
         if (index === -1) return null;
-        mockData.wasteData[index] = { ...mockData.wasteData[index], ...updates as any };
+        const transformedUpdates = this.transformUpdateWasteToWaste(updates);
+        mockData.wasteData[index] = { ...mockData.wasteData[index], ...transformedUpdates };
         return mockData.wasteData[index];
       }
 
@@ -924,7 +925,13 @@ class DatabaseService {
       if (this.isPlaceholderMode()) {
         const index = mockData.cleanupActivities.findIndex(a => a.id === id);
         if (index === -1) return null;
-        mockData.cleanupActivities[index] = { ...mockData.cleanupActivities[index], ...updates as any };
+        
+        // Transform the snake_case updates to camelCase before merging
+        const transformedUpdates = this.transformUpdateCleanupToCleanup(updates);
+        mockData.cleanupActivities[index] = { 
+          ...mockData.cleanupActivities[index], 
+          ...transformedUpdates 
+        };
         return mockData.cleanupActivities[index];
       }
 
@@ -967,11 +974,19 @@ class DatabaseService {
   // Registration Operations
   async registerForCleanup(activityId: string, userId: string): Promise<boolean> {
     try {
-      const activity = await this.getCleanupActivityById(activityId);
-      if (!activity || activity.status !== 'upcoming') return false;
-      if (activity.currentParticipants >= activity.maxParticipants) return false;
-
       if (this.isPlaceholderMode()) {
+        const activity = await this.getCleanupActivityById(activityId);
+        if (!activity || activity.status !== 'upcoming') return false;
+        
+        // Atomic check and increment in mock mode
+        const actIndex = mockData.cleanupActivities.findIndex(a => a.id === activityId);
+        if (actIndex === -1) return false;
+        
+        const targetActivity = mockData.cleanupActivities[actIndex];
+        if (targetActivity.currentParticipants >= targetActivity.maxParticipants) {
+          return false;
+        }
+
         const newReg: DbCleanupRegistration = {
           id: `mock-reg-${Date.now()}`,
           activity_id: activityId,
@@ -980,29 +995,65 @@ class DatabaseService {
           attended: false,
           registered_at: new Date().toISOString()
         };
-        mockData.cleanupRegistrations.push(this.transformDbCleanupRegistrationToCleanupRegistration(newReg));
         
-        // Update activity participant count
-        const actIndex = mockData.cleanupActivities.findIndex(a => a.id === activityId);
-        if (actIndex !== -1) {
-          mockData.cleanupActivities[actIndex].currentParticipants += 1;
-        }
+        mockData.cleanupRegistrations.push(this.transformDbCleanupRegistrationToCleanupRegistration(newReg));
+        targetActivity.currentParticipants += 1;
+        
         return true;
       }
 
-      const { error: regError } = await supabase!
-        .from('cleanup_registrations')
-        .insert({ activity_id: activityId, user_id: userId, status: 'registered' } as any);
+      // Use an atomic RPC call to handle registration and participant increment
+      // This prevents race conditions and overbooking.
+      // SQL for this RPC (register_for_cleanup):
+      /*
+      CREATE OR REPLACE FUNCTION register_for_cleanup(p_activity_id UUID, p_user_id UUID)
+      RETURNS BOOLEAN AS $$
+      DECLARE
+        v_current INT;
+        v_max INT;
+        v_status TEXT;
+      BEGIN
+        -- Get current status and capacity with a row-level lock
+        SELECT current_participants, max_participants, status 
+        INTO v_current, v_max, v_status
+        FROM cleanup_activities 
+        WHERE id = p_activity_id 
+        FOR UPDATE;
 
-      if (regError) throw regError;
+        IF v_status != 'upcoming' THEN
+          RETURN FALSE;
+        END IF;
 
-      const { error: actError } = await (supabase!
-        .from('cleanup_activities') as any)
-        .update({ current_participants: activity.currentParticipants + 1 })
-        .eq('id', activityId);
+        IF v_current >= v_max THEN
+          RETURN FALSE;
+        END IF;
 
-      if (actError) throw actError;
-      return true;
+        -- Insert registration
+        INSERT INTO cleanup_registrations (activity_id, user_id, status)
+        VALUES (p_activity_id, p_user_id, 'registered');
+
+        -- Increment participants
+        UPDATE cleanup_activities 
+        SET current_participants = current_participants + 1 
+        WHERE id = p_activity_id;
+
+        RETURN TRUE;
+      EXCEPTION WHEN OTHERS THEN
+        RETURN FALSE;
+      END;
+      $$ LANGUAGE plpgsql;
+      */
+      const { data, error } = await supabase!.rpc('register_for_cleanup', {
+        p_activity_id: activityId,
+        p_user_id: userId
+      });
+
+      if (error) {
+        console.error('RPC Error in registerForCleanup:', error);
+        throw error;
+      }
+
+      return !!data;
     } catch (error) {
       console.error('Error in registerForCleanup:', error);
       return false;
@@ -1159,27 +1210,40 @@ class DatabaseService {
         return true;
       }
 
-      // Add transaction record
-      const { error: transError } = await supabase!
-        .from('eco_points_transactions')
-        .insert({
-          user_id: userId,
-          points,
-          transaction_type: 'award',
-          description
-        } as any);
+      // Use an atomic RPC call to award points and log the transaction.
+      // This avoids race conditions (lost increments) that occur with read-then-write patterns.
+      // SQL for this RPC (award_eco_points):
+      /*
+      CREATE OR REPLACE FUNCTION award_eco_points(p_user_id UUID, p_points INT, p_description TEXT)
+      RETURNS BOOLEAN AS $$
+      BEGIN
+        -- Add transaction record
+        INSERT INTO eco_points_transactions (user_id, points, transaction_type, description)
+        VALUES (p_user_id, p_points, 'award', p_description);
 
-      if (transError) throw transError;
+        -- Atomic increment of user balance
+        UPDATE users 
+        SET eco_points = COALESCE(eco_points, 0) + p_points 
+        WHERE id = p_user_id;
 
-      // Update user balance
-      const currentBalance = await this.getEcoPointsBalance(userId);
-      const { error: userError } = await (supabase!
-        .from('users') as any)
-        .update({ eco_points: currentBalance + points })
-        .eq('id', userId);
+        RETURN TRUE;
+      EXCEPTION WHEN OTHERS THEN
+        RETURN FALSE;
+      END;
+      $$ LANGUAGE plpgsql;
+      */
+      const { data, error } = await supabase!.rpc('award_eco_points', {
+        p_user_id: userId,
+        p_points: points,
+        p_description: description
+      });
 
-      if (userError) throw userError;
-      return true;
+      if (error) {
+        console.error('RPC Error in awardEcoPoints:', error);
+        throw error;
+      }
+
+      return !!data;
     } catch (error) {
       console.error('Error in awardEcoPoints:', error);
       return false;
@@ -1203,6 +1267,20 @@ class DatabaseService {
     } catch (error) {
       console.error('Error in getEcoPointsHistory:', error);
       return [];
+    }
+  }
+
+  async getUserImpactTier(userId: string): Promise<string> {
+    try {
+      const balance = await this.getEcoPointsBalance(userId);
+      if (balance >= 1000) return 'Diamond Guardian';
+      if (balance >= 500) return 'Gold Guardian';
+      if (balance >= 200) return 'Silver Guardian';
+      if (balance >= 50) return 'Bronze Guardian';
+      return 'Eco Novice';
+    } catch (error) {
+      console.error('Error in getUserImpactTier:', error);
+      return 'Eco Novice';
     }
   }
 
@@ -1967,28 +2045,38 @@ class DatabaseService {
     try {
       if (this.isPlaceholderMode()) return true;
 
-      // Get current points
-      const { data: user, error: fetchError } = await (supabase!
-        .from('users') as any)
-        .select('eco_points, total_carbon_offset')
-        .eq('id', userId)
-        .single();
+      // Use an atomic RPC call to update eco-points and carbon offset.
+      // This prevents race conditions (lost increments) that occur with read-then-write patterns.
+      // SQL for this RPC (update_user_eco_metrics):
+      /*
+      CREATE OR REPLACE FUNCTION update_user_eco_metrics(p_user_id UUID, p_points_to_add INT, p_offset_to_add FLOAT)
+      RETURNS BOOLEAN AS $$
+      BEGIN
+        UPDATE users 
+        SET 
+          eco_points = COALESCE(eco_points, 0) + p_points_to_add,
+          total_carbon_offset = COALESCE(total_carbon_offset, 0) + p_offset_to_add,
+          updated_at = NOW()
+        WHERE id = p_user_id;
 
-      if (fetchError || !user) return false;
+        RETURN TRUE;
+      EXCEPTION WHEN OTHERS THEN
+        RETURN FALSE;
+      END;
+      $$ LANGUAGE plpgsql;
+      */
+      const { data, error } = await supabase!.rpc('update_user_eco_metrics', {
+        p_user_id: userId,
+        p_points_to_add: pointsToAdd,
+        p_offset_to_add: carbonOffset
+      });
 
-      const newPoints = (user.eco_points || 0) + pointsToAdd;
-      const newOffset = (user.total_carbon_offset || 0) + carbonOffset;
+      if (error) {
+        console.error('RPC Error in updateUserEcoPoints:', error);
+        throw error;
+      }
 
-      const { error: updateError } = await (supabase!
-        .from('users') as any)
-        .update({ 
-          eco_points: newPoints,
-          total_carbon_offset: newOffset,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', userId);
-
-      return !updateError;
+      return !!data;
     } catch (error) {
       console.error('Error in updateUserEcoPoints:', error);
       return false;
@@ -2190,6 +2278,7 @@ class DatabaseService {
     if (updates.quantity !== undefined) result.quantity = updates.quantity;
     if (updates.unit) result.unit = updates.unit;
     if (updates.collected_at) result.collectedAt = new Date(updates.collected_at);
+    if (updates.created_at) result.createdAt = new Date(updates.created_at);
     return result;
   }
 
@@ -2222,6 +2311,7 @@ class DatabaseService {
     if (updates.current_participants !== undefined) result.currentParticipants = updates.current_participants;
     if (updates.status) result.status = updates.status as any;
     if (updates.eco_points_reward !== undefined) result.ecoPointsReward = updates.eco_points_reward;
+    if (updates.created_at) result.createdAt = new Date(updates.created_at);
     return result;
   }
 

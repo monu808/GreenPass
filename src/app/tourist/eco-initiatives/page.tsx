@@ -29,6 +29,8 @@ export default function EcoInitiativesPage() {
   const [registrations, setRegistrations] = useState<CleanupRegistration[]>([]);
   const [ecoPoints, setEcoPoints] = useState(0);
   const [impactMetrics, setImpactMetrics] = useState({ totalWaste: 0, totalVolunteers: 0 });
+  const [userRank, setUserRank] = useState<number | string>('...');
+  const [userTier, setUserTier] = useState('Eco Novice');
   const [isLoading, setIsLoading] = useState(true);
   const [selectedActivity, setSelectedActivity] = useState<CleanupActivity | null>(null);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
@@ -45,16 +47,23 @@ export default function EcoInitiativesPage() {
     setIsLoading(true);
     try {
       const db = getDbService();
-      const [upcomingActivities, userRegs, points, metrics] = await Promise.all([
+      const [upcomingActivities, userRegs, points, metrics, leaderboard, tier] = await Promise.all([
         db.getUpcomingCleanupActivities(),
         db.getUserCleanupRegistrations(user.id),
         db.getEcoPointsBalance(user.id),
-        db.getCollectiveImpactMetrics()
+        db.getCollectiveImpactMetrics(),
+        db.getEcoPointsLeaderboard(100), // Fetch top 100 for rank calculation
+        db.getUserImpactTier(user.id)
       ]);
       setActivities(upcomingActivities);
       setRegistrations(userRegs);
       setEcoPoints(points);
       setImpactMetrics(metrics);
+      
+      // Calculate rank
+      const userRankIndex = leaderboard.findIndex(entry => entry.userId === user.id);
+      setUserRank(userRankIndex !== -1 ? userRankIndex + 1 : '>100');
+      setUserTier(tier);
     } catch (error) {
       console.error('Error fetching eco initiatives data:', error);
     } finally {
@@ -157,7 +166,7 @@ export default function EcoInitiativesPage() {
                   </div>
                   <div>
                     <p className="text-xs text-emerald-300/60 font-black uppercase tracking-widest">Community Impact</p>
-                    <p className="text-xl font-bold">12.5k Volunteers</p>
+                    <p className="text-xl font-bold">{impactMetrics.totalVolunteers.toLocaleString()} Volunteers</p>
                   </div>
                 </div>
               </div>
@@ -180,14 +189,14 @@ export default function EcoInitiativesPage() {
                       <TrendingUp className="h-5 w-5 text-emerald-400" />
                       <span className="font-bold text-emerald-50">Global Rank</span>
                     </div>
-                    <span className="font-black text-white">#142</span>
+                    <span className="font-black text-white">#{userRank}</span>
                   </div>
                   <div className="p-4 bg-white/5 rounded-2xl border border-white/5 flex items-center justify-between">
                     <div className="flex items-center gap-3">
                       <ShieldCheck className="h-5 w-5 text-emerald-400" />
                       <span className="font-bold text-emerald-50">Impact Level</span>
                     </div>
-                    <span className="font-black text-white">Silver Guardian</span>
+                    <span className="font-black text-white">{userTier}</span>
                   </div>
                 </div>
                 <button className="w-full mt-6 py-4 bg-white text-emerald-900 font-black rounded-2xl hover:bg-emerald-50 transition-all active:scale-95">

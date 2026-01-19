@@ -3,26 +3,47 @@ import { getDbService } from '@/lib/databaseService';
 import { Destination } from '@/types';
 import { broadcast } from './messagingService';
 
+/**
+ * Interface definition for a weather monitoring service.
+ */
 interface WeatherMonitoringService {
   checkWeatherNow: () => Promise<void>;
   isRunning: boolean;
 }
 
+/**
+ * Service for monitoring weather conditions across all registered destinations.
+ * Handles periodic checks, data caching, and alert generation.
+ */
 class WeatherMonitor implements WeatherMonitoringService {
   private lastCheckedData: Map<string, WeatherData & { timestamp: number }> = new Map();
   private lastApiCall: number = 0;
   private apiCallDelay: number = 10000; // 10 seconds between API calls
   private checkInterval: number = 21600000; // 6 hours threshold for freshness
   public readonly isRunning: boolean = true; // Service is always active (handled by app-load or external cron)
+  private isScanning: boolean = false;
 
+  /**
+   * Triggers an immediate check of weather conditions for all destinations.
+   * Respects rate limiting and cache freshness to minimize API usage.
+   * 
+   * @returns {Promise<void>} Resolves when the monitoring cycle is complete.
+   */
   async checkWeatherNow(): Promise<void> {
+    if (this.isScanning) {
+      console.log('🔒 Weather scan already in progress. Skipping.');
+      return;
+    }
+
+    this.isScanning = true;
+
     try {
       console.log('🔍 Checking weather conditions...', new Date().toLocaleTimeString());
 
       const dbService = getDbService();
       // Get all destinations
       const destinations = await dbService.getDestinations();
-      
+
       if (!destinations || destinations.length === 0) {
         console.log('⚠️ No destinations found for weather monitoring');
         return;
@@ -34,10 +55,10 @@ class WeatherMonitor implements WeatherMonitoringService {
           const destination = dbService.transformDbDestinationToDestination(dbDestination);
           // Always check the database first to have some data (even if old)
           const latestWeather = await dbService.getLatestWeatherData(destination.id);
-          
+
           if (latestWeather && latestWeather.recorded_at) {
             const recordedAt = new Date(latestWeather.recorded_at).getTime();
-            
+
             // Update local cache immediately with DB data as a baseline
             this.lastCheckedData.set(destination.id, {
               temperature: latestWeather.temperature,
@@ -62,9 +83,9 @@ class WeatherMonitor implements WeatherMonitoringService {
             }
           }
 
-          const coordinates = destinationCoordinates[destination.id] || 
-                            destinationCoordinates[destination.name?.toLowerCase().replace(/\s+/g, '')] ||
-                            destinationCoordinates[destination.name?.toLowerCase()];
+          const coordinates = destinationCoordinates[destination.id] ||
+            destinationCoordinates[destination.name?.toLowerCase().replace(/\s+/g, '')] ||
+            destinationCoordinates[destination.name?.toLowerCase()];
 
           if (!coordinates) {
             console.log(`⚠️ No coordinates found for ${destination.name}. Skipping.`);
@@ -72,7 +93,7 @@ class WeatherMonitor implements WeatherMonitoringService {
           }
 
           console.log(`🌐 FETCHING fresh weather data from Tomorrow.io for ${destination.name}...`);
-          
+
           // Rate limiting: ensure minimum delay between API calls
           const now = Date.now();
           if (now - this.lastApiCall < this.apiCallDelay) {
@@ -80,9 +101,9 @@ class WeatherMonitor implements WeatherMonitoringService {
             console.log(`⏱️ Rate limiting: waiting ${waitTime}ms before API call...`);
             await new Promise(resolve => setTimeout(resolve, waitTime));
           }
-          
+
           this.lastApiCall = Date.now();
-          
+
           const weatherData = await weatherService.getWeatherByCoordinates(
             coordinates.lat,
             coordinates.lon,
@@ -91,7 +112,7 @@ class WeatherMonitor implements WeatherMonitoringService {
 
           if (!weatherData) {
             console.log(`❌ Failed to get weather data for ${destination.name} - using last available data`);
-            
+
             // Try to use cached data for alerts if API fails
             const cachedData = this.lastCheckedData.get(destination.id);
             if (cachedData) {
@@ -122,10 +143,19 @@ class WeatherMonitor implements WeatherMonitoringService {
 
     } catch (error) {
       console.error('❌ Error in weather monitoring:', error);
+    } finally {
+      this.isScanning = false;
     }
   }
 
-  // Helper method to process weather alerts
+  /**
+   * Analyzes weather data to determine if alerts should be generated.
+   * If alerts are generated, they are saved to the database and broadcast via SSE.
+   * 
+   * @param {Destination} destination - The destination being checked.
+   * @param {WeatherData} weatherData - Current weather conditions.
+   * @param {boolean} [saveToDatabase=true] - Whether to persist the check results to the DB.
+   */
   private async processWeatherAlerts(destination: Destination, weatherData: WeatherData, saveToDatabase: boolean = true): Promise<void> {
     try {
       const alertCheck = weatherService.shouldGenerateAlert(weatherData);

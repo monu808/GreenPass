@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback, useRef } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import Layout from "@/components/Layout";
 import {
   Users,
@@ -61,14 +61,10 @@ export default function AdminDashboard() {
   const [adjustedCapacities, setAdjustedCapacities] = useState<Record<string, number>>({});
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [weatherMap, setWeatherMap] = useState<Record<string, any>>({});
-  
-  // Ref to track the latest weatherMap state and avoid stale closures in async flows
-  const weatherMapRef = useRef<Record<string, any>>({});
-  
-  // Sync ref with state
-  useEffect(() => {
-    weatherMapRef.current = weatherMap;
-  }, [weatherMap]);
+
+
+
+
 
   // Recalculate adjusted capacities whenever weatherMap or destinations change
   useEffect(() => {
@@ -80,7 +76,7 @@ export default function AdminDashboard() {
       }));
       setAdjustedCapacities(newAdjustedCapacities);
     };
-    
+
     if (destinations.length > 0) {
       recalculateCapacities();
     }
@@ -107,7 +103,7 @@ export default function AdminDashboard() {
       try {
         const data = JSON.parse(event.data);
         console.log("🚀 Real-time weather update received from server:", data);
-        
+
         const isWeatherUpdate = data.type === 'weather_update' || data.type === 'weather_update_available';
 
         // If the update contains specific destination weather, update it directly
@@ -125,7 +121,7 @@ export default function AdminDashboard() {
           }));
         } else {
           // Fallback to full reload for other update types (like general available signal)
-          loadDashboardData(); 
+          loadDashboardData();
         }
       } catch (err) {
         console.error("Error parsing real-time data:", err);
@@ -169,10 +165,10 @@ export default function AdminDashboard() {
     try {
       const dbService = getDbService();
       const [
-        dashboardStats, 
-        destinationsData, 
-        alertsData, 
-        ecologicalData, 
+        dashboardStats,
+        destinationsData,
+        alertsData,
+        ecologicalData,
         trendsData,
         wasteMetrics
       ] = await Promise.all([
@@ -193,7 +189,7 @@ export default function AdminDashboard() {
         if (data.utilization > 70) {
           const severity = data.utilization > 85 ? "critical" : "high";
           const existingAlert = alertsData.find(a => a.destinationId === data.id && a.type === 'ecological' && a.isActive);
-          
+
           if (!existingAlert) {
             await dbService.addAlert({
               type: "ecological",
@@ -247,18 +243,21 @@ export default function AdminDashboard() {
     }
   };
 
-  
+
 
   const updateWeatherData = async (destinations: Destination[]) => {
-    const newWeatherMap: Record<string, any> = {};
     const dbService = getDbService();
+    const newWeatherMap: Record<string, any> = {};
 
-    for (const destination of destinations) {
+    await Promise.all(destinations.map(async (destination) => {
       try {
+        let weatherDataForMap = null;
+
         // First, try to get the latest weather from the database
         const latestWeather = await dbService.getLatestWeatherData(destination.id);
+
         if (latestWeather) {
-          const dbData = {
+          weatherDataForMap = {
             temperature: latestWeather.temperature,
             humidity: latestWeather.humidity,
             weatherMain: latestWeather.weather_main,
@@ -266,25 +265,18 @@ export default function AdminDashboard() {
             windSpeed: latestWeather.wind_speed,
             recordedAt: latestWeather.recorded_at
           };
-          newWeatherMap[destination.id] = dbData;
-          
-          // Update state immediately for this destination
-          setWeatherMap(prev => ({
-            ...prev,
-            [destination.id]: dbData
-          }));
         }
 
-        const coordinates = destinationCoordinates[destination.id] || 
-                          destinationCoordinates[destination.name?.toLowerCase().replace(/\s+/g, '')] ||
-                          destinationCoordinates[destination.name?.toLowerCase()];
-        
-        // Check if we already have recent weather data for this destination using the ref
-        // to avoid stale closures in this async loop
-        const existingWeather = weatherMapRef.current[destination.id];
+        const coordinates = destinationCoordinates[destination.id] ||
+          destinationCoordinates[destination.name?.toLowerCase().replace(/\s+/g, '')] ||
+          destinationCoordinates[destination.name?.toLowerCase()];
+
+        // Check if we already have recent weather data
+        // We use the data we just fetched from DB (if any) as the baseline
+        const existingWeather = weatherDataForMap;
         const sixHoursInMs = 6 * 60 * 60 * 1000;
-        const isFresh = existingWeather && 
-                        (new Date().getTime() - new Date(existingWeather.recordedAt).getTime() < sixHoursInMs);
+        const isFresh = existingWeather &&
+          (new Date().getTime() - new Date(existingWeather.recordedAt).getTime() < sixHoursInMs);
 
         if (coordinates && !isFresh) {
           const weatherData = await weatherService.getWeatherByCoordinates(
@@ -297,7 +289,7 @@ export default function AdminDashboard() {
             // Save weather data to database
             await dbService.saveWeatherData(destination.id, weatherData);
 
-            const mappedData = {
+            weatherDataForMap = {
               temperature: weatherData.temperature,
               humidity: weatherData.humidity,
               weatherMain: weatherData.weatherMain,
@@ -305,14 +297,6 @@ export default function AdminDashboard() {
               windSpeed: weatherData.windSpeed,
               recordedAt: new Date().toISOString()
             };
-
-            newWeatherMap[destination.id] = mappedData;
-            
-            // Update state with fresh API data
-            setWeatherMap(prev => ({
-              ...prev,
-              [destination.id]: mappedData
-            }));
 
             // Check if we should generate a weather alert
             const alertCheck = weatherService.shouldGenerateAlert(weatherData);
@@ -328,13 +312,24 @@ export default function AdminDashboard() {
             }
           }
         }
+
+        if (weatherDataForMap) {
+          newWeatherMap[destination.id] = weatherDataForMap;
+        }
+
       } catch (error) {
         console.error(
           `Error updating weather for ${destination.name}:`,
           error
         );
       }
-    }
+    }));
+
+    // Update state once with all the collected data
+    setWeatherMap(prev => ({
+      ...prev,
+      ...newWeatherMap
+    }));
   };
 
   const StatCard = ({
@@ -409,9 +404,8 @@ export default function AdminDashboard() {
         <div className="flex space-x-4 border-b border-gray-200">
           <button
             onClick={() => setActiveTab('overview')}
-            className={`pb-4 px-4 text-sm font-medium transition-colors relative ${
-              activeTab === 'overview' ? 'text-blue-600' : 'text-gray-500 hover:text-gray-700'
-            }`}
+            className={`pb-4 px-4 text-sm font-medium transition-colors relative ${activeTab === 'overview' ? 'text-blue-600' : 'text-gray-500 hover:text-gray-700'
+              }`}
           >
             Overview
             {activeTab === 'overview' && (
@@ -420,9 +414,8 @@ export default function AdminDashboard() {
           </button>
           <button
             onClick={() => setActiveTab('policies')}
-            className={`pb-4 px-4 text-sm font-medium transition-colors relative ${
-              activeTab === 'policies' ? 'text-blue-600' : 'text-gray-500 hover:text-gray-700'
-            }`}
+            className={`pb-4 px-4 text-sm font-medium transition-colors relative ${activeTab === 'policies' ? 'text-blue-600' : 'text-gray-500 hover:text-gray-700'
+              }`}
           >
             Ecological Policies
             {activeTab === 'policies' && (
@@ -431,9 +424,8 @@ export default function AdminDashboard() {
           </button>
           <button
             onClick={() => setActiveTab('ecological')}
-            className={`pb-4 px-4 text-sm font-medium transition-colors relative flex items-center ${
-              activeTab === 'ecological' ? 'text-blue-600' : 'text-gray-500 hover:text-gray-700'
-            }`}
+            className={`pb-4 px-4 text-sm font-medium transition-colors relative flex items-center ${activeTab === 'ecological' ? 'text-blue-600' : 'text-gray-500 hover:text-gray-700'
+              }`}
           >
             <Leaf className={`h-4 w-4 mr-2 ${activeTab === 'ecological' ? 'text-blue-600' : 'text-gray-400'}`} />
             Ecological Impact
@@ -527,7 +519,7 @@ export default function AdminDashboard() {
                       const adjustedCapacity = adjustedCapacities[destination.id] || destination.maxCapacity;
                       const status = getCapacityStatus(destination.currentOccupancy, adjustedCapacity).status;
                       const weather = weatherMap[destination.id];
-                      
+
                       return (
                         <div key={destination.id} className="flex flex-col p-4 bg-gray-50 rounded-lg border border-gray-100 hover:shadow-sm transition-shadow">
                           <div className="flex items-center justify-between mb-3">
@@ -538,11 +530,10 @@ export default function AdminDashboard() {
                                 <div className="flex items-center text-sm text-gray-600">
                                   <span>{destination.location}</span>
                                   <span className="mx-2 text-gray-300">•</span>
-                                  <span className={`flex items-center ${
-                                    destination.ecologicalSensitivity === 'critical' ? 'text-red-600' :
+                                  <span className={`flex items-center ${destination.ecologicalSensitivity === 'critical' ? 'text-red-600' :
                                     destination.ecologicalSensitivity === 'high' ? 'text-orange-600' :
-                                    destination.ecologicalSensitivity === 'medium' ? 'text-yellow-600' : 'text-green-600'
-                                  }`}>
+                                      destination.ecologicalSensitivity === 'medium' ? 'text-yellow-600' : 'text-green-600'
+                                    }`}>
                                     <Leaf className="h-3 w-3 mr-1" />
                                     {destination.ecologicalSensitivity}
                                   </span>
@@ -550,13 +541,12 @@ export default function AdminDashboard() {
                               </div>
                             </div>
                             <div className="text-right">
-                              <div className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                                status === 'low'
-                                  ? 'bg-green-100 text-green-800'
-                                  : status === 'medium'
+                              <div className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${status === 'low'
+                                ? 'bg-green-100 text-green-800'
+                                : status === 'medium'
                                   ? 'bg-yellow-100 text-yellow-800'
                                   : 'bg-red-100 text-red-800'
-                              }`}>
+                                }`}>
                                 {status}
                               </div>
                               <p className="text-sm text-gray-600 mt-1">
@@ -614,11 +604,10 @@ export default function AdminDashboard() {
                   {alerts.length > 0 ? (
                     alerts.slice(0, 5).map((alert) => (
                       <div key={alert.id} className="flex items-start space-x-3 p-3 bg-gray-50 rounded-lg">
-                        <div className={`mt-0.5 ${
-                          alert.severity === 'high' || alert.severity === 'critical' ? 'text-red-500' :
+                        <div className={`mt-0.5 ${alert.severity === 'high' || alert.severity === 'critical' ? 'text-red-500' :
                           alert.severity === 'medium' ? 'text-yellow-500' :
-                          'text-blue-500'
-                        }`}>
+                            'text-blue-500'
+                          }`}>
                           {alert.severity === 'high' || alert.severity === 'critical' ? (
                             <XCircle className="h-5 w-5" />
                           ) : alert.severity === 'medium' ? (
@@ -655,7 +644,7 @@ export default function AdminDashboard() {
                     <h3 className="text-xl font-bold text-gray-900 capitalize">
                       Configure {editingPolicy} Policy
                     </h3>
-                    <button 
+                    <button
                       onClick={() => setEditingPolicy(null)}
                       className="text-gray-400 hover:text-gray-600"
                     >
@@ -668,13 +657,13 @@ export default function AdminDashboard() {
                       <label className="block text-sm font-medium text-gray-700 mb-1">
                         Capacity Multiplier (0.1 - 1.0)
                       </label>
-                      <input 
+                      <input
                         type="number"
                         step="0.1"
                         min="0.1"
                         max="1.0"
                         value={policyForm.capacityMultiplier}
-                        onChange={(e) => setPolicyForm({...policyForm, capacityMultiplier: parseFloat(e.target.value)})}
+                        onChange={(e) => setPolicyForm({ ...policyForm, capacityMultiplier: parseFloat(e.target.value) })}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 bg-white"
                       />
                       <p className="text-xs text-gray-500 mt-1">
@@ -684,20 +673,20 @@ export default function AdminDashboard() {
 
                     <div className="flex items-center space-x-4">
                       <label className="flex items-center space-x-2 cursor-pointer">
-                        <input 
+                        <input
                           type="checkbox"
                           checked={policyForm.requiresPermit}
-                          onChange={(e) => setPolicyForm({...policyForm, requiresPermit: e.target.checked})}
+                          onChange={(e) => setPolicyForm({ ...policyForm, requiresPermit: e.target.checked })}
                           className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                         />
                         <span className="text-sm font-medium text-gray-700">Requires Permit</span>
                       </label>
 
                       <label className="flex items-center space-x-2 cursor-pointer">
-                        <input 
+                        <input
                           type="checkbox"
                           checked={policyForm.requiresEcoBriefing}
-                          onChange={(e) => setPolicyForm({...policyForm, requiresEcoBriefing: e.target.checked})}
+                          onChange={(e) => setPolicyForm({ ...policyForm, requiresEcoBriefing: e.target.checked })}
                           className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                         />
                         <span className="text-sm font-medium text-gray-700">Requires Eco-Briefing</span>
@@ -708,9 +697,9 @@ export default function AdminDashboard() {
                       <label className="block text-sm font-medium text-gray-700 mb-1">
                         Restriction Message
                       </label>
-                      <textarea 
+                      <textarea
                         value={policyForm.bookingRestrictionMessage || ''}
-                        onChange={(e) => setPolicyForm({...policyForm, bookingRestrictionMessage: e.target.value || null})}
+                        onChange={(e) => setPolicyForm({ ...policyForm, bookingRestrictionMessage: e.target.value || null })}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 bg-white"
                         rows={3}
                         placeholder="Message shown when booking is blocked..."
@@ -744,16 +733,15 @@ export default function AdminDashboard() {
                   <div key={level} className="bg-white rounded-lg p-6 shadow-sm border border-gray-200">
                     <div className="flex items-center justify-between mb-4">
                       <div className="flex items-center">
-                        <div className={`p-2 rounded-lg mr-3 ${
-                          level === 'critical' ? 'bg-red-100 text-red-600' :
+                        <div className={`p-2 rounded-lg mr-3 ${level === 'critical' ? 'bg-red-100 text-red-600' :
                           level === 'high' ? 'bg-orange-100 text-orange-600' :
-                          level === 'medium' ? 'bg-yellow-100 text-yellow-600' : 'bg-green-100 text-green-600'
-                        }`}>
+                            level === 'medium' ? 'bg-yellow-100 text-yellow-600' : 'bg-green-100 text-green-600'
+                          }`}>
                           <ShieldAlert className="h-5 w-5" />
                         </div>
                         <h3 className="text-lg font-bold capitalize text-gray-900">{level} Sensitivity</h3>
                       </div>
-                      <button 
+                      <button
                         onClick={() => handleConfigure(level)}
                         className="text-blue-600 hover:text-blue-700 text-sm font-medium flex items-center"
                       >
@@ -761,7 +749,7 @@ export default function AdminDashboard() {
                         Configure
                       </button>
                     </div>
-                    
+
                     <div className="space-y-3">
                       <div className="flex justify-between text-sm">
                         <span className="text-gray-600">Capacity Limit:</span>

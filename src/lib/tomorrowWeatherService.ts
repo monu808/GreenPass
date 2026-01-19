@@ -1,3 +1,6 @@
+/**
+ * Normalized weather data structure used across the application.
+ */
 interface WeatherData {
   temperature: number;
   humidity: number;
@@ -15,6 +18,9 @@ interface WeatherData {
   precipitationType?: string;
 }
 
+/**
+ * Structure of the response from Tomorrow.io Forecast API.
+ */
 interface TomorrowApiResponse {
   timelines: {
     minutely?: Array<{
@@ -84,6 +90,9 @@ interface WeatherCodeMapping {
   };
 }
 
+/**
+ * Structure of the response from Tomorrow.io Realtime API.
+ */
 interface TomorrowRealtimeResponse {
   data: {
     time: string;
@@ -109,6 +118,10 @@ interface TomorrowRealtimeResponse {
   };
 }
 
+/**
+ * Service for fetching weather data from Tomorrow.io API.
+ * Handles API requests, rate limiting fallback, and data transformation.
+ */
 class TomorrowWeatherService {
   private apiKey: string;
   private baseUrl = 'https://api.tomorrow.io/v4/weather';
@@ -149,7 +162,16 @@ class TomorrowWeatherService {
     this.apiKey = apiKey;
   }
 
-  async getWeatherByCoordinates(lat: number, lon: number, cityName: string = 'Unknown Location'): Promise<WeatherData | null> {
+  /**
+   * Fetches real-time weather data for a specific location.
+   * 
+   * @param {number} lat - Latitude of the location.
+   * @param {number} lon - Longitude of the location.
+   * @param {string} [cityName='Unknown Location'] - Name of the city/location for logging.
+   * @param {AbortSignal} [signal] - Optional signal to abort the fetch request.
+   * @returns {Promise<WeatherData | null>} Weather data or null if fetch fails.
+   */
+  async getWeatherByCoordinates(lat: number, lon: number, cityName: string = 'Unknown Location', signal?: AbortSignal): Promise<WeatherData | null> {
     try {
       const fields = [
         'temperature',
@@ -166,9 +188,9 @@ class TomorrowWeatherService {
       ].join(',');
 
       const url = `${this.baseUrl}/realtime?location=${lat},${lon}&fields=${fields}&units=metric&apikey=${this.apiKey}`;
-      
+
       console.log(`🌐 Requesting weather data for ${cityName}...`);
-      const response = await fetch(url);
+      const response = await fetch(url, { signal });
 
       if (response.status === 429) {
         console.warn(`⚠️ Rate limit exceeded for ${cityName}, using fallback weather data`);
@@ -184,6 +206,10 @@ class TomorrowWeatherService {
       console.log(`✅ Successfully fetched weather data for ${cityName}`);
       return this.transformWeatherData(data, cityName);
     } catch (error) {
+      if ((error as { name?: string })?.name === 'AbortError') {
+        console.log(`⏹️ Weather fetch aborted for ${cityName}`);
+        return null;
+      }
       console.error('Error fetching weather data from Tomorrow.io:', error);
       console.log(`📋 Generating fallback weather data for ${cityName}`);
       return this.getFallbackWeatherData(lat, lon, cityName);
@@ -195,7 +221,7 @@ class TomorrowWeatherService {
     // Generate realistic weather data based on location and season
     const baseTemp = this.getSeasonalTemperature(lat);
     const variation = (Math.random() - 0.5) * 10; // ±5°C variation
-    
+
     return {
       temperature: Math.round((baseTemp + variation) * 10) / 10,
       humidity: Math.round(50 + Math.random() * 40), // 50-90%
@@ -218,15 +244,15 @@ class TomorrowWeatherService {
   private getSeasonalTemperature(lat: number): number {
     const month = new Date().getMonth(); // 0-11
     const isWinter = month < 3 || month > 9;
-    
+
     // Base temperature by latitude zones
     let baseTemp = 20; // Default moderate temperature
-    
+
     if (Math.abs(lat) > 60) baseTemp = isWinter ? -5 : 10; // Arctic/Antarctic
     else if (Math.abs(lat) > 40) baseTemp = isWinter ? 5 : 25; // Temperate
     else if (Math.abs(lat) > 23) baseTemp = isWinter ? 15 : 30; // Subtropical
     else baseTemp = isWinter ? 25 : 35; // Tropical
-    
+
     return baseTemp;
   }
 
@@ -236,6 +262,14 @@ class TomorrowWeatherService {
     return commonCodes[Math.floor(Math.random() * commonCodes.length)];
   }
 
+  /**
+   * Fetches weather forecast for a specific location.
+   * 
+   * @param {number} lat - Latitude of the location.
+   * @param {number} lon - Longitude of the location.
+   * @param {number} [days=5] - Number of days to forecast.
+   * @returns {Promise<TomorrowApiResponse | null>} Forecast data or null if fetch fails.
+   */
   async getForecastByCoordinates(lat: number, lon: number, days: number = 5): Promise<TomorrowApiResponse | null> {
     try {
       const fields = [
@@ -255,7 +289,7 @@ class TomorrowWeatherService {
       ].join(',');
 
       const url = `${this.baseUrl}/forecast?location=${lat},${lon}&fields=${fields}&units=metric&timesteps=1d&endTime=${this.getEndTime(days)}&apikey=${this.apiKey}`;
-      
+
       const response = await fetch(url);
 
       if (!response.ok) {
@@ -309,6 +343,12 @@ class TomorrowWeatherService {
     return endDate.toISOString();
   }
 
+  /**
+   * Evaluates weather data against safety thresholds to generate alerts.
+   * 
+   * @param {WeatherData} weatherData - The weather data to evaluate.
+   * @returns {{ shouldAlert: boolean; reason: string }} Alert status and reason.
+   */
   shouldGenerateAlert(weatherData: WeatherData): { shouldAlert: boolean; reason: string } {
     const alerts = [];
 
@@ -352,22 +392,32 @@ class TomorrowWeatherService {
     };
   }
 
+  /**
+   * Retrieves the appropriate icon code for a given weather condition.
+   * 
+   * @param {number} weatherCode - The Tomorrow.io weather code.
+   * @param {boolean} [isDay=true] - Whether it is currently daytime.
+   * @returns {string} The icon code (e.g., '01d').
+   */
   getWeatherIcon(weatherCode: number, isDay: boolean = true): string {
     const mapping = this.weatherCodeMap[weatherCode] || this.weatherCodeMap[0];
     let icon = mapping.icon;
-    
+
     // Adjust for day/night
     if (!isDay && (icon === '01d' || icon === '01n')) {
       icon = '01n';
     } else if (!isDay && icon.endsWith('d')) {
       icon = icon.replace('d', 'n');
     }
-    
+
     return icon;
   }
 }
 
-// Destination coordinates for major tourist locations in Jammu and Himachal Pradesh
+/**
+ * Predefined coordinates for major tourist destinations supported by the application.
+ * Used to map destination names to lat/lon for weather queries.
+ */
 export const destinationCoordinates: { [key: string]: { lat: number; lon: number; name: string } } = {
   // Himachal Pradesh
   'manali': { lat: 32.2396, lon: 77.1887, name: 'Manali' },
@@ -379,7 +429,7 @@ export const destinationCoordinates: { [key: string]: { lat: number; lon: number
   'spiti': { lat: 32.2466, lon: 78.0265, name: 'Spiti Valley' },
   'spitivalley': { lat: 32.2466, lon: 78.0265, name: 'Spiti Valley' },
   'kinnaur': { lat: 31.6089, lon: 78.4697, name: 'Kinnaur' },
-  
+
   // Jammu and Kashmir
   'srinagar': { lat: 34.0837, lon: 74.7973, name: 'Srinagar' },
   'jammu': { lat: 32.7266, lon: 74.8570, name: 'Jammu' },

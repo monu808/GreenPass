@@ -264,6 +264,7 @@ export default function SettingsPage() {
                   value={settings.general.adminEmail}
                   onChange={(value) => handleInputChange('general', 'adminEmail', value)}
                   type="email"
+                  autoComplete="email"
                   required
                 />
                 <InputField
@@ -410,6 +411,7 @@ export default function SettingsPage() {
                   value={settings.weather.apiKey}
                   onChange={(value) => handleInputChange('weather', 'apiKey', value)}
                   type="password"
+                  autoComplete="off"
                   placeholder="Enter your OpenWeatherMap API key"
                 />
                 <InputField

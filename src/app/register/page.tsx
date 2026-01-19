@@ -390,6 +390,7 @@ const handleSubmit = async (e: React.FormEvent) => {
                   type="email"
                   id="email"
                   name="email"
+                  autoComplete="email"
                   value={formData.email}
                   onChange={handleInputChange}
                   className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-green-500 focus:outline-none focus:border-transparent text-gray-900 ${
@@ -413,6 +414,7 @@ const handleSubmit = async (e: React.FormEvent) => {
                 </label>
                 <input
                   type="tel"
+                  autoComplete="tel"
                   id="phone"
                   name="phone"
                   value={formData.phone}
@@ -497,6 +499,7 @@ const handleSubmit = async (e: React.FormEvent) => {
                 <textarea
                   id="address"
                   name="address"
+                  autoComplete="street-address"
                   value={formData.address}
                   onChange={(e) => {
                     setFormData(prev => ({ ...prev, address: e.target.value }));
@@ -838,6 +841,7 @@ const handleSubmit = async (e: React.FormEvent) => {
                 </label>
                 <input
                   type="tel"
+                  autoComplete="tel"
                   id="emergencyContactPhone"
                   name="emergencyContactPhone"
                   value={formData.emergencyContactPhone}

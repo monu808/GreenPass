@@ -143,7 +143,7 @@ export default function AdminDashboard() {
                 type: "weather",
                 title: `Weather Alert - ${destination.name}`,
                 message: alertCheck.reason,
-                severity: "medium",
+                severity: alertCheck.severity || "medium",
                 destinationId: destination.id,
                 isActive: true,
               });

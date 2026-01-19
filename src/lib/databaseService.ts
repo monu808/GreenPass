@@ -87,7 +87,7 @@ const getGlobalWeatherCache = (): Map<string, DbWeatherData> => {
   return globalThis[WEATHER_CACHE_KEY];
 };
 
-const db = supabase as SupabaseClient<any> | null;
+const db = supabase as any;
 
 class DatabaseService {
   private weatherCache: Map<string, DbWeatherData>;
@@ -128,7 +128,7 @@ class DatabaseService {
   }
 
   // Tourist operations
-  private validateTouristInsert(tourist: any): tourist is Database['public']['Tables']['tourists']['Insert'] {
+  private validateTouristInsert(tourist: Record<string, unknown>): tourist is Database['public']['Tables']['tourists']['Insert'] {
     const required = [
       'name', 'email', 'phone', 'id_proof', 'nationality', 
       'group_size', 'destination_id', 'check_in_date', 'check_out_date', 
@@ -136,7 +136,8 @@ class DatabaseService {
     ];
     
     for (const field of required) {
-      if (tourist[field] === undefined || tourist[field] === null || tourist[field] === '') {
+      const val = tourist[field];
+      if (val === undefined || val === null || val === '') {
         console.error(`❌ Validation failed: Missing required field "${field}"`);
         return false;
       }

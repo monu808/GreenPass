@@ -70,25 +70,6 @@ export default function AdminDashboard() {
 
   const [activeTab, setActiveTab] = useState<'overview' | 'policies' | 'ecological'>('overview');
 
-  const handleConfigure = (level: SensitivityLevel) => {
-    const policyEngine = getPolicyEngine();
-    const policy = policies[level] || policyEngine.getPolicy(level);
-    setPolicyForm({ ...policy });
-    setEditingPolicy(level);
-  };
-
-  const handleSavePolicy = () => {
-    if (editingPolicy && policyForm) {
-      const policyEngine = getPolicyEngine();
-      policyEngine.updatePolicy(editingPolicy, policyForm);
-      setPolicies(policyEngine.getAllPolicies());
-      setEditingPolicy(null);
-      setPolicyForm(null);
-      // Refresh data to show changes
-      loadDashboardData();
-    }
-  };
-
   const updateWeatherData = useCallback(async (destinations: Destination[]) => {
     const dbService = getDbService();
     const newWeatherMap: Record<string, any> = {};
@@ -270,6 +251,25 @@ export default function AdminDashboard() {
       setLoading(false);
     }
   }, [updateWeatherData]);
+
+  const handleConfigure = (level: SensitivityLevel) => {
+    const policyEngine = getPolicyEngine();
+    const policy = policies[level] || policyEngine.getPolicy(level);
+    setPolicyForm({ ...policy });
+    setEditingPolicy(level);
+  };
+
+  const handleSavePolicy = () => {
+    if (editingPolicy && policyForm) {
+      const policyEngine = getPolicyEngine();
+      policyEngine.updatePolicy(editingPolicy, policyForm);
+      setPolicies(policyEngine.getAllPolicies());
+      setEditingPolicy(null);
+      setPolicyForm(null);
+      // Refresh data to show changes
+      loadDashboardData();
+    }
+  };
 
   // Recalculate adjusted capacities whenever weatherMap or destinations change
   useEffect(() => {

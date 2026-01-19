@@ -6,8 +6,15 @@ import {
   CapacityOverride 
 } from '@/types';
 import { getDbService } from './databaseService';
+import { WeatherData } from './weatherService';
 
 export type SensitivityLevel = 'low' | 'medium' | 'high' | 'critical';
+
+export interface AlertCheckResult {
+  shouldAlert: boolean;
+  reason: string;
+  severity: 'low' | 'medium' | 'high' | 'critical';
+}
 
 export interface EcologicalPolicy {
   sensitivityLevel: SensitivityLevel;
@@ -168,6 +175,57 @@ export class EcologicalPolicyEngine {
   clearCapacityOverride(destinationId: string) {
     this.overrides.delete(destinationId);
     this.saveOverridesToStorage();
+  }
+
+  /**
+   * Evaluates weather data against safety thresholds to generate alerts.
+   */
+  checkWeatherAlerts(destination: Destination, weatherData: WeatherData): AlertCheckResult {
+    const alerts = [];
+    let severity: 'low' | 'medium' | 'high' | 'critical' = 'low';
+
+    // Temperature alerts
+    if (weatherData.temperature > 40) {
+      alerts.push(`Extreme heat warning (${weatherData.temperature}°C)`);
+      severity = 'high';
+    } else if (weatherData.temperature < 0) {
+      alerts.push(`Freezing temperature alert (${weatherData.temperature}°C)`);
+      severity = 'medium';
+    }
+
+    // Wind alerts
+    if (weatherData.windSpeed > 15) { 
+      alerts.push(`High wind warning (${weatherData.windSpeed} m/s)`);
+      severity = 'medium';
+    }
+
+    // Precipitation alerts
+    if (weatherData.precipitationProbability && weatherData.precipitationProbability > 80) {
+      alerts.push(`Heavy precipitation expected (${weatherData.precipitationProbability}%)`);
+      severity = 'medium';
+    }
+
+    // Visibility alerts
+    if (weatherData.visibility < 1000) {
+      alerts.push(`Low visibility conditions (${weatherData.visibility}m)`);
+      severity = 'low';
+    }
+
+    // Weather condition specific alerts
+    const main = weatherData.weatherMain.toLowerCase();
+    if (main === 'thunderstorm') {
+      alerts.push('Thunderstorm warning');
+      severity = 'high';
+    } else if (main === 'snow' && weatherData.temperature > -2) {
+      alerts.push('Heavy snow warning');
+      severity = 'medium';
+    }
+
+    return {
+      shouldAlert: alerts.length > 0,
+      reason: alerts.join(', '),
+      severity
+    };
   }
 
   async getWeatherFactor(destinationId: string): Promise<number> {

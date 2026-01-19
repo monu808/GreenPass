@@ -66,41 +66,6 @@ function BookDestinationForm() {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [carbonFootprint, setCarbonFootprint] = useState<CarbonFootprintResult | null>(null);
 
-  const computeBookingFootprint = useCallback((): CarbonFootprintResult | null => {
-    if (!destination || !formData.originLocation) return null;
-    
-    // Calculate actual stay nights from dates
-    let stayNights = 2; // Default fallback
-    if (formData.checkInDate && formData.checkOutDate) {
-      const start = new Date(formData.checkInDate);
-      const end = new Date(formData.checkOutDate);
-      
-      if (!isNaN(start.getTime()) && !isNaN(end.getTime())) {
-        const diffTime = end.getTime() - start.getTime();
-        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-        
-        // Ensure at least 0 nights if dates are in reverse or same day
-        stayNights = Math.max(0, diffDays);
-      }
-    }
-    
-    const calculator = getCarbonCalculator();
-    return calculator.calculateBookingFootprint(
-      formData.originLocation,
-      destination.id,
-      formData.groupSize,
-      formData.transportType,
-      stayNights,
-      destination.coordinates.latitude,
-      destination.coordinates.longitude
-    );
-  }, [destination, formData.originLocation, formData.groupSize, formData.transportType, formData.checkInDate, formData.checkOutDate]);
-
-  const calculateCarbonFootprint = useCallback(() => {
-    const result = computeBookingFootprint();
-    setCarbonFootprint(result);
-  }, [computeBookingFootprint]);
-
   const loadDestination = useCallback(async () => {
     try {
       const dbService = getDbService();
@@ -178,6 +143,41 @@ function BookDestinationForm() {
     const result = await dbService.checkBookingEligibility(destination.id, size);
     setEligibility(result);
   }, [destination]);
+
+  const computeBookingFootprint = useCallback((): CarbonFootprintResult | null => {
+    if (!destination || !formData.originLocation) return null;
+    
+    // Calculate actual stay nights from dates
+    let stayNights = 2; // Default fallback
+    if (formData.checkInDate && formData.checkOutDate) {
+      const start = new Date(formData.checkInDate);
+      const end = new Date(formData.checkOutDate);
+      
+      if (!isNaN(start.getTime()) && !isNaN(end.getTime())) {
+        const diffTime = end.getTime() - start.getTime();
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        
+        // Ensure at least 0 nights if dates are in reverse or same day
+        stayNights = Math.max(0, diffDays);
+      }
+    }
+    
+    const calculator = getCarbonCalculator();
+    return calculator.calculateBookingFootprint(
+      formData.originLocation,
+      destination.id,
+      formData.groupSize,
+      formData.transportType,
+      stayNights,
+      destination.coordinates.latitude,
+      destination.coordinates.longitude
+    );
+  }, [destination, formData.originLocation, formData.groupSize, formData.transportType, formData.checkInDate, formData.checkOutDate]);
+
+  const calculateCarbonFootprint = useCallback(() => {
+    const result = computeBookingFootprint();
+    setCarbonFootprint(result);
+  }, [computeBookingFootprint]);
 
   useEffect(() => {
     if (destinationId) {

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, Suspense } from 'react';
+import React, { useState, useEffect, Suspense, useCallback } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { Calendar, Users, MapPin, Clock, Star, AlertTriangle, CheckCircle, Leaf, ShieldAlert, XCircle, RefreshCw, Globe, TreePine, Zap, Flame, Info } from 'lucide-react';
 import TouristLayout from '@/components/TouristLayout';
@@ -70,21 +70,21 @@ function BookDestinationForm() {
     if (destinationId) {
       loadDestination();
     }
-  }, [destinationId]);
+  }, [destinationId, loadDestination]);
 
   useEffect(() => {
     if (destination) {
       checkEligibility(formData.groupSize);
     }
-  }, [formData.groupSize, destination]);
+  }, [formData.groupSize, destination, checkEligibility]);
 
   useEffect(() => {
     if (destination && formData.originLocation) {
       calculateCarbonFootprint();
     }
-  }, [destination, formData.originLocation, formData.groupSize, formData.transportType, formData.checkInDate, formData.checkOutDate]);
+  }, [destination, formData.originLocation, formData.groupSize, formData.transportType, formData.checkInDate, formData.checkOutDate, calculateCarbonFootprint]);
 
-  const computeBookingFootprint = (): CarbonFootprintResult | null => {
+  const computeBookingFootprint = useCallback((): CarbonFootprintResult | null => {
     if (!destination || !formData.originLocation) return null;
     
     // Calculate actual stay nights from dates
@@ -112,14 +112,14 @@ function BookDestinationForm() {
       destination.coordinates.latitude,
       destination.coordinates.longitude
     );
-  };
+  }, [destination, formData.originLocation, formData.groupSize, formData.transportType, formData.checkInDate, formData.checkOutDate]);
 
-  const calculateCarbonFootprint = () => {
+  const calculateCarbonFootprint = useCallback(() => {
     const result = computeBookingFootprint();
     setCarbonFootprint(result);
-  };
+  }, [computeBookingFootprint]);
 
-  const loadDestination = async () => {
+  const loadDestination = useCallback(async () => {
     try {
       const dbService = getDbService();
       const policyEngine = getPolicyEngine();
@@ -188,14 +188,14 @@ function BookDestinationForm() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [destinationId]);
 
-  const checkEligibility = async (size: number) => {
+  const checkEligibility = useCallback(async (size: number) => {
     if (!destination) return;
     const dbService = getDbService();
     const result = await dbService.checkBookingEligibility(destination.id, size);
     setEligibility(result);
-  };
+  }, [destination]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target;

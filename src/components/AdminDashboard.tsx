@@ -61,27 +61,6 @@ export default function AdminDashboard() {
   const [adjustedCapacities, setAdjustedCapacities] = useState<Record<string, number>>({});
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [weatherMap, setWeatherMap] = useState<Record<string, any>>({});
-
-
-
-
-
-  // Recalculate adjusted capacities whenever weatherMap or destinations change
-  useEffect(() => {
-    const recalculateCapacities = async () => {
-      const policyEngine = getPolicyEngine();
-      const newAdjustedCapacities: Record<string, number> = {};
-      await Promise.all(destinations.map(async (dest) => {
-        newAdjustedCapacities[dest.id] = await policyEngine.getAdjustedCapacity(dest);
-      }));
-      setAdjustedCapacities(newAdjustedCapacities);
-    };
-
-    if (destinations.length > 0) {
-      recalculateCapacities();
-    }
-  }, [weatherMap, destinations]);
-
   const [policies, setPolicies] = useState<Record<SensitivityLevel, EcologicalPolicy>>(DEFAULT_POLICIES);
   const [loading, setLoading] = useState(true);
   const [editingPolicy, setEditingPolicy] = useState<SensitivityLevel | null>(null);
@@ -89,79 +68,109 @@ export default function AdminDashboard() {
   const [impactData, setImpactData] = useState<any[]>([]);
   const [historicalTrends, setHistoricalTrends] = useState<any[]>([]);
 
-  useEffect(() => {
-    // 1. Load initial data when the user first opens the dashboard
-    loadDashboardData();
-    const policyEngine = getPolicyEngine();
-    setPolicies(policyEngine.getAllPolicies());
-
-    // 2. Real-Time Connection (Issue #21 Requirement)
-    // This connects the dashboard to the "live pipe" we created in route.ts
-    const eventSource = new EventSource('/api/weather-monitor');
-
-    eventSource.onmessage = (event) => {
-      try {
-        const data = JSON.parse(event.data);
-        console.log("🚀 Real-time weather update received from server:", data);
-
-        const isWeatherUpdate = data.type === 'weather_update' || data.type === 'weather_update_available';
-
-        // If the update contains specific destination weather, update it directly
-        if (isWeatherUpdate && data.destinationId && data.weather) {
-          setWeatherMap(prev => ({
-            ...prev,
-            [data.destinationId]: {
-              temperature: data.weather.temperature,
-              humidity: data.weather.humidity,
-              weatherMain: data.weather.weatherMain,
-              weatherDescription: data.weather.weatherDescription,
-              windSpeed: data.weather.windSpeed,
-              recordedAt: new Date().toISOString()
-            }
-          }));
-        } else {
-          // Fallback to full reload for other update types (like general available signal)
-          loadDashboardData();
-        }
-      } catch (err) {
-        console.error("Error parsing real-time data:", err);
-      }
-    };
-
-    eventSource.onerror = (err) => {
-      //  Remove .close() to allow the browser to auto-reconnect.
-      // The Spec for EventSource automatically handles retries.
-      console.error("SSE connection interrupted. Browser is attempting to reconnect...");
-    };
-
-    // 3. Cleanup: Stop listening if the user navigates away from the dashboard
-    return () => {
-      eventSource.close();
-    };
-  }, []);
-
   const [activeTab, setActiveTab] = useState<'overview' | 'policies' | 'ecological'>('overview');
 
-  const handleConfigure = (level: SensitivityLevel) => {
-    const policyEngine = getPolicyEngine();
-    const policy = policies[level] || policyEngine.getPolicy(level);
-    setPolicyForm({ ...policy });
-    setEditingPolicy(level);
-  };
+  const updateWeatherData = useCallback(async (destinations: Destination[]) => {
+    const dbService = getDbService();
+    const newWeatherMap: Record<string, any> = {};
 
-  const handleSavePolicy = () => {
-    if (editingPolicy && policyForm) {
-      const policyEngine = getPolicyEngine();
-      policyEngine.updatePolicy(editingPolicy, policyForm);
-      setPolicies(policyEngine.getAllPolicies());
-      setEditingPolicy(null);
-      setPolicyForm(null);
-      // Refresh data to show changes
-      loadDashboardData();
-    }
-  };
+    await Promise.all(destinations.map(async (destination) => {
+      try {
+        let weatherDataForMap = null;
 
-  const loadDashboardData = async () => {
+        // First, try to get the latest weather from the database
+        const latestWeather = await dbService.getLatestWeatherData(destination.id);
+
+        if (latestWeather) {
+          weatherDataForMap = {
+            temperature: latestWeather.temperature,
+            humidity: latestWeather.humidity,
+            weatherMain: latestWeather.weather_main,
+            weatherDescription: latestWeather.weather_description,
+            windSpeed: latestWeather.wind_speed,
+            recordedAt: latestWeather.recorded_at
+          };
+        }
+
+        const coordinates = (destinationCoordinates as Record<string, { lat: number; lon: number; name?: string }>)[destination.id] ||
+          (destinationCoordinates as Record<string, { lat: number; lon: number; name?: string }>)[destination.name?.toLowerCase().replace(/\s+/g, '')] ||
+          (destinationCoordinates as Record<string, { lat: number; lon: number; name?: string }>)[destination.name?.toLowerCase()];
+
+        // Check if we already have recent weather data
+        // We use the data we just fetched from DB (if any) as the baseline
+        const existingWeather = weatherDataForMap;
+        const sixHoursInMs = 6 * 60 * 60 * 1000;
+        const isFresh = existingWeather &&
+          (new Date().getTime() - new Date(existingWeather.recordedAt).getTime() < sixHoursInMs);
+
+        if (coordinates && !isFresh) {
+          const weatherData = await weatherService.getWeatherByCoordinates(
+            coordinates.lat,
+            coordinates.lon,
+            coordinates.name || destination.name
+          );
+
+          if (weatherData) {
+            // Save weather data to database
+            await dbService.saveWeatherData({
+              destination_id: destination.id,
+              temperature: weatherData.temperature,
+              humidity: weatherData.humidity,
+              pressure: weatherData.pressure,
+              weather_main: weatherData.weatherMain,
+              weather_description: weatherData.weatherDescription,
+              wind_speed: weatherData.windSpeed,
+              wind_direction: weatherData.windDirection,
+              visibility: weatherData.visibility,
+              recorded_at: new Date().toISOString()
+            });
+
+            weatherDataForMap = {
+              temperature: weatherData.temperature,
+              humidity: weatherData.humidity,
+              weatherMain: weatherData.weatherMain,
+              weatherDescription: weatherData.weatherDescription,
+              windSpeed: weatherData.windSpeed,
+              recordedAt: new Date().toISOString()
+            };
+
+            // Check if weather data triggers a policy alert
+            const policyEngine = getPolicyEngine();
+            const alertCheck = policyEngine.checkWeatherAlerts(destination, weatherData);
+
+            if (alertCheck.shouldAlert) {
+              await dbService.addAlert({
+                type: "weather",
+                title: `Weather Alert - ${destination.name}`,
+                message: alertCheck.reason,
+                severity: alertCheck.severity || "medium",
+                destinationId: destination.id,
+                isActive: true,
+              });
+            }
+          }
+        }
+
+        if (weatherDataForMap) {
+          newWeatherMap[destination.id] = weatherDataForMap;
+        }
+
+      } catch (error) {
+        console.error(
+          `Error updating weather for ${destination.name}:`,
+          error
+        );
+      }
+    }));
+
+    // Update state once with all the collected data
+    setWeatherMap(prev => ({
+      ...prev,
+      ...newWeatherMap
+    }));
+  }, []);
+
+  const loadDashboardData = useCallback(async () => {
     try {
       const dbService = getDbService();
       const [
@@ -241,107 +250,93 @@ export default function AdminDashboard() {
     } finally {
       setLoading(false);
     }
+  }, [updateWeatherData]);
+
+  const handleConfigure = (level: SensitivityLevel) => {
+    const policyEngine = getPolicyEngine();
+    const policy = policies[level] || policyEngine.getPolicy(level);
+    setPolicyForm({ ...policy });
+    setEditingPolicy(level);
   };
 
+  const handleSavePolicy = () => {
+    if (editingPolicy && policyForm) {
+      const policyEngine = getPolicyEngine();
+      policyEngine.updatePolicy(editingPolicy, policyForm);
+      setPolicies(policyEngine.getAllPolicies());
+      setEditingPolicy(null);
+      setPolicyForm(null);
+      // Refresh data to show changes
+      loadDashboardData();
+    }
+  };
 
+  // Recalculate adjusted capacities whenever weatherMap or destinations change
+  useEffect(() => {
+    const recalculateCapacities = async () => {
+      const policyEngine = getPolicyEngine();
+      const newAdjustedCapacities: Record<string, number> = {};
+      await Promise.all(destinations.map(async (dest) => {
+        newAdjustedCapacities[dest.id] = await policyEngine.getAdjustedCapacity(dest);
+      }));
+      setAdjustedCapacities(newAdjustedCapacities);
+    };
 
-  const updateWeatherData = async (destinations: Destination[]) => {
-    const dbService = getDbService();
-    const newWeatherMap: Record<string, any> = {};
+    if (destinations.length > 0) {
+      recalculateCapacities();
+    }
+  }, [weatherMap, destinations]);
 
-    await Promise.all(destinations.map(async (destination) => {
+  useEffect(() => {
+    // 1. Load initial data when the user first opens the dashboard
+    loadDashboardData();
+    const policyEngine = getPolicyEngine();
+    setPolicies(policyEngine.getAllPolicies());
+
+    // 2. Real-Time Connection (Issue #21 Requirement)
+    // This connects the dashboard to the "live pipe" we created in route.ts
+    const eventSource = new EventSource('/api/weather-monitor');
+
+    eventSource.onmessage = (event) => {
       try {
-        let weatherDataForMap = null;
+        const data = JSON.parse(event.data);
+        console.log("🚀 Real-time weather update received from server:", data);
 
-        // First, try to get the latest weather from the database
-        const latestWeather = await dbService.getLatestWeatherData(destination.id);
+        const isWeatherUpdate = data.type === 'weather_update' || data.type === 'weather_update_available';
 
-        if (latestWeather) {
-          weatherDataForMap = {
-            temperature: latestWeather.temperature,
-            humidity: latestWeather.humidity,
-            weatherMain: latestWeather.weather_main,
-            weatherDescription: latestWeather.weather_description,
-            windSpeed: latestWeather.wind_speed,
-            recordedAt: latestWeather.recorded_at
-          };
-        }
-
-        const coordinates = (destinationCoordinates as Record<string, { lat: number; lon: number; name?: string }>)[destination.id] ||
-          (destinationCoordinates as Record<string, { lat: number; lon: number; name?: string }>)[destination.name?.toLowerCase().replace(/\s+/g, '')] ||
-          (destinationCoordinates as Record<string, { lat: number; lon: number; name?: string }>)[destination.name?.toLowerCase()];
-
-        // Check if we already have recent weather data
-        // We use the data we just fetched from DB (if any) as the baseline
-        const existingWeather = weatherDataForMap;
-        const sixHoursInMs = 6 * 60 * 60 * 1000;
-        const isFresh = existingWeather &&
-          (new Date().getTime() - new Date(existingWeather.recordedAt).getTime() < sixHoursInMs);
-
-        if (coordinates && !isFresh) {
-          const weatherData = await weatherService.getWeatherByCoordinates(
-            coordinates.lat,
-            coordinates.lon,
-            coordinates.name || destination.name
-          );
-
-          if (weatherData) {
-            // Save weather data to database
-            await dbService.saveWeatherData({
-              destination_id: destination.id,
-              temperature: weatherData.temperature,
-              humidity: weatherData.humidity,
-              pressure: weatherData.pressure,
-              weather_main: weatherData.weatherMain,
-              weather_description: weatherData.weatherDescription,
-              wind_speed: weatherData.windSpeed,
-              wind_direction: weatherData.windDirection,
-              visibility: weatherData.visibility,
-              recorded_at: new Date().toISOString()
-            });
-
-            weatherDataForMap = {
-              temperature: weatherData.temperature,
-              humidity: weatherData.humidity,
-              weatherMain: weatherData.weatherMain,
-              weatherDescription: weatherData.weatherDescription,
-              windSpeed: weatherData.windSpeed,
+        // If the update contains specific destination weather, update it directly
+        if (isWeatherUpdate && data.destinationId && data.weather) {
+          setWeatherMap(prev => ({
+            ...prev,
+            [data.destinationId]: {
+              temperature: data.weather.temperature,
+              humidity: data.weather.humidity,
+              weatherMain: data.weather.weatherMain,
+              weatherDescription: data.weather.weatherDescription,
+              windSpeed: data.weather.windSpeed,
               recordedAt: new Date().toISOString()
-            };
-
-            // Check if we should generate a weather alert
-            const alertCheck = weatherService.shouldGenerateAlert(weatherData);
-            if (alertCheck.shouldAlert && alertCheck.reason) {
-              await dbService.addAlert({
-                type: "weather",
-                title: `Weather Alert - ${destination.name}`,
-                message: alertCheck.reason,
-                severity: "medium",
-                destinationId: destination.id,
-                isActive: true,
-              });
             }
-          }
+          }));
+        } else {
+          // Fallback to full reload for other update types (like general available signal)
+          loadDashboardData();
         }
-
-        if (weatherDataForMap) {
-          newWeatherMap[destination.id] = weatherDataForMap;
-        }
-
-      } catch (error) {
-        console.error(
-          `Error updating weather for ${destination.name}:`,
-          error
-        );
+      } catch (err) {
+        console.error("Error parsing real-time data:", err);
       }
-    }));
+    };
 
-    // Update state once with all the collected data
-    setWeatherMap(prev => ({
-      ...prev,
-      ...newWeatherMap
-    }));
-  };
+    eventSource.onerror = (err) => {
+      //  Remove .close() to allow the browser to auto-reconnect.
+      // The Spec for EventSource automatically handles retries.
+      console.error("SSE connection interrupted. Browser is attempting to reconnect...");
+    };
+
+    // 3. Cleanup: Stop listening if the user navigates away from the dashboard
+    return () => {
+      eventSource.close();
+    };
+  }, [loadDashboardData]);
 
   const StatCard = ({
     title,

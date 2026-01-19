@@ -6,8 +6,15 @@ import {
   CapacityOverride 
 } from '@/types';
 import { getDbService } from './databaseService';
+import { WeatherData } from './weatherService';
 
 export type SensitivityLevel = 'low' | 'medium' | 'high' | 'critical';
+
+export interface AlertCheckResult {
+  shouldAlert: boolean;
+  reason: string;
+  severity: 'low' | 'medium' | 'high' | 'critical';
+}
 
 export interface EcologicalPolicy {
   sensitivityLevel: SensitivityLevel;
@@ -168,6 +175,68 @@ export class EcologicalPolicyEngine {
   clearCapacityOverride(destinationId: string) {
     this.overrides.delete(destinationId);
     this.saveOverridesToStorage();
+  }
+
+  /**
+   * Evaluates weather data against safety thresholds to generate alerts.
+   */
+  checkWeatherAlerts(destination: Destination, weatherData: WeatherData): AlertCheckResult {
+    const alerts = [];
+    const severityRanks: Record<string, number> = { low: 1, medium: 2, high: 3, critical: 4 };
+    let maxRank = 0;
+
+    // Temperature alerts
+    if (weatherData.temperature > 40) {
+      alerts.push(`Extreme heat warning (${weatherData.temperature}°C)`);
+      maxRank = Math.max(maxRank, severityRanks.high);
+    } else if (weatherData.temperature < 0) {
+      alerts.push(`Freezing temperature alert (${weatherData.temperature}°C)`);
+      maxRank = Math.max(maxRank, severityRanks.medium);
+    }
+
+    // Wind alerts
+    if (weatherData.windSpeed > 15) { 
+      alerts.push(`High wind warning (${weatherData.windSpeed} m/s)`);
+      maxRank = Math.max(maxRank, severityRanks.medium);
+    }
+
+    // Precipitation alerts
+    if (weatherData.precipitationProbability && weatherData.precipitationProbability > 80) {
+      alerts.push(`Heavy precipitation expected (${weatherData.precipitationProbability}%)`);
+      maxRank = Math.max(maxRank, severityRanks.medium);
+    }
+
+    // Visibility alerts
+    if (weatherData.visibility < 1000) {
+      alerts.push(`Low visibility conditions (${weatherData.visibility}m)`);
+      maxRank = Math.max(maxRank, severityRanks.low);
+    }
+
+    // Weather condition specific alerts
+    const main = weatherData.weatherMain.toLowerCase();
+    if (main === 'thunderstorm') {
+      alerts.push('Thunderstorm warning');
+      maxRank = Math.max(maxRank, severityRanks.high);
+    } else if (main === 'snow' && weatherData.temperature > -2) {
+      alerts.push('Heavy snow warning');
+      maxRank = Math.max(maxRank, severityRanks.medium);
+    }
+
+    // Map rank back to severity level
+    const severityMap: Record<number, 'low' | 'medium' | 'high' | 'critical'> = {
+      1: 'low',
+      2: 'medium',
+      3: 'high',
+      4: 'critical'
+    };
+    
+    const finalSeverity = severityMap[maxRank] || 'low';
+
+    return {
+      shouldAlert: alerts.length > 0,
+      reason: alerts.join(', '),
+      severity: finalSeverity
+    };
   }
 
   async getWeatherFactor(destinationId: string): Promise<number> {

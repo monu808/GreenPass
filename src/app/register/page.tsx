@@ -402,7 +402,6 @@ const handleSubmit = async (e: React.FormEvent) => {
                   aria-invalid={!!errors.email}
                   aria-describedby={errors.email ? 'email-error' : 'email-hint'}
                   maxLength={254}
-                  autoComplete="email"
                 />
                 <p id="email-hint" className="text-gray-500 text-xs mt-1">We&apos;ll send confirmation to this email</p>
                 {errors.email && <p id="email-error" className="text-red-700 text-xs mt-1" role="alert">{errors.email}</p>}
@@ -429,7 +428,6 @@ const handleSubmit = async (e: React.FormEvent) => {
                   aria-describedby={errors.phone ? 'phone-error' : 'phone-hint'}
                   minLength={10}
                   maxLength={15}
-                  autoComplete="tel"
                 />
                 <p id="phone-hint" className="text-gray-500 text-xs mt-1">Indian mobile: 10 digits starting with 6-9</p>
                 {errors.phone && <p id="phone-error" className="text-red-700 text-xs mt-1" role="alert">{errors.phone}</p>}
@@ -518,7 +516,6 @@ const handleSubmit = async (e: React.FormEvent) => {
                   rows={3}
                   minLength={10}
                   maxLength={500}
-                  autoComplete="street-address"
                 />
                 <p id="address-hint" className="text-gray-500 text-xs mt-1">Enter complete address including house number, street, city, and state</p>
                 {errors.address && <p id="address-error" className="text-red-700 text-xs mt-1" role="alert">{errors.address}</p>}
@@ -856,7 +853,6 @@ const handleSubmit = async (e: React.FormEvent) => {
                   aria-describedby={errors.emergencyContactPhone ? 'emergencyContactPhone-error' : 'emergencyContactPhone-hint'}
                   minLength={10}
                   maxLength={15}
-                  autoComplete="off"
                 />
                 <p id="emergencyContactPhone-hint" className="text-gray-500 text-xs mt-1">Must be different from your phone number</p>
                 {errors.emergencyContactPhone && <p id="emergencyContactPhone-error" className="text-red-700 text-xs mt-1" role="alert">{errors.emergencyContactPhone}</p>}

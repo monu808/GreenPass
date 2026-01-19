@@ -446,6 +446,17 @@ function BookDestinationForm() {
           </div>
         )}
 
+        {/* Ecological Alert (Fix for #81) */}
+        {ecoAlert && (
+          <div className="p-4 bg-yellow-50 border border-yellow-200 text-yellow-800 rounded-xl flex items-start space-x-3 animate-in slide-in-from-top duration-300">
+            <AlertTriangle className="h-6 w-6 flex-shrink-0 text-yellow-600" />
+            <div>
+              <h4 className="font-bold">Ecological Notice</h4>
+              <p className="text-sm">{ecoAlert.message}</p>
+            </div>
+          </div>
+        )}
+
         {/* Header Card */}
         <div className="bg-white rounded-2xl p-8 shadow-sm border border-gray-100 relative overflow-hidden">
           <div className="flex justify-between items-start">

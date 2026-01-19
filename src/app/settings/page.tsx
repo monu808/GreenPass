@@ -173,13 +173,14 @@ export default function SettingsPage() {
     </div>
   );
 
-  const InputField = <T extends string | number>({ 
-    label, 
-    value, 
-    onChange, 
-    type = 'text', 
+  const InputField = <T extends string | number>({
+    label,
+    value,
+    onChange,
+    type = 'text',
     placeholder,
-    required = false 
+    required = false,
+    autoComplete, // <--- 1. ADD THIS (In the props list)
   }: {
     label: string;
     value: T;
@@ -187,16 +188,18 @@ export default function SettingsPage() {
     type?: 'text' | 'email' | 'number' | 'password';
     placeholder?: string;
     required?: boolean;
+    autoComplete?: string; // <--- 2. ADD THIS (In the type definition)
   }) => (
     <div>
       <label className="block text-sm font-medium text-gray-700 mb-2">{label}</label>
       <input
         type={type}
+        autoComplete={autoComplete} // <--- 3. ADD THIS (Pass it to the actual input)
         value={value}
-        onChange={(e) => onChange((type === 'number' ? Number(e.target.value) : e.target.value) as T)}
-        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+        onChange={(e) => onChange(e.target.value as T)}
         placeholder={placeholder}
         required={required}
+        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
       />
     </div>
   );

@@ -132,15 +132,7 @@ export default function EcologicalDashboard() {
   const [wasteDistributionData, setWasteDistributionData] = useState<WasteDistributionItem[]>([]);
   const [wasteTimeRange, setWasteTimeRange] = useState(30);
 
-  useEffect(() => {
-    loadEcologicalData();
-  }, [timeRange, selectedDestinationId]);
-
-  useEffect(() => {
-    loadWasteTrend();
-  }, [wasteTimeRange]);
-
-  const loadWasteTrend = async () => {
+  const loadWasteTrend = useCallback(async () => {
     try {
       const dbService = getDbService();
       const endDate = new Date();
@@ -181,9 +173,9 @@ export default function EcologicalDashboard() {
     } catch (err) {
       console.error("Error loading waste trend:", err);
     }
-  };
+  }, [wasteTimeRange]);
 
-  const loadEcologicalData = async (isRefresh = false) => {
+  const loadEcologicalData = useCallback(async (isRefresh = false) => {
     if (isRefresh) setRefreshing(true);
     else setLoading(true);
     
@@ -337,7 +329,16 @@ export default function EcologicalDashboard() {
       setLoading(false);
       setRefreshing(false);
     }
-  };
+  }, [timeRange, selectedDestinationId]);
+
+  useEffect(() => {
+    loadEcologicalData();
+  }, [loadEcologicalData]);
+
+  useEffect(() => {
+    loadWasteTrend();
+  }, [loadWasteTrend]);
+
 
   if (loading) {
     return (

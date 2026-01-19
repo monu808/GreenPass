@@ -3,8 +3,6 @@
 import React, { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
-import AdminDashboard from '@/components/AdminDashboard';
-import TouristDashboard from '@/app/tourist/dashboard/page';
 import HomePage from '@/app/home/page';
 
 export default function RootPage() {

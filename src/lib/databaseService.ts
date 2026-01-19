@@ -1,4 +1,5 @@
 import { supabase, createServerComponentClient } from '@/lib/supabase';
+import { SupabaseClient } from '@supabase/supabase-js';
 import { 
   Tourist, 
   Destination, 
@@ -83,11 +84,10 @@ const getGlobalWeatherCache = (): Map<string, DbWeatherData> => {
   if (!globalThis[WEATHER_CACHE_KEY]) {
     globalThis[WEATHER_CACHE_KEY] = new Map<string, DbWeatherData>();
   }
-  return globalThis[WEATHER_CACHE_KEY] as Map<string, DbWeatherData>;
+  return globalThis[WEATHER_CACHE_KEY];
 };
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const db = supabase as any;
+const db = supabase as SupabaseClient<any> | null;
 
 class DatabaseService {
   private weatherCache: Map<string, DbWeatherData>;
@@ -128,9 +128,32 @@ class DatabaseService {
   }
 
   // Tourist operations
+  private validateTouristInsert(tourist: any): tourist is Database['public']['Tables']['tourists']['Insert'] {
+    const required = [
+      'name', 'email', 'phone', 'id_proof', 'nationality', 
+      'group_size', 'destination_id', 'check_in_date', 'check_out_date', 
+      'emergency_contact_name', 'emergency_contact_phone', 'emergency_contact_relationship'
+    ];
+    
+    for (const field of required) {
+      if (tourist[field] === undefined || tourist[field] === null || tourist[field] === '') {
+        console.error(`❌ Validation failed: Missing required field "${field}"`);
+        return false;
+      }
+    }
+
+    // Type-specific validation
+    if (typeof tourist.group_size !== 'number' || tourist.group_size <= 0) {
+      console.error('❌ Validation failed: group_size must be a positive number');
+      return false;
+    }
+
+    return true;
+  }
+
   async getTourists(userId?: string): Promise<Tourist[]> {
     try {
-      if (this.isPlaceholderMode()) {
+      if (this.isPlaceholderMode() || !db) {
         console.log('Using mock tourists data');
         return mockData.tourists;
       }
@@ -163,7 +186,7 @@ class DatabaseService {
 
   async getTouristById(id: string): Promise<Tourist | null> {
     try {
-      if (this.isPlaceholderMode()) {
+      if (this.isPlaceholderMode() || !db) {
         return mockData.tourists.find(t => t.id === id) || null;
       }
       const { data, error } = await db
@@ -186,7 +209,7 @@ class DatabaseService {
 
   async addTourist(tourist: Database['public']['Tables']['tourists']['Insert']): Promise<Database['public']['Tables']['tourists']['Row'] | null> {
     try {
-      if (this.isPlaceholderMode()) {
+      if (this.isPlaceholderMode() || !db) {
         console.log('Using mock addTourist');
         
         // Check ecological eligibility before adding (consistent with real DB path)
@@ -238,9 +261,51 @@ class DatabaseService {
 
       console.log('Attempting to insert tourist:', tourist);
       
+      if (!db) {
+        console.error('Database client not initialized');
+        return null;
+      }
+
+      // 1. Prepare and validate the record
+      const touristToInsert: Database['public']['Tables']['tourists']['Insert'] = {
+        name: tourist.name,
+        email: tourist.email,
+        phone: tourist.phone,
+        id_proof: tourist.id_proof,
+        nationality: tourist.nationality,
+        group_size: tourist.group_size,
+        destination_id: tourist.destination_id,
+        check_in_date: tourist.check_in_date,
+        check_out_date: tourist.check_out_date,
+        emergency_contact_name: tourist.emergency_contact_name,
+        emergency_contact_phone: tourist.emergency_contact_phone,
+        emergency_contact_relationship: tourist.emergency_contact_relationship,
+        // Optional fields with proper handling
+        id: tourist.id,
+        age: tourist.age,
+        gender: tourist.gender,
+        address: tourist.address,
+        pin_code: tourist.pin_code,
+        id_proof_type: tourist.id_proof_type,
+        group_name: tourist.group_name,
+        user_id: tourist.user_id,
+        carbon_footprint: tourist.carbon_footprint,
+        origin_location_id: tourist.origin_location_id,
+        transport_type: tourist.transport_type,
+        status: tourist.status || 'pending',
+        registration_date: tourist.registration_date || new Date().toISOString(),
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      };
+
+      if (!this.validateTouristInsert(touristToInsert)) {
+        return null;
+      }
+
+      // 2. Perform insert operation
       const { data, error } = await db
         .from('tourists')
-        .insert(tourist)
+        .insert(touristToInsert)
         .select()
         .single();
 
@@ -266,9 +331,52 @@ class DatabaseService {
     }
   }
 
+  async batchAddTourists(tourists: Database['public']['Tables']['tourists']['Insert'][]): Promise<Database['public']['Tables']['tourists']['Row'][] | null> {
+    try {
+      if (this.isPlaceholderMode() || !db) {
+        console.log('Using mock batchAddTourists');
+        const results: DbTourist[] = [];
+        for (const t of tourists) {
+          const res = await this.addTourist(t);
+          if (res) results.push(res as DbTourist);
+        }
+        return results;
+      }
+
+      // Validate all records
+      const validatedTourists = tourists.map(t => ({
+        ...t,
+        created_at: t.created_at || new Date().toISOString(),
+        updated_at: t.updated_at || new Date().toISOString(),
+        status: t.status || 'pending'
+      }));
+
+      for (const t of validatedTourists) {
+        if (!this.validateTouristInsert(t)) {
+          throw new Error('Batch validation failed');
+        }
+      }
+
+      const { data, error } = await db
+        .from('tourists')
+        .insert(validatedTourists)
+        .select();
+
+      if (error) {
+        console.error('Database error batch adding tourists:', error);
+        return null;
+      }
+
+      return data as DbTourist[];
+    } catch (error) {
+      console.error('Error in batchAddTourists:', error);
+      return null;
+    }
+  }
+
   async updateTouristStatus(touristId: string, status: Tourist['status']): Promise<boolean> {
     try {
-      if (!supabase) {
+      if (this.isPlaceholderMode() || !db) {
         // Get the tourist to find their destination and group size
         const tourist = await this.getTouristById(touristId);
         if (!tourist) {
@@ -347,7 +455,7 @@ class DatabaseService {
    */
   async updateDestinationOccupancy(destinationId: string): Promise<void> {
     try {
-      if (!supabase) return;
+      if (this.isPlaceholderMode() || !db) return;
 
       const occupancy = await this.getCurrentOccupancy(destinationId);
       
@@ -369,7 +477,7 @@ class DatabaseService {
   // Destination operations
   async getDestinations(): Promise<Database['public']['Tables']['destinations']['Row'][]> {
     try {
-      if (this.isPlaceholderMode()) {
+      if (this.isPlaceholderMode() || !db) {
         console.log('Using mock destinations data');
         return mockData.destinations.map(d => ({
           id: d.id,
@@ -411,7 +519,7 @@ class DatabaseService {
       });
 
       // Merge occupancy into destinations
-      const updatedDestinations = (destinations || []).map((dest: DbDestination) => ({
+      const updatedDestinations = (destinations || []).map((dest: DbDestination): DbDestination => ({
         ...dest,
         current_occupancy: occupancyMap[dest.id] || 0
       }));
@@ -426,7 +534,7 @@ class DatabaseService {
 
   async getDestinationById(id: string): Promise<Destination | null> {
     try {
-      if (this.isPlaceholderMode()) {
+      if (this.isPlaceholderMode() || !db) {
         const mockDest = mockData.destinations.find(d => d.id === id);
         return mockDest || null;
       }
@@ -455,7 +563,7 @@ class DatabaseService {
 
   async getCurrentOccupancy(destinationId: string): Promise<number> {
     try {
-      if (this.isPlaceholderMode()) {
+      if (this.isPlaceholderMode() || !db) {
         return mockData.getCurrentOccupancy(destinationId);
       }
       const { data, error } = await db
@@ -471,7 +579,7 @@ class DatabaseService {
         return 0;
       }
 
-      return (data).reduce((total: number, tourist: { group_size: number }) => total + tourist.group_size, 0);
+      return (data).reduce((total: number, tourist: { group_size: number }): number => total + tourist.group_size, 0);
     } catch (error) {
       console.error('Error in getCurrentOccupancy:', error);
       return 0;
@@ -514,7 +622,7 @@ class DatabaseService {
   // Alert operations
   async getAlerts(destinationId?: string): Promise<Alert[]> {
     try {
-      if (this.isPlaceholderMode()) {
+      if (this.isPlaceholderMode() || !db) {
         console.log('Using mock alerts data');
         let alerts = [...mockData.alerts];
         if (destinationId) {
@@ -570,7 +678,7 @@ class DatabaseService {
 
   async addAlert(alert: Omit<Alert, 'id' | 'timestamp'>): Promise<Alert | null> {
     try {
-      if (this.isPlaceholderMode()) return null;
+      if (this.isPlaceholderMode() || !db) return null;
       const { data, error } = await db
         .from('alerts')
         .insert({
@@ -598,7 +706,7 @@ class DatabaseService {
 
   async updateAlert(alertId: string, updates: Partial<{ isActive: boolean }>): Promise<void> {
     try {
-      if (this.isPlaceholderMode()) return;
+      if (this.isPlaceholderMode() || !db) return;
       const { error } = await db
         .from('alerts')
         .update({
@@ -618,7 +726,7 @@ class DatabaseService {
 
   async deactivateAlert(alertId: string): Promise<boolean> {
     try {
-      if (this.isPlaceholderMode()) return true;
+      if (this.isPlaceholderMode() || !db) return true;
       const { error } = await db
         .from('alerts')
         .update({ is_active: false })
@@ -639,7 +747,7 @@ class DatabaseService {
   // Waste Data Operations
   async getWasteData(destinationId?: string): Promise<WasteData[]> {
     try {
-      if (this.isPlaceholderMode()) {
+      if (this.isPlaceholderMode() || !db) {
         let data = [...mockData.wasteData];
         if (destinationId) {
           data = data.filter(w => w.destinationId === destinationId);
@@ -663,7 +771,7 @@ class DatabaseService {
 
   async getWasteDataByDateRange(startDate: Date, endDate: Date, destinationId?: string): Promise<WasteData[]> {
     try {
-      if (this.isPlaceholderMode()) {
+      if (this.isPlaceholderMode() || !db) {
         let data = mockData.wasteData.filter(w => 
           isWithinInterval(new Date(w.collectedAt), { start: startDate, end: endDate })
         );
@@ -694,7 +802,7 @@ class DatabaseService {
 
   async addWasteData(waste: Database['public']['Tables']['waste_data']['Insert']): Promise<WasteData | null> {
     try {
-      if (this.isPlaceholderMode()) {
+      if (this.isPlaceholderMode() || !db) {
         const newData: DbWasteData = {
           id: `mock-waste-${Date.now()}`,
           destination_id: waste.destination_id,
@@ -725,7 +833,7 @@ class DatabaseService {
 
   async updateWasteData(id: string, updates: Database['public']['Tables']['waste_data']['Update']): Promise<WasteData | null> {
     try {
-      if (this.isPlaceholderMode()) {
+      if (this.isPlaceholderMode() || !db) {
         const index = mockData.wasteData.findIndex(w => w.id === id);
         if (index === -1) return null;
         const transformedUpdates = this.transformUpdateWasteToWaste(updates);
@@ -750,7 +858,7 @@ class DatabaseService {
 
   async deleteWasteData(id: string): Promise<boolean> {
     try {
-      if (this.isPlaceholderMode()) {
+      if (this.isPlaceholderMode() || !db) {
         const index = mockData.wasteData.findIndex(w => w.id === id);
         if (index === -1) return false;
         mockData.wasteData.splice(index, 1);
@@ -851,6 +959,7 @@ class DatabaseService {
         };
         return true;
       } else {
+        if (!db) return false;
         const dbUpdates: Database['public']['Tables']['cleanup_registrations']['Update'] = {};
         if (updates.activityId !== undefined) dbUpdates.activity_id = updates.activityId;
         if (updates.userId !== undefined) dbUpdates.user_id = updates.userId;
@@ -878,7 +987,7 @@ class DatabaseService {
 
   async getCleanupActivities(destinationId?: string): Promise<CleanupActivity[]> {
     try {
-      if (this.isPlaceholderMode()) {
+      if (this.isPlaceholderMode() || !db) {
         let activities = [...mockData.cleanupActivities];
         if (destinationId) {
           activities = activities.filter(a => a.destinationId === destinationId);
@@ -902,7 +1011,7 @@ class DatabaseService {
 
   async getUpcomingCleanupActivities(): Promise<CleanupActivity[]> {
     try {
-      if (this.isPlaceholderMode()) {
+      if (this.isPlaceholderMode() || !db) {
         return mockData.cleanupActivities.filter(a => 
           new Date(a.startTime) > new Date() && a.status === 'upcoming'
         );
@@ -925,7 +1034,7 @@ class DatabaseService {
 
   async getCleanupActivityById(id: string): Promise<CleanupActivity | null> {
     try {
-      if (this.isPlaceholderMode()) {
+      if (this.isPlaceholderMode() || !db) {
         return mockData.cleanupActivities.find(a => a.id === id) || null;
       }
 
@@ -945,7 +1054,7 @@ class DatabaseService {
 
   async createCleanupActivity(activity: Database['public']['Tables']['cleanup_activities']['Insert']): Promise<CleanupActivity | null> {
     try {
-      if (this.isPlaceholderMode()) {
+      if (this.isPlaceholderMode() || !db) {
         const newActivity: DbCleanupActivity = {
           id: `mock-cleanup-${Date.now()}`,
           destination_id: activity.destination_id,
@@ -981,7 +1090,7 @@ class DatabaseService {
 
   async updateCleanupActivity(id: string, updates: Database['public']['Tables']['cleanup_activities']['Update']): Promise<CleanupActivity | null> {
     try {
-      if (this.isPlaceholderMode()) {
+      if (this.isPlaceholderMode() || !db) {
         const index = mockData.cleanupActivities.findIndex(a => a.id === id);
         if (index === -1) return null;
         
@@ -1011,7 +1120,7 @@ class DatabaseService {
 
   async cancelCleanupActivity(id: string): Promise<boolean> {
     try {
-      if (this.isPlaceholderMode()) {
+      if (this.isPlaceholderMode() || !db) {
         const index = mockData.cleanupActivities.findIndex(a => a.id === id);
         if (index === -1) return false;
         mockData.cleanupActivities[index].status = 'cancelled';
@@ -1033,7 +1142,7 @@ class DatabaseService {
   // Registration Operations
   async registerForCleanup(activityId: string, userId: string): Promise<boolean> {
     try {
-      if (this.isPlaceholderMode()) {
+      if (this.isPlaceholderMode() || !db) {
         const activity = await this.getCleanupActivityById(activityId);
         if (!activity || activity.status !== 'upcoming') return false;
         
@@ -1150,7 +1259,7 @@ class DatabaseService {
 
   async cancelCleanupRegistration(registrationId: string): Promise<boolean> {
     try {
-      if (this.isPlaceholderMode()) {
+      if (this.isPlaceholderMode() || !db) {
         const reg = mockData.cleanupRegistrations.find(r => r.id === registrationId);
         if (!reg) return false;
 
@@ -1215,7 +1324,7 @@ class DatabaseService {
   async confirmCleanupAttendance(registrationId: string): Promise<boolean> {
     try {
       let reg: DbCleanupRegistration | null = null;
-      if (this.isPlaceholderMode()) {
+      if (this.isPlaceholderMode() || !db) {
         const index = mockData.cleanupRegistrations.findIndex(r => r.id === registrationId);
         if (index === -1) return false;
         
@@ -1281,7 +1390,7 @@ class DatabaseService {
 
   async getUserCleanupRegistrations(userId: string): Promise<CleanupRegistration[]> {
     try {
-      if (this.isPlaceholderMode()) {
+      if (this.isPlaceholderMode() || !db) {
         if (userId === 'all') return mockData.cleanupRegistrations;
         return mockData.cleanupRegistrations.filter(r => r.userId === userId);
       }
@@ -1302,7 +1411,7 @@ class DatabaseService {
 
   async getCleanupRegistrationsByActivity(activityId: string): Promise<CleanupRegistration[]> {
     try {
-      if (this.isPlaceholderMode()) {
+      if (this.isPlaceholderMode() || !db) {
         return mockData.cleanupRegistrations.filter(r => r.activityId === activityId);
       }
 
@@ -1322,7 +1431,7 @@ class DatabaseService {
   // Eco-points Operations
   async getEcoPointsBalance(userId: string): Promise<number> {
     try {
-      if (this.isPlaceholderMode()) {
+      if (this.isPlaceholderMode() || !db) {
         return 450; // Mock balance
       }
 
@@ -1342,7 +1451,7 @@ class DatabaseService {
 
   async awardEcoPoints(userId: string, points: number, description: string): Promise<boolean> {
     try {
-      if (this.isPlaceholderMode()) {
+      if (this.isPlaceholderMode() || !db) {
         mockData.ecoPointsTransactions.push({
           id: `mock-trans-${Date.now()}`,
           userId,
@@ -1396,7 +1505,7 @@ class DatabaseService {
 
   async getEcoPointsHistory(userId: string): Promise<EcoPointsTransaction[]> {
     try {
-      if (this.isPlaceholderMode()) {
+      if (this.isPlaceholderMode() || !db) {
         return mockData.ecoPointsTransactions.filter(t => t.userId === userId);
       }
 
@@ -1430,7 +1539,7 @@ class DatabaseService {
 
   async getEcoPointsLeaderboard(limit: number = 10): Promise<EcoPointsLeaderboardEntry[]> {
     try {
-      if (this.isPlaceholderMode()) {
+      if (this.isPlaceholderMode() || !db) {
         return [
           { userId: 'u1', name: 'Eco Warrior', points: 1200, rank: 1 },
           { userId: 'u2', name: 'Green Traveler', points: 950, rank: 2 },
@@ -1459,17 +1568,8 @@ class DatabaseService {
 
   async getLatestEcologicalIndicators(destinationId: string): Promise<{ soil_compaction: number; vegetation_disturbance: number; wildlife_disturbance: number; water_source_impact: number } | null> {
     try {
-      if (this.isPlaceholderMode()) {
-        // Return some mock data for demo purposes based on destinationId hash
-        const hash = destinationId.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
-        return {
-          soil_compaction: (hash % 60) + 20, // 20-80
-          vegetation_disturbance: ((hash * 2) % 50) + 10, // 10-60
-          wildlife_disturbance: ((hash * 3) % 70) + 15, // 15-85
-          water_source_impact: ((hash * 4) % 40) + 5, // 5-45
-        };
-      }
-      
+      if (this.isPlaceholderMode() || !db) return null;
+
       const { data, error } = await db
         .from('compliance_reports')
         .select('ecological_damage_indicators')
@@ -1646,8 +1746,7 @@ class DatabaseService {
       console.log('Saving weather data for destination:', data.destination_id, data);
       
       // Use service role client to bypass RLS policies for system operations
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const client = createServerComponentClient() as any;
+      const client = createServerComponentClient() as SupabaseClient<any> | null;
       if (!client) {
         console.warn('⚠️ SUPABASE_SERVICE_ROLE_KEY is missing. Skipping database operation.');
         return false;
@@ -1655,7 +1754,7 @@ class DatabaseService {
       
       const { error } = await client
         .from('weather_data')
-        .insert(data);
+        .insert([data]);
 
       if (error) {
         console.error('Error saving weather data:', error);
@@ -1672,7 +1771,7 @@ class DatabaseService {
 
   async getLatestWeatherData(destinationId: string): Promise<DbWeatherData | null> {
     try {
-      if (this.isPlaceholderMode()) {
+      if (this.isPlaceholderMode() || !db) {
         // Return cached weather data if available
         if (this.weatherCache.has(destinationId)) {
           return this.weatherCache.get(destinationId) || null;
@@ -1704,7 +1803,7 @@ class DatabaseService {
         .eq('destination_id', destinationId)
         .order('recorded_at', { ascending: false })
         .limit(1)
-        .single();
+        .maybeSingle();
 
       if (error || !data) {
         return null;
@@ -1720,7 +1819,7 @@ class DatabaseService {
   // Get weather alerts from weather data (replaces alerts table for weather alerts)
   async getWeatherAlerts(): Promise<Alert[]> {
     try {
-      if (this.isPlaceholderMode()) {
+      if (this.isPlaceholderMode() || !db) {
         return mockData.alerts.filter(a => a.type === 'weather');
       }
       const { data: weatherData, error } = await db
@@ -1767,7 +1866,7 @@ class DatabaseService {
   // Compliance and Reporting operations
   async getComplianceReports(): Promise<ComplianceReport[]> {
     try {
-      if (this.isPlaceholderMode()) {
+      if (this.isPlaceholderMode() || !db) {
         console.log('Using mock compliance reports');
         return mockData.complianceReports || [];
       }
@@ -1786,7 +1885,7 @@ class DatabaseService {
 
   async getComplianceReportById(id: string): Promise<ComplianceReport | null> {
     try {
-      if (this.isPlaceholderMode()) {
+      if (this.isPlaceholderMode() || !db) {
         return (mockData.complianceReports || []).find(r => r.id === id) || null;
       }
       const { data, error } = await db
@@ -1805,6 +1904,17 @@ class DatabaseService {
 
   async createComplianceReport(report: ComplianceReportInput): Promise<ComplianceReport | null> {
     try {
+      if (this.isPlaceholderMode() || !db) {
+        const newReport: ComplianceReport = {
+          ...report,
+          id: `mock-report-${Date.now()}`,
+          status: report.status || 'pending',
+          createdAt: new Date()
+        };
+        mockData.complianceReports.push(newReport);
+        return newReport;
+      }
+
       const dbReport: Database['public']['Tables']['compliance_reports']['Insert'] = {
         report_period: report.reportPeriod,
         report_type: report.reportType,
@@ -1870,6 +1980,7 @@ class DatabaseService {
         }
         return false;
       }
+      if (!db) return false;
       const { error } = await db.from('compliance_reports')
         .update({
           status,
@@ -1887,9 +1998,7 @@ class DatabaseService {
 
   async getPolicyViolations(): Promise<PolicyViolation[]> {
     try {
-      if (this.isPlaceholderMode()) {
-        return mockData.policyViolations || [];
-      }
+      if (this.isPlaceholderMode() || !db) return [];
       const { data, error } = await db
         .from('policy_violations')
         .select('*, destinations(name)')
@@ -1901,7 +2010,7 @@ class DatabaseService {
       };
       return (data as unknown as ViolationWithDestination[]).map(v => ({
         ...this.transformDbViolationToViolation(v),
-        destinationName: v.destinations?.name
+        destinationName: v.destinations?.name || undefined
       }));
     } catch (error) {
       console.error('Error in getPolicyViolations:', error);
@@ -1911,7 +2020,7 @@ class DatabaseService {
 
   async addPolicyViolation(violation: Database['public']['Tables']['policy_violations']['Insert']): Promise<PolicyViolation | null> {
     try {
-      if (this.isPlaceholderMode()) {
+      if (this.isPlaceholderMode() || !db) {
         const newViolation = {
           ...violation,
           id: `violation-${Date.now()}`,
@@ -2125,6 +2234,8 @@ class DatabaseService {
       const now = new Date();
       const trends: HistoricalOccupancy[] = [];
 
+      if (!db) return [];
+
       // Get destination max capacity
       const { data: dest } = await db
         .from('destinations')
@@ -2196,6 +2307,7 @@ class DatabaseService {
       END;
       $$ LANGUAGE plpgsql;
       */
+      if (!db) return false;
       const { data, error } = await db.rpc('update_user_eco_metrics', {
         p_user_id: userId,
         p_points_to_add: pointsToAdd,
@@ -2216,7 +2328,7 @@ class DatabaseService {
 
   async getUserEcoStats(userId: string): Promise<{ ecoPoints: number; totalCarbonOffset: number; tripsCount: number; totalCarbonFootprint: number } | null> {
     try {
-      if (this.isPlaceholderMode()) {
+      if (this.isPlaceholderMode() || !db) {
         return { ecoPoints: 450, totalCarbonOffset: 120.5, tripsCount: 3, totalCarbonFootprint: 254.8 };
       }
 
@@ -2253,7 +2365,7 @@ class DatabaseService {
 
   async getAggregatedEnvironmentalStats(): Promise<{ totalCarbonFootprint: number; totalEcoPoints: number; averageFootprintPerTourist: number }> {
     try {
-      if (this.isPlaceholderMode()) {
+      if (this.isPlaceholderMode() || !db) {
         return { totalCarbonFootprint: 12500, totalEcoPoints: 45000, averageFootprintPerTourist: 15.4 };
       }
 

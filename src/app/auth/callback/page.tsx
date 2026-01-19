@@ -32,7 +32,10 @@ export default function AuthCallback() {
             .eq('id', data.session.user.id)
             .single();
 
-          const isAdmin = userData && (userData as any).is_admin;
+          // Use type guard to safely check is_admin
+          const isAdmin = userData && typeof userData === 'object' && 'is_admin' in userData 
+            ? (userData as { is_admin: boolean }).is_admin 
+            : false;
 
           if (isAdmin) {
             router.push('/admin/dashboard');

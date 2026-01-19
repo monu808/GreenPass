@@ -30,7 +30,18 @@ import {
 } from "lucide-react";
 import { getDbService } from "@/lib/databaseService";
 import { Tourist, Destination } from "@/types";
+import { Database } from "@/types/database";
 import { formatDateTime } from "@/lib/utils";
+
+type DbDestination = Database["public"]["Tables"]["destinations"]["Row"];
+
+interface StatCardProps {
+  title: string;
+  value: string | number;
+  icon: React.ElementType;
+  color: string;
+  description?: string;
+}
 
 export default function TouristBookingManagement() {
   const [tourists, setTourists] = useState<Tourist[]>([]);
@@ -64,13 +75,13 @@ export default function TouristBookingManagement() {
       ]);
       setTourists(touristData);
       // Transform database properties to component interface
-      const transformedDestinations = destinationData.map((dest: any) => ({
+      const transformedDestinations = destinationData.map((dest: DbDestination) => ({
         ...dest,
         maxCapacity: dest.max_capacity,
         currentOccupancy: dest.current_occupancy,
         isActive: dest.is_active,
         ecologicalSensitivity: dest.ecological_sensitivity,
-        coordinates: { lat: dest.latitude, lng: dest.longitude },
+        coordinates: { latitude: dest.latitude, longitude: dest.longitude },
       }));
       setDestinations(transformedDestinations);
       calculateStats(touristData);
@@ -374,7 +385,7 @@ export default function TouristBookingManagement() {
     return matchesSearch && matchesStatus && matchesDestination;
   });
 
-  const StatCard = ({ title, value, icon: Icon, color, description }: any) => (
+  const StatCard = ({ title, value, icon: Icon, color, description }: StatCardProps) => (
     <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-200 hover:shadow-md transition-shadow">
       <div className="flex items-center justify-between">
         <div>

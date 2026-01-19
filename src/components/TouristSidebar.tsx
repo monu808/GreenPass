@@ -5,6 +5,13 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { getDbService } from '@/lib/databaseService';
 import { weatherService, destinationCoordinates } from '@/lib/weatherService';
+import type { WeatherData as WeatherServiceData } from '@/lib/weatherService';
+
+interface SidebarWeatherData {
+  temperature: number;
+  weatherDescription: string;
+  weatherMain: string;
+}
 import { 
   Home, 
   MapPin, 
@@ -52,7 +59,7 @@ interface SidebarProps {
 
 export default function TouristSidebar({ isOpen, setIsOpen }: SidebarProps) {
   const pathname = usePathname();
-  const [weather, setWeather] = useState<any>(null);
+  const [weather, setWeather] = useState<SidebarWeatherData | null>(null);
   const [loadingWeather, setLoadingWeather] = useState(true);
 
   useEffect(() => {
@@ -86,7 +93,18 @@ export default function TouristSidebar({ isOpen, setIsOpen }: SidebarProps) {
               weatherDescription: freshWeather.weatherDescription,
               weatherMain: freshWeather.weatherMain,
             });
-            await dbService.saveWeatherData(defaultDestId, freshWeather);
+            await dbService.saveWeatherData({
+              destination_id: defaultDestId,
+              temperature: freshWeather.temperature,
+              humidity: freshWeather.humidity,
+              pressure: freshWeather.pressure,
+              weather_main: freshWeather.weatherMain,
+              weather_description: freshWeather.weatherDescription,
+              wind_speed: freshWeather.windSpeed,
+              wind_direction: freshWeather.windDirection,
+              visibility: freshWeather.visibility,
+              recorded_at: new Date().toISOString()
+            });
           }
         }
       } catch (error) {
@@ -188,7 +206,7 @@ export default function TouristSidebar({ isOpen, setIsOpen }: SidebarProps) {
               <div className="text-center">
                 <div className="flex items-center space-x-2">
                   <div className="p-2 bg-white rounded-lg shadow-sm">
-                    {getWeatherIcon(weather?.weatherMain)}
+                    {getWeatherIcon(weather?.weatherMain || '')}
                   </div>
                   <div className="text-left">
                     <p className="text-lg font-bold text-gray-800">{Math.round(weather?.temperature || 0)}°C</p>

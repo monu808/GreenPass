@@ -32,10 +32,12 @@ export default function AuthCallback() {
             .eq('id', data.session.user.id)
             .single();
 
-          if ((userData as any)?.is_admin) {
-            router.push('/');
+          const isAdmin = userData && (userData as any).is_admin;
+
+          if (isAdmin) {
+            router.push('/admin/dashboard');
           } else {
-            router.push('/');
+            router.push('/tourist/dashboard');
           }
         } else {
           router.push('/login');

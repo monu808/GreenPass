@@ -47,6 +47,20 @@ import {
 } from "recharts";
 import { format, subDays, startOfDay, endOfDay, eachDayOfInterval } from "date-fns";
 import { cn } from "@/lib/utils";
+import { Database } from "@/types/database";
+
+type DbDestination = Database['public']['Tables']['destinations']['Row'];
+
+interface TrendDataItem {
+  date: string;
+  displayDate: string;
+  quantity: number;
+}
+
+interface DistributionDataItem {
+  name: string;
+  value: number;
+}
 
 export default function WasteTrackingPage() {
   const [activeTab, setActiveTab] = useState<"waste" | "cleanup" | "analytics">("waste");
@@ -61,8 +75,8 @@ export default function WasteTrackingPage() {
   });
   const [loading, setLoading] = useState(true);
   const [trendTimeRange, setTrendTimeRange] = useState(30);
-  const [trendData, setTrendData] = useState<any[]>([]);
-  const [distributionData, setDistributionData] = useState<any[]>([]);
+  const [trendData, setTrendData] = useState<TrendDataItem[]>([]);
+  const [distributionData, setDistributionData] = useState<DistributionDataItem[]>([]);
 
   const dbService = getDbService();
 
@@ -82,7 +96,7 @@ export default function WasteTrackingPage() {
       
       // Process trend data (grouped by day)
       const dayInterval = eachDayOfInterval({ start: startDate, end: endDate });
-      const trend = dayInterval.map(day => {
+      const trend: TrendDataItem[] = dayInterval.map(day => {
         const dayStr = format(day, "yyyy-MM-dd");
         const dayWaste = data
           .filter(w => format(new Date(w.collectedAt), "yyyy-MM-dd") === dayStr)
@@ -102,7 +116,7 @@ export default function WasteTrackingPage() {
         types[w.wasteType] = (types[w.wasteType] || 0) + w.quantity;
       });
       
-      const distribution = Object.entries(types).map(([name, value]) => ({
+      const distribution: DistributionDataItem[] = Object.entries(types).map(([name, value]) => ({
         name: name.charAt(0).toUpperCase() + name.slice(1),
         value
       })).sort((a, b) => b.value - a.value);
@@ -122,7 +136,7 @@ export default function WasteTrackingPage() {
         dbService.getCleanupActivities(),
       ]);
 
-      const transformedDestinations = destData.map(d => dbService.transformDbDestinationToDestination(d as any));
+      const transformedDestinations = destData.map(d => dbService.transformDbDestinationToDestination(d as DbDestination));
       setDestinations(transformedDestinations);
       setWasteRecords(wasteData);
       setCleanupActivities(activitiesData);
@@ -284,8 +298,8 @@ export default function WasteTrackingPage() {
 
 // --- Waste Analytics Tab Component ---
 function WasteAnalyticsTab({ trendData, distributionData, timeRange, setTimeRange }: {
-  trendData: any[],
-  distributionData: any[],
+  trendData: TrendDataItem[],
+  distributionData: DistributionDataItem[],
   timeRange: number,
   setTimeRange: (days: number) => void
 }) {
@@ -529,6 +543,8 @@ function WasteCollectionTab({ destinations, records, onRefresh }: {
   );
 }
 
+type WasteType = 'plastic' | 'glass' | 'metal' | 'organic' | 'paper' | 'other';
+
 function WasteLogModal({ destinations, onClose, onSuccess }: { 
   destinations: Destination[], 
   onClose: () => void,
@@ -536,7 +552,7 @@ function WasteLogModal({ destinations, onClose, onSuccess }: {
 }) {
   const [formData, setFormData] = useState({
     destination_id: destinations[0]?.id || "",
-    waste_type: "plastic",
+    waste_type: "plastic" as WasteType,
     quantity: "",
     unit: "kg",
     collected_at: format(new Date(), "yyyy-MM-dd'T'HH:mm")
@@ -550,7 +566,7 @@ function WasteLogModal({ destinations, onClose, onSuccess }: {
       const dbService = getDbService();
       await dbService.addWasteData({
         destination_id: formData.destination_id,
-        waste_type: formData.waste_type as any,
+        waste_type: formData.waste_type,
         quantity: parseFloat(formData.quantity),
         unit: formData.unit,
         collected_at: new Date(formData.collected_at).toISOString()
@@ -593,7 +609,7 @@ function WasteLogModal({ destinations, onClose, onSuccess }: {
                 required
                 className="w-full px-4 py-2 border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-green-500 text-gray-900 bg-white"
                 value={formData.waste_type}
-                onChange={(e) => setFormData({...formData, waste_type: e.target.value})}
+                onChange={(e) => setFormData({...formData, waste_type: e.target.value as WasteType})}
               >
                 <option value="plastic" className="text-gray-900">Plastic</option>
                 <option value="glass" className="text-gray-900">Glass</option>

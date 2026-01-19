@@ -1,7 +1,7 @@
 'use client';
 
 import { createContext, useContext, useEffect, useState, useCallback } from 'react';
-import { User, Session } from '@supabase/supabase-js';
+import { User, Session, AuthError } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
 import ErrorBoundary from '@/components/ErrorBoundary';
 
@@ -9,13 +9,13 @@ interface AuthContextType {
   user: User | null;
   session: Session | null;
   loading: boolean;
-  signIn: (email: string, password: string) => Promise<{ error: any }>;
-  signUp: (email: string, password: string, name: string) => Promise<{ error: any }>;
-  signUpWithOTP: (email: string, name: string) => Promise<{ error: any }>;
-  verifyOTP: (email: string, otp: string) => Promise<{ error: any }>;
-  resendOTP: (email: string) => Promise<{ error: any }>;
-  signInWithGoogle: () => Promise<{ error: any }>;
-  signOut: () => Promise<{ error: any }>;
+  signIn: (email: string, password: string) => Promise<{ error: AuthError | null | { message: string } }>;
+  signUp: (email: string, password: string, name: string) => Promise<{ error: AuthError | null | { message: string } }>;
+  signUpWithOTP: (email: string, name: string) => Promise<{ error: AuthError | null | { message: string } }>;
+  verifyOTP: (email: string, otp: string) => Promise<{ error: AuthError | null | { message: string } }>;
+  resendOTP: (email: string) => Promise<{ error: AuthError | null | { message: string } }>;
+  signInWithGoogle: () => Promise<{ error: AuthError | null | { message: string } }>;
+  signOut: () => Promise<{ error: AuthError | null | { message: string } }>;
   isAdmin: boolean;
 }
 
@@ -178,8 +178,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       });
       
       return { error };
-    } catch (error) {
-      return { error };
+    } catch (error: any) {
+      return { error: error as AuthError || { message: 'An unknown error occurred' } };
     }
   };
 
@@ -191,12 +191,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const { error } = await supabase.auth.verifyOtp({
         email,
         token: otp,
-        type: 'email',
+        type: 'signup',
       });
-      
       return { error };
-    } catch (error) {
-      return { error };
+    } catch (error: any) {
+      return { error: error as AuthError || { message: 'An unknown error occurred' } };
     }
   };
 
@@ -211,8 +210,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       });
       
       return { error };
-    } catch (error) {
-      return { error };
+    } catch (error: any) {
+      return { error: error as AuthError || { message: 'An unknown error occurred' } };
     }
   };
 
@@ -237,9 +236,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const { error } = await supabase.auth.signOut();
       return { error };
-    } catch (error) {
+    } catch (error: any) {
       console.error('Sign out error:', error);
-      return { error };
+      return { error: error as AuthError || { message: 'An unknown error occurred' } };
     }
   };
 

@@ -53,6 +53,12 @@ export const DEFAULT_POLICIES: Record<SensitivityLevel, EcologicalPolicy> = {
   },
 };
 
+export interface WeatherConditions {
+  alert_level: 'none' | 'low' | 'medium' | 'high' | 'critical';
+  temperature?: number;
+  humidity?: number;
+}
+
 class EcologicalPolicyEngine {
   private policies: Record<SensitivityLevel, EcologicalPolicy> = DEFAULT_POLICIES;
   private overrides: Map<string, CapacityOverride> = new Map();
@@ -104,14 +110,17 @@ class EcologicalPolicyEngine {
       try {
         const saved = localStorage.getItem('capacity_overrides');
         if (saved) {
-          const parsed = JSON.parse(saved);
-          this.overrides = new Map(Object.entries(parsed).map(([id, override]: [string, any]) => [
-            id,
-            {
-              ...override,
-              expiresAt: override.expiresAt ? new Date(override.expiresAt) : undefined
-            }
-          ]));
+          const parsed = JSON.parse(saved) as Record<string, unknown>;
+          this.overrides = new Map(Object.entries(parsed).map(([id, override]): [string, CapacityOverride] => {
+            const raw = override as { expiresAt?: string; [key: string]: unknown };
+            return [
+              id,
+              {
+                ...raw,
+                expiresAt: raw.expiresAt ? new Date(raw.expiresAt) : undefined
+              } as CapacityOverride
+            ];
+          }));
         }
       } catch (e) {
         console.error('Failed to load overrides from storage', e);
@@ -210,7 +219,7 @@ class EcologicalPolicyEngine {
     return 1.0;
   }
 
-  async getDynamicCapacity(destination: Destination, weatherData?: any): Promise<DynamicCapacityResult> {
+  async getDynamicCapacity(destination: Destination, weatherData?: WeatherConditions): Promise<DynamicCapacityResult> {
     const policy = this.getPolicy(destination.ecologicalSensitivity);
     const ecologicalMultiplier = policy.capacityMultiplier;
     
@@ -371,11 +380,10 @@ let globalPolicyEngine: EcologicalPolicyEngine | null = null;
 export const getPolicyEngine = (): EcologicalPolicyEngine => {
   if (typeof window !== 'undefined') {
     // Client-side: use a global on window to persist across HMR
-    const win = window as any;
-    if (!win.__policyEngine) {
-      win.__policyEngine = new EcologicalPolicyEngine();
+    if (!window.__policyEngine) {
+      window.__policyEngine = new EcologicalPolicyEngine();
     }
-    return win.__policyEngine;
+    return window.__policyEngine;
   }
   
   // Server-side or non-browser

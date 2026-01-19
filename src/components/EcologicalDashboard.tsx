@@ -38,6 +38,23 @@ import {
   getWasteRiskColor 
 } from "@/lib/environmentalEstimates";
 
+interface WasteTrendItem {
+  date: string;
+  quantity: number;
+}
+
+interface WasteDistributionItem {
+  name: string;
+  value: number;
+}
+
+interface DestinationWasteData {
+  id: string;
+  name: string;
+  totalWaste: number;
+  byType: Record<string, number>;
+}
+
 export interface DestinationEcoStatus {
   id: string;
   name: string;
@@ -110,9 +127,9 @@ export default function EcologicalDashboard() {
   });
   const [wasteMetrics, setWasteMetrics] = useState<WasteMetricsSummary | null>(null);
   const [upcomingCleanups, setUpcomingCleanups] = useState<CleanupActivity[]>([]);
-  const [destinationsWaste, setDestinationsWaste] = useState<any[]>([]);
-  const [wasteTrendData, setWasteTrendData] = useState<any[]>([]);
-  const [wasteDistributionData, setWasteDistributionData] = useState<any[]>([]);
+  const [destinationsWaste, setDestinationsWaste] = useState<DestinationWasteData[]>([]);
+  const [wasteTrendData, setWasteTrendData] = useState<WasteTrendItem[]>([]);
+  const [wasteDistributionData, setWasteDistributionData] = useState<WasteDistributionItem[]>([]);
   const [wasteTimeRange, setWasteTimeRange] = useState(30);
 
   useEffect(() => {
@@ -133,7 +150,7 @@ export default function EcologicalDashboard() {
       const data = await dbService.getWasteDataByDateRange(startDate, endDate);
       
       // Process data for chart
-      const trend: any[] = [];
+      const trend: WasteTrendItem[] = [];
       for (let i = wasteTimeRange; i >= 0; i--) {
         const d = new Date();
         d.setDate(endDate.getDate() - i);
@@ -836,7 +853,7 @@ export default function EcologicalDashboard() {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                     <div className="flex gap-1">
-                      {Object.entries(item.byType || {}).slice(0, 3).map(([type, qty]: [string, any]) => (
+                      {Object.entries(item.byType || {}).slice(0, 3).map(([type, qty]: [string, number]) => (
                         <span key={type} className="text-[10px] bg-gray-100 px-1.5 py-0.5 rounded text-gray-600 capitalize">
                           {type}: {qty}kg
                         </span>

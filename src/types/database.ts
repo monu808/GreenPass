@@ -1,3 +1,5 @@
+import { SustainabilityFeatures } from './index';
+
 export type Database = {
   public: {
     Tables: {
@@ -7,11 +9,11 @@ export type Database = {
           name: string;
           email: string;
           phone: string;
-          age: number;
-          gender: 'male' | 'female' | 'other' | 'prefer-not-to-say';
-          address: string;
-          pin_code: string;
-          id_proof_type: 'aadhaar' | 'pan' | 'passport' | 'driving-license' | 'voter-id';
+          age?: number;
+          gender?: string;
+          address?: string;
+          pin_code?: string;
+          id_proof_type?: string;
           id_proof: string;
           group_name?: string | null;
           nationality: string;
@@ -36,11 +38,11 @@ export type Database = {
           name: string;
           email: string;
           phone: string;
-          age: number;
-          gender: 'male' | 'female' | 'other' | 'prefer-not-to-say';
-          address: string;
-          pin_code: string;
-          id_proof_type: 'aadhaar' | 'pan' | 'passport' | 'driving-license' | 'voter-id';
+          age?: number;
+          gender?: string;
+          address?: string;
+          pin_code?: string;
+          id_proof_type?: string;
           id_proof: string;
           group_name?: string | null;
           nationality: string;
@@ -66,10 +68,10 @@ export type Database = {
           email?: string;
           phone?: string;
           age?: number;
-          gender?: 'male' | 'female' | 'other' | 'prefer-not-to-say';
+          gender?: string;
           address?: string;
           pin_code?: string;
-          id_proof_type?: 'aadhaar' | 'pan' | 'passport' | 'driving-license' | 'voter-id';
+          id_proof_type?: string;
           id_proof?: string;
           nationality?: string;
           group_size?: number;
@@ -100,7 +102,7 @@ export type Database = {
           guidelines: string[];
           is_active: boolean;
           ecological_sensitivity: 'low' | 'medium' | 'high' | 'critical';
-          sustainability_features?: any;
+          sustainability_features?: SustainabilityFeatures | null;
           latitude: number;
           longitude: number;
           created_at: string;
@@ -116,7 +118,7 @@ export type Database = {
           guidelines: string[];
           is_active?: boolean;
           ecological_sensitivity: 'low' | 'medium' | 'high' | 'critical';
-          sustainability_features?: any;
+          sustainability_features?: SustainabilityFeatures | null;
           latitude: number;
           longitude: number;
           created_at?: string;
@@ -132,7 +134,7 @@ export type Database = {
           guidelines?: string[];
           is_active?: boolean;
           ecological_sensitivity?: 'low' | 'medium' | 'high' | 'critical';
-          sustainability_features?: any;
+          sustainability_features?: SustainabilityFeatures | null;
           latitude?: number;
           longitude?: number;
           created_at?: string;

@@ -357,7 +357,7 @@ const WeatherDashboard: React.FC = () => {
 
         // Transform database records to Destination interface
         const transformedData = rawData.map(item => 
-          dbService.transformDbDestinationToDestination(item as any)
+          dbService.transformDbDestinationToDestination(item)
         );
 
         setDestinations(transformedData);

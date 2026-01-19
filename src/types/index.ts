@@ -45,6 +45,14 @@ export interface CarbonOffsetOption {
   ecoPointsBonus: number;
 }
 
+export interface SustainabilityFeatures {
+  hasRenewableEnergy: boolean;
+  wasteManagementLevel: 'basic' | 'advanced' | 'certified';
+  localEmploymentRatio: number;
+  communityFundShare: number;
+  wildlifeProtectionProgram: boolean;
+}
+
 export interface Destination {
   id: string;
   name: string;
@@ -59,13 +67,7 @@ export interface Destination {
     latitude: number;
     longitude: number;
   };
-  sustainabilityFeatures?: {
-    hasRenewableEnergy: boolean;
-    wasteManagementLevel: 'basic' | 'advanced' | 'certified';
-    localEmploymentRatio: number;
-    communityFundShare: number;
-    wildlifeProtectionProgram: boolean;
-  };
+  sustainabilityFeatures?: SustainabilityFeatures;
 }
 
 export interface BookingSlot {
@@ -318,5 +320,19 @@ export interface EcoComparisonData {
   sustainabilityScore: SustainabilityScore;
   impactCategory: EcoImpactCategory;
   carbonOffset: CarbonOffsetInfo;
+}
+
+export interface WeatherCheckResult {
+  success: boolean;
+  message?: string;
+  error?: string;
+  destinations?: number;
+  alertsGenerated?: number;
+  alerts?: {
+    destination: string;
+    severity: string;
+    reason: string;
+  }[];
+  timestamp: string;
 }
 

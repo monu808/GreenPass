@@ -193,10 +193,20 @@ class WeatherMonitor implements WeatherMonitoringService {
       // Save weather data with alert info to database only if requested
       if (saveToDatabase) {
         const dbService = getDbService();
-        await dbService.saveWeatherData(destination.id, weatherData, {
-          level: alertLevel,
-          message: alertMessage || undefined,
-          reason: alertReason || undefined
+        await dbService.saveWeatherData({
+          destination_id: destination.id,
+          temperature: weatherData.temperature,
+          humidity: weatherData.humidity,
+          pressure: weatherData.pressure,
+          weather_main: weatherData.weatherMain,
+          weather_description: weatherData.weatherDescription,
+          wind_speed: weatherData.windSpeed,
+          wind_direction: weatherData.windDirection,
+          visibility: weatherData.visibility,
+          recorded_at: new Date().toISOString(),
+          alert_level: alertLevel,
+          alert_message: alertMessage || undefined,
+          alert_reason: alertReason || undefined
         });
 
         // After saving, broadcast the update to all connected clients (distributed)

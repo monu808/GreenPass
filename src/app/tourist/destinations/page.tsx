@@ -20,6 +20,10 @@ import {
   getEcoImpactCategory,
   findLowImpactAlternatives
 } from '@/lib/sustainabilityScoring';
+import { 
+  isValidEcologicalSensitivity, 
+  isValidWasteManagementLevel 
+} from '@/lib/typeGuards';
 import { Destination, DynamicCapacityResult, EcoImpactCategory } from '@/types';
 
 export default function TouristDestinations() {
@@ -48,8 +52,10 @@ export default function TouristDestinations() {
         description: dest.description,
         guidelines: dest.guidelines || [],
         isActive: dest.is_active,
-        ecologicalSensitivity: dest.ecological_sensitivity,
-        sustainabilityFeatures: dest.sustainability_features,
+        ecologicalSensitivity: isValidEcologicalSensitivity(dest.ecological_sensitivity) 
+          ? dest.ecological_sensitivity 
+          : 'medium',
+        sustainabilityFeatures: dest.sustainability_features || undefined,
         coordinates: { latitude: dest.latitude, longitude: dest.longitude },
       }));
       const activeDestinations = transformed.filter((dest) => dest.isActive);
@@ -204,11 +210,11 @@ export default function TouristDestinations() {
             </div>
 
             <div className="flex bg-gray-100 p-1.5 rounded-[1.8rem] border border-gray-100 overflow-x-auto scrollbar-hide">
-              {['all', 'available', 'popular', 'high-sensitivity', 'low-carbon', 'community-friendly', 'wildlife-safe', 'eco-friendly'].map((filter) => (
+              {(['all', 'available', 'popular', 'high-sensitivity', 'low-carbon', 'community-friendly', 'wildlife-safe', 'eco-friendly'] as const).map((filter) => (
                 <button
                   key={filter}
                   type="button"
-                  onClick={() => setSelectedFilter(filter as any)}
+                  onClick={() => setSelectedFilter(filter)}
                   className={`px-6 py-3 rounded-[1.5rem] text-[9px] font-bold uppercase tracking-wider transition-all whitespace-nowrap ${
                     selectedFilter === filter ? "bg-white text-emerald-600 shadow-sm" : "text-gray-400 hover:text-gray-600"
                   }`}

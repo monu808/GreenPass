@@ -267,9 +267,9 @@ export default function AdminDashboard() {
           };
         }
 
-        const coordinates = destinationCoordinates[destination.id] ||
-          destinationCoordinates[destination.name?.toLowerCase().replace(/\s+/g, '')] ||
-          destinationCoordinates[destination.name?.toLowerCase()];
+        const coordinates = (destinationCoordinates as Record<string, { lat: number; lon: number; name?: string }>)[destination.id] ||
+          (destinationCoordinates as Record<string, { lat: number; lon: number; name?: string }>)[destination.name?.toLowerCase().replace(/\s+/g, '')] ||
+          (destinationCoordinates as Record<string, { lat: number; lon: number; name?: string }>)[destination.name?.toLowerCase()];
 
         // Check if we already have recent weather data
         // We use the data we just fetched from DB (if any) as the baseline
@@ -287,7 +287,18 @@ export default function AdminDashboard() {
 
           if (weatherData) {
             // Save weather data to database
-            await dbService.saveWeatherData(destination.id, weatherData);
+            await dbService.saveWeatherData({
+              destination_id: destination.id,
+              temperature: weatherData.temperature,
+              humidity: weatherData.humidity,
+              pressure: weatherData.pressure,
+              weather_main: weatherData.weatherMain,
+              weather_description: weatherData.weatherDescription,
+              wind_speed: weatherData.windSpeed,
+              wind_direction: weatherData.windDirection,
+              visibility: weatherData.visibility,
+              recorded_at: new Date().toISOString()
+            });
 
             weatherDataForMap = {
               temperature: weatherData.temperature,
@@ -339,6 +350,7 @@ export default function AdminDashboard() {
     color,
     subtitle,
     trend,
+    iconColor,
   }: {
     title: string;
     value: string | number;
@@ -346,6 +358,7 @@ export default function AdminDashboard() {
     color: string;
     subtitle?: string;
     trend?: string;
+    iconColor?: string;
   }) => (
     <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-200 hover:shadow-md transition-shadow">
       <div className="flex items-center justify-between">
@@ -356,7 +369,7 @@ export default function AdminDashboard() {
           {trend && <p className="text-xs text-green-600 mt-1 font-medium">{trend}</p>}
         </div>
         <div className={`p-3 rounded-lg ${color}`}>
-          <Icon className="h-6 w-6" />
+          <Icon className={`h-6 w-6 ${iconColor || ''}`} />
         </div>
       </div>
     </div>

@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { weatherMonitoringService } from '@/lib/weatherMonitoringService';
+import { RealtimeChannel } from '@supabase/supabase-js';
 
 import { createServerComponentClient } from '@/lib/supabase';
-import { broadcast } from '@/lib/messagingService';
+import { broadcast, BroadcastPayload } from '@/lib/messagingService';
 
 // Local instance state for SSE connections
 const activeWriters = new Set<WritableStreamDefaultWriter>();
@@ -11,7 +12,7 @@ const encoder = new TextEncoder();
 /**
  * localFlush sends a message to all SSE connections connected to THIS instance.
  */
-const localFlush = async (data: any) => {
+const localFlush = async (data: BroadcastPayload) => {
   const message = `data: ${JSON.stringify(data)}\n\n`;
   const encoded = encoder.encode(message);
   
@@ -63,13 +64,13 @@ export async function GET(request: NextRequest) {
 
   // Set up shared channel subscription for THIS instance's connections
   const supabase = createServerComponentClient();
-  let channel: any = null;
+  let channel: RealtimeChannel | null = null;
   
   if (supabase) {
     channel = supabase.channel('weather-monitor-shared')
       .on('broadcast', { event: 'weather_update' }, ({ payload }) => {
         console.log('📥 Received shared broadcast, flushing to local SSE clients');
-        localFlush(payload);
+        localFlush(payload as BroadcastPayload);
       })
       .subscribe((status) => {
         if (status === 'SUBSCRIBED') {

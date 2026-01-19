@@ -27,6 +27,9 @@ import { getPolicyEngine } from "@/lib/ecologicalPolicyEngine";
 import { Destination, AdjustmentLog, CapacityOverride, DynamicCapacityResult } from "@/types";
 import { formatDateTime } from "@/lib/utils";
 import { format } from "date-fns";
+import { Database } from "@/types/database";
+
+type DbDestination = Database['public']['Tables']['destinations']['Row'];
 
 export default function CapacityRulesPage() {
   const [activeTab, setActiveTab] = useState<"rules" | "history">("rules");
@@ -64,7 +67,7 @@ export default function CapacityRulesPage() {
         dbService.getCapacityAdjustmentHistory(undefined, historyDays),
       ]);
 
-      const transformedDestinations = destData.map((dest: any) => ({
+      const transformedDestinations = destData.map((dest: DbDestination) => ({
         ...dest,
         maxCapacity: dest.max_capacity,
         currentOccupancy: dest.current_occupancy,

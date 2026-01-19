@@ -32,10 +32,15 @@ export default function AuthCallback() {
             .eq('id', data.session.user.id)
             .single();
 
-          if ((userData as any)?.is_admin) {
-            router.push('/');
+          // Use type guard to safely check is_admin
+          const isAdmin = userData && typeof userData === 'object' && 'is_admin' in userData 
+            ? (userData as { is_admin: boolean }).is_admin 
+            : false;
+
+          if (isAdmin) {
+            router.push('/admin/dashboard');
           } else {
-            router.push('/');
+            router.push('/tourist/dashboard');
           }
         } else {
           router.push('/login');

@@ -11,9 +11,20 @@ import {
   calculateSustainabilityScore, 
   findLowImpactAlternatives 
 } from '@/lib/sustainabilityScoring';
+import { 
+  isValidEcologicalSensitivity, 
+  isValidWasteManagementLevel 
+} from '@/lib/typeGuards';
 import { ORIGIN_LOCATIONS, getOriginLocationById } from '@/data/originLocations';
 import { useAuth } from '@/contexts/AuthContext';
-import { Destination, Alert, DynamicCapacityResult, CarbonFootprintResult, CarbonOffsetOption } from '@/types';
+import { 
+  Destination, 
+  Alert, 
+  DynamicCapacityResult, 
+  CarbonFootprintResult, 
+  CarbonOffsetOption,
+  SustainabilityFeatures
+} from '@/types';
 
 function BookDestinationForm() {
   const { user } = useAuth();
@@ -115,23 +126,24 @@ function BookDestinationForm() {
       const fetchedDestinations = await dbService.getDestinations();
       
       const mappedDestinations: Destination[] = fetchedDestinations.map(d => {
-        // Validate ecological sensitivity against allowed enum literals
-        const validSensitivities: Destination['ecologicalSensitivity'][] = ['low', 'medium', 'high', 'critical'];
-        const ecologicalSensitivity = validSensitivities.includes(d.ecological_sensitivity as any) 
-          ? (d.ecological_sensitivity as Destination['ecologicalSensitivity'])
+        // Validate ecological sensitivity
+        const ecologicalSensitivity = isValidEcologicalSensitivity(d.ecological_sensitivity) 
+          ? d.ecological_sensitivity 
           : 'medium';
 
-        // Normalize sustainability features to expected shape or safe default
-        const rawFeatures = d.sustainability_features as any;
-        const sustainabilityFeatures: Destination['sustainabilityFeatures'] = rawFeatures ? {
-          hasRenewableEnergy: Boolean(rawFeatures.hasRenewableEnergy),
-          wasteManagementLevel: ['basic', 'advanced', 'certified'].includes(rawFeatures.wasteManagementLevel)
-            ? rawFeatures.wasteManagementLevel
-            : 'basic',
-          localEmploymentRatio: typeof rawFeatures.localEmploymentRatio === 'number' ? rawFeatures.localEmploymentRatio : 0,
-          communityFundShare: typeof rawFeatures.communityFundShare === 'number' ? rawFeatures.communityFundShare : 0,
-          wildlifeProtectionProgram: Boolean(rawFeatures.wildlifeProtectionProgram)
-        } : undefined;
+        // Normalize sustainability features or use typed object from database
+        let sustainabilityFeatures: SustainabilityFeatures | undefined = undefined;
+        
+        if (d.sustainability_features) {
+          // Use type guard for inner enum validation if needed, otherwise trust typed DB row
+          const sf = d.sustainability_features;
+          sustainabilityFeatures = {
+            ...sf,
+            wasteManagementLevel: isValidWasteManagementLevel(sf.wasteManagementLevel)
+              ? sf.wasteManagementLevel
+              : 'basic'
+          };
+        }
 
         return {
           id: d.id,
@@ -189,7 +201,13 @@ function BookDestinationForm() {
     const { name, value, type } = e.target;
     const checked = (e.target as HTMLInputElement).checked;
     
-    if (name.startsWith('emergencyContact.')) {
+    if (name === 'groupSize') {
+      const numValue = parseInt(value, 10);
+      setFormData(prev => ({
+        ...prev,
+        [name]: isNaN(numValue) ? 1 : numValue
+      }));
+    } else if (name.startsWith('emergencyContact.')) {
       const field = name.split('.')[1];
       setFormData(prev => ({
         ...prev,
@@ -265,13 +283,19 @@ function BookDestinationForm() {
       // Calculate up-to-date footprint for persistence
       const currentFootprint = computeBookingFootprint();
       
+      // Validate and convert group size
+      const groupSize = parseInt(String(formData.groupSize), 10);
+      if (isNaN(groupSize) || groupSize <= 0) {
+        throw new Error("Invalid group size provided");
+      }
+      
       const bookingData = {
         name: formData.name,
         email: formData.email,
         phone: formData.phone,
         id_proof: formData.idProof,
         nationality: formData.nationality,
-        group_size: parseInt(formData.groupSize.toString()),
+        group_size: groupSize,
         destination_id: destination.id,
         check_in_date: formData.checkInDate,
         check_out_date: formData.checkOutDate,

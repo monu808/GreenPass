@@ -25,11 +25,14 @@ import {
 } from "lucide-react";
 import { getDbService } from "@/lib/databaseService";
 import { weatherMonitoringService } from "@/lib/weatherMonitoringService";
-import { Alert, Destination } from "@/types";
+import { Alert, Destination, WeatherCheckResult } from "@/types";
+import { Database } from "@/types/database";
+
+type DbDestination = Database["public"]["Tables"]["destinations"]["Row"];
 
 export default function AlertsPage() {
   const [alerts, setAlerts] = useState<Alert[]>([]);
-  const [destinations, setDestinations] = useState<any[]>([]);
+  const [destinations, setDestinations] = useState<Destination[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [typeFilter, setTypeFilter] = useState<string>("all");
@@ -39,7 +42,27 @@ export default function AlertsPage() {
   const [isMonitoring, setIsMonitoring] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [autoRefresh, setAutoRefresh] = useState(true);
-  const [weatherResult, setWeatherResult] = useState<any>(null);
+  const [weatherResult, setWeatherResult] = useState<WeatherCheckResult | null>(null);
+
+  // Helper function to transform database destination data (snake_case) to frontend Destination type (camelCase)
+  const transformDestinationData = (dest: DbDestination): Destination => {
+    return {
+      id: dest.id,
+      name: dest.name,
+      location: dest.location,
+      maxCapacity: dest.max_capacity,
+      currentOccupancy: dest.current_occupancy,
+      description: dest.description || "",
+      guidelines: dest.guidelines || [],
+      isActive: dest.is_active,
+      ecologicalSensitivity: dest.ecological_sensitivity,
+      coordinates: {
+        latitude: Number(dest.latitude),
+        longitude: Number(dest.longitude),
+      },
+      sustainabilityFeatures: dest.sustainability_features || undefined,
+    };
+  };
 
   const loadData = useCallback(async () => {
     try {
@@ -54,6 +77,7 @@ export default function AlertsPage() {
 
       // Combine regular alerts and weather alerts
       const allAlerts = [...regularAlerts, ...weatherAlerts];
+      setDestinations(destinationsData.map(transformDestinationData));
 
       // Remove duplicate alerts based on title, message, destination, and type
       const uniqueAlerts = allAlerts.filter((alert, index, self) => {
@@ -76,7 +100,6 @@ export default function AlertsPage() {
       }
 
       setAlerts(uniqueAlerts);
-      setDestinations(destinationsData);
       setLastUpdated(new Date());
     } catch (error) {
       console.error("Error loading alerts data:", error);
@@ -128,7 +151,11 @@ export default function AlertsPage() {
       }
     } catch (error) {
       console.error("❌ Error in manual weather check:", error);
-      setWeatherResult({ error: "Failed to connect to weather API" });
+      setWeatherResult({
+        success: false,
+        error: "Failed to connect to weather API",
+        timestamp: new Date().toISOString(),
+      });
       alert("Failed to check weather. Please try again.");
     } finally {
       setLoading(false);
@@ -235,10 +262,10 @@ export default function AlertsPage() {
       try {
         const dbService = getDbService();
         await dbService.addAlert({
-          type: formData.type as any,
+          type: formData.type as Alert["type"],
           title: formData.title,
           message: formData.message,
-          severity: formData.severity as any,
+          severity: formData.severity as Alert["severity"],
           destinationId: formData.destinationId || undefined,
           isActive: formData.isActive,
         });
@@ -568,7 +595,7 @@ export default function AlertsPage() {
                           <p>• New alerts:</p>
                           <ul className="ml-4 list-disc">
                             {weatherResult.alerts.map(
-                              (alert: any, index: number) => (
+                              (alert, index: number) => (
                                 <li key={index} className="text-xs">
                                   {alert.destination} -{" "}
                                   {alert.severity.toUpperCase()}

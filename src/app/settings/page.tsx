@@ -117,7 +117,11 @@ export default function SettingsPage() {
     }
   };
 
-  const handleInputChange = (section: keyof SystemSettings, field: string, value: any) => {
+  const handleInputChange = <S extends keyof SystemSettings, F extends keyof SystemSettings[S]>(
+    section: S, 
+    field: F, 
+    value: SystemSettings[S][F]
+  ) => {
     setSettings(prev => ({
       ...prev,
       [section]: {
@@ -127,13 +131,22 @@ export default function SettingsPage() {
     }));
   };
 
-  const handleNestedInputChange = (section: keyof SystemSettings, parentField: string, field: string, value: any) => {
+  const handleNestedInputChange = <
+    S extends keyof SystemSettings, 
+    P extends keyof SystemSettings[S], 
+    F extends keyof (SystemSettings[S][P] & object)
+  >(
+    section: S, 
+    parentField: P, 
+    field: F, 
+    value: (SystemSettings[S][P] & object)[F]
+  ) => {
     setSettings(prev => ({
       ...prev,
       [section]: {
         ...prev[section],
         [parentField]: {
-          ...(prev[section] as any)[parentField],
+          ...(prev[section][parentField] as object),
           [field]: value
         }
       }
@@ -160,7 +173,7 @@ export default function SettingsPage() {
     </div>
   );
 
-  const InputField = ({ 
+  const InputField = <T extends string | number>({ 
     label, 
     value, 
     onChange, 
@@ -169,8 +182,8 @@ export default function SettingsPage() {
     required = false 
   }: {
     label: string;
-    value: string | number;
-    onChange: (value: string | number) => void;
+    value: T;
+    onChange: (value: T) => void;
     type?: 'text' | 'email' | 'number' | 'password';
     placeholder?: string;
     required?: boolean;
@@ -180,7 +193,7 @@ export default function SettingsPage() {
       <input
         type={type}
         value={value}
-        onChange={(e) => onChange(type === 'number' ? Number(e.target.value) : e.target.value)}
+        onChange={(e) => onChange((type === 'number' ? Number(e.target.value) : e.target.value) as T)}
         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
         placeholder={placeholder}
         required={required}

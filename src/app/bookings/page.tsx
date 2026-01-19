@@ -17,6 +17,9 @@ import {
 } from "lucide-react";
 import { getDbService } from "@/lib/databaseService";
 import { Tourist, Destination } from "@/types";
+import type { Database } from "@/types/database";
+
+type DbDestination = Database['public']['Tables']['destinations']['Row'];
 
 export default function BookingsPage() {
   const router = useRouter();
@@ -37,7 +40,7 @@ export default function BookingsPage() {
       ]);
       setBookings(touristData);
       // Transform database properties to component interface
-      const transformedDestinations = destinationData.map((dest: any) => ({
+      const transformedDestinations = destinationData.map((dest: DbDestination) => ({
         ...dest,
         maxCapacity: dest.max_capacity,
         currentOccupancy: dest.current_occupancy,

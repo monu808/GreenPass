@@ -59,7 +59,7 @@ export const downloadCompliancePDF = (
   });
 
   // --- Environmental Metrics Section ---
-  const finalY = (doc as any).lastAutoTable.finalY + 15;
+  const finalY = doc.lastAutoTable.finalY + 15;
   doc.setFontSize(16);
   doc.setFont("helvetica", "bold");
   doc.text("Environmental & Sustainability Metrics", 15, finalY);
@@ -87,7 +87,7 @@ export const downloadCompliancePDF = (
 
   // --- Ecological Damage Indicators ---
   if (report.ecologicalDamageIndicators) {
-    const finalYDamage = (doc as any).lastAutoTable.finalY + 15;
+    const finalYDamage = doc.lastAutoTable.finalY + 15;
     doc.setFontSize(16);
     doc.setFont("helvetica", "bold");
     doc.text("Ecological Damage Indicators", 15, finalYDamage);
@@ -107,7 +107,7 @@ export const downloadCompliancePDF = (
   }
 
   // --- Policy Enforcement Section ---
-  const finalY2 = (doc as any).lastAutoTable.finalY + 15;
+  const finalY2 = doc.lastAutoTable.finalY + 15;
   doc.setFontSize(16);
   doc.setFont("helvetica", "bold");
   doc.text("Policy Enforcement & Violations", 15, finalY2);
@@ -133,7 +133,7 @@ export const downloadCompliancePDF = (
   }
 
   // --- Footer & Approval ---
-  const finalY3 = (doc as any).lastAutoTable ? (doc as any).lastAutoTable.finalY + 30 : finalY2 + 40;
+  const finalY3 = doc.lastAutoTable ? doc.lastAutoTable.finalY + 30 : finalY2 + 40;
   
   doc.setDrawColor(200, 200, 200);
   doc.line(15, finalY3, 80, finalY3);

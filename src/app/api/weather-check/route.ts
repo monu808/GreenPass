@@ -1,11 +1,44 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
+
+interface WeatherData {
+  temperature: number;
+  humidity: number;
+  pressure: number;
+  weatherMain: string;
+  weatherDescription: string;
+  windSpeed: number;
+  windDirection: number;
+  visibility: number;
+  cityName: string;
+  icon: string;
+  uvIndex: number;
+  cloudCover: number;
+  precipitationProbability: number;
+  precipitationType: string;
+}
+
+interface WeatherAlert {
+  type: string;
+  title: string;
+  message: string;
+  severity: 'low' | 'medium' | 'high' | 'critical';
+  destinationId: string;
+  isActive: boolean;
+}
+
+interface DatabaseDestination {
+  id: string;
+  name: string;
+  location: string;
+  is_active: boolean;
+}
 
 // Server-side weather service (secure)
 class ServerWeatherService {
   private apiKey: string;
   private baseUrl = 'https://api.tomorrow.io/v4/weather';
-  private supabase;
+  private supabase: SupabaseClient;
 
   constructor() {
     this.apiKey = process.env.NEXT_PUBLIC_TOMORROW_API_KEY || '';
@@ -35,7 +68,7 @@ class ServerWeatherService {
     8000: { main: 'Thunderstorm', description: 'Thunderstorm', icon: '11d' },
   };
 
-  async getWeatherByCoordinates(lat: number, lon: number, cityName: string) {
+  async getWeatherByCoordinates(lat: number, lon: number, cityName: string): Promise<WeatherData> {
     const fields = [
       'temperature',
       'humidity',
@@ -57,11 +90,11 @@ class ServerWeatherService {
       throw new Error(`Tomorrow.io API error: ${response.status} - ${response.statusText}`);
     }
 
-    const data = await response.json();
+    const data = await response.json() as { data?: { values?: Record<string, number> } };
     return this.transformWeatherData(data, cityName);
   }
 
-  private transformWeatherData(data: any, cityName: string) {
+  private transformWeatherData(data: { data?: { values?: Record<string, number> } }, cityName: string): WeatherData {
     const values = data.data?.values || {};
     const weatherCode = values.weatherCode || 0;
     const weatherInfo = this.weatherCodeMap[weatherCode] || this.weatherCodeMap[0];
@@ -95,9 +128,8 @@ class ServerWeatherService {
     return types[code] || 'Unknown';
   }
 
-  shouldGenerateAlert(weatherData: any) {
-    const alerts = [];
-
+  shouldGenerateAlert(weatherData: WeatherData): { shouldAlert: boolean; reason: string } {
+    const alerts: string[] = [];
     if (weatherData.temperature > 40) alerts.push('Extreme heat warning');
     if (weatherData.temperature < 0) alerts.push('Freezing temperature alert');
     if (weatherData.windSpeed > 15) alerts.push('High wind warning');
@@ -112,7 +144,7 @@ class ServerWeatherService {
     };
   }
 
-  async saveWeatherData(destinationId: string, weatherData: any) {
+  async saveWeatherData(destinationId: string, weatherData: WeatherData): Promise<boolean> {
     try {
       console.log(`📊 Saving weather data for destination: ${destinationId}`);
       console.log('Weather data:', {
@@ -156,7 +188,7 @@ class ServerWeatherService {
     }
   }
 
-  async addAlert(alert: any) {
+  async addAlert(alert: WeatherAlert): Promise<boolean> {
     try {
       console.log(`🚨 Adding alert for destination: ${alert.destinationId}`);
       console.log('Alert data:', {
@@ -194,7 +226,7 @@ class ServerWeatherService {
     }
   }
 
-  async getDestinations() {
+  async getDestinations(): Promise<DatabaseDestination[]> {
     try {
       console.log('📍 Fetching destinations from database...');
       
@@ -321,7 +353,7 @@ const destinationCoordinates: { [key: string]: { lat: number; lon: number; name:
 };
 
 // Helper function to find coordinates for a destination
-function findCoordinatesForDestination(destination: any) {
+function findCoordinatesForDestination(destination: DatabaseDestination) {
   // Try by ID first
   if (destinationCoordinates[destination.id]) {
     return destinationCoordinates[destination.id];
@@ -359,7 +391,7 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    const alerts: any[] = [];
+    const alerts: WeatherAlert[] = [];
 
     // Deactivate old weather alerts FIRST to prevent duplicates
     console.log('🔄 Deactivating old weather alerts...');
@@ -418,7 +450,7 @@ export async function POST(request: NextRequest) {
             severity = 'high';
           }
 
-          const alertData = {
+          const alertData: WeatherAlert = {
             type: 'weather',
             title: `Weather Alert - ${destination.name}`,
             message: `${alertCheck.reason}. Current: ${weatherData.temperature}°C, ${weatherData.weatherDescription}. Wind: ${weatherData.windSpeed}m/s. ${weatherData.uvIndex ? `UV: ${weatherData.uvIndex}. ` : ''}${weatherData.precipitationProbability ? `Rain chance: ${weatherData.precipitationProbability}%.` : ''}`,
@@ -456,7 +488,7 @@ export async function POST(request: NextRequest) {
       message,
       alertsGenerated: alerts.length,
       destinations: destinations.length,
-      alerts: alerts.map(a => ({ 
+      alerts: alerts.map((a: WeatherAlert) => ({ 
         destination: a.title, 
         severity: a.severity,
         reason: a.message.split('.')[0] // First sentence

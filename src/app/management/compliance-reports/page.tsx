@@ -53,7 +53,7 @@ export default function ComplianceReportsPage() {
         const newReport = await dbService.createComplianceReport({
           ...metrics,
           status: "pending",
-        } as any);
+        });
         if (newReport) {
           setReports(prev => [newReport, ...prev]);
         }
@@ -87,7 +87,7 @@ export default function ComplianceReportsPage() {
       const newReport = await dbService.createComplianceReport({
         ...metrics,
         status: "pending",
-      } as any);
+      });
 
       if (newReport) {
         setReports([newReport, ...reports]);

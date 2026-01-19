@@ -1,10 +1,30 @@
 import { createServerComponentClient } from './supabase';
 
+export type BroadcastPayload = 
+  | { 
+      type: 'weather_update'; 
+      destinationId: string; 
+      weather: {
+        temperature: number;
+        humidity: number;
+        weatherMain: string;
+        weatherDescription: string;
+        windSpeed: number;
+      }; 
+      alert: {
+        level: 'low' | 'medium' | 'high' | 'critical' | 'none';
+        message: string | null;
+      } | null; 
+      timestamp: string; 
+    }
+  | { type: 'weather_update_available'; timestamp: string; source: string }
+  | { type: 'connection_established'; timestamp: string; mode: string };
+
 /**
  * broadcast publishes a message to the SHARED channel (Supabase Realtime),
  * which will then be received by ALL server instances and flushed to their local SSE clients.
  */
-export const broadcast = async (data: any) => {
+export const broadcast = async (data: BroadcastPayload) => {
   try {
     const supabase = createServerComponentClient();
     if (!supabase) {

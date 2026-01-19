@@ -53,7 +53,13 @@ export const DEFAULT_POLICIES: Record<SensitivityLevel, EcologicalPolicy> = {
   },
 };
 
-class EcologicalPolicyEngine {
+export interface WeatherConditions {
+  alert_level: 'none' | 'low' | 'medium' | 'high' | 'critical';
+  temperature?: number;
+  humidity?: number;
+}
+
+export class EcologicalPolicyEngine {
   private policies: Record<SensitivityLevel, EcologicalPolicy> = DEFAULT_POLICIES;
   private overrides: Map<string, CapacityOverride> = new Map();
   private lastLoggedFactors: Map<string, DynamicCapacityFactors> = new Map();
@@ -104,14 +110,17 @@ class EcologicalPolicyEngine {
       try {
         const saved = localStorage.getItem('capacity_overrides');
         if (saved) {
-          const parsed = JSON.parse(saved);
-          this.overrides = new Map(Object.entries(parsed).map(([id, override]: [string, any]) => [
-            id,
-            {
-              ...override,
-              expiresAt: override.expiresAt ? new Date(override.expiresAt) : undefined
-            }
-          ]));
+          const parsed = JSON.parse(saved) as Record<string, unknown>;
+          this.overrides = new Map(Object.entries(parsed).map(([id, override]): [string, Partial<CapacityOverride>] => {
+            const raw = override as { expiresAt?: string; [key: string]: unknown };
+            return [
+              id,
+              {
+                ...raw,
+                expiresAt: raw.expiresAt ? new Date(raw.expiresAt) : undefined
+              } as Partial<CapacityOverride>
+            ];
+          }) as [string, CapacityOverride][]);
         }
       } catch (e) {
         console.error('Failed to load overrides from storage', e);
@@ -210,7 +219,7 @@ class EcologicalPolicyEngine {
     return 1.0;
   }
 
-  async getDynamicCapacity(destination: Destination, weatherData?: any): Promise<DynamicCapacityResult> {
+  async getDynamicCapacity(destination: Destination, weatherData?: WeatherConditions): Promise<DynamicCapacityResult> {
     const policy = this.getPolicy(destination.ecologicalSensitivity);
     const ecologicalMultiplier = policy.capacityMultiplier;
     
@@ -366,23 +375,13 @@ class EcologicalPolicyEngine {
 }
 
 // Export a singleton factory function to support Turbopack HMR and consistent state
-let globalPolicyEngine: EcologicalPolicyEngine | null = null;
-
 export const getPolicyEngine = (): EcologicalPolicyEngine => {
-  if (typeof window !== 'undefined') {
-    // Client-side: use a global on window to persist across HMR
-    const win = window as any;
-    if (!win.__policyEngine) {
-      win.__policyEngine = new EcologicalPolicyEngine();
-    }
-    return win.__policyEngine;
-  }
+  if (typeof globalThis === 'undefined') return new EcologicalPolicyEngine();
   
-  // Server-side or non-browser
-  if (!globalPolicyEngine) {
-    globalPolicyEngine = new EcologicalPolicyEngine();
+  if (!globalThis.__policyEngine) {
+    globalThis.__policyEngine = new EcologicalPolicyEngine();
   }
-  return globalPolicyEngine;
+  return globalThis.__policyEngine;
 };
 
 export default getPolicyEngine;

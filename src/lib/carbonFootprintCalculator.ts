@@ -158,7 +158,14 @@ export class CarbonFootprintCalculator {
   }
 }
 
-/**
- * Singleton factory for CarbonFootprintCalculator
- */
-export const getCarbonCalculator = () => CarbonFootprintCalculator.getInstance();
+  /**
+   * Singleton factory for CarbonFootprintCalculator
+   */
+  export const getCarbonCalculator = (): CarbonFootprintCalculator => {
+    if (typeof globalThis === 'undefined') return CarbonFootprintCalculator.getInstance();
+    
+    if (!globalThis.__carbonCalculator) {
+      globalThis.__carbonCalculator = CarbonFootprintCalculator.getInstance();
+    }
+    return globalThis.__carbonCalculator;
+  };

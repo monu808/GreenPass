@@ -25,6 +25,9 @@ import type { Database } from '@/types/database';
 type Destination = Database['public']['Tables']['destinations']['Row'];
 type TouristInsert = Database['public']['Tables']['tourists']['Insert'];
 
+type Gender = 'male' | 'female' | 'other' | 'prefer-not-to-say';
+type IdProofType = 'aadhaar' | 'pan' | 'passport' | 'driving-license' | 'voter-id';
+
 export default function RegisterTourist() {
   const [destinations, setDestinations] = useState<Destination[]>([]);
   const [loading, setLoading] = useState(true);
@@ -263,10 +266,10 @@ const handleSubmit = async (e: React.FormEvent) => {
       registration_date: new Date().toISOString(),
       // Use values from formData
       age: parseInt(formData.age, 10),
-      gender: formData.gender as any,
+      gender: formData.gender as Gender,
       address: formData.address,
       pin_code: formData.pinCode,
-      id_proof_type: formData.idProofType as any
+      id_proof_type: formData.idProofType as IdProofType
     };
     
     console.log('Submitting booking data:', bookingData);

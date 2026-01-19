@@ -976,7 +976,7 @@ function BookDestinationForm() {
                       checked={formData.acknowledged}
                       onChange={handleInputChange}
                       required
-                      className="h-5 w-5 text-green-600 border-gray-300 rounded focus:ring-green-500 transition-all cursor-pointer text-gray-900"
+                      className="h-5 w-5 text-green-600 border-gray-300 rounded focus:ring-green-500 transition-all cursor-pointer"
                     />
                   </div>
                   <span className="text-sm font-bold text-green-800 leading-relaxed">

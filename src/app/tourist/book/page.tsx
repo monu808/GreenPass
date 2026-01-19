@@ -66,24 +66,6 @@ function BookDestinationForm() {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [carbonFootprint, setCarbonFootprint] = useState<CarbonFootprintResult | null>(null);
 
-  useEffect(() => {
-    if (destinationId) {
-      loadDestination();
-    }
-  }, [destinationId, loadDestination]);
-
-  useEffect(() => {
-    if (destination) {
-      checkEligibility(formData.groupSize);
-    }
-  }, [formData.groupSize, destination, checkEligibility]);
-
-  useEffect(() => {
-    if (destination && formData.originLocation) {
-      calculateCarbonFootprint();
-    }
-  }, [destination, formData.originLocation, formData.groupSize, formData.transportType, formData.checkInDate, formData.checkOutDate, calculateCarbonFootprint]);
-
   const computeBookingFootprint = useCallback((): CarbonFootprintResult | null => {
     if (!destination || !formData.originLocation) return null;
     
@@ -196,6 +178,24 @@ function BookDestinationForm() {
     const result = await dbService.checkBookingEligibility(destination.id, size);
     setEligibility(result);
   }, [destination]);
+
+  useEffect(() => {
+    if (destinationId) {
+      loadDestination();
+    }
+  }, [destinationId, loadDestination]);
+
+  useEffect(() => {
+    if (destination) {
+      checkEligibility(formData.groupSize);
+    }
+  }, [formData.groupSize, destination, checkEligibility]);
+
+  useEffect(() => {
+    if (destination && formData.originLocation) {
+      calculateCarbonFootprint();
+    }
+  }, [destination, formData.originLocation, formData.groupSize, formData.transportType, formData.checkInDate, formData.checkOutDate, calculateCarbonFootprint]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target;

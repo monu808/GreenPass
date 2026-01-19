@@ -349,6 +349,7 @@ export default function MyProfile() {
                     {isEditing ? (
                       <input
                         type="email"
+                        autoComplete="email"
                         value={userProfile.email}
                         onChange={(e) => setUserProfile({...userProfile, email: e.target.value})}
                         className="w-full px-4 py-3 bg-gray-50 border-2 border-gray-100 rounded-xl focus:ring-4 focus:ring-purple-100 focus:border-purple-500 transition-all outline-none"
@@ -365,6 +366,7 @@ export default function MyProfile() {
                     {isEditing ? (
                       <input
                         type="tel"
+                        autoComplete="tel"
                         value={userProfile.phone}
                         onChange={(e) => setUserProfile({...userProfile, phone: e.target.value})}
                         className="w-full px-4 py-3 bg-gray-50 border-2 border-gray-100 rounded-xl focus:ring-4 focus:ring-purple-100 focus:border-purple-500 transition-all outline-none"
@@ -848,11 +850,13 @@ export default function MyProfile() {
                         </div>
                         <input
                           type="password"
+                          autoComplete="new-password"
                           placeholder="New password"
                           className="w-full px-3 py-2 border border-gray-300 rounded-lg"
                         />
                         <input
                           type="password"
+                          autoComplete="new-password"
                           placeholder="Confirm new password"
                           className="w-full px-3 py-2 border border-gray-300 rounded-lg"
                         />

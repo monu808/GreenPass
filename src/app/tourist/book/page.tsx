@@ -612,6 +612,7 @@ function BookDestinationForm() {
                 <input
                   type="email"
                   name="email"
+                  autoComplete="email"
                   value={formData.email}
                   onChange={handleInputChange}
                   required
@@ -624,6 +625,7 @@ function BookDestinationForm() {
                 <label className="text-sm font-bold text-gray-600">Phone Number *</label>
                 <input
                   type="tel"
+                  autoComplete="tel"
                   name="phone"
                   value={formData.phone}
                   onChange={handleInputChange}
@@ -801,6 +803,7 @@ function BookDestinationForm() {
                 <label className="text-sm font-bold text-gray-600">Contact Phone *</label>
                 <input
                   type="tel"
+                  autoComplete="tel"
                   name="emergencyContact.phone"
                   value={formData.emergencyContact.phone}
                   onChange={handleInputChange}

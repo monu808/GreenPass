@@ -28,7 +28,7 @@ const localFlush = async (data: BroadcastPayload) => {
   await Promise.all(writePromises);
 };
 
-export async function POST(request: NextRequest) {
+export async function POST(_request: NextRequest) {
   try { 
     console.log('🔄 Weather monitoring trigger received');
     
@@ -57,7 +57,7 @@ export async function POST(request: NextRequest) {
   }
 }
 
-export async function GET(request: NextRequest) {
+export async function GET(_request: NextRequest) {
   const responseStream = new TransformStream();
   const writer = responseStream.writable.getWriter();
   activeWriters.add(writer);
@@ -88,7 +88,7 @@ export async function GET(request: NextRequest) {
     mode: supabase ? 'distributed' : 'local'
   })}\n\n`));
 
-  request.signal.onabort = () => {
+  _request.signal.onabort = () => {
     console.log("🛑 One Dashboard connection closed.");
     activeWriters.delete(writer);
     if (channel) channel.unsubscribe();

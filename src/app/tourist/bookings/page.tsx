@@ -4,8 +4,8 @@ import React, { useState } from 'react';
 import TouristLayout from '@/components/TouristLayout';
 import { 
   Calendar, MapPin, Users, CheckCircle, Eye, 
-  Search, Leaf, XCircle, CreditCard, Clock, ChevronRight, Download,
-  TrendingDown, TrendingUp, Award, Wind
+  Search, Leaf, XCircle, CreditCard, Download,
+  TrendingUp, Award, Wind
 } from 'lucide-react';
 import { getDbService } from '@/lib/databaseService';
 import { useAuth } from '@/contexts/AuthContext';
@@ -37,7 +37,7 @@ export default function TouristBookings() {
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
   const [ecoStats, setEcoStats] = useState<{ ecoPoints: number; totalCarbonOffset: number; tripsCount: number; totalCarbonFootprint: number } | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [, setIsLoading] = useState(true);
 
   // LOGIC: Increased data array with 4 unique bookings
   const [bookings] = useState<Booking[]>([

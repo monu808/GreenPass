@@ -8,10 +8,7 @@ import {
   Star, 
   Calendar,
   Trash2,
-  Eye,
-  Share2,
   BookOpen,
-  Camera,
   Mountain,
   CheckCircle
 } from 'lucide-react';

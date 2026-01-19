@@ -2,9 +2,9 @@
 
 import React, { useState, useEffect, useCallback, ChangeEvent } from 'react';
 import { 
-  MapPin, Users, Navigation, Search, RefreshCw, Leaf, Heart, 
-  Filter, ArrowRight, ShieldCheck, Compass, Thermometer, Calendar,
-  Award, Zap, Scale, Trash2, X, Info
+  Users, Search, RefreshCw, Leaf, Heart, 
+  ArrowRight, Compass, Thermometer, Calendar,
+  Award, Zap, Scale, Trash2, X
 } from 'lucide-react';
 import TouristLayout from '@/components/TouristLayout';
 import EcoSensitivityBadge from '@/components/EcoSensitivityBadge';
@@ -22,9 +22,8 @@ import {
 } from '@/lib/sustainabilityScoring';
 import { 
   isValidEcologicalSensitivity, 
-  isValidWasteManagementLevel 
 } from '@/lib/typeGuards';
-import { Destination, DynamicCapacityResult, EcoImpactCategory } from '@/types';
+import { Destination, DynamicCapacityResult } from '@/types';
 
 export default function TouristDestinations() {
   // 1. STATE MANAGEMENT
@@ -78,7 +77,6 @@ export default function TouristDestinations() {
   // 3. FILTERING ENGINE (Using Policy Engine for dynamic capacity)
   const filterData = useCallback((): void => {
     let result = [...destinations];
-    const policy = getPolicyEngine();
 
     if (searchTerm) {
       result = result.filter(d => 

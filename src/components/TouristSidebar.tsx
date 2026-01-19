@@ -5,7 +5,6 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { getDbService } from '@/lib/databaseService';
 import { weatherService, destinationCoordinates } from '@/lib/weatherService';
-import type { WeatherData as WeatherServiceData } from '@/lib/weatherService';
 
 interface SidebarWeatherData {
   temperature: number;
@@ -32,7 +31,6 @@ import {
   CloudLightning,
   X,
   Leaf,
-  Sparkles
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 

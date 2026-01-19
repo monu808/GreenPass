@@ -5,13 +5,11 @@ import Layout from "@/components/Layout";
 import {
   AlertTriangle,
   Search,
-  Filter,
   Plus,
   MapPin,
   Calendar,
   CheckCircle,
   XCircle,
-  Eye,
   Edit,
   Trash2,
   Cloud,
@@ -19,8 +17,6 @@ import {
   Settings,
   Zap,
   RefreshCw,
-  Play,
-  Pause,
   Leaf,
 } from "lucide-react";
 import { getDbService } from "@/lib/databaseService";
@@ -39,7 +35,7 @@ export default function AlertsPage() {
   const [severityFilter, setSeverityFilter] = useState<string>("all");
   const [activeFilter, setActiveFilter] = useState<string>("active"); // Show only active alerts by default
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [isMonitoring, setIsMonitoring] = useState(false);
+  const [, setIsMonitoring] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [autoRefresh, setAutoRefresh] = useState(true);
   const [weatherResult, setWeatherResult] = useState<WeatherCheckResult | null>(null);
@@ -160,11 +156,6 @@ export default function AlertsPage() {
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleToggleWeatherMonitoring = async () => {
-    // For now, just trigger manual check since we're using server-side monitoring
-    await handleManualWeatherCheck();
   };
 
   const handleToggleAlert = async (alertId: string, isActive: boolean) => {

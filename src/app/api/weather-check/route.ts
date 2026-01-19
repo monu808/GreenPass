@@ -376,7 +376,7 @@ function findCoordinatesForDestination(destination: DatabaseDestination) {
   return null;
 }
 
-export async function POST(request: NextRequest) {
+export async function POST(_request: NextRequest) {
   try {
     console.log('🌤️ Server-side weather monitoring started [v2]...');
     
@@ -510,7 +510,7 @@ export async function POST(request: NextRequest) {
   }
 }
 
-export async function GET(request: NextRequest) {
+export async function GET(_request: NextRequest) {
   return NextResponse.json({
     message: 'Weather monitoring API endpoint',
     timestamp: new Date().toISOString(),

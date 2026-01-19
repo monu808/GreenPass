@@ -15,25 +15,10 @@ import {
   Save,
   X,
   RefreshCw,
-  BarChart3,
-  TrendingUp,
-  Activity,
   Trash2,
   Calendar,
   Recycle
 } from 'lucide-react';
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  LineChart,
-  Line,
-  Cell
-} from 'recharts';
 import { getDbService } from '@/lib/databaseService';
 import { weatherService, destinationCoordinates } from '@/lib/weatherService';
 import { getCapacityStatus, formatDateTime } from '@/lib/utils';

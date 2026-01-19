@@ -3,7 +3,6 @@
 import React, { useState, useEffect, useCallback } from "react";
 import Layout from "@/components/Layout";
 import {
-  Settings,
   History,
   AlertTriangle,
   Calendar,
@@ -13,19 +12,16 @@ import {
   Plus,
   ArrowRight,
   ShieldAlert,
-  Info,
   Clock,
   Filter,
-  CheckCircle2,
   XCircle,
   RefreshCw,
   Search,
-  Sliders,
 } from "lucide-react";
 import { getDbService } from "@/lib/databaseService";
 import { getPolicyEngine } from "@/lib/ecologicalPolicyEngine";
-import { Destination, AdjustmentLog, CapacityOverride, DynamicCapacityResult } from "@/types";
 import { formatDateTime } from "@/lib/utils";
+import { Destination, AdjustmentLog, DynamicCapacityResult } from "@/types";
 import { format } from "date-fns";
 import { Database } from "@/types/database";
 

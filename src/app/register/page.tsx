@@ -8,7 +8,6 @@ import { getDbService } from '@/lib/databaseService';
 import { 
   validateEmail, 
   validatePhone, 
-  validateIdProof,
   validateIdProofByType,
   validateName,
   validateGroupName,
@@ -18,12 +17,10 @@ import {
   validateGender,
   validateAddress,
   validatePinCode,
-  sanitizeInput 
 } from '@/lib/utils';
 import type { Database } from '@/types/database';
 
 type Destination = Database['public']['Tables']['destinations']['Row'];
-type TouristInsert = Database['public']['Tables']['tourists']['Insert'];
 
 type Gender = 'male' | 'female' | 'other' | 'prefer-not-to-say';
 type IdProofType = 'aadhaar' | 'pan' | 'passport' | 'driving-license' | 'voter-id';

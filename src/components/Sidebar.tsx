@@ -7,7 +7,6 @@ import { cn } from '@/lib/utils';
 import { 
   MapPin, 
   Users, 
-  Calendar, 
   AlertTriangle, 
   BarChart3, 
   Settings,

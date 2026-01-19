@@ -32,13 +32,12 @@ export default function ComplianceReportsPage() {
   const [reportType, setReportType] = useState<"monthly" | "quarterly">("monthly");
   const [filterType, setFilterType] = useState<string>("All Types");
 
-  const [selectedReport, setSelectedReport] = useState<ComplianceReport | null>(null);
-
   const dbService = getDbService();
 
   useEffect(() => {
     loadData();
     checkAndAutoGenerate();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const checkAndAutoGenerate = async () => {

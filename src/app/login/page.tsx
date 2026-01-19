@@ -57,7 +57,7 @@ function LoginForm() {
       } else {
         router.push('/');
       }
-    } catch (err) {
+    } catch (_err) {
       setError('An unexpected error occurred');
     } finally {
       setLoading(false);
@@ -77,7 +77,7 @@ function LoginForm() {
       } else {
         setStep('otp');
       }
-    } catch (err) {
+    } catch (_err) {
       setError('An unexpected error occurred');
     } finally {
       setLoading(false);
@@ -96,7 +96,7 @@ function LoginForm() {
       }
       
       return { success: true };
-    } catch (err) {
+    } catch (_err) {
       return { 
         success: false, 
         error: 'Verification failed. Please try again.' 
@@ -116,7 +116,7 @@ function LoginForm() {
       }
       
       return { success: true };
-    } catch (err) {
+    } catch (_err) {
       return { 
         success: false, 
         error: 'Failed to resend OTP. Please try again.' 
@@ -359,7 +359,7 @@ function LoginForm() {
           {/* Sign Up Link */}
           <div className="text-center pt-2">
             <p className="text-sm text-gray-600">
-              Don't have an account?{' '}
+              Don&apos;t have an account?{' '}
               <Link href="/signup" className="font-semibold text-green-600 hover:text-green-500">
                 Sign up here
               </Link>

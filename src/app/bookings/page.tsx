@@ -6,7 +6,6 @@ import Layout from "@/components/Layout";
 import {
   Calendar,
   Search,
-  Filter,
   MapPin,
   Users,
   Clock,

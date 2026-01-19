@@ -7,20 +7,14 @@ import {
   Leaf, 
   Users, 
   MapPin, 
-  Calendar,
-  Star,
   Eye,
   Heart,
   Search,
-  Filter,
   Recycle,
   Globe,
   Bird,
-  Fish,
-  Flower,
   Sun,
   Droplets,
-  Wind,
   CheckCircle,
   Award,
   Info,
@@ -53,7 +47,6 @@ interface EcoInitiative {
 
 export default function EcoTourism() {
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedType, setSelectedType] = useState<string>('all');
   const [ecoImpactFilter, setEcoImpactFilter] = useState<EcoImpactCategory | 'all'>('all');
   const [comparisonList, setComparisonList] = useState<Destination[]>([]);
   const [isComparisonOpen, setIsComparisonOpen] = useState(false);

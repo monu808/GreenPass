@@ -3,16 +3,13 @@
 import React, { useState } from 'react';
 import TouristLayout from '@/components/TouristLayout';
 import { 
-  Book, 
   MapPin, 
   Clock, 
   Users, 
   Car, 
   Plane, 
   Train,
-  Camera,
   Mountain,
-  TreePine,
   Sun,
   Cloud,
   Snowflake,
@@ -20,10 +17,7 @@ import {
   Shield,
   AlertTriangle,
   Phone,
-  Mail,
   Search,
-  ChevronRight,
-  ChevronDown,
   Info,
   Star,
   Download,

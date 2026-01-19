@@ -4,10 +4,7 @@ import React, { useState } from 'react';
 import TouristLayout from '@/components/TouristLayout';
 import { 
   User, 
-  Mail, 
-  Phone, 
   MapPin, 
-  Calendar, 
   Camera, 
   Settings, 
   Bell, 
@@ -18,7 +15,6 @@ import {
   Edit,
   Save,
   X,
-  Upload,
   Eye,
   EyeOff,
   Globe,
@@ -27,7 +23,6 @@ import {
   Award,
   TrendingUp,
   Clock,
-  ChevronRight,
   Check,
   Leaf,
   Wind,
@@ -85,7 +80,7 @@ export default function MyProfile() {
   const [activeTab, setActiveTab] = useState<string>('profile');
   const [isEditing, setIsEditing] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
+  const [, setIsLoading] = useState(true);
 
   const [userProfile, setUserProfile] = useState<UserProfile>({
     id: '1',

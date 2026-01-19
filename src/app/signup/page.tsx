@@ -62,7 +62,7 @@ export default function SignUp() {
         // Move to OTP verification step
         setStep('otp');
       }
-    } catch (err) {
+    } catch (_err) {
       setError('An unexpected error occurred');
     } finally {
       setLoading(false);
@@ -82,7 +82,7 @@ export default function SignUp() {
       
       // Success - user will be redirected automatically by auth state change
       return { success: true };
-    } catch (err) {
+    } catch (_err) {
       return { 
         success: false, 
         error: 'Verification failed. Please try again.' 
@@ -102,7 +102,7 @@ export default function SignUp() {
       }
       
       return { success: true };
-    } catch (err) {
+    } catch (_err) {
       return { 
         success: false, 
         error: 'Failed to resend OTP. Please try again.' 
@@ -196,7 +196,7 @@ export default function SignUp() {
                 />
               </div>
               <p className="text-[10px] sm:text-xs text-gray-500 mt-1">
-                We'll send a verification code to this email
+                We&apos;ll send a verification code to this email
               </p>
             </div>
 
@@ -219,7 +219,7 @@ export default function SignUp() {
             {/* Info Box */}
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
               <p className="text-xs text-blue-800">
-                <strong>Secure Sign Up:</strong> We'll send a 6-digit verification code to your email. 
+                <strong>Secure Sign Up:</strong> We&apos;ll send a 6-digit verification code to your email. 
                 No password needed!
               </p>
             </div>

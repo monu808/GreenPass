@@ -3,7 +3,7 @@
 import React, { useState, ChangeEvent } from 'react';
 import TouristLayout from '@/components/TouristLayout';
 import { 
-  Camera, MapPin, Download, Heart, Share2, 
+  MapPin, Download, Heart, Share2, 
   Eye, Search, Upload, X, Sparkles 
 } from 'lucide-react';
 

@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, Suspense, useCallback } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { Calendar, Users, MapPin, Clock, Star, AlertTriangle, CheckCircle, Leaf, ShieldAlert, XCircle, RefreshCw, Globe, TreePine, Zap, Flame, Info } from 'lucide-react';
+import { Calendar, Users, MapPin, Star, AlertTriangle, CheckCircle, Leaf, ShieldAlert, XCircle, RefreshCw, Globe, TreePine, Zap, Info } from 'lucide-react';
 import TouristLayout from '@/components/TouristLayout';
 import { getDbService } from '@/lib/databaseService';
 import { getPolicyEngine } from '@/lib/ecologicalPolicyEngine';
@@ -15,14 +15,13 @@ import {
   isValidEcologicalSensitivity, 
   isValidWasteManagementLevel 
 } from '@/lib/typeGuards';
-import { ORIGIN_LOCATIONS, getOriginLocationById } from '@/data/originLocations';
+import { ORIGIN_LOCATIONS } from '@/data/originLocations';
 import { useAuth } from '@/contexts/AuthContext';
 import { 
   Destination, 
   Alert, 
   DynamicCapacityResult, 
   CarbonFootprintResult, 
-  CarbonOffsetOption,
   SustainabilityFeatures
 } from '@/types';
 
@@ -890,7 +889,7 @@ function BookDestinationForm() {
                 <div className="mt-8 p-4 bg-blue-50/50 rounded-xl border border-blue-100 flex items-start space-x-3">
                   <Info className="h-5 w-5 text-blue-600 mt-0.5" />
                   <p className="text-sm text-blue-800 leading-relaxed">
-                    This trip's emissions are equivalent to <strong>{carbonFootprint.comparison.trees_equivalent}</strong> trees absorbing CO2 for a year, or <strong>{carbonFootprint.comparison.car_miles_equivalent}</strong> miles driven in an average car.
+                    This trip&apos;s emissions are equivalent to <strong>{carbonFootprint.comparison.trees_equivalent}</strong> trees absorbing CO2 for a year, or <strong>{carbonFootprint.comparison.car_miles_equivalent}</strong> miles driven in an average car.
                   </p>
                 </div>
               </div>

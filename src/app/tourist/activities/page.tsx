@@ -2,9 +2,9 @@
 
 import React, { useState, ChangeEvent } from 'react';
 import { 
-  Users, Clock, Star, MapPin, Heart, Filter, Search, 
-  Activity, Leaf, ArrowRight, ShieldCheck, Waves, Wind, 
-  Mountain, Info, CheckCircle, AlertTriangle 
+  Heart, Search, 
+  Activity, Leaf, ShieldCheck, Wind, 
+  CheckCircle, AlertTriangle 
 } from 'lucide-react';
 import TouristLayout from '@/components/TouristLayout';
 
@@ -30,10 +30,10 @@ interface AdventureActivity {
 
 export default function AdventureActivities() {
   const [searchTerm, setSearchTerm] = useState<string>('');
-  const [selectedType, setSelectedType] = useState<string>('all');
-  const [selectedDifficulty, setSelectedDifficulty] = useState<string>('all');
-  const [priceRange, setPriceRange] = useState<string>('all');
-  const [showFilters, setShowFilters] = useState<boolean>(false);
+  const [_selectedType, _setSelectedType] = useState<string>('all');
+  const [_selectedDifficulty, _setSelectedDifficulty] = useState<string>('all');
+  const [_priceRange, _setPriceRange] = useState<string>('all');
+  const [_showFilters, _setShowFilters] = useState<boolean>(false);
 
   const [activities] = useState<AdventureActivity[]>([
     {
@@ -83,13 +83,13 @@ export default function AdventureActivities() {
   const filteredActivities = activities.filter(activity => {
     const matchesSearch = activity.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          activity.location.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesType = selectedType === 'all' || activity.type === selectedType;
-    const matchesDifficulty = selectedDifficulty === 'all' || activity.difficulty === selectedDifficulty;
+    const matchesType = _selectedType === 'all' || activity.type === _selectedType;
+    const matchesDifficulty = _selectedDifficulty === 'all' || activity.difficulty === _selectedDifficulty;
     
     let matchesPrice = true;
-    if (priceRange === 'low') matchesPrice = activity.price < 2000;
-    else if (priceRange === 'medium') matchesPrice = activity.price >= 2000 && activity.price < 5000;
-    else if (priceRange === 'high') matchesPrice = activity.price >= 5000;
+    if (_priceRange === 'low') matchesPrice = activity.price < 2000;
+    else if (_priceRange === 'medium') matchesPrice = activity.price >= 2000 && activity.price < 5000;
+    else if (_priceRange === 'high') matchesPrice = activity.price >= 5000;
     
     return matchesSearch && matchesType && matchesDifficulty && matchesPrice;
   });

@@ -2,10 +2,10 @@
 
 import React, { useState, useEffect } from 'react';
 import { 
-  BookOpen, Award, Clock, Target, CheckCircle, 
-  ArrowRight, Play, Users, Leaf, Mountain,
-  TreePine, Globe, Heart, Star, Trophy,
-  ChevronRight, Lock, Unlock, RefreshCw
+  BookOpen, Clock, Target, CheckCircle, 
+  ArrowRight, Users, Leaf, Mountain,
+  Globe, Heart, Trophy,
+  ChevronRight, Lock, RefreshCw
 } from 'lucide-react';
 import TouristLayout from '@/components/TouristLayout';
 import { 

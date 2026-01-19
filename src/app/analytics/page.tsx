@@ -7,7 +7,6 @@ import {
   TrendingUp, 
   Users, 
   MapPin,
-  Calendar,
   AlertTriangle,
   Activity,
   Target
@@ -323,7 +322,7 @@ export default function AnalyticsPage() {
             Monthly Tourism Trends
           </h3>
           <div className="flex items-end space-x-4 h-40">
-            {analytics.monthlyTrends.map((trend, index) => (
+            {analytics.monthlyTrends.map((trend) => (
               <div key={trend.month} className="flex flex-col items-center flex-1">
                 <div
                   className="bg-green-500 rounded-t-sm transition-all duration-300 flex items-end justify-center"

@@ -9,8 +9,6 @@ import {
   Users,
   Plus,
   Search,
-  Filter,
-  MoreVertical,
   Edit2,
   Trash,
   CheckCircle,
@@ -30,7 +28,6 @@ import {
   CleanupActivity, 
   CleanupRegistration, 
   Destination,
-  WasteMetricsSummary
 } from "@/types";
 import {
   BarChart,
@@ -43,9 +40,8 @@ import {
   LineChart,
   Line,
   Cell,
-  Legend
 } from "recharts";
-import { format, subDays, startOfDay, endOfDay, eachDayOfInterval } from "date-fns";
+import { format, subDays, eachDayOfInterval } from "date-fns";
 import { cn } from "@/lib/utils";
 import { Database } from "@/types/database";
 
@@ -67,13 +63,13 @@ export default function WasteTrackingPage() {
   const [destinations, setDestinations] = useState<Destination[]>([]);
   const [wasteRecords, setWasteRecords] = useState<WasteData[]>([]);
   const [cleanupActivities, setCleanupActivities] = useState<CleanupActivity[]>([]);
+  const [loading, setLoading] = useState(false);
   const [stats, setStats] = useState({
     totalWaste: 0,
     recyclingRate: 0,
     activeEvents: 0,
     totalVolunteers: 0
   });
-  const [loading, setLoading] = useState(true);
   const [trendTimeRange, setTrendTimeRange] = useState(30);
   const [trendData, setTrendData] = useState<TrendDataItem[]>([]);
   const [distributionData, setDistributionData] = useState<DistributionDataItem[]>([]);
@@ -82,10 +78,12 @@ export default function WasteTrackingPage() {
 
   useEffect(() => {
     loadData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
     loadTrendData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [trendTimeRange]);
 
   const loadTrendData = async () => {

@@ -201,7 +201,13 @@ function BookDestinationForm() {
     const { name, value, type } = e.target;
     const checked = (e.target as HTMLInputElement).checked;
     
-    if (name.startsWith('emergencyContact.')) {
+    if (name === 'groupSize') {
+      const numValue = parseInt(value, 10);
+      setFormData(prev => ({
+        ...prev,
+        [name]: isNaN(numValue) ? 1 : numValue
+      }));
+    } else if (name.startsWith('emergencyContact.')) {
       const field = name.split('.')[1];
       setFormData(prev => ({
         ...prev,
@@ -277,13 +283,19 @@ function BookDestinationForm() {
       // Calculate up-to-date footprint for persistence
       const currentFootprint = computeBookingFootprint();
       
+      // Validate and convert group size
+      const groupSize = parseInt(String(formData.groupSize), 10);
+      if (isNaN(groupSize) || groupSize <= 0) {
+        throw new Error("Invalid group size provided");
+      }
+      
       const bookingData = {
         name: formData.name,
         email: formData.email,
         phone: formData.phone,
         id_proof: formData.idProof,
         nationality: formData.nationality,
-        group_size: formData.groupSize,
+        group_size: groupSize,
         destination_id: destination.id,
         check_in_date: formData.checkInDate,
         check_out_date: formData.checkOutDate,

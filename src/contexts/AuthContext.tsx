@@ -191,7 +191,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const { error } = await supabase.auth.verifyOtp({
         email,
         token: otp,
-        type: 'signup',
+        type: 'email' as any,
       });
       return { error };
     } catch (error: any) {
@@ -205,7 +205,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     
     try {
       const { error } = await supabase.auth.resend({
-        type: 'signup',
+        type: 'email' as any,
         email: email,
       });
       

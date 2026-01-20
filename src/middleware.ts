@@ -10,8 +10,8 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // 1. CSRF Protection for POST/PUT/DELETE
-  if (['POST', 'PUT', 'DELETE'].includes(request.method) && process.env.NODE_ENV === 'production') {
+  // 1. CSRF Protection for POST/PUT/PATCH/DELETE
+  if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(request.method) && process.env.NODE_ENV === 'production') {
     const origin = request.headers.get('origin');
     const host = request.headers.get('host');
     

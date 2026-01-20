@@ -1,10 +1,25 @@
 import { Redis } from '@upstash/redis';
 import { Ratelimit } from '@upstash/ratelimit';
 
+// Validate environment variables
+const url = process.env.UPSTASH_REDIS_REST_URL;
+const token = process.env.UPSTASH_REDIS_REST_TOKEN;
+
+if (!url || !token) {
+  const missing = [];
+  if (!url) missing.push('UPSTASH_REDIS_REST_URL');
+  if (!token) missing.push('UPSTASH_REDIS_REST_TOKEN');
+  
+  throw new Error(
+    `Missing required Upstash Redis credentials: ${missing.join(', ')}. ` +
+    'Please ensure these environment variables are set in your .env file.'
+  );
+}
+
 // Initialize Redis client
 export const redis = new Redis({
-  url: process.env.UPSTASH_REDIS_REST_URL || '',
-  token: process.env.UPSTASH_REDIS_REST_TOKEN || '',
+  url,
+  token,
 });
 
 // Create rate limiter instances for different route types

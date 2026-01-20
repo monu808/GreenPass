@@ -23,7 +23,8 @@ import { Tourist, Destination } from "@/types";
 import { Database } from "@/types/database";
 import { 
   formatDateTime,
-  sanitizeSearchTerm 
+  sanitizeSearchTerm,
+  sanitizeInput 
 } from "@/lib/utils";
 import { 
   validateInput, 
@@ -217,36 +218,34 @@ export default function TouristBookingManagement() {
       <body>
         <div class="header">
           <div class="title">Tourist Management System</div>
-          <div class="subtitle">Jammu and Himachal Pradesh Tourism</div>
-          <div class="receipt-title">BOOKING RECEIPT</div>
-          <div class="subtitle">Booking ID: TMS-${selectedTourist?.id
-            .slice(0, 8)
-            .toUpperCase()}</div>
+          <div class="subtitle">Tourism Management System - India</div>
+          <div class="receipt-title">BOOKING CONFIRMATION</div>
+          <div class="subtitle">Reference: ${sanitizeInput(selectedTourist?.id)}</div>
           <div class="subtitle">Generated on: ${new Date().toLocaleDateString()} at ${new Date().toLocaleTimeString()}</div>
         </div>
         
         <div class="section">
-          <div class="section-title">Personal Information</div>
+          <div class="section-title">Visitor Information</div>
           <div class="info-grid">
             <div class="info-item">
-              <div class="label">Name</div>
-              <div class="value">${selectedTourist?.name}</div>
+              <div class="label">Full Name</div>
+              <div class="value">${sanitizeInput(selectedTourist?.name)}</div>
             </div>
             <div class="info-item">
-              <div class="label">Email</div>
-              <div class="value">${selectedTourist?.email}</div>
+              <div class="label">Email Address</div>
+              <div class="value">${sanitizeInput(selectedTourist?.email)}</div>
             </div>
             <div class="info-item">
-              <div class="label">Phone</div>
-              <div class="value">${selectedTourist?.phone}</div>
+              <div class="label">Phone Number</div>
+              <div class="value">${sanitizeInput(selectedTourist?.phone)}</div>
             </div>
             <div class="info-item">
               <div class="label">ID Proof</div>
-              <div class="value">${selectedTourist?.idProof}</div>
+              <div class="value">${sanitizeInput(selectedTourist?.idProof)}</div>
             </div>
             <div class="info-item">
               <div class="label">Nationality</div>
-              <div class="value">${selectedTourist?.nationality}</div>
+              <div class="value">${sanitizeInput(selectedTourist?.nationality)}</div>
             </div>
             <div class="info-item">
               <div class="label">Group Size</div>
@@ -260,13 +259,13 @@ export default function TouristBookingManagement() {
           <div class="info-grid">
             <div class="info-item">
               <div class="label">Destination</div>
-              <div class="value">${getDestinationName(
+              <div class="value">${sanitizeInput(getDestinationName(
                 selectedTourist?.destination || ""
-              )}</div>
+              ))}</div>
             </div>
             <div class="info-item">
               <div class="label">Status</div>
-              <div className="value">{selectedTourist?.status ? selectedTourist.status.charAt(0).toUpperCase() + selectedTourist.status.slice(1) : 'N/A'}</div>
+              <div className="value">{selectedTourist?.status ? sanitizeInput(selectedTourist.status.charAt(0).toUpperCase() + selectedTourist.status.slice(1)) : 'N/A'}</div>
             </div>
             <div class="info-item">
               <div class="label">Check-in Date</div>
@@ -288,19 +287,19 @@ export default function TouristBookingManagement() {
           <div class="info-grid">
             <div class="info-item">
               <div class="label">Contact Name</div>
-              <div class="value">${selectedTourist?.emergencyContact.name}</div>
+              <div class="value">${sanitizeInput(selectedTourist?.emergencyContact.name)}</div>
             </div>
             <div class="info-item">
               <div class="label">Contact Phone</div>
-              <div class="value">${
+              <div class="value">${sanitizeInput(
                 selectedTourist?.emergencyContact.phone
-              }</div>
+              )}</div>
             </div>
             <div class="info-item">
               <div class="label">Relationship</div>
-              <div class="value">${
+              <div class="value">${sanitizeInput(
                 selectedTourist?.emergencyContact.relationship
-              }</div>
+              )}</div>
             </div>
           </div>
         </div>
@@ -310,7 +309,7 @@ export default function TouristBookingManagement() {
           <div>For inquiries, contact: support@tms-india.gov.in | +91-180-2500100</div>
           <div>Government of India | Ministry of Tourism</div>
           <div class="status-info">
-            <span>Status: ${selectedTourist?.status.toUpperCase()}</span>
+            <span>Status: ${sanitizeInput(selectedTourist?.status.toUpperCase())}</span>
             <span>Valid until: ${new Date(
               selectedTourist?.checkOutDate || ""
             ).toLocaleDateString()}</span>

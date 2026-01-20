@@ -7,6 +7,9 @@ import Link from 'next/link';
 import { Mail, User, MapPin } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import OTPVerification from '@/components/OTPVerification';
+import { validateInput } from '@/lib/validation';
+import { AccountSchema } from '@/lib/validation/schemas';
+import { sanitizeObject } from '@/lib/utils';
 
 type SignupStep = 'form' | 'otp';
 
@@ -27,34 +30,25 @@ export default function SignUp() {
     }
   }, [user, router]);
 
-  const validateForm = () => {
-    if (!name.trim()) {
-      setError('Name is required');
-      return false;
-    }
-    if (!email.trim()) {
-      setError('Email is required');
-      return false;
-    }
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      setError('Please enter a valid email address');
-      return false;
-    }
-    return true;
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
 
-    if (!validateForm()) {
+    const sanitizedData = sanitizeObject({ name, email });
+    const validation = validateInput(AccountSchema, {
+      ...sanitizedData,
+      role: 'tourist' // Default role for signup
+    });
+
+    if (!validation.success) {
+      setError(Object.values(validation.errors)[0] || 'Invalid input');
       return;
     }
 
     setLoading(true);
 
     try {
-      const { error } = await signUpWithOTP(email, name);
+      const { error } = await signUpWithOTP(validation.data.email, validation.data.name);
       
       if (error) {
         setError(error.message);

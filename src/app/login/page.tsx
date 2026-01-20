@@ -3,10 +3,14 @@
 
 import React, { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { z } from 'zod';
 import Link from 'next/link';
 import { Eye, EyeOff, Mail, Lock, MapPin } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import OTPVerification from '@/components/OTPVerification';
+import { validateInput } from '@/lib/validation';
+import { AccountSchema } from '@/lib/validation/schemas';
+import { sanitizeObject, sanitizeForDatabase } from '@/lib/utils';
 
 type LoginMethod = 'password' | 'otp';
 type LoginStep = 'method' | 'otp';
@@ -49,8 +53,20 @@ function LoginForm() {
     setLoading(true);
     setError('');
 
+    const sanitizedData = sanitizeObject({ email });
+    const validation = validateInput(AccountSchema.partial().extend({ 
+      email: z.string().email('Invalid email address') 
+    }), sanitizedData);
+
+    if (!validation.success) {
+      setError(validation.errors?.email || 'Invalid email');
+      return;
+    }
+
+    const passwordSanitized = sanitizeForDatabase(password);
+
     try {
-      const { error } = await signIn(email, password);
+      const { error } = await signIn(validation.data.email, passwordSanitized);
       
       if (error) {
         setError(error.message);
@@ -69,8 +85,18 @@ function LoginForm() {
     setLoading(true);
     setError('');
 
+    const sanitizedData = sanitizeObject({ email });
+    const validation = validateInput(AccountSchema.partial().extend({ 
+      email: z.string().email('Invalid email address') 
+    }), sanitizedData);
+
+    if (!validation.success) {
+      setError(validation.errors?.email || 'Invalid email');
+      return;
+    }
+
     try {
-      const { error } = await signUpWithOTP(email, '');
+      const { error } = await signUpWithOTP(validation.data.email, '');
       
       if (error) {
         setError(error.message);

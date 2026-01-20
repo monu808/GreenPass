@@ -6,6 +6,13 @@ export const EcologicalSensitivityEnum = z.enum(['low', 'medium', 'high', 'criti
 export const AlertTypeEnum = z.enum(['weather', 'capacity', 'emergency', 'maintenance', 'ecological']);
 export const AlertSeverityEnum = z.enum(['low', 'medium', 'high', 'critical']);
 export const TransportTypeEnum = z.enum(['bus', 'train', 'car', 'flight', 'other']);
+export const UserRoleEnum = z.enum(['tourist', 'admin', 'operator']);
+
+export const AccountSchema = z.object({
+  name: z.string().min(2, 'Name must be at least 2 characters').max(100),
+  email: z.string().email('Invalid email address'),
+  role: UserRoleEnum.default('tourist'),
+});
 
 // --- Base Schemas ---
 export const CoordinatesSchema = z.object({
@@ -91,3 +98,4 @@ export type AlertFilter = z.infer<typeof AlertFilterSchema>;
 export type ApiInput = z.infer<typeof ApiInputSchema>;
 export type WeatherCheck = z.infer<typeof WeatherCheckSchema>;
 export type TestWeather = z.infer<typeof TestWeatherSchema>;
+export type User = z.infer<typeof AccountSchema>;

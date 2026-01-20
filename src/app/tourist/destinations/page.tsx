@@ -35,6 +35,7 @@ export default function TouristDestinations() {
   const [selectedFilter, setSelectedFilter] = useState<'all' | 'available' | 'popular' | 'high-sensitivity' | 'low-carbon' | 'community-friendly' | 'wildlife-safe' | 'eco-friendly'>('all');
   const [comparisonList, setComparisonList] = useState<Destination[]>([]);
   const [isComparisonOpen, setIsComparisonOpen] = useState(false);
+  const [isSearching, setIsSearching] = useState(false);
   const [expandedAlternatives, setExpandedAlternatives] = useState<Record<string, boolean>>({});
 
   // 2. DATA LOADING LOGIC (Direct Database Sync)
@@ -140,7 +141,14 @@ export default function TouristDestinations() {
       eventSource.close();
     };
   }, []);
-  useEffect(() => { filterData(); }, [filterData]);
+ useEffect(() => {
+    setIsSearching(true);
+    const timer = setTimeout(() => {
+      filterData();
+      setIsSearching(false);
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [filterData]);
 
   // 4. ACTION HANDLERS
   const handleAction = (type: string, id: string): void => {
@@ -195,17 +203,21 @@ export default function TouristDestinations() {
         <div className="bg-white rounded-[2.5rem] p-4 shadow-sm border border-gray-100 space-y-4">
           <div className="flex flex-col lg:flex-row gap-4">
             <div className="flex-1 relative group">
-              <label htmlFor="dest-search-input" className="sr-only">Search valley destinations</label>
-              <Search className="absolute left-6 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400 group-focus-within:text-emerald-500 transition-colors" />
-              <input
-                id="dest-search-input"
-                type="text"
-                placeholder="Search by valley, town, or state..."
-                value={searchTerm}
-                onChange={(e: ChangeEvent<HTMLInputElement>) => setSearchTerm(e.target.value)}
-                className="w-full pl-16 pr-8 py-5 bg-gray-50 border-none rounded-[1.8rem] font-bold text-gray-700 outline-none focus:ring-4 focus:ring-emerald-500/5 transition-all"
-              />
-            </div>
+  <label htmlFor="dest-search-input" className="sr-only">Search valley destinations</label>
+  {isSearching ? (
+    <RefreshCw className="absolute left-6 top-1/2 -translate-y-1/2 h-5 w-5 text-emerald-500 animate-spin" />
+  ) : (
+    <Search className="absolute left-6 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400 group-focus-within:text-emerald-500 transition-colors" />
+  )}
+  <input
+    id="dest-search-input"
+    type="text"
+    placeholder="Search by valley, town, or state..."
+    value={searchTerm}
+    onChange={(e: ChangeEvent<HTMLInputElement>) => setSearchTerm(e.target.value)}
+    className="w-full pl-16 pr-8 py-5 bg-gray-50 border-none rounded-[1.8rem] font-bold text-gray-700 outline-none focus:ring-4 focus:ring-emerald-500/5 transition-all"
+  />
+</div>
 
             <div className="flex bg-gray-100 p-1.5 rounded-[1.8rem] border border-gray-100 overflow-x-auto scrollbar-hide">
               {(['all', 'available', 'popular', 'high-sensitivity', 'low-carbon', 'community-friendly', 'wildlife-safe', 'eco-friendly'] as const).map((filter) => (

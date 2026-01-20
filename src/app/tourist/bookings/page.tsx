@@ -5,7 +5,7 @@ import TouristLayout from '@/components/TouristLayout';
 import { 
   Calendar, MapPin, Users, CheckCircle, Eye, 
   Search, Leaf, XCircle, CreditCard, Download,
-  TrendingUp, Award, Wind
+  TrendingUp, Award, Wind , RefreshCw
 } from 'lucide-react';
 import { getDbService } from '@/lib/databaseService';
 import { useAuth } from '@/contexts/AuthContext';
@@ -38,6 +38,19 @@ export default function TouristBookings() {
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
   const [ecoStats, setEcoStats] = useState<{ ecoPoints: number; totalCarbonOffset: number; tripsCount: number; totalCarbonFootprint: number } | null>(null);
   const [, setIsLoading] = useState(true);
+  // Track which invoice is downloading
+  const [downloadingId, setDownloadingId] = useState<string | null>(null);
+
+  const handleAction = (action: string, id: string) => {
+    if (action === 'Download') {
+      setDownloadingId(id);
+      // Simulate API delay (2 seconds)
+      setTimeout(() => {
+        alert(`Downloading invoice for booking #${id}...`);
+        setDownloadingId(null);
+      }, 2000);
+    }
+  };
 
   // LOGIC: Increased data array with 4 unique bookings
   const [bookings] = useState<Booking[]>([
@@ -127,9 +140,7 @@ export default function TouristBookings() {
     fetchEcoStats();
   }, [user]);
 
-  const handleAction = (type: string, id: string): void => {
-    alert(`${type} requested for Booking ID: ${id}`);
-  };
+  
 
   const filteredBookings = bookings.filter(b =>
     b.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -283,14 +294,19 @@ export default function TouristBookings() {
                     >
                       <Eye className="h-4 w-4" /> Details
                     </button>
-                    <button 
-                      type="button"
-                      onClick={() => handleAction('Download', booking.id)}
-                      className="p-3.5 border border-gray-100 text-gray-400 rounded-xl hover:text-emerald-600 hover:border-emerald-100 transition-all"
-                      aria-label="Download Invoice"
-                    >
-                      <Download className="h-5 w-5" />
-                    </button>
+                   <button
+  type="button"
+  onClick={() => handleAction('Download', booking.id)}
+  disabled={downloadingId === booking.id}
+  className="p-3.5 border border-gray-100 text-gray-400 rounded-xl hover:text-emerald-600 hover:border-emerald-100 transition-all disabled:opacity-70 disabled:cursor-wait"
+  aria-label="Download Invoice"
+>
+  {downloadingId === booking.id ? (
+    <RefreshCw className="h-5 w-5 animate-spin text-emerald-600" />
+  ) : (
+    <Download className="h-5 w-5" />
+  )}
+</button>
                   </div>
                 </div>
               </div>

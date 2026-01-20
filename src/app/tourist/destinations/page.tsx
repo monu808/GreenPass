@@ -24,6 +24,8 @@ import {
   isValidEcologicalSensitivity, 
 } from '@/lib/typeGuards';
 import { Destination, DynamicCapacityResult } from '@/types';
+import { sanitizeSearchTerm } from '@/lib/utils';
+import { validateInput, SearchFilterSchema } from '@/lib/validation';
 
 export default function TouristDestinations() {
   // 1. STATE MANAGEMENT
@@ -77,12 +79,20 @@ export default function TouristDestinations() {
 
   // 3. FILTERING ENGINE (Using Policy Engine for dynamic capacity)
   const filterData = useCallback((): void => {
+    const sanitizedSearch = sanitizeSearchTerm(searchTerm);
+    
+    const filterValidation = validateInput(SearchFilterSchema, {
+      searchTerm: sanitizedSearch,
+    });
+
+    const validFilters = filterValidation.success ? filterValidation.data : { searchTerm: "" };
+    
     let result = [...destinations];
 
-    if (searchTerm) {
+    if (validFilters.searchTerm) {
       result = result.filter(d => 
-        d.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        d.location.toLowerCase().includes(searchTerm.toLowerCase())
+        d.name.toLowerCase().includes(validFilters.searchTerm!.toLowerCase()) ||
+        d.location.toLowerCase().includes(validFilters.searchTerm!.toLowerCase())
       );
     }
 

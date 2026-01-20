@@ -16,6 +16,8 @@ import {
 } from 'lucide-react';
 import { getDbService } from '@/lib/databaseService';
 import { Tourist } from '@/types';
+import { sanitizeSearchTerm } from '@/lib/utils';
+import { validateInput, SearchFilterSchema } from '@/lib/validation';
 
 export default function TouristManagement() {
   const [tourists, setTourists] = useState<Tourist[]>([]);
@@ -54,10 +56,21 @@ export default function TouristManagement() {
   };
 
   const filteredTourists = tourists.filter(tourist => {
-    const matchesSearch = tourist.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         tourist.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         tourist.phone.includes(searchTerm);
-    const matchesStatus = statusFilter === 'all' || tourist.status === statusFilter;
+    const sanitizedSearch = sanitizeSearchTerm(searchTerm);
+    
+    const filterValidation = validateInput(SearchFilterSchema, {
+      searchTerm: sanitizedSearch,
+      status: statusFilter === 'all' ? undefined : statusFilter,
+    });
+
+    const validFilters = filterValidation.success ? filterValidation.data : { searchTerm: '', status: undefined };
+
+    const matchesSearch = 
+      tourist.name.toLowerCase().includes(validFilters.searchTerm?.toLowerCase() || '') ||
+      tourist.email.toLowerCase().includes(validFilters.searchTerm?.toLowerCase() || '') ||
+      tourist.phone.includes(validFilters.searchTerm || '');
+                         
+    const matchesStatus = statusFilter === 'all' || tourist.status === validFilters.status;
     return matchesSearch && matchesStatus;
   });
 

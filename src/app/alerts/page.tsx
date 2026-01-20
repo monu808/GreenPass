@@ -23,6 +23,8 @@ import { getDbService } from "@/lib/databaseService";
 import { weatherMonitoringService } from "@/lib/weatherMonitoringService";
 import { Alert, Destination, WeatherCheckResult } from "@/types";
 import { Database } from "@/types/database";
+import { sanitizeSearchTerm } from "@/lib/utils";
+import { validateInput, AlertFilterSchema } from "@/lib/validation";
 
 type DbDestination = Database["public"]["Tables"]["destinations"]["Row"];
 
@@ -176,12 +178,25 @@ export default function AlertsPage() {
   };
 
   const filteredAlerts = alerts.filter((alert) => {
+    const sanitizedSearch = sanitizeSearchTerm(searchTerm);
+    
+    const filterValidation = validateInput(AlertFilterSchema, {
+      searchTerm: sanitizedSearch,
+      type: typeFilter === "all" ? undefined : typeFilter as any,
+      severity: severityFilter === "all" ? undefined : severityFilter as any,
+    });
+
+    const validFilters = filterValidation.success 
+      ? filterValidation.data 
+      : { searchTerm: "", type: undefined, severity: undefined };
+
     const matchesSearch =
-      alert.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      alert.message.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesType = typeFilter === "all" || alert.type === typeFilter;
+      alert.title.toLowerCase().includes(validFilters.searchTerm?.toLowerCase() || "") ||
+      alert.message.toLowerCase().includes(validFilters.searchTerm?.toLowerCase() || "");
+    
+    const matchesType = typeFilter === "all" || alert.type === validFilters.type;
     const matchesSeverity =
-      severityFilter === "all" || alert.severity === severityFilter;
+      severityFilter === "all" || alert.severity === validFilters.severity;
     const matchesActive =
       activeFilter === "all" ||
       (activeFilter === "active" && alert.isActive) ||

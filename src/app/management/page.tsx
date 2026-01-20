@@ -21,7 +21,15 @@ import {
 import { getDbService } from "@/lib/databaseService";
 import { Tourist, Destination } from "@/types";
 import { Database } from "@/types/database";
-import { formatDateTime } from "@/lib/utils";
+import { 
+  formatDateTime,
+  sanitizeSearchTerm,
+  sanitizeInput 
+} from "@/lib/utils";
+import { 
+  validateInput, 
+  SearchFilterSchema 
+} from "@/lib/validation";
 
 type DbDestination = Database["public"]["Tables"]["destinations"]["Row"];
 
@@ -129,197 +137,40 @@ export default function TouristBookingManagement() {
     }
   };
 
-  const handlePrintReceipt = () => {
-    const printContent = `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <title>Booking Receipt</title>
-        <style>
-          body {
-            font-family: Arial, sans-serif;
-            margin: 20px;
-            color: black;
-            background: white;
-          }
-          .header {
-            text-align: center;
-            margin-bottom: 30px;
-            border-bottom: 2px solid #333;
-            padding-bottom: 15px;
-          }
-          .title {
-            font-size: 24px;
-            font-weight: bold;
-            margin-bottom: 5px;
-          }
-          .subtitle {
-            font-size: 14px;
-            color: #666;
-            margin-bottom: 10px;
-          }
-          .receipt-title {
-            font-size: 18px;
-            font-weight: bold;
-            color: #2563eb;
-            margin: 10px 0;
-          }
-          .section {
-            margin-bottom: 25px;
-          }
-          .section-title {
-            font-size: 16px;
-            font-weight: bold;
-            margin-bottom: 15px;
-            border-bottom: 1px solid #ccc;
-            padding-bottom: 5px;
-          }
-          .info-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 15px;
-          }
-          .info-item {
-            margin-bottom: 10px;
-          }
-          .label {
-            font-weight: bold;
-            font-size: 12px;
-            color: #555;
-          }
-          .value {
-            font-size: 14px;
-            margin-top: 2px;
-          }
-          .footer {
-            margin-top: 30px;
-            padding-top: 15px;
-            border-top: 2px solid #333;
-            text-align: center;
-            font-size: 12px;
-            color: #666;
-          }
-          .status-info {
-            display: flex;
-            justify-content: space-between;
-            margin-top: 15px;
-            font-weight: bold;
-          }
-        </style>
-      </head>
-      <body>
-        <div class="header">
-          <div class="title">Tourist Management System</div>
-          <div class="subtitle">Jammu and Himachal Pradesh Tourism</div>
-          <div class="receipt-title">BOOKING RECEIPT</div>
-          <div class="subtitle">Booking ID: TMS-${selectedTourist?.id
-            .slice(0, 8)
-            .toUpperCase()}</div>
-          <div class="subtitle">Generated on: ${new Date().toLocaleDateString()} at ${new Date().toLocaleTimeString()}</div>
-        </div>
-        
-        <div class="section">
-          <div class="section-title">Personal Information</div>
-          <div class="info-grid">
-            <div class="info-item">
-              <div class="label">Name</div>
-              <div class="value">${selectedTourist?.name}</div>
-            </div>
-            <div class="info-item">
-              <div class="label">Email</div>
-              <div class="value">${selectedTourist?.email}</div>
-            </div>
-            <div class="info-item">
-              <div class="label">Phone</div>
-              <div class="value">${selectedTourist?.phone}</div>
-            </div>
-            <div class="info-item">
-              <div class="label">ID Proof</div>
-              <div class="value">${selectedTourist?.idProof}</div>
-            </div>
-            <div class="info-item">
-              <div class="label">Nationality</div>
-              <div class="value">${selectedTourist?.nationality}</div>
-            </div>
-            <div class="info-item">
-              <div class="label">Group Size</div>
-              <div class="value">${selectedTourist?.groupSize}</div>
-            </div>
-          </div>
-        </div>
-        
-        <div class="section">
-          <div class="section-title">Travel Information</div>
-          <div class="info-grid">
-            <div class="info-item">
-              <div class="label">Destination</div>
-              <div class="value">${getDestinationName(
-                selectedTourist?.destination || ""
-              )}</div>
-            </div>
-            <div class="info-item">
-              <div class="label">Status</div>
-              <div className="value">{selectedTourist?.status ? selectedTourist.status.charAt(0).toUpperCase() + selectedTourist.status.slice(1) : 'N/A'}</div>
-            </div>
-            <div class="info-item">
-              <div class="label">Check-in Date</div>
-              <div class="value">${new Date(
-                selectedTourist?.checkInDate || ""
-              ).toLocaleDateString()}</div>
-            </div>
-            <div class="info-item">
-              <div class="label">Check-out Date</div>
-              <div class="value">${new Date(
-                selectedTourist?.checkOutDate || ""
-              ).toLocaleDateString()}</div>
-            </div>
-          </div>
-        </div>
-        
-        <div class="section">
-          <div class="section-title">Emergency Contact</div>
-          <div class="info-grid">
-            <div class="info-item">
-              <div class="label">Contact Name</div>
-              <div class="value">${selectedTourist?.emergencyContact.name}</div>
-            </div>
-            <div class="info-item">
-              <div class="label">Contact Phone</div>
-              <div class="value">${
-                selectedTourist?.emergencyContact.phone
-              }</div>
-            </div>
-            <div class="info-item">
-              <div class="label">Relationship</div>
-              <div class="value">${
-                selectedTourist?.emergencyContact.relationship
-              }</div>
-            </div>
-          </div>
-        </div>
-        
-        <div class="footer">
-          <div>This is an official booking receipt issued by the Tourist Management System</div>
-          <div>For inquiries, contact: support@tms-india.gov.in | +91-180-2500100</div>
-          <div>Government of India | Ministry of Tourism</div>
-          <div class="status-info">
-            <span>Status: ${selectedTourist?.status.toUpperCase()}</span>
-            <span>Valid until: ${new Date(
-              selectedTourist?.checkOutDate || ""
-            ).toLocaleDateString()}</span>
-          </div>
-        </div>
-      </body>
-      </html>
-    `;
+  const handlePrintReceipt = async () => {
+    if (!selectedTourist) return;
 
-    const printWindow = window.open("", "_blank");
-    if (printWindow) {
-      printWindow.document.write(printContent);
-      printWindow.document.close();
-      printWindow.focus();
-      printWindow.print();
-      printWindow.close();
+    try {
+      const response = await fetch("/api/print-receipt", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          tourist: selectedTourist,
+          destinationName: getDestinationName(selectedTourist.destination || ""),
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to generate receipt");
+      }
+
+      const printContent = await response.text();
+
+      const printWindow = window.open("", "_blank");
+      if (printWindow) {
+        printWindow.document.write(printContent);
+        printWindow.document.close();
+        printWindow.focus();
+        setTimeout(() => {
+          printWindow.print();
+          printWindow.close();
+        }, 500);
+      }
+    } catch (error) {
+      console.error("Error printing receipt:", error);
+      alert("Failed to generate print receipt. Please try again.");
     }
   };
 
@@ -362,16 +213,29 @@ export default function TouristBookingManagement() {
     }
   };
 
+  const sanitizedSearch = sanitizeSearchTerm(searchTerm);
+  
+  const filterValidation = validateInput(SearchFilterSchema, {
+    searchTerm: sanitizedSearch,
+    status: statusFilter === "all" ? undefined : statusFilter as any,
+    destinationId: destinationFilter === "all" ? undefined : destinationFilter,
+  });
+
+  const validFilters = filterValidation.success ? filterValidation.data : { 
+    searchTerm: sanitizedSearch, 
+    status: statusFilter === "all" ? undefined : statusFilter as any, 
+    destinationId: destinationFilter === "all" ? undefined : destinationFilter 
+  };
+
   const filteredTourists = tourists.filter((tourist) => {
     const matchesSearch =
-      tourist.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      tourist.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      tourist.phone.includes(searchTerm);
+      tourist.name.toLowerCase().includes(validFilters.searchTerm?.toLowerCase() || "") ||
+      tourist.email.toLowerCase().includes(validFilters.searchTerm?.toLowerCase() || "") ||
+      tourist.phone.includes(validFilters.searchTerm || "");
     const matchesStatus =
-      statusFilter === "all" || tourist.status === statusFilter;
+      statusFilter === "all" || tourist.status === validFilters.status;
     const matchesDestination =
-      destinationFilter === "all" || tourist.destination === destinationFilter;
-
+      destinationFilter === "all" || tourist.destination === validFilters.destinationId;
     return matchesSearch && matchesStatus && matchesDestination;
   });
 

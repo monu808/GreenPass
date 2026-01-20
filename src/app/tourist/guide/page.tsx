@@ -2,6 +2,8 @@
 
 import React, { useState } from 'react';
 import TouristLayout from '@/components/TouristLayout';
+import { sanitizeSearchTerm } from '@/lib/utils';
+import { validateInput, SearchFilterSchema } from '@/lib/validation';
 import { 
   MapPin, 
   Clock, 
@@ -124,10 +126,17 @@ export default function TravelGuide() {
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {destinations
-              .filter(dest => 
-                (selectedRegion === 'all' || dest.region === selectedRegion) &&
-                dest.name.toLowerCase().includes(searchTerm.toLowerCase())
-              )
+              .filter(dest => {
+                const sanitizedSearch = sanitizeSearchTerm(searchTerm);
+                const filterValidation = validateInput(SearchFilterSchema, {
+                  searchTerm: sanitizedSearch,
+                });
+                const validFilters = filterValidation.success ? filterValidation.data : { searchTerm: "" };
+                const matchesSearch = dest.name.toLowerCase().includes(validFilters.searchTerm?.toLowerCase() || "") ||
+                                     dest.region.toLowerCase().includes(validFilters.searchTerm?.toLowerCase() || "");
+                const matchesRegion = selectedRegion === 'all' || dest.region === selectedRegion;
+                return matchesSearch && matchesRegion;
+              })
               .map((destination) => (
               <div key={destination.id} className="bg-gray-50 rounded-lg p-4 border border-gray-200 hover:border-blue-300 transition-colors">
                 <div className="h-32 bg-gray-200 rounded-lg mb-3" />

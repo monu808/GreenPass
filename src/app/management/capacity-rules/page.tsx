@@ -24,6 +24,8 @@ import { formatDateTime } from "@/lib/utils";
 import { Destination, AdjustmentLog, DynamicCapacityResult } from "@/types";
 import { format } from "date-fns";
 import { Database } from "@/types/database";
+import { sanitizeSearchTerm, sanitizeObject, sanitizeForDatabase } from "@/lib/utils";
+import { validateInput, SearchFilterSchema } from "@/lib/validation";
 
 type DbDestination = Database['public']['Tables']['destinations']['Row'];
 
@@ -100,12 +102,17 @@ export default function CapacityRulesPage() {
     setOverrideError(null);
 
     try {
+      const sanitizedForm = {
+        ...overrideForm,
+        reason: sanitizeForDatabase(overrideForm.reason)
+      };
+
       const policyEngine = getPolicyEngine();
       policyEngine.setCapacityOverride({
-        destinationId: overrideForm.destinationId,
-        multiplier: overrideForm.multiplier,
-        reason: overrideForm.reason,
-        expiresAt: new Date(overrideForm.expiresAt),
+        destinationId: sanitizedForm.destinationId,
+        multiplier: sanitizedForm.multiplier,
+        reason: sanitizedForm.reason,
+        expiresAt: new Date(sanitizedForm.expiresAt),
         active: true,
       });
 
@@ -140,10 +147,20 @@ export default function CapacityRulesPage() {
     }
   };
 
-  const filteredHistory = history.filter(log => 
-    log.destinationId.toLowerCase().includes(historySearch.toLowerCase()) ||
-    log.reason.toLowerCase().includes(historySearch.toLowerCase())
-  );
+  const filteredHistory = history.filter(log => {
+    const sanitizedSearch = sanitizeSearchTerm(historySearch);
+    
+    const filterValidation = validateInput(SearchFilterSchema, {
+      searchTerm: sanitizedSearch,
+    });
+
+    const validFilters = filterValidation.success ? filterValidation.data : { searchTerm: "" };
+    const searchTerm = validFilters.searchTerm?.toLowerCase() || "";
+
+    const destinationName = destinations.find(d => d.id === log.destinationId)?.name || "";
+    return destinationName.toLowerCase().includes(searchTerm) ||
+           log.reason.toLowerCase().includes(searchTerm);
+  });
 
   return (
     <Layout requireAdmin={true}>

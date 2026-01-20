@@ -42,7 +42,8 @@ import {
   Cell,
 } from "recharts";
 import { format, subDays, eachDayOfInterval } from "date-fns";
-import { cn } from "@/lib/utils";
+import { cn, sanitizeSearchTerm, sanitizeObject, sanitizeForDatabase } from "@/lib/utils";
+import { validateInput, SearchFilterSchema } from "@/lib/validation";
 import { Database } from "@/types/database";
 
 type DbDestination = Database['public']['Tables']['destinations']['Row'];
@@ -426,9 +427,18 @@ function WasteCollectionTab({ destinations, records, onRefresh }: {
   const [filterDestination, setFilterDestination] = useState("all");
 
   const filteredRecords = records.filter(r => {
+    const sanitizedSearch = sanitizeSearchTerm(searchTerm);
+    
+    const filterValidation = validateInput(SearchFilterSchema, {
+      searchTerm: sanitizedSearch,
+    });
+
+    const validFilters = filterValidation.success ? filterValidation.data : { searchTerm: "" };
+    const term = validFilters.searchTerm?.toLowerCase() || "";
+
     const destName = destinations.find(d => d.id === r.destinationId)?.name || "";
-    const matchesSearch = destName.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                         r.wasteType.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesSearch = destName.toLowerCase().includes(term) || 
+                         r.wasteType.toLowerCase().includes(term);
     const matchesDest = filterDestination === "all" || r.destinationId === filterDestination;
     return matchesSearch && matchesDest;
   });
@@ -561,13 +571,18 @@ function WasteLogModal({ destinations, onClose, onSuccess }: {
     e.preventDefault();
     setSubmitting(true);
     try {
+      const sanitizedForm = {
+        ...formData,
+        unit: sanitizeForDatabase(formData.unit)
+      };
+
       const dbService = getDbService();
       await dbService.addWasteData({
-        destination_id: formData.destination_id,
-        waste_type: formData.waste_type,
-        quantity: parseFloat(formData.quantity),
-        unit: formData.unit,
-        collected_at: new Date(formData.collected_at).toISOString()
+        destination_id: sanitizedForm.destination_id,
+        waste_type: sanitizedForm.waste_type,
+        quantity: parseFloat(sanitizedForm.quantity),
+        unit: sanitizedForm.unit,
+        collected_at: new Date(sanitizedForm.collected_at).toISOString()
       });
       onSuccess();
     } catch (error) {
@@ -799,21 +814,28 @@ function CleanupActivityModal({ destinations, onClose, onSuccess }: {
     e.preventDefault();
     setSubmitting(true);
     try {
+      const sanitizedForm = {
+        ...formData,
+        title: sanitizeForDatabase(formData.title),
+        description: sanitizeForDatabase(formData.description),
+        location: sanitizeForDatabase(formData.location)
+      };
+
       const dbService = getDbService();
       await dbService.createCleanupActivity({
-        destination_id: formData.destination_id,
-        title: formData.title,
-        description: formData.description,
-        location: formData.location,
-        start_time: new Date(formData.start_time).toISOString(),
-        end_time: new Date(formData.end_time).toISOString(),
-        max_participants: parseInt(formData.max_participants),
-        eco_points_reward: parseInt(formData.eco_points_reward),
+        destination_id: sanitizedForm.destination_id,
+        title: sanitizedForm.title,
+        description: sanitizedForm.description,
+        location: sanitizedForm.location,
+        start_time: new Date(sanitizedForm.start_time).toISOString(),
+        end_time: new Date(sanitizedForm.end_time).toISOString(),
+        max_participants: parseInt(sanitizedForm.max_participants),
+        eco_points_reward: parseInt(sanitizedForm.eco_points_reward),
         status: 'upcoming'
       });
       onSuccess();
     } catch (error) {
-      console.error("Error creating activity:", error);
+      console.error("Error creating cleanup activity:", error);
     } finally {
       setSubmitting(false);
     }

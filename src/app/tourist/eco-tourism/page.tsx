@@ -35,6 +35,8 @@ import {
 } from '@/lib/sustainabilityScoring';
 import { destinations as allDestinations } from '@/data/mockData';
 import { Destination, EcoImpactCategory } from '@/types';
+import { sanitizeSearchTerm } from '@/lib/utils';
+import { validateInput, SearchFilterSchema } from '@/lib/validation';
 
 interface EcoInitiative {
   id: string;
@@ -90,10 +92,18 @@ export default function EcoTourism() {
   const destinationTypes = Array.from(new Set(allDestinations.map(dest => dest.ecologicalSensitivity)));
 
   const filteredDestinations = useMemo(() => {
+    const sanitizedSearch = sanitizeSearchTerm(searchTerm);
+    
+    const filterValidation = validateInput(SearchFilterSchema, {
+      searchTerm: sanitizedSearch,
+    });
+
+    const validFilters = filterValidation.success ? filterValidation.data : { searchTerm: "" };
+
     return allDestinations
       .filter(dest => {
-        const matchesSearch = dest.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                             dest.location.toLowerCase().includes(searchTerm.toLowerCase());
+        const matchesSearch = dest.name.toLowerCase().includes(validFilters.searchTerm?.toLowerCase() || "") ||
+                             dest.location.toLowerCase().includes(validFilters.searchTerm?.toLowerCase() || "");
         
         const score = calculateSustainabilityScore(dest);
         const matchesRating = selectedRating === 'all' || (score.overallScore / 20) >= parseFloat(selectedRating);

@@ -1008,16 +1008,23 @@ function BookDestinationForm() {
               Cancel
             </button>
             <button
-              type="submit"
-              disabled={submitting || !eligibility.allowed}
-              className={`px-12 py-4 rounded-xl font-bold text-white shadow-lg transition-all transform active:scale-95 ${
-                submitting || !eligibility.allowed
-                  ? 'bg-gray-400 cursor-not-allowed'
-                  : 'bg-green-600 hover:bg-green-700 shadow-green-200'
-              }`}
-            >
-              {submitting ? 'Processing...' : 'Confirm Booking'}
-            </button>
+  type="submit"
+  disabled={submitting || !eligibility.allowed}
+  className={`w-full py-4 rounded-xl font-bold text-lg transition-all shadow-lg hover:shadow-xl
+    ${submitting || !eligibility.allowed
+      ? 'bg-gray-400 cursor-not-allowed' 
+      : 'bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white'
+    }`}
+>
+  {submitting ? (
+    <span className="flex items-center justify-center gap-2">
+      <RefreshCw className="h-5 w-5 animate-spin" />
+      Processing...
+    </span>
+  ) : (
+    'Confirm Booking'
+  )}
+</button>
           </div>
         </form>
       </div>

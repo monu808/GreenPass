@@ -271,110 +271,110 @@ export default function TouristDashboard() {
                           </div>
                         )}
                       </div>
-
-                      {/* Eco-Friendly Alternatives Section */}
-                      {(() => {
-                        const adjCap = adjustedCapacities[dest.id] ?? dest.maxCapacity;
-                        const occupancyRate = adjCap === 0 ? 0 : dest.currentOccupancy / adjCap;
-                        const isHighImpact = occupancyRate >= 0.7;
-
-                        if (!isHighImpact) return null;
-
-                        const alternatives = getEcoFriendlyAlternatives(dest, destinations, adjustedCapacities);
-                        if (alternatives.length === 0) return null;
-
-                        return (
-                          <div className="bg-emerald-50/50 rounded-[2rem] p-6 border border-emerald-100 animate-in slide-in-from-bottom-4 duration-500">
-                            <div className="flex items-center gap-2 mb-4">
-                              <Leaf className="h-4 w-4 text-emerald-600" />
-                              <h4 className="text-[10px] font-black text-emerald-900 uppercase tracking-widest">Eco-Friendly Alternatives</h4>
-                            </div>
-                            <p className="text-[11px] text-emerald-800/70 font-bold mb-4">Consider these lower-impact alternatives to reduce ecological pressure on {dest.name}:</p>
-                            <div className="grid grid-cols-1 gap-3">
-                              {alternatives.map(alt => (
-                                <button
-                                  key={alt.id}
-                                  onClick={() => handleNavigation(`/tourist/destinations?search=${alt.name}`)}
-                                  className="bg-white p-4 rounded-2xl border border-emerald-100 flex items-center justify-between group hover:border-emerald-300 hover:shadow-md transition-all text-left"
-                                >
-                                  <div className="space-y-1">
-                                    <h5 className="text-sm font-black text-gray-900 group-hover:text-emerald-600 transition-colors">{alt.name}</h5>
-                                    <div className="flex items-center gap-3">
-                                      <EcoSensitivityBadge level={alt.ecologicalSensitivity} className="scale-75 origin-left" />
-                                      <span className="text-[9px] font-bold text-gray-400 uppercase">
-                                        {alt.currentOccupancy} / {adjustedCapacities[alt.id] ?? alt.maxCapacity} active
-                                      </span>
-                                    </div>
-                                  </div>
-                                  <ArrowRight className="h-4 w-4 text-emerald-400 group-hover:translate-x-1 transition-transform" />
-                                </button>
-                              ))}
-                            </div>
-                          </div>
-                        );
-                      })()}
                     </div>
-                    );
-            })}
-                  </div>
-        </div>
+                    {/* Eco-Friendly Alternatives Section */}
+                    {(() => {
+                      const adjCap = adjustedCapacities[dest.id] ?? dest.maxCapacity;
+                      const occupancyRate = adjCap === 0 ? 0 : dest.currentOccupancy / adjCap;
+                      const isHighImpact = occupancyRate >= 0.7;
 
-            {/* METRIC STATS ROW */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
-              {[
-                { title: "Destinations", value: destinations.length, icon: MapPin, color: "bg-emerald-500", sub: "Available locations" },
-                { title: "Bookings", value: "12", icon: Calendar, color: "bg-blue-500", sub: "Current trips" },
-                { title: "Score", value: "4.8", icon: Star, color: "bg-amber-500", sub: "Average rating" },
-                { title: "Adventures", value: "24", icon: Award, color: "bg-purple-500", sub: "Completed" }
-              ].map((stat, i) => (
-                <div key={i} className="bg-white rounded-[2.5rem] p-8 shadow-sm border border-gray-100 flex items-center justify-between">
-                  <div>
-                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{stat.title}</p>
-                    <p className="text-4xl font-black text-gray-900 tracking-tighter">{stat.value}</p>
-                    <p className="text-[10px] font-bold text-gray-400">{stat.sub}</p>
+                      if (!isHighImpact) return null;
+
+                      const alternatives = getEcoFriendlyAlternatives(dest, destinations, adjustedCapacities);
+                      if (alternatives.length === 0) return null;
+
+                      return (
+                        <div className="bg-emerald-50/50 rounded-[2rem] p-6 border border-emerald-100 animate-in slide-in-from-bottom-4 duration-500">
+                          <div className="flex items-center gap-2 mb-4">
+                            <Leaf className="h-4 w-4 text-emerald-600" />
+                            <h4 className="text-[10px] font-black text-emerald-900 uppercase tracking-widest">Eco-Friendly Alternatives</h4>
+                          </div>
+                          <p className="text-[11px] text-emerald-800/70 font-bold mb-4">Consider these lower-impact alternatives to reduce ecological pressure on {dest.name}:</p>
+                          <div className="grid grid-cols-1 gap-3">
+                            {alternatives.map(alt => (
+                              <button
+                                key={alt.id}
+                                onClick={() => handleNavigation(`/tourist/destinations?search=${alt.name}`)}
+                                className="bg-white p-4 rounded-2xl border border-emerald-100 flex items-center justify-between group hover:border-emerald-300 hover:shadow-md transition-all text-left"
+                              >
+                                <div className="space-y-1">
+                                  <h5 className="text-sm font-black text-gray-900 group-hover:text-emerald-600 transition-colors">{alt.name}</h5>
+                                  <div className="flex items-center gap-3">
+                                    <EcoSensitivityBadge level={alt.ecologicalSensitivity} className="scale-75 origin-left" />
+                                    <span className="text-[9px] font-bold text-gray-400 uppercase">
+                                      {alt.currentOccupancy} / {adjustedCapacities[alt.id] ?? alt.maxCapacity} active
+                                    </span>
+                                  </div>
+                                </div>
+                                <ArrowRight className="h-4 w-4 text-emerald-400 group-hover:translate-x-1 transition-transform" />
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    })()}
                   </div>
-                  <div className={`w-14 h-14 rounded-2xl flex items-center justify-center text-white ${stat.color}`}>
-                    <stat.icon className="h-7 w-7" />
-                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* METRIC STATS ROW */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
+            {[
+              { title: "Destinations", value: destinations.length, icon: MapPin, color: "bg-emerald-500", sub: "Available locations" },
+              { title: "Bookings", value: "12", icon: Calendar, color: "bg-blue-500", sub: "Current trips" },
+              { title: "Score", value: "4.8", icon: Star, color: "bg-amber-500", sub: "Average rating" },
+              { title: "Adventures", value: "24", icon: Award, color: "bg-purple-500", sub: "Completed" }
+            ].map((stat, i) => (
+              <div key={i} className="bg-white rounded-[2.5rem] p-8 shadow-sm border border-gray-100 flex items-center justify-between">
+                <div>
+                  <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{stat.title}</p>
+                  <p className="text-4xl font-black text-gray-900 tracking-tighter">{stat.value}</p>
+                  <p className="text-[10px] font-bold text-gray-400">{stat.sub}</p>
                 </div>
+                <div className={`w-14 h-14 rounded-2xl flex items-center justify-center text-white ${stat.color}`}>
+                  <stat.icon className="h-7 w-7" />
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* QUICK ACTIONS ROW */}
+          <div className="bg-white rounded-[4rem] p-12 sm:p-20 border border-gray-100 text-center relative overflow-hidden">
+            <Leaf className="absolute -top-10 -right-10 h-64 w-64 text-emerald-50 rotate-12" />
+            <div className="mb-16 space-y-4 relative z-10">
+              <h2 className="text-4xl sm:text-5xl font-black text-gray-900 tracking-tighter">What We Offer</h2>
+              <p className="text-gray-400 font-bold text-lg max-w-2xl mx-auto">Providing the best destination services in the world with sustainable management.</p>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 relative z-10">
+              {[
+                { id: 'plan', title: 'Plan Trip', desc: 'Create custom itineraries', icon: Compass, link: '/tourist/plan' },
+                { id: 'gallery', title: 'Gallery', desc: 'Browse stunning photos', icon: Camera, link: '/tourist/gallery' },
+                { id: 'activities', title: 'Adventures', desc: 'Find thrilling sports', icon: TrendingUp, link: '/tourist/activities' },
+                { id: 'bookings', title: 'My Trips', desc: 'Manage your history', icon: Users, link: '/tourist/bookings' }
+              ].map((action) => (
+                <button
+                  key={action.id}
+                  type="button"
+                  onClick={() => handleNavigation(action.link)}
+                  className="bg-white p-10 rounded-[3rem] border border-gray-100 hover:border-emerald-200 hover:shadow-2xl transition-all group text-left active:scale-95"
+                >
+                  <div className="w-16 h-16 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center mb-8 group-hover:scale-110 transition-transform">
+                    <action.icon className="h-8 w-8" />
+                  </div>
+                  <h3 className="font-black text-gray-900 text-xl mb-3 tracking-tight">{action.title}</h3>
+                  <p className="text-gray-500 text-xs font-bold leading-relaxed">{action.desc}</p>
+                  <div className="mt-6 flex items-center text-emerald-600 font-black text-[9px] uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-opacity">
+                    Let's Go <ArrowRight className="h-3 w-3 ml-2" />
+                  </div>
+                </button>
               ))}
             </div>
-
-            {/* QUICK ACTIONS ROW */}
-            <div className="bg-white rounded-[4rem] p-12 sm:p-20 border border-gray-100 text-center relative overflow-hidden">
-              <Leaf className="absolute -top-10 -right-10 h-64 w-64 text-emerald-50 rotate-12" />
-              <div className="mb-16 space-y-4 relative z-10">
-                <h2 className="text-4xl sm:text-5xl font-black text-gray-900 tracking-tighter">What We Offer</h2>
-                <p className="text-gray-400 font-bold text-lg max-w-2xl mx-auto">Providing the best destination services in the world with sustainable management.</p>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 relative z-10">
-                {[
-                  { id: 'plan', title: 'Plan Trip', desc: 'Create custom itineraries', icon: Compass, link: '/tourist/plan' },
-                  { id: 'gallery', title: 'Gallery', desc: 'Browse stunning photos', icon: Camera, link: '/tourist/gallery' },
-                  { id: 'activities', title: 'Adventures', desc: 'Find thrilling sports', icon: TrendingUp, link: '/tourist/activities' },
-                  { id: 'bookings', title: 'My Trips', desc: 'Manage your history', icon: Users, link: '/tourist/bookings' }
-                ].map((action) => (
-                  <button
-                    key={action.id}
-                    type="button"
-                    onClick={() => handleNavigation(action.link)}
-                    className="bg-white p-10 rounded-[3rem] border border-gray-100 hover:border-emerald-200 hover:shadow-2xl transition-all group text-left active:scale-95"
-                  >
-                    <div className="w-16 h-16 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center mb-8 group-hover:scale-110 transition-transform">
-                      <action.icon className="h-8 w-8" />
-                    </div>
-                    <h3 className="font-black text-gray-900 text-xl mb-3 tracking-tight">{action.title}</h3>
-                    <p className="text-gray-500 text-xs font-bold leading-relaxed">{action.desc}</p>
-                    <div className="mt-6 flex items-center text-emerald-600 font-black text-[9px] uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-opacity">
-                      Let's Go <ArrowRight className="h-3 w-3 ml-2" />
-                    </div>
-                  </button>
-                ))}
-              </div>
-            </div>
-
           </div>
+
+        </div>
       </TouristLayout>
     </ProtectedRoute>
   );

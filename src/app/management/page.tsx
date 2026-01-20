@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
 import Layout from "@/components/Layout";
 import {
   Users,
@@ -138,12 +139,11 @@ export default function TouristBookingManagement() {
   };
 
   const handlePrintReceipt = () => {
-    const printContent = `
-      <!DOCTYPE html>
-      <html>
+    const printContent = "<!DOCTYPE html>" + renderToStaticMarkup(
+      <html lang="en">
       <head>
         <title>Booking Receipt</title>
-        <style>
+        <style dangerouslySetInnerHTML={{ __html: `
           body {
             font-family: Arial, sans-serif;
             margin: 20px;
@@ -213,111 +213,115 @@ export default function TouristBookingManagement() {
             margin-top: 15px;
             font-weight: bold;
           }
-        </style>
+        ` }} />
       </head>
       <body>
-        <div class="header">
-          <div class="title">Tourist Management System</div>
-          <div class="subtitle">Tourism Management System - India</div>
-          <div class="receipt-title">BOOKING CONFIRMATION</div>
-          <div class="subtitle">Reference: ${sanitizeInput(selectedTourist?.id)}</div>
-          <div class="subtitle">Generated on: ${new Date().toLocaleDateString()} at ${new Date().toLocaleTimeString()}</div>
+        <div className="header">
+          <div className="title">Tourist Management System</div>
+          <div className="subtitle">Tourism Management System - India</div>
+          <div className="receipt-title">BOOKING CONFIRMATION</div>
+          <div className="subtitle">Reference: {sanitizeInput(selectedTourist?.id)}</div>
+          <div className="subtitle">Generated on: {new Date().toLocaleDateString()} at {new Date().toLocaleTimeString()}</div>
         </div>
         
-        <div class="section">
-          <div class="section-title">Visitor Information</div>
-          <div class="info-grid">
-            <div class="info-item">
-              <div class="label">Full Name</div>
-              <div class="value">${sanitizeInput(selectedTourist?.name)}</div>
+        <div className="section">
+          <div className="section-title">Visitor Information</div>
+          <div className="info-grid">
+            <div className="info-item">
+              <div className="label">Full Name</div>
+              <div className="value">{sanitizeInput(selectedTourist?.name)}</div>
             </div>
-            <div class="info-item">
-              <div class="label">Email Address</div>
-              <div class="value">${sanitizeInput(selectedTourist?.email)}</div>
+            <div className="info-item">
+              <div className="label">Email Address</div>
+              <div className="value">{sanitizeInput(selectedTourist?.email)}</div>
             </div>
-            <div class="info-item">
-              <div class="label">Phone Number</div>
-              <div class="value">${sanitizeInput(selectedTourist?.phone)}</div>
+            <div className="info-item">
+              <div className="label">Phone Number</div>
+              <div className="value">{sanitizeInput(selectedTourist?.phone)}</div>
             </div>
-            <div class="info-item">
-              <div class="label">ID Proof</div>
-              <div class="value">${sanitizeInput(selectedTourist?.idProof)}</div>
+            <div className="info-item">
+              <div className="label">ID Proof</div>
+              <div className="value">{sanitizeInput(selectedTourist?.idProof)}</div>
             </div>
-            <div class="info-item">
-              <div class="label">Nationality</div>
-              <div class="value">${sanitizeInput(selectedTourist?.nationality)}</div>
+            <div className="info-item">
+              <div className="label">Nationality</div>
+              <div className="value">{sanitizeInput(selectedTourist?.nationality)}</div>
             </div>
-            <div class="info-item">
-              <div class="label">Group Size</div>
-              <div class="value">${selectedTourist?.groupSize}</div>
+            <div className="info-item">
+              <div className="label">Group Size</div>
+              <div className="value">{selectedTourist?.groupSize}</div>
             </div>
           </div>
         </div>
         
-        <div class="section">
-          <div class="section-title">Travel Information</div>
-          <div class="info-grid">
-            <div class="info-item">
-              <div class="label">Destination</div>
-              <div class="value">${sanitizeInput(getDestinationName(
+        <div className="section">
+          <div className="section-title">Travel Information</div>
+          <div className="info-grid">
+            <div className="info-item">
+              <div className="label">Destination</div>
+              <div className="value">{sanitizeInput(getDestinationName(
                 selectedTourist?.destination || ""
               ))}</div>
             </div>
-            <div class="info-item">
-              <div class="label">Status</div>
-              <div className="value">{selectedTourist?.status ? sanitizeInput(selectedTourist.status.charAt(0).toUpperCase() + selectedTourist.status.slice(1)) : 'N/A'}</div>
+            <div className="info-item">
+              <div className="label">Status</div>
+              <div className="value">
+                {selectedTourist?.status 
+                  ? sanitizeInput(selectedTourist.status.charAt(0).toUpperCase() + selectedTourist.status.slice(1)) 
+                  : 'N/A'}
+              </div>
             </div>
-            <div class="info-item">
-              <div class="label">Check-in Date</div>
-              <div class="value">${new Date(
+            <div className="info-item">
+              <div className="label">Check-in Date</div>
+              <div className="value">{new Date(
                 selectedTourist?.checkInDate || ""
               ).toLocaleDateString()}</div>
             </div>
-            <div class="info-item">
-              <div class="label">Check-out Date</div>
-              <div class="value">${new Date(
+            <div className="info-item">
+              <div className="label">Check-out Date</div>
+              <div className="value">{new Date(
                 selectedTourist?.checkOutDate || ""
               ).toLocaleDateString()}</div>
             </div>
           </div>
         </div>
         
-        <div class="section">
-          <div class="section-title">Emergency Contact</div>
-          <div class="info-grid">
-            <div class="info-item">
-              <div class="label">Contact Name</div>
-              <div class="value">${sanitizeInput(selectedTourist?.emergencyContact.name)}</div>
+        <div className="section">
+          <div className="section-title">Emergency Contact</div>
+          <div className="info-grid">
+            <div className="info-item">
+              <div className="label">Contact Name</div>
+              <div className="value">{sanitizeInput(selectedTourist?.emergencyContact.name)}</div>
             </div>
-            <div class="info-item">
-              <div class="label">Contact Phone</div>
-              <div class="value">${sanitizeInput(
+            <div className="info-item">
+              <div className="label">Contact Phone</div>
+              <div className="value">{sanitizeInput(
                 selectedTourist?.emergencyContact.phone
               )}</div>
             </div>
-            <div class="info-item">
-              <div class="label">Relationship</div>
-              <div class="value">${sanitizeInput(
+            <div className="info-item">
+              <div className="label">Relationship</div>
+              <div className="value">{sanitizeInput(
                 selectedTourist?.emergencyContact.relationship
               )}</div>
             </div>
           </div>
         </div>
         
-        <div class="footer">
+        <div className="footer">
           <div>This is an official booking receipt issued by the Tourist Management System</div>
           <div>For inquiries, contact: support@tms-india.gov.in | +91-180-2500100</div>
           <div>Government of India | Ministry of Tourism</div>
-          <div class="status-info">
-            <span>Status: ${sanitizeInput(selectedTourist?.status.toUpperCase())}</span>
-            <span>Valid until: ${new Date(
+          <div className="status-info">
+            <span>Status: {sanitizeInput(selectedTourist?.status?.toUpperCase())}</span>
+            <span>Valid until: {new Date(
               selectedTourist?.checkOutDate || ""
             ).toLocaleDateString()}</span>
           </div>
         </div>
       </body>
       </html>
-    `;
+    );
 
     const printWindow = window.open("", "_blank");
     if (printWindow) {
@@ -368,17 +372,21 @@ export default function TouristBookingManagement() {
     }
   };
 
+  const sanitizedSearch = sanitizeSearchTerm(searchTerm);
+  
+  const filterValidation = validateInput(SearchFilterSchema, {
+    searchTerm: sanitizedSearch,
+    status: statusFilter === "all" ? undefined : statusFilter as any,
+    destinationId: destinationFilter === "all" ? undefined : destinationFilter,
+  });
+
+  const validFilters = filterValidation.success ? filterValidation.data : { 
+    searchTerm: sanitizedSearch, 
+    status: statusFilter === "all" ? undefined : statusFilter as any, 
+    destinationId: destinationFilter === "all" ? undefined : destinationFilter 
+  };
+
   const filteredTourists = tourists.filter((tourist) => {
-    const sanitizedSearch = sanitizeSearchTerm(searchTerm);
-    
-    const filterValidation = validateInput(SearchFilterSchema, {
-      searchTerm: sanitizedSearch,
-      status: statusFilter === "all" ? undefined : statusFilter as any,
-      destinationId: destinationFilter === "all" ? undefined : destinationFilter,
-    });
-
-    const validFilters = filterValidation.success ? filterValidation.data : { searchTerm: "", status: undefined, destinationId: undefined };
-
     const matchesSearch =
       tourist.name.toLowerCase().includes(validFilters.searchTerm?.toLowerCase() || "") ||
       tourist.email.toLowerCase().includes(validFilters.searchTerm?.toLowerCase() || "") ||

@@ -60,13 +60,12 @@ function LoginForm() {
 
     if (!validation.success) {
       setError(validation.errors?.email || 'Invalid email');
+      setLoading(false);
       return;
     }
 
-    const passwordSanitized = sanitizeForDatabase(password);
-
     try {
-      const { error } = await signIn(validation.data.email, passwordSanitized);
+      const { error } = await signIn(validation.data.email, password);
       
       if (error) {
         setError(error.message);
@@ -92,6 +91,7 @@ function LoginForm() {
 
     if (!validation.success) {
       setError(validation.errors?.email || 'Invalid email');
+      setLoading(false);
       return;
     }
 

@@ -47,7 +47,7 @@ export const BookingDataSchema = z.object({
     relationship: z.string().min(2),
   }),
   transportType: TransportTypeEnum,
-  originLocationId: z.string().uuid().optional().or(z.string().min(1)),
+  originLocationId: z.string().regex(/^[a-zA-Z]{2}$|^(domestic|international)$/).optional(),
 });
 
 // --- Search/Filter Inputs ---

@@ -10,7 +10,7 @@ export const UserRoleEnum = z.enum(['tourist', 'admin', 'operator']);
 
 export const AccountSchema = z.object({
   name: z.string().min(2, 'Name must be at least 2 characters').max(100),
-  email: z.string().email('Invalid email address'),
+  email: z.email('Invalid email address'),
   role: UserRoleEnum.default('tourist'),
 });
 
@@ -23,7 +23,7 @@ export const CoordinatesSchema = z.object({
 // --- Tourist Registration ---
 export const TouristRegistrationSchema = z.object({
   name: z.string().min(2, 'Name must be at least 2 characters').max(100),
-  email: z.string().email('Invalid email address'),
+  email: z.email('Invalid email address'),
   phone: z.string().regex(/^(?:\+?91)?[6-9]\d{9}$/, 'Invalid Indian mobile number'),
   age: z.number().int().min(18, 'Must be at least 18 years old').max(120),
   address: z.string().min(10, 'Address must be at least 10 characters').max(500),
@@ -54,25 +54,25 @@ export const BookingDataSchema = z.object({
 export const SearchFilterSchema = z.object({
   searchTerm: z.string().max(100).optional(),
   status: BookingStatusEnum.optional(),
-  destinationId: z.string().uuid().optional(),
+  destinationId: z.uuid().optional(),
 });
 
 export const AlertFilterSchema = z.object({
   searchTerm: z.string().max(100).optional(),
   type: AlertTypeEnum.optional(),
   severity: AlertSeverityEnum.optional(),
-  destinationId: z.string().uuid().optional(),
+  destinationId: z.uuid().optional(),
 });
 
 // --- API Inputs ---
 export const ApiInputSchema = z.object({
   coordinates: CoordinatesSchema.optional(),
-  destinationId: z.string().uuid(),
+  destinationId: z.uuid(),
 });
 
 // --- Weather API Schemas ---
 export const WeatherCheckSchema = z.object({
-  destinationId: z.string().uuid().optional(),
+  destinationId: z.uuid().optional(),
 });
 
 export const TestWeatherSchema = z.object({

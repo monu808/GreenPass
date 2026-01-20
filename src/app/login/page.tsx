@@ -55,7 +55,7 @@ function LoginForm() {
 
     const sanitizedData = sanitizeObject({ email });
     const validation = validateInput(AccountSchema.partial().extend({ 
-      email: z.string().email('Invalid email address') 
+      email: z.email('Invalid email address') 
     }), sanitizedData);
 
     if (!validation.success) {
@@ -86,7 +86,7 @@ function LoginForm() {
 
     const sanitizedData = sanitizeObject({ email });
     const validation = validateInput(AccountSchema.partial().extend({ 
-      email: z.string().email('Invalid email address') 
+      email: z.email('Invalid email address') 
     }), sanitizedData);
 
     if (!validation.success) {

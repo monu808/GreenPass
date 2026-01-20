@@ -21,7 +21,14 @@ import {
 import { getDbService } from "@/lib/databaseService";
 import { Tourist, Destination } from "@/types";
 import { Database } from "@/types/database";
-import { formatDateTime } from "@/lib/utils";
+import { 
+  formatDateTime,
+  sanitizeSearchTerm 
+} from "@/lib/utils";
+import { 
+  validateInput, 
+  SearchFilterSchema 
+} from "@/lib/validation";
 
 type DbDestination = Database["public"]["Tables"]["destinations"]["Row"];
 
@@ -363,15 +370,24 @@ export default function TouristBookingManagement() {
   };
 
   const filteredTourists = tourists.filter((tourist) => {
-    const matchesSearch =
-      tourist.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      tourist.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      tourist.phone.includes(searchTerm);
-    const matchesStatus =
-      statusFilter === "all" || tourist.status === statusFilter;
-    const matchesDestination =
-      destinationFilter === "all" || tourist.destination === destinationFilter;
+    const sanitizedSearch = sanitizeSearchTerm(searchTerm);
+    
+    const filterValidation = validateInput(SearchFilterSchema, {
+      searchTerm: sanitizedSearch,
+      status: statusFilter === "all" ? undefined : statusFilter as any,
+      destinationId: destinationFilter === "all" ? undefined : destinationFilter,
+    });
 
+    const validFilters = filterValidation.success ? filterValidation.data : { searchTerm: "", status: undefined, destinationId: undefined };
+
+    const matchesSearch =
+      tourist.name.toLowerCase().includes(validFilters.searchTerm?.toLowerCase() || "") ||
+      tourist.email.toLowerCase().includes(validFilters.searchTerm?.toLowerCase() || "") ||
+      tourist.phone.includes(validFilters.searchTerm || "");
+    const matchesStatus =
+      statusFilter === "all" || tourist.status === validFilters.status;
+    const matchesDestination =
+      destinationFilter === "all" || tourist.destination === validFilters.destinationId;
     return matchesSearch && matchesStatus && matchesDestination;
   });
 

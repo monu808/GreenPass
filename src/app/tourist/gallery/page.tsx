@@ -2,6 +2,8 @@
 
 import React, { useState, ChangeEvent } from 'react';
 import TouristLayout from '@/components/TouristLayout';
+import { sanitizeSearchTerm } from '@/lib/utils';
+import { validateInput, SearchFilterSchema } from '@/lib/validation';
 import { 
   MapPin, Download, Heart, Share2, 
   Eye, Search, Upload, X, Sparkles 
@@ -41,10 +43,18 @@ export default function PhotoGallery() {
     alert(`${type} initiated for photo ID: ${id}`);
   };
 
-  const filteredPhotos = photos.filter(p => 
-    (selectedTag === 'all' || p.tags.includes(selectedTag)) &&
-    (p.title.toLowerCase().includes(searchTerm.toLowerCase()) || p.location.toLowerCase().includes(searchTerm.toLowerCase()))
-  );
+  const filteredPhotos = photos.filter(p => {
+    const sanitizedSearch = sanitizeSearchTerm(searchTerm);
+    
+    const filterValidation = validateInput(SearchFilterSchema, {
+      searchTerm: sanitizedSearch,
+    });
+
+    const validFilters = filterValidation.success ? filterValidation.data : { searchTerm: "" };
+
+    return (selectedTag === 'all' || p.tags.includes(selectedTag)) &&
+    (p.title.toLowerCase().includes(validFilters.searchTerm?.toLowerCase() || "") || p.location.toLowerCase().includes(validFilters.searchTerm?.toLowerCase() || ""));
+  });
 
   return (
     <TouristLayout>

@@ -7,6 +7,8 @@ import {
   CheckCircle, AlertTriangle 
 } from 'lucide-react';
 import TouristLayout from '@/components/TouristLayout';
+import { sanitizeSearchTerm } from '@/lib/utils';
+import { validateInput, SearchFilterSchema } from '@/lib/validation';
 
 interface AdventureActivity {
   id: string;
@@ -81,8 +83,16 @@ export default function AdventureActivities() {
   };
 
   const filteredActivities = activities.filter(activity => {
-    const matchesSearch = activity.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         activity.location.toLowerCase().includes(searchTerm.toLowerCase());
+    const sanitizedSearch = sanitizeSearchTerm(searchTerm);
+    
+    const filterValidation = validateInput(SearchFilterSchema, {
+      searchTerm: sanitizedSearch,
+    });
+
+    const validFilters = filterValidation.success ? filterValidation.data : { searchTerm: "" };
+
+    const matchesSearch = activity.name.toLowerCase().includes(validFilters.searchTerm?.toLowerCase() || "") ||
+                         activity.location.toLowerCase().includes(validFilters.searchTerm?.toLowerCase() || "");
     const matchesType = _selectedType === 'all' || activity.type === _selectedType;
     const matchesDifficulty = _selectedDifficulty === 'all' || activity.difficulty === _selectedDifficulty;
     

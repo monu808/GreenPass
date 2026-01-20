@@ -8,13 +8,23 @@ import { getDbService } from '@/lib/databaseService';
 import { getPolicyEngine } from '@/lib/ecologicalPolicyEngine';
 import { getCarbonCalculator } from '@/lib/carbonFootprintCalculator';
 import { 
-  calculateSustainabilityScore, 
-  findLowImpactAlternatives 
-} from '@/lib/sustainabilityScoring';
+  sanitizeForDatabase, 
+  sanitizeObject,
+  sanitizeSearchTerm 
+} from '@/lib/utils';
+import { 
+  validateInput, 
+  BookingDataSchema,
+  TransportTypeEnum 
+} from '@/lib/validation';
 import { 
   isValidEcologicalSensitivity, 
   isValidWasteManagementLevel 
 } from '@/lib/typeGuards';
+import { 
+  calculateSustainabilityScore,
+  findLowImpactAlternatives
+} from '@/lib/sustainabilityScoring';
 import { ORIGIN_LOCATIONS } from '@/data/originLocations';
 import { useAuth } from '@/contexts/AuthContext';
 import { 
@@ -42,6 +52,9 @@ function BookDestinationForm() {
   const [adjustedCapacity, setAdjustedCapacity] = useState<number>(0);
   const [capacityResult, setCapacityResult] = useState<DynamicCapacityResult | null>(null);
   
+  const policyEngine = getPolicyEngine();
+  const policy = destination ? policyEngine.getPolicy(destination.ecologicalSensitivity) : null;
+
   const [formData, setFormData] = useState({
     name: user?.user_metadata?.name || user?.email || '',
     email: user?.email || '',
@@ -68,7 +81,6 @@ function BookDestinationForm() {
   const loadDestination = useCallback(async () => {
     try {
       const dbService = getDbService();
-      const policyEngine = getPolicyEngine();
       const fetchedDestinations = await dbService.getDestinations();
       
       const mappedDestinations: Destination[] = fetchedDestinations.map(d => {
@@ -231,28 +243,56 @@ function BookDestinationForm() {
     }
   };
 
-  const validateForm = () => {
-    const newErrors: Record<string, string> = {};
-    const required = ['name', 'email', 'phone', 'nationality', 'idProof', 'originLocation', 'checkInDate', 'checkOutDate'];
-    
-    for (const field of required) {
-      if (!formData[field as keyof typeof formData]) {
-        newErrors[field] = 'This field is required';
-      }
-    }
-    
-    if (!formData.emergencyContact.name) newErrors['emergencyContact.name'] = 'Name is required';
-    if (!formData.emergencyContact.phone) newErrors['emergencyContact.phone'] = 'Phone is required';
-    if (!formData.emergencyContact.relationship) newErrors['emergencyContact.relationship'] = 'Relationship is required';
+  const sanitizeFormData = (data: typeof formData) => {
+    return {
+      ...sanitizeObject(data),
+      specialRequests: sanitizeForDatabase(data.specialRequests),
+      ecoPermitNumber: sanitizeSearchTerm(data.ecoPermitNumber), // Removes regex special chars
+      groupSize: typeof data.groupSize === 'number' ? data.groupSize : parseInt(String(data.groupSize), 10) || 1,
+    };
+  };
 
-    // Sensitivity-specific validation
-    const policyEngine = getPolicyEngine();
-    const policy = destination ? policyEngine.getPolicy(destination.ecologicalSensitivity) : null;
+  const validateForm = (): boolean => {
+    const sanitizedData = sanitizeFormData(formData);
+
+    const bookingResult = validateInput(BookingDataSchema, {
+      groupSize: sanitizedData.groupSize,
+      checkInDate: sanitizedData.checkInDate,
+      checkOutDate: sanitizedData.checkOutDate,
+      emergencyContact: sanitizedData.emergencyContact,
+      transportType: sanitizedData.transportType.split('_')[0].toLowerCase() as any, // Map back to schema enum
+      originLocationId: sanitizedData.originLocation,
+    });
+
+    const newErrors: Record<string, string> = {};
+
+    if (!bookingResult.success) {
+      // Map nested emergency contact errors
+      if (bookingResult.errors['emergencyContact.name']) newErrors['emergencyContact.name'] = bookingResult.errors['emergencyContact.name'];
+      if (bookingResult.errors['emergencyContact.phone']) newErrors['emergencyContact.phone'] = bookingResult.errors['emergencyContact.phone'];
+      if (bookingResult.errors['emergencyContact.relationship']) newErrors['emergencyContact.relationship'] = bookingResult.errors['emergencyContact.relationship'];
+      
+      // Map other booking errors
+      if (bookingResult.errors.groupSize) newErrors.groupSize = bookingResult.errors.groupSize;
+      if (bookingResult.errors.checkInDate) newErrors.checkInDate = bookingResult.errors.checkInDate;
+      if (bookingResult.errors.checkOutDate) newErrors.checkOutDate = bookingResult.errors.checkOutDate;
+    }
+
+    if (!sanitizedData.name.trim()) newErrors.name = 'Name is required';
+    if (!sanitizedData.email.trim()) newErrors.email = 'Email is required';
+    if (!sanitizedData.phone.trim()) newErrors.phone = 'Phone number is required';
+    
+    // Ecological Permit Validation
     if (destination && (destination.ecologicalSensitivity === 'high' || destination.ecologicalSensitivity === 'critical')) {
-      if (policy?.requiresPermit && !formData.ecoPermitNumber) {
-        newErrors['ecoPermitNumber'] = `An ecological permit is required for ${destination.ecologicalSensitivity} sensitivity areas.`;
+      if (policy?.requiresPermit) {
+        if (!sanitizedData.ecoPermitNumber) {
+          newErrors['ecoPermitNumber'] = `An ecological permit is required for ${destination.ecologicalSensitivity} sensitivity areas.`;
+        } else if (!/^ECO-\d{4}-\d{6}$/.test(sanitizedData.ecoPermitNumber)) {
+          // Example pattern validation for permit number
+          newErrors['ecoPermitNumber'] = 'Invalid permit format. Expected ECO-YYYY-XXXXXX';
+        }
       }
-      if (policy?.requiresEcoBriefing && !formData.acknowledged) {
+      if (policy?.requiresEcoBriefing && !sanitizedData.acknowledged) {
         newErrors['acknowledged'] = 'You must acknowledge the ecological briefing.';
       }
     }
@@ -278,35 +318,36 @@ function BookDestinationForm() {
     
     try {
       const dbService = getDbService();
+      const sanitizedData = sanitizeFormData(formData);
       
       // Calculate up-to-date footprint for persistence
       const currentFootprint = computeBookingFootprint();
       
       // Validate and convert group size
-      const groupSize = parseInt(String(formData.groupSize), 10);
+      const groupSize = parseInt(String(sanitizedData.groupSize), 10);
       if (isNaN(groupSize) || groupSize <= 0) {
         throw new Error("Invalid group size provided");
       }
       
       const bookingData = {
-        name: formData.name,
-        email: formData.email,
-        phone: formData.phone,
-        id_proof: formData.idProof,
-        nationality: formData.nationality,
+        name: sanitizedData.name,
+        email: sanitizedData.email,
+        phone: sanitizedData.phone,
+        id_proof: sanitizedData.idProof,
+        nationality: sanitizedData.nationality,
         group_size: groupSize,
         destination_id: destination.id,
-        check_in_date: formData.checkInDate,
-        check_out_date: formData.checkOutDate,
+        check_in_date: sanitizedData.checkInDate,
+        check_out_date: sanitizedData.checkOutDate,
         status: "pending" as const,
-        emergency_contact_name: formData.emergencyContact.name,
-        emergency_contact_phone: formData.emergencyContact.phone,
-        emergency_contact_relationship: formData.emergencyContact.relationship,
+        emergency_contact_name: sanitizedData.emergencyContact.name,
+        emergency_contact_phone: sanitizedData.emergencyContact.phone,
+        emergency_contact_relationship: sanitizedData.emergencyContact.relationship,
         user_id: user?.id || null,
         registration_date: new Date().toISOString(),
         // Environmental fields
-        origin_location_id: formData.originLocation,
-        transport_type: formData.transportType,
+        origin_location_id: sanitizedData.originLocation,
+        transport_type: sanitizedData.transportType,
         carbon_footprint: currentFootprint?.totalEmissions || 0,
         // Add missing required fields with defaults
         age: 0,
@@ -428,8 +469,6 @@ function BookDestinationForm() {
   }
 
   const availability = getAvailabilityStatus();
-  const policyEngine = getPolicyEngine();
-  const policy = destination ? policyEngine.getPolicy(destination.ecologicalSensitivity) : null;
 
   return (
     <TouristLayout>

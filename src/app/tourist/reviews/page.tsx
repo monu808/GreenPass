@@ -2,6 +2,8 @@
 
 import React, { useState } from 'react';
 import TouristLayout from '@/components/TouristLayout';
+import { sanitizeSearchTerm } from '@/lib/utils';
+import { validateInput, SearchFilterSchema } from '@/lib/validation';
 import { 
   Star, 
   ThumbsUp, 
@@ -160,9 +162,17 @@ export default function ReviewsRatings() {
   const totalReviews = ratingBreakdown.reduce((sum, item) => sum + item.count, 0);
 
   const filteredReviews = reviews.filter(review => {
-    const matchesSearch = review.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         review.content.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         review.destination.toLowerCase().includes(searchTerm.toLowerCase());
+    const sanitizedSearch = sanitizeSearchTerm(searchTerm);
+    
+    const filterValidation = validateInput(SearchFilterSchema, {
+      searchTerm: sanitizedSearch,
+    });
+
+    const validFilters = filterValidation.success ? filterValidation.data : { searchTerm: "" };
+
+    const matchesSearch = review.title.toLowerCase().includes(validFilters.searchTerm?.toLowerCase() || "") ||
+                         review.content.toLowerCase().includes(validFilters.searchTerm?.toLowerCase() || "") ||
+                         review.destination.toLowerCase().includes(validFilters.searchTerm?.toLowerCase() || "");
     const matchesDestination = selectedDestination === 'all' || review.destination === selectedDestination;
     const matchesRating = selectedRating === 'all' || review.rating >= parseInt(selectedRating);
     

@@ -7,6 +7,8 @@ import {
   Info, Sparkles, ChevronDown, ChevronUp 
 } from 'lucide-react';
 import TouristLayout from '@/components/TouristLayout';
+import { sanitizeForDatabase, sanitizeObject } from '@/lib/utils';
+import { validateInput, TouristRegistrationSchema } from '@/lib/validation';
 
 // Build Fix: Strict interface for the state structure to satisfy TS compiler
 interface DayPlan {
@@ -73,11 +75,17 @@ export default function PlanYourTripPage() {
   };
 
   const handleSavePlan = (): void => {
-    if (!destination) {
+    const sanitizedDestination = sanitizeForDatabase(destination);
+    const sanitizedDays = days.map(day => ({
+      ...sanitizeObject(day),
+      activities: day.activities.map(a => sanitizeForDatabase(a))
+    }));
+
+    if (!sanitizedDestination) {
       alert("Please specify a destination before saving your expedition.");
       return;
     }
-    alert(`Expedition to ${destination} saved to your GreenPass profile!`);
+    alert(`Expedition to ${sanitizedDestination} saved to your GreenPass profile!`);
   };
 
   // CALCULATED STATS

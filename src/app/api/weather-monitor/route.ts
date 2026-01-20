@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { weatherMonitoringService } from '@/lib/weatherMonitoringService';
 import { RealtimeChannel } from '@supabase/supabase-js';
+import { validateInput, WeatherMonitorSchema } from '@/lib/validation';
 
 import { createServerComponentClient } from '@/lib/supabase';
 import { broadcast, BroadcastPayload } from '@/lib/messagingService';
@@ -28,10 +29,30 @@ const localFlush = async (data: BroadcastPayload) => {
   await Promise.all(writePromises);
 };
 
-export async function POST(_request: NextRequest) {
+export async function POST(request: NextRequest) {
   try { 
     console.log('🔄 Weather monitoring trigger received');
     
+    // Validate request body if present
+    let body = {};
+    try {
+      if (request.headers.get('content-type')?.includes('application/json')) {
+        body = await request.json();
+      }
+    } catch (e) {
+      // Body might be empty
+    }
+
+    const validation = validateInput(WeatherMonitorSchema, body);
+    if (!validation.success) {
+      return NextResponse.json({
+        success: false,
+        error: 'Invalid input parameters',
+        details: validation.errors,
+        timestamp: new Date().toISOString()
+      }, { status: 400 });
+    }
+
     // In serverless, we just run the check once. No more background intervals.
     // The "coordinator" (cron) will hit this endpoint periodically.
     await weatherMonitoringService.checkWeatherNow();
@@ -51,7 +72,12 @@ export async function POST(_request: NextRequest) {
   } catch (error) {
     console.error('❌ Error in weather-monitor API:', error);
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { 
+        success: false,
+        error: 'Weather monitor trigger failed',
+        message: 'Internal server error',
+        timestamp: new Date().toISOString()
+      },
       { status: 500 }
     );
   }

@@ -17,6 +17,8 @@ import {
 import { getDbService } from "@/lib/databaseService";
 import { Tourist, Destination } from "@/types";
 import type { Database } from "@/types/database";
+import { sanitizeSearchTerm } from "@/lib/utils";
+import { validateInput, SearchFilterSchema } from "@/lib/validation";
 
 type DbDestination = Database['public']['Tables']['destinations']['Row'];
 
@@ -98,14 +100,24 @@ export default function BookingsPage() {
   };
 
   const filteredBookings = bookings.filter((booking) => {
+    const sanitizedSearch = sanitizeSearchTerm(searchTerm);
+    
+    const filterValidation = validateInput(SearchFilterSchema, {
+      searchTerm: sanitizedSearch,
+      status: statusFilter === "all" ? undefined : statusFilter as any,
+      destinationId: destinationFilter === "all" ? undefined : destinationFilter,
+    });
+
+    const validFilters = filterValidation.success ? filterValidation.data : { searchTerm: "", status: undefined, destinationId: undefined };
+
     const matchesSearch =
-      booking.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      booking.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      booking.phone.includes(searchTerm);
+      booking.name.toLowerCase().includes(validFilters.searchTerm?.toLowerCase() || "") ||
+      booking.email.toLowerCase().includes(validFilters.searchTerm?.toLowerCase() || "") ||
+      booking.phone.includes(validFilters.searchTerm || "");
     const matchesStatus =
-      statusFilter === "all" || booking.status === statusFilter;
+      statusFilter === "all" || booking.status === validFilters.status;
     const matchesDestination =
-      destinationFilter === "all" || booking.destination === destinationFilter;
+      destinationFilter === "all" || booking.destination === validFilters.destinationId;
     return matchesSearch && matchesStatus && matchesDestination;
   });
 

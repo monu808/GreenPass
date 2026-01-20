@@ -9,6 +9,8 @@ import {
 } from 'lucide-react';
 import { getDbService } from '@/lib/databaseService';
 import { useAuth } from '@/contexts/AuthContext';
+import { sanitizeSearchTerm } from '@/lib/utils';
+import { validateInput, SearchFilterSchema } from '@/lib/validation';
 
 // Explicit Interface for Build Success
 interface Booking {
@@ -142,11 +144,19 @@ export default function TouristBookings() {
 
   
 
-  const filteredBookings = bookings.filter(b =>
-    b.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    b.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    b.destination.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredBookings = bookings.filter(b => {
+    const sanitizedSearch = sanitizeSearchTerm(searchTerm);
+    
+    const filterValidation = validateInput(SearchFilterSchema, {
+      searchTerm: sanitizedSearch,
+    });
+
+    const validFilters = filterValidation.success ? filterValidation.data : { searchTerm: "" };
+
+    return b.title.toLowerCase().includes(validFilters.searchTerm?.toLowerCase() || "") ||
+    b.id.toLowerCase().includes(validFilters.searchTerm?.toLowerCase() || "") ||
+    b.destination.toLowerCase().includes(validFilters.searchTerm?.toLowerCase() || "");
+  });
 
   return (
     <TouristLayout>

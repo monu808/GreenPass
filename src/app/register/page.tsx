@@ -6,18 +6,14 @@ import Layout from '@/components/Layout';
 import { User } from 'lucide-react';
 import { getDbService } from '@/lib/databaseService';
 import { 
-  validateEmail, 
-  validatePhone, 
-  validateIdProofByType,
-  validateName,
-  validateGroupName,
-  validateDateRange,
-  validateGroupSize,
-  validateAge,
-  validateGender,
-  validateAddress,
-  validatePinCode,
+  sanitizeForDatabase, 
+  sanitizeObject 
 } from '@/lib/utils';
+import { 
+  validateInput, 
+  TouristRegistrationSchema,
+  BookingDataSchema 
+} from '@/lib/validation';
 import type { Database } from '@/types/database';
 
 type Destination = Database['public']['Tables']['destinations']['Row'];
@@ -100,129 +96,71 @@ export default function RegisterTourist() {
     }
   };
 
+  const sanitizeFormData = (data: typeof formData) => {
+    return {
+      ...sanitizeObject(data),
+      // Ensure numeric values are preserved if they were already numbers
+      groupSize: typeof data.groupSize === 'number' ? data.groupSize : parseInt(String(data.groupSize), 10) || 1,
+    };
+  };
+
   const validateForm = (): boolean => {
+    const sanitizedData = sanitizeFormData(formData);
+    
+    // Validate Tourist Registration Part
+    const registrationResult = validateInput(TouristRegistrationSchema, {
+      name: sanitizedData.name,
+      email: sanitizedData.email,
+      phone: sanitizedData.phone,
+      age: parseInt(sanitizedData.age.toString(), 10),
+      address: sanitizedData.address,
+      pinCode: sanitizedData.pinCode,
+      idProof: sanitizedData.idProof,
+      idType: sanitizedData.idProofType,
+    });
+
+    // Validate Booking Part
+    const bookingResult = validateInput(BookingDataSchema, {
+      groupSize: sanitizedData.groupSize,
+      checkInDate: sanitizedData.checkInDate,
+      checkOutDate: sanitizedData.checkOutDate,
+      emergencyContact: {
+        name: sanitizedData.emergencyContactName,
+        phone: sanitizedData.emergencyContactPhone,
+        relationship: sanitizedData.emergencyContactRelationship,
+      },
+      transportType: 'other', // Default for this form as it's not in the UI yet
+      originLocationId: sanitizedData.nationality === 'Indian' ? 'domestic' : 'international', // Fallback
+    });
+
     const newErrors: Record<string, string> = {};
 
-    const nameValidation = validateName(formData.name);
-    if (!nameValidation.valid) {
-      newErrors.name = nameValidation.error || 'Invalid name';
+    if (!registrationResult.success) {
+      Object.assign(newErrors, registrationResult.errors);
     }
 
-    if (!formData.email.trim()) {
-      newErrors.email = 'Email is required';
-    } else if (!validateEmail(formData.email)) {
-      newErrors.email = 'Please enter a valid email address (e.g., user@example.com)';
-    }
-    
-    if (!formData.phone.trim()) {
-      newErrors.phone = 'Phone number is required';
-    } else if (!validatePhone(formData.phone)) {
-      newErrors.phone = 'Please enter a valid phone number (10 digits for Indian mobile, or include country code for international)';
-    }
-
-    const ageValidation = validateAge(formData.age);
-    if (!ageValidation.valid) {
-      newErrors.age = ageValidation.error || 'Invalid age';
+    if (!bookingResult.success) {
+      // Map emergency contact errors back to flat structure
+      if (bookingResult.errors['emergencyContact.name']) newErrors.emergencyContactName = bookingResult.errors['emergencyContact.name'];
+      if (bookingResult.errors['emergencyContact.phone']) newErrors.emergencyContactPhone = bookingResult.errors['emergencyContact.phone'];
+      if (bookingResult.errors['emergencyContact.relationship']) newErrors.emergencyContactRelationship = bookingResult.errors['emergencyContact.relationship'];
+      
+      // Map other booking errors
+      if (bookingResult.errors.groupSize) newErrors.groupSize = bookingResult.errors.groupSize;
+      if (bookingResult.errors.checkInDate) newErrors.checkInDate = bookingResult.errors.checkInDate;
+      if (bookingResult.errors.checkOutDate) newErrors.checkOutDate = bookingResult.errors.checkOutDate;
     }
 
-    const genderValidation = validateGender(formData.gender);
-    if (!genderValidation.valid) {
-      newErrors.gender = genderValidation.error || 'Please select a gender';
-    }
-
-    const addressValidation = validateAddress(formData.address);
-    if (!addressValidation.valid) {
-      newErrors.address = addressValidation.error || 'Invalid address';
-    }
-
-    const pinCodeValidation = validatePinCode(formData.pinCode);
-    if (!pinCodeValidation.valid) {
-      newErrors.pinCode = pinCodeValidation.error || 'Invalid PIN code';
-    }
-
-    if (!formData.idProofType) {
-      newErrors.idProofType = 'Please select an ID proof type';
-    }
-
-    if (!formData.idProof.trim()) {
-      newErrors.idProof = 'ID proof number is required';
-    } else if (formData.idProofType) {
-      const idProofValidation = validateIdProofByType(formData.idProof, formData.idProofType);
-      if (!idProofValidation.valid) {
-        newErrors.idProof = idProofValidation.error || 'Invalid ID proof';
-      }
-    }
-    if (formData.group_name.trim()) {
-  const groupNameValidation = validateGroupName(formData.group_name);
-      if (!groupNameValidation.valid) {
-        newErrors.group_name = groupNameValidation.error || 'Invalid group name';
-      }
-    }
-    if (!formData.destination) {
+    if (!sanitizedData.destination) {
       newErrors.destination = 'Please select a destination';
     }
 
-    if (!formData.checkInDate) {
-      newErrors.checkInDate = 'Check-in date is required';
-    }
-    if (!formData.checkOutDate) {
-      newErrors.checkOutDate = 'Check-out date is required';
-    }
-    
-    if (formData.checkInDate && formData.checkOutDate) {
-      const dateValidation = validateDateRange(formData.checkInDate, formData.checkOutDate, {
-        minAdvanceDays: 1, 
-        maxStayDays: 30    
-      });
-      if (!dateValidation.valid) {
-        newErrors.checkOutDate = dateValidation.error || 'Invalid date range';
-      }
-    } else if (formData.checkInDate) {
-  
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      const checkIn = new Date(formData.checkInDate);
-      const tomorrow = new Date(today);
-      tomorrow.setDate(tomorrow.getDate() + 1);
-      
-      if (checkIn < tomorrow) {
-        newErrors.checkInDate = 'Check-in date must be at least 1 day from today';
-      }
-    }
-
-    const groupSizeValidation = validateGroupSize(formData.groupSize, 10);
-    if (!groupSizeValidation.valid) {
-      newErrors.groupSize = groupSizeValidation.error || 'Invalid group size';
-    }
-
-    const emergencyNameValidation = validateName(formData.emergencyContactName);
-    if (!emergencyNameValidation.valid) {
-      newErrors.emergencyContactName = emergencyNameValidation.error || 'Invalid emergency contact name';
-    }
-
-    if (!formData.emergencyContactPhone.trim()) {
-      newErrors.emergencyContactPhone = 'Emergency contact phone is required';
-    } else if (!validatePhone(formData.emergencyContactPhone)) {
-      newErrors.emergencyContactPhone = 'Please enter a valid emergency contact phone number';
-    }
-
-    if (!formData.emergencyContactRelationship.trim()) {
-      newErrors.emergencyContactRelationship = 'Please select a relationship';
-    }
-
-    if (formData.phone && formData.emergencyContactPhone) {
-      const cleanPhone = formData.phone.replace(/[\s\-\(\)]/g, '');
-      const cleanEmergencyPhone = formData.emergencyContactPhone.replace(/[\s\-\(\)]/g, '');
-      if (cleanPhone === cleanEmergencyPhone) {
-        newErrors.emergencyContactPhone = 'Emergency contact phone must be different from your phone number';
-      }
-    }
-
-    if (formData.destination && !newErrors.groupSize) {
-      const destination = destinations.find(d => d.id === formData.destination);
+    // Custom validation for destination capacity
+    if (sanitizedData.destination && !newErrors.groupSize) {
+      const destination = destinations.find(d => d.id === sanitizedData.destination);
       if (destination) {
         const availableCapacity = destination.max_capacity - destination.current_occupancy;
-        if (formData.groupSize > availableCapacity) {
+        if (sanitizedData.groupSize > availableCapacity) {
           newErrors.groupSize = `Only ${availableCapacity} slots available for this destination`;
         }
       }
@@ -238,35 +176,36 @@ const handleSubmit = async (e: React.FormEvent) => {
   const selectedDestination = destinations.find(d => d.id === formData.destination);
   
   if (!validateForm() || !selectedDestination) {
-    alert('Please fill in all required fields');
+    alert('Please fill in all required fields and correct any errors');
     return;
   }
   
   setIsSubmitting(true);
   
   try {
+    const sanitizedData = sanitizeFormData(formData);
+    
     const bookingData = {
-      name: formData.name,
-      email: formData.email,
-      phone: formData.phone,
-      id_proof: formData.idProof,
-      nationality: formData.nationality,
-      group_size: parseInt(formData.groupSize.toString(), 10),
+      name: sanitizedData.name,
+      email: sanitizedData.email,
+      phone: sanitizedData.phone,
+      id_proof: sanitizedData.idProof,
+      nationality: sanitizedData.nationality,
+      group_size: parseInt(sanitizedData.groupSize.toString(), 10),
       destination_id: selectedDestination.id,
-      check_in_date: formData.checkInDate,
-      check_out_date: formData.checkOutDate,
+      check_in_date: sanitizedData.checkInDate,
+      check_out_date: sanitizedData.checkOutDate,
       status: 'pending' as const,
-      emergency_contact_name: formData.emergencyContactName,
-      emergency_contact_phone: formData.emergencyContactPhone,
-      emergency_contact_relationship: formData.emergencyContactRelationship,
-      user_id: null, // Set to null to avoid foreign key constraint
+      emergency_contact_name: sanitizedData.emergencyContactName,
+      emergency_contact_phone: sanitizedData.emergencyContactPhone,
+      emergency_contact_relationship: sanitizedData.emergencyContactRelationship,
+      user_id: null,
       registration_date: new Date().toISOString(),
-      // Use values from formData
-      age: parseInt(formData.age, 10),
-      gender: formData.gender as Gender,
-      address: formData.address,
-      pin_code: formData.pinCode,
-      id_proof_type: formData.idProofType as IdProofType
+      age: parseInt(sanitizedData.age.toString(), 10),
+      gender: sanitizedData.gender as Gender,
+      address: sanitizedData.address,
+      pin_code: sanitizedData.pinCode,
+      id_proof_type: sanitizedData.idProofType as IdProofType
     };
     
     console.log('Submitting booking data:', bookingData);

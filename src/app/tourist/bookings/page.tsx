@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import Image from 'next/image';
 import TouristLayout from '@/components/TouristLayout';
 import { 
   Calendar, MapPin, Users, CheckCircle, Eye, 
@@ -245,10 +246,17 @@ export default function TouristBookings() {
 
         {/* BOOKINGS LIST (More images here) */}
         <div className="grid grid-cols-1 gap-8">
-          {filteredBookings.map((booking) => (
+          {filteredBookings.map((booking, index) => (
             <div key={booking.id} className="group bg-white rounded-[3rem] border border-gray-50 overflow-hidden shadow-sm hover:shadow-2xl transition-all duration-500 flex flex-col lg:flex-row">
-              <div className="lg:w-80 h-56 lg:h-auto relative overflow-hidden">
-                <img src={booking.image} className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-110" alt={booking.title} />
+              <div className="lg:w-80 h-56 lg:h-auto relative overflow-hidden bg-slate-100 shimmer">
+                <Image
+                  src={booking.image}
+                  className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-110"
+                  alt={booking.title}
+                  fill
+                  sizes="(max-width: 1024px) 100vw, 320px"
+                  priority={index < 2}
+                />
                 <div className="absolute inset-0 bg-emerald-950/20" />
                 <div className="absolute top-6 left-6">
                    <span className={`px-4 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg ${

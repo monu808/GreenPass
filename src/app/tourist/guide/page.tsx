@@ -139,7 +139,7 @@ export default function TravelGuide() {
               })
               .map((destination) => (
               <div key={destination.id} className="bg-gray-50 rounded-lg p-4 border border-gray-200 hover:border-blue-300 transition-colors">
-                <div className="h-32 bg-gray-200 rounded-lg mb-3" />
+                <div className="h-32 bg-slate-100 shimmer rounded-lg mb-3" />
                 <h3 className="font-semibold text-gray-900 mb-2">{destination.name}</h3>
                 <p className="text-sm text-gray-600 mb-2">{destination.region}</p>
                 <div className="flex items-center justify-between text-xs text-gray-500 mb-3">

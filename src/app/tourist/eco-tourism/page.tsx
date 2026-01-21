@@ -337,7 +337,7 @@ export default function EcoTourism() {
                 return (
                   <div key={destination.id} className="bg-white rounded-xl border border-gray-200 overflow-hidden hover:shadow-lg transition-shadow">
                     {/* Image and Badges */}
-                    <div className="relative h-48 bg-gray-200">
+                    <div className="relative h-48 bg-slate-100 shimmer">
                       <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
                       
                       {/* Badges */}
@@ -499,7 +499,7 @@ export default function EcoTourism() {
               const score = calculateSustainabilityScore(alt);
               return (
                 <div key={alt.id} className="flex flex-col border border-gray-100 rounded-xl overflow-hidden hover:border-green-200 transition-colors group">
-                  <div className="h-32 bg-gray-100 relative">
+                  <div className="h-32 bg-slate-100 shimmer relative">
                     <div className="absolute top-2 right-2 px-2 py-1 bg-white/90 rounded text-[10px] font-bold text-green-700 shadow-sm border border-green-100">
                       Score: {score.overallScore}
                     </div>

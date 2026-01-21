@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import Image from 'next/image';
 import { 
   BookOpen, Clock, Target, CheckCircle, 
   ArrowRight, Users, Leaf, Mountain,
@@ -206,11 +207,13 @@ export default function SustainabilityEducation() {
             <div className="bg-white rounded-[2.5rem] border border-gray-100 p-8 shadow-sm">
               <div className="space-y-8">
                 {selectedModule.content.sections[currentSection].image && (
-                  <div className="rounded-2xl overflow-hidden">
-                    <img 
+                  <div className="rounded-2xl overflow-hidden relative h-64 bg-slate-100 shimmer">
+                    <Image 
                       src={selectedModule.content.sections[currentSection].image}
                       alt={selectedModule.content.sections[currentSection].title}
-                      className="w-full h-64 object-cover"
+                      className="w-full h-full object-cover"
+                      fill
+                      sizes="(max-width: 896px) 100vw, 896px"
                     />
                   </div>
                 )}
@@ -393,11 +396,14 @@ export default function SustainabilityEducation() {
       <div className="max-w-7xl mx-auto space-y-10 pb-20 px-6">
         
         {/* Hero Section */}
-        <div className="relative h-[400px] rounded-[3.5rem] overflow-hidden group shadow-2xl shadow-emerald-900/10">
-          <img 
+        <div className="relative h-[400px] rounded-[3.5rem] overflow-hidden group shadow-2xl shadow-emerald-900/10 bg-slate-100 shimmer">
+          <Image 
             src="https://images.unsplash.com/photo-1441974231531-c6227db76b6e?auto=format&fit=crop&q=80" 
             className="absolute inset-0 w-full h-full object-cover transition-transform duration-1000 group-hover:scale-110" 
             alt="Sustainability Education"
+            fill
+            priority
+            sizes="100vw"
           />
           <div className="absolute inset-0 bg-gradient-to-r from-emerald-950/90 via-emerald-900/40 to-transparent" />
           <div className="relative h-full flex flex-col justify-center p-12 sm:p-20 space-y-6 max-w-4xl">

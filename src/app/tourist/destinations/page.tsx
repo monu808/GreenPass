@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback, ChangeEvent } from 'react';
+import Image from 'next/image';
 import { 
   Users, Search, RefreshCw, Leaf, Heart, 
   ArrowRight, Compass, Thermometer, Calendar,
@@ -254,7 +255,7 @@ export default function TouristDestinations() {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10">
-            {filteredDestinations.map((d) => {
+            {filteredDestinations.map((d, index) => {
               const dynResult = capacityResults[d.id];
               const adjustedCap = dynResult?.adjustedCapacity ?? d.maxCapacity;
               const occupancyRate = adjustedCap > 0 ? (d.currentOccupancy / adjustedCap) * 100 : 0;
@@ -277,11 +278,14 @@ export default function TouristDestinations() {
                     <Scale className="h-5 w-5" />
                   </button>
 
-                  <div className="h-56 relative overflow-hidden bg-emerald-900">
-                    <img 
+                  <div className="h-56 relative overflow-hidden bg-slate-100 shimmer">
+                    <Image 
                       src="https://images.unsplash.com/photo-1596394516093-501ba68a0ba6?w=800"
                       className="w-full h-full object-cover opacity-60 group-hover:scale-110 transition-transform duration-700"
                       alt={d.name}
+                      fill
+                      sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                      priority={index < 3}
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-emerald-950/90 via-transparent to-transparent" />
                     
@@ -457,8 +461,14 @@ export default function TouristDestinations() {
                 const score = calculateSustainabilityScore(alt);
                 return (
                   <div key={alt.id} className="bg-white p-6 rounded-[2.5rem] border border-emerald-100 flex gap-6 items-center group hover:shadow-xl transition-all">
-                    <div className="h-24 w-24 rounded-[1.8rem] bg-emerald-100 overflow-hidden flex-shrink-0">
-                      <img src="https://images.unsplash.com/photo-1501785888041-af3ef285b470?w=400" className="w-full h-full object-cover group-hover:scale-110 transition-transform" alt={alt.name} />
+                    <div className="h-24 w-24 rounded-[1.8rem] bg-slate-100 shimmer overflow-hidden flex-shrink-0 relative">
+                      <Image 
+                        src="https://images.unsplash.com/photo-1501785888041-af3ef285b470?w=400" 
+                        className="w-full h-full object-cover group-hover:scale-110 transition-transform" 
+                        alt={alt.name}
+                        fill
+                        sizes="96px"
+                      />
                     </div>
                     <div className="flex-1 space-y-2">
                       <div className="flex justify-between items-start">
@@ -545,8 +555,14 @@ export default function TouristDestinations() {
                     return (
                       <div key={dest.id} className="space-y-12">
                         <div className="space-y-4">
-                          <div className="h-32 rounded-[2rem] bg-gray-100 overflow-hidden">
-                            <img src="https://images.unsplash.com/photo-1596394516093-501ba68a0ba6?w=400" className="w-full h-full object-cover" alt={dest.name} />
+                          <div className="h-32 rounded-[2rem] bg-slate-100 shimmer overflow-hidden relative">
+                            <Image 
+                              src="https://images.unsplash.com/photo-1596394516093-501ba68a0ba6?w=400" 
+                              className="w-full h-full object-cover" 
+                              alt={dest.name}
+                              fill
+                              sizes="(max-width: 1024px) 100vw, 25vw"
+                            />
                           </div>
                           <h3 className="text-xl font-black text-gray-900 tracking-tight leading-tight">{dest.name}</h3>
                           <p className="text-xs text-gray-400 font-bold uppercase tracking-widest">{dest.location}</p>

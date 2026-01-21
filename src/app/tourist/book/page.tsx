@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, Suspense, useCallback } from 'react';
+import Image from 'next/image';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { Calendar, Users, MapPin, Star, AlertTriangle, CheckCircle, Leaf, ShieldAlert, XCircle, RefreshCw, Globe, TreePine, Zap, Info } from 'lucide-react';
 import TouristLayout from '@/components/TouristLayout';
@@ -981,8 +982,14 @@ function BookDestinationForm() {
                   const score = calculateSustainabilityScore(alt);
                   return (
                     <div key={alt.id} className="bg-white p-4 rounded-xl border border-emerald-100 flex gap-4 items-center group hover:shadow-md transition-all">
-                      <div className="h-16 w-16 rounded-lg bg-emerald-50 overflow-hidden flex-shrink-0">
-                        <img src="https://images.unsplash.com/photo-1501785888041-af3ef285b470?w=200" className="w-full h-full object-cover group-hover:scale-110 transition-transform" alt={alt.name} />
+                      <div className="h-16 w-16 rounded-lg bg-slate-100 shimmer overflow-hidden flex-shrink-0 relative">
+                        <Image
+                          src="https://images.unsplash.com/photo-1501785888041-af3ef285b470?w=200"
+                          className="w-full h-full object-cover group-hover:scale-110 transition-transform"
+                          alt={alt.name}
+                          fill
+                          sizes="64px"
+                        />
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex justify-between items-start">

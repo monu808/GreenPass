@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, ChangeEvent } from 'react';
+import Image from 'next/image';
 import TouristLayout from '@/components/TouristLayout';
 import { sanitizeSearchTerm } from '@/lib/utils';
 import { validateInput, SearchFilterSchema } from '@/lib/validation';
@@ -110,10 +111,10 @@ export default function PhotoGallery() {
 
         {/* PHOTO GRID */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-          {filteredPhotos.map((photo) => (
+          {filteredPhotos.map((photo, index) => (
             <div key={photo.id} className="group relative bg-white rounded-[3rem] overflow-hidden border border-gray-50 shadow-sm hover:shadow-2xl transition-all duration-700">
               <div 
-  className="h-60 relative overflow-hidden cursor-pointer" 
+  className="h-60 relative overflow-hidden cursor-pointer bg-slate-100 shimmer" 
   onClick={() => setSelectedPhoto(photo)}
   role="button"
   tabIndex={0}
@@ -126,7 +127,14 @@ export default function PhotoGallery() {
     }
   }}
 >
-  <img src={photo.url} className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-110" alt={photo.title} />
+  <Image 
+    src={photo.url} 
+    className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-110" 
+    alt={photo.title}
+    fill
+    sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+    priority={index < 3}
+  />
   <div className="absolute inset-0 bg-emerald-950/20 group-hover:bg-transparent transition-all" />
   <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
       <div className="p-4 bg-white/20 backdrop-blur-xl rounded-full border border-white/30 text-white shadow-2xl"><Eye className="h-6 w-6" /></div>
@@ -173,8 +181,14 @@ export default function PhotoGallery() {
                 <X className="h-7 w-7" />
               </button>
               
-              <div className="lg:w-2/3 h-[400px] lg:h-[600px] bg-gray-100">
-                <img src={selectedPhoto.url} className="w-full h-full object-cover" alt={selectedPhoto.title} />
+              <div className="lg:w-2/3 h-[400px] lg:h-[600px] bg-slate-100 shimmer relative">
+                <Image 
+                  src={selectedPhoto.url} 
+                  className="w-full h-full object-cover" 
+                  alt={selectedPhoto.title} 
+                  fill
+                  sizes="(max-width: 1024px) 100vw, 66vw"
+                />
               </div>
 
               <div className="lg:w-1/3 p-12 space-y-10 flex flex-col justify-center bg-white">

@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, ChangeEvent } from 'react';
+import Image from 'next/image';
 import { 
   Heart, Search, 
   Activity, Leaf, ShieldCheck, Wind, 
@@ -146,10 +147,17 @@ export default function AdventureActivities() {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
-          {filteredActivities.map((act) => (
+          {filteredActivities.map((act, index) => (
             <div key={act.id} className="group bg-white rounded-[3.5rem] border border-gray-100 overflow-hidden shadow-sm hover:shadow-2xl transition-all duration-500">
-              <div className="h-56 relative overflow-hidden">
-                <img src={act.image} className="w-full h-full object-cover" alt={act.name} />
+              <div className="h-56 relative overflow-hidden bg-slate-100 shimmer">
+                <Image 
+                  src={act.image} 
+                  className="w-full h-full object-cover" 
+                  alt={act.name}
+                  fill
+                  sizes="(max-width: 1024px) 100vw, 50vw"
+                  priority={index < 2}
+                />
                 <button 
                    type="button"
                    aria-label="Add to favorites"

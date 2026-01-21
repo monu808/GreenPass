@@ -357,7 +357,7 @@ export default function ReviewsRatings() {
               {/* Review Header */}
               <div className="flex items-start justify-between mb-4">
                 <div className="flex items-start space-x-3">
-                  <div className="w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center">
+                  <div className="w-10 h-10 bg-slate-100 shimmer rounded-full flex items-center justify-center">
                     <User className="h-6 w-6 text-gray-500" />
                   </div>
                   <div>
@@ -401,7 +401,7 @@ export default function ReviewsRatings() {
                 <div className="mb-4">
                   <div className="flex space-x-2 overflow-x-auto">
                     {review.photos.map((photo, index) => (
-                      <div key={index} className="w-24 h-24 bg-gray-200 rounded-lg flex-shrink-0 flex items-center justify-center">
+                      <div key={index} className="w-24 h-24 bg-slate-100 shimmer rounded-lg flex-shrink-0 flex items-center justify-center">
                         <Camera className="h-6 w-6 text-gray-400" />
                       </div>
                     ))}

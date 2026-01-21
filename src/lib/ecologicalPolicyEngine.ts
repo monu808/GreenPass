@@ -239,7 +239,18 @@ export class EcologicalPolicyEngine {
     };
   }
 
-  async getWeatherFactor(destinationId: string): Promise<number> {
+  async getWeatherFactor(destinationId: string, weatherData?: WeatherConditions): Promise<number> {
+    if (weatherData && weatherData.alert_level) {
+      const multipliers: Record<string, number> = {
+        none: 1.0,
+        low: 0.90,
+        medium: 0.85,
+        high: 0.80,
+        critical: 0.75
+      };
+      return multipliers[weatherData.alert_level] || 1.0;
+    }
+
     const dbService = getDbService();
     const weather = await dbService.getLatestWeatherData(destinationId);
     
@@ -272,40 +283,43 @@ export class EcologicalPolicyEngine {
     return utilization > 0.85 ? 0.90 : 1.0;
   }
 
-  async getEcologicalIndicatorFactor(destinationId: string): Promise<number> {
-    const dbService = getDbService();
-    const indicators = await dbService.getLatestEcologicalIndicators(destinationId);
+  async getEcologicalIndicatorFactor(destinationId: string, indicators?: any): Promise<number> {
+    if (!indicators) {
+      const dbService = getDbService();
+      indicators = await dbService.getLatestEcologicalIndicators(destinationId);
+    }
     
     if (!indicators) return 1.0;
 
     // Calculate a combined strain factor from 0 to 1
     // Higher values (approaching 1) mean more damage/strain
-    const { soil_compaction, vegetation_disturbance, wildlife_disturbance, water_source_impact } = indicators;
-    const avgStrain = (soil_compaction + vegetation_disturbance + wildlife_disturbance + water_source_impact) / 400; // Assuming each is 0-100
+    // Handle both snake_case (DB) and camelCase (input)
+    const soil = indicators.soil_compaction ?? indicators.soilCompaction ?? 0;
+    const veg = indicators.vegetation_disturbance ?? indicators.vegetationDisturbance ?? 0;
+    const wild = indicators.wildlife_disturbance ?? indicators.wildlifeDisturbance ?? 0;
+    const water = indicators.water_source_impact ?? indicators.waterSourceImpact ?? 0;
+    
+    const avgStrain = (soil + veg + wild + water) / 400; // Assuming each is 0-100
 
     if (avgStrain > 0.7) return 0.80; // High strain
     if (avgStrain > 0.4) return 0.90; // Medium strain
     return 1.0;
   }
 
-  async getDynamicCapacity(destination: Destination, weatherData?: WeatherConditions): Promise<DynamicCapacityResult> {
+  async getDynamicCapacity(
+    destination: Destination, 
+    weatherData?: WeatherConditions, 
+    indicators?: any
+  ): Promise<DynamicCapacityResult> {
     const policy = this.getPolicy(destination.ecologicalSensitivity);
     const ecologicalMultiplier = policy.capacityMultiplier;
     
     // Get weather factor - use provided data if available, otherwise fetch
-    let weatherMultiplier = 1.0;
-    if (weatherData && weatherData.alert_level) {
-      const multipliers: Record<string, number> = {
-        none: 1.0, low: 0.90, medium: 0.85, high: 0.80, critical: 0.75
-      };
-      weatherMultiplier = multipliers[weatherData.alert_level] || 1.0;
-    } else {
-      weatherMultiplier = await this.getWeatherFactor(destination.id);
-    }
+    const weatherMultiplier = await this.getWeatherFactor(destination.id, weatherData);
 
     const seasonMultiplier = this.getSeasonFactor();
     const utilizationMultiplier = this.getUtilizationFactor(destination);
-    const ecologicalIndicatorMultiplier = await this.getEcologicalIndicatorFactor(destination.id);
+    const ecologicalIndicatorMultiplier = await this.getEcologicalIndicatorFactor(destination.id, indicators);
     
     const override = this.getCapacityOverride(destination.id);
     const overrideMultiplier = override ? override.multiplier : 1.0;
@@ -396,9 +410,38 @@ export class EcologicalPolicyEngine {
     }
   }
 
-  async getAdjustedCapacity(destination: Destination): Promise<number> {
-    const result = await this.getDynamicCapacity(destination);
+  async getAdjustedCapacity(
+    destination: Destination, 
+    weatherData?: WeatherConditions, 
+    indicators?: any
+  ): Promise<number> {
+    const result = await this.getDynamicCapacity(destination, weatherData, indicators);
     return result.adjustedCapacity;
+  }
+
+  async getBatchAdjustedCapacities(
+    destinations: Destination[], 
+    weatherMap: Map<string, any>, 
+    indicatorsMap: Map<string, any>
+  ): Promise<Map<string, number>> {
+    const resultMap = new Map<string, number>();
+    
+    const results = await Promise.all(destinations.map(async (dest) => {
+      const weather = weatherMap.get(dest.id);
+      const indicators = indicatorsMap.get(dest.id);
+      
+      const weatherConditions: WeatherConditions | undefined = weather ? {
+        alert_level: weather.alert_level || 'none',
+        temperature: weather.temperature,
+        humidity: weather.humidity
+      } : undefined;
+
+      const capacity = await this.getAdjustedCapacity(dest, weatherConditions, indicators);
+      return { id: dest.id, capacity };
+    }));
+
+    results.forEach(res => resultMap.set(res.id, res.capacity));
+    return resultMap;
   }
 
   async getAvailableSpots(destination: Destination): Promise<number> {

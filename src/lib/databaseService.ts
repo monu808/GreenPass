@@ -21,18 +21,19 @@ import { Database } from '@/types/database';
 import { getPolicyEngine } from './ecologicalPolicyEngine';
 import { format, isWithinInterval } from 'date-fns';
 import * as mockData from '@/data/mockData';
+import { weatherCache, withCache, ecologicalIndicatorCache } from './cache';
 
 // Type aliases for database types
-type DbTourist = Database['public']['Tables']['tourists']['Row'];
-type DbDestination = Database['public']['Tables']['destinations']['Row'];
-type DbAlert = Database['public']['Tables']['alerts']['Row'];
-type DbWeatherData = Database['public']['Tables']['weather_data']['Row'];
-type DbWasteData = Database['public']['Tables']['waste_data']['Row'];
-type DbCleanupActivity = Database['public']['Tables']['cleanup_activities']['Row'];
-type DbCleanupRegistration = Database['public']['Tables']['cleanup_registrations']['Row'];
-type DbEcoPointsTransaction = Database['public']['Tables']['eco_points_transactions']['Row'];
-type DbComplianceReport = Database['public']['Tables']['compliance_reports']['Row'];
-type DbPolicyViolation = Database['public']['Tables']['policy_violations']['Row'];
+export type DbTourist = Database['public']['Tables']['tourists']['Row'];
+export type DbDestination = Database['public']['Tables']['destinations']['Row'];
+export type DbAlert = Database['public']['Tables']['alerts']['Row'];
+export type DbWeatherData = Database['public']['Tables']['weather_data']['Row'];
+export type DbWasteData = Database['public']['Tables']['waste_data']['Row'];
+export type DbCleanupActivity = Database['public']['Tables']['cleanup_activities']['Row'];
+export type DbCleanupRegistration = Database['public']['Tables']['cleanup_registrations']['Row'];
+export type DbEcoPointsTransaction = Database['public']['Tables']['eco_points_transactions']['Row'];
+export type DbComplianceReport = Database['public']['Tables']['compliance_reports']['Row'];
+export type DbPolicyViolation = Database['public']['Tables']['policy_violations']['Row'];
 
 // Input types for database operations
 export interface WeatherDataInput {
@@ -76,50 +77,15 @@ export interface ComplianceReportInput {
   status?: "pending" | "approved";
 }
 
-// Global cache for weather data to persist across HMR in development
-const WEATHER_CACHE_KEY = '__weatherCache';
-const getGlobalWeatherCache = (): Map<string, DbWeatherData> => {
-  if (typeof globalThis === 'undefined') return new Map<string, DbWeatherData>();
-  
-  if (!globalThis[WEATHER_CACHE_KEY]) {
-    globalThis[WEATHER_CACHE_KEY] = new Map<string, DbWeatherData>();
-  }
-  return globalThis[WEATHER_CACHE_KEY];
-};
-
 const db = supabase as any;
 
 class DatabaseService {
-  private weatherCache: Map<string, DbWeatherData>;
-
   constructor() {
-    this.weatherCache = getGlobalWeatherCache();
-    // Initialize cache from localStorage if available (for browser environment)
-    if (typeof window !== 'undefined') {
-      try {
-        const savedCache = localStorage.getItem('greenpass_weather_cache');
-        if (savedCache) {
-          const parsed = JSON.parse(savedCache) as Record<string, DbWeatherData>;
-          Object.entries(parsed).forEach(([id, data]) => {
-            this.weatherCache.set(id, data);
-          });
-          console.log('✅ Browser weather cache restored from localStorage');
-        }
-      } catch (e) {
-        console.error('Failed to restore weather cache:', e);
-      }
-    }
+    // Migration: Removed old weatherCache Map initialization
   }
 
   private persistCache() {
-    if (typeof window !== 'undefined' && this.isPlaceholderMode()) {
-      try {
-        const cacheObj = Object.fromEntries(this.weatherCache.entries());
-        localStorage.setItem('greenpass_weather_cache', JSON.stringify(cacheObj));
-      } catch (e) {
-        console.error('Failed to persist weather cache:', e);
-      }
-    }
+    // Migration: No longer persisting Map to localStorage as we use lru-cache
   }
 
   private isPlaceholderMode(): boolean {
@@ -152,12 +118,17 @@ class DatabaseService {
     return true;
   }
 
-  async getTourists(userId?: string): Promise<Tourist[]> {
+  async getTourists(userId?: string, page: number = 1, pageSize: number = 20): Promise<Tourist[]> {
     try {
       if (this.isPlaceholderMode() || !db) {
         console.log('Using mock tourists data');
-        return mockData.tourists;
+        const start = (page - 1) * pageSize;
+        return mockData.tourists.slice(start, start + pageSize);
       }
+
+      const from = (page - 1) * pageSize;
+      const to = from + pageSize - 1;
+
       let query = db.from('tourists')
         .select(`
           *,
@@ -166,7 +137,8 @@ class DatabaseService {
             location
           )
         `)
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: false })
+        .range(from, to);
 
       if (userId) {
         query = query.eq('user_id', userId);
@@ -476,11 +448,12 @@ class DatabaseService {
   }
 
   // Destination operations
-  async getDestinations(): Promise<Database['public']['Tables']['destinations']['Row'][]> {
+  async getDestinations(page: number = 1, pageSize: number = 20): Promise<Database['public']['Tables']['destinations']['Row'][]> {
     try {
       if (this.isPlaceholderMode() || !db) {
         console.log('Using mock destinations data');
-        return mockData.destinations.map(d => ({
+        const start = (page - 1) * pageSize;
+        return mockData.destinations.slice(start, start + pageSize).map(d => ({
           id: d.id,
           name: d.name,
           location: d.location,
@@ -497,18 +470,26 @@ class DatabaseService {
           updated_at: new Date().toISOString()
         }));
       }
+
+      const from = (page - 1) * pageSize;
+      const to = from + pageSize - 1;
+
       // Fetch destinations and their current occupancy from tourists table in one go
       const { data: destinations, error: destError } = await db
         .from('destinations')
         .select('*')
-        .order('name');
+        .order('name')
+        .range(from, to);
 
       if (destError) throw destError;
       if (!destinations) throw new Error('No destinations found');
 
+      const destinationIds = (destinations as DbDestination[]).map(d => d.id);
+
       const { data: occupancyData, error: occError } = await db
         .from('tourists')
         .select('destination_id, group_size')
+        .in('destination_id', destinationIds)
         .or('status.eq.checked-in,status.eq.approved');
 
       if (occError) throw occError;
@@ -1589,6 +1570,182 @@ class DatabaseService {
     }
   }
 
+  // Batch query methods for eliminating N+1 queries
+  async getWeatherDataForDestinations(destinationIds: string[]): Promise<Map<string, DbWeatherData>> {
+    try {
+      if (this.isPlaceholderMode() || !db) {
+        // Return mock data for placeholder mode
+        const result = new Map<string, DbWeatherData>();
+        for (const id of destinationIds) {
+          result.set(id, {
+            id: `mock-w-${id}`,
+            destination_id: id,
+            temperature: 22,
+            humidity: 60,
+            pressure: 1013,
+            weather_main: 'Clear',
+            weather_description: 'Mock data',
+            wind_speed: 5,
+            wind_direction: 180,
+            visibility: 10000,
+            recorded_at: new Date().toISOString(),
+            alert_level: 'none',
+            alert_message: null,
+            alert_reason: null,
+            created_at: new Date().toISOString()
+          });
+        }
+        return result;
+      }
+
+      // Check cache first for all requested IDs
+      const result = new Map<string, DbWeatherData>();
+      const missingIds: string[] = [];
+
+      for (const id of destinationIds) {
+        const cached = weatherCache.get(id) as DbWeatherData;
+        if (cached) {
+          result.set(id, cached);
+        } else {
+          missingIds.push(id);
+        }
+      }
+
+      if (missingIds.length === 0) {
+        return result;
+      }
+
+      // Fetch missing data in a single batch query
+      const { data, error } = await db
+        .from('weather_data')
+        .select('*')
+        .in('destination_id', missingIds)
+        .order('recorded_at', { ascending: false });
+
+      if (error) {
+        console.error('Error batch fetching weather:', error);
+        return result; // Return what we have from cache
+      }
+
+      // Process results: deduplicate to keep only the latest per destination
+      // The query is ordered by recorded_at desc, so first occurrence is the latest
+      if (data) {
+        const processedIds = new Set<string>();
+        
+        for (const record of data) {
+          const destId = record.destination_id;
+          if (!processedIds.has(destId)) {
+            processedIds.add(destId);
+            // Cache the result
+            weatherCache.set(destId, record);
+            result.set(destId, record);
+          }
+        }
+      }
+
+      return result;
+    } catch (error) {
+      console.error('Error in getWeatherDataForDestinations:', error);
+      return new Map();
+    }
+  }
+
+  async getEcologicalIndicatorsForDestinations(destinationIds: string[]): Promise<Map<string, { soil_compaction: number; vegetation_disturbance: number; wildlife_disturbance: number; water_source_impact: number }>> {
+    try {
+      if (this.isPlaceholderMode() || !db) return new Map();
+
+      // Check cache first
+      const result = new Map<string, any>();
+      const missingIds: string[] = [];
+
+      for (const id of destinationIds) {
+        const cached = ecologicalIndicatorCache.get(id);
+        if (cached) {
+          result.set(id, cached);
+        } else {
+          missingIds.push(id);
+        }
+      }
+
+      if (missingIds.length === 0) {
+        return result;
+      }
+
+      // Batch fetch latest compliance reports for missing IDs
+      // Note: This is tricky because we need the latest report PER destination
+      // A common pattern is to fetch reports for these destinations created recently
+      
+      // Since supabase-js .select() with distinct on specific columns isn't straightforward for "latest per group"
+      // without a stored procedure or complex query, we'll fetch recent reports and filter in memory
+      // for the sake of this implementation, assuming reasonable data volume.
+      // A better approach for production would be a Postgres function or view.
+      
+      const { data, error } = await db
+        .from('compliance_reports')
+        .select('destination_id, ecological_damage_indicators, created_at')
+        .in('destination_id', missingIds)
+        .order('created_at', { ascending: false })
+        .limit(missingIds.length * 5); // Fetch enough recent records to likely cover all destinations
+
+      if (error) {
+        console.error('Error batch fetching indicators:', error);
+        return result;
+      }
+
+      if (data) {
+        const processedIds = new Set<string>();
+        
+        for (const record of data) {
+          if (!processedIds.has(record.destination_id) && record.ecological_damage_indicators) {
+            processedIds.add(record.destination_id);
+            const indicators = record.ecological_damage_indicators;
+            
+            // Cache it
+            ecologicalIndicatorCache.set(record.destination_id, indicators);
+            result.set(record.destination_id, indicators);
+          }
+        }
+      }
+
+      return result;
+    } catch (error) {
+      console.error('Error in getEcologicalIndicatorsForDestinations:', error);
+      return new Map();
+    }
+  }
+
+  async getDestinationsWithWeather(): Promise<Destination[]> {
+    try {
+      const destinations = await this.getDestinations();
+      if (!destinations.length) return [];
+      
+      const destinationIds = destinations.map(d => d.id);
+      const weatherMap = await this.getWeatherDataForDestinations(destinationIds);
+      
+      return destinations.map(dbDest => {
+        const dest = this.transformDbDestinationToDestination(dbDest);
+        const weather = weatherMap.get(dbDest.id);
+        
+        if (weather) {
+          dest.weather = {
+            temperature: weather.temperature,
+            humidity: weather.humidity,
+            weatherMain: weather.weather_main,
+            weatherDescription: weather.weather_description,
+            windSpeed: weather.wind_speed,
+            alertLevel: weather.alert_level || 'none',
+            recordedAt: weather.recorded_at
+          };
+        }
+        
+        return dest;
+      });
+    } catch (error) {
+      console.error('Error in getDestinationsWithWeather:', error);
+      return [];
+    }
+  }
+
   // Dashboard statistics
   getPolicyEngine() {
     return getPolicyEngine();
@@ -1606,12 +1763,21 @@ class DatabaseService {
       const physicalMaxCapacity = destinations.reduce((sum, dest) => sum + (dest.max_capacity || 0), 0);
       
       const policyEngine = getPolicyEngine();
-      const adjustedCapacities = await Promise.all(destinations.map(async (dest) => {
-        const destinationObj = this.transformDbDestinationToDestination(dest);
-        return await policyEngine.getAdjustedCapacity(destinationObj) || 0;
-      }));
+      const destinationIds = destinations.map(d => d.id);
       
-      const adjustedMaxCapacity = adjustedCapacities.reduce((sum, cap) => sum + cap, 0);
+      // Batch-fetch weather and indicators for capacity calculations
+      const [weatherBatch, indicatorsBatch] = await Promise.all([
+        this.getWeatherDataForDestinations(destinationIds),
+        this.getEcologicalIndicatorsForDestinations(destinationIds)
+      ]);
+
+      const batchCapacitiesMap = await policyEngine.getBatchAdjustedCapacities(
+        destinations.map(d => this.transformDbDestinationToDestination(d)),
+        weatherBatch,
+        indicatorsBatch
+      );
+
+      const adjustedMaxCapacity = Array.from(batchCapacitiesMap.values()).reduce((sum, cap) => sum + cap, 0);
       
       // Calculate current occupancy from tourist records for accuracy
       const currentOccupancy = tourists
@@ -1740,8 +1906,7 @@ class DatabaseService {
           alert_reason: data.alert_reason || null,
           created_at: new Date().toISOString()
         };
-        this.weatherCache.set(data.destination_id, mockEntry);
-        this.persistCache();
+        weatherCache.set(data.destination_id, mockEntry);
         return true;
       }
       console.log('Saving weather data for destination:', data.destination_id, data);
@@ -1762,6 +1927,9 @@ class DatabaseService {
         return false;
       }
 
+      // Update cache
+      weatherCache.delete(data.destination_id);
+
       console.log('✅ Weather data saved successfully');
       return true;
     } catch (error) {
@@ -1771,50 +1939,47 @@ class DatabaseService {
   }
 
   async getLatestWeatherData(destinationId: string): Promise<DbWeatherData | null> {
-    try {
-      if (this.isPlaceholderMode() || !db) {
-        // Return cached weather data if available
-        if (this.weatherCache.has(destinationId)) {
-          return this.weatherCache.get(destinationId) || null;
+    return withCache(weatherCache, destinationId, async () => {
+      try {
+        if (this.isPlaceholderMode() || !db) {
+          // Return dummy weather data for mock destinations if not in cache
+          // Use an old timestamp to trigger the first fetch
+          return {
+            id: 'mock-weather-id',
+            destination_id: destinationId,
+            temperature: 22,
+            humidity: 60,
+            pressure: 1013,
+            weather_main: 'Initial',
+            weather_description: 'Initial data (fetching soon...)',
+            wind_speed: 5,
+            wind_direction: 180,
+            visibility: 10000,
+            recorded_at: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(), // 24 hours ago to trigger fetch
+            alert_level: 'none',
+            alert_message: null,
+            alert_reason: null,
+            created_at: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
+          } as DbWeatherData;
         }
-        
-        // Return dummy weather data for mock destinations if not in cache
-        // Use an old timestamp to trigger the first fetch
-        return {
-          id: 'mock-weather-id',
-          destination_id: destinationId,
-          temperature: 22,
-          humidity: 60,
-          pressure: 1013,
-          weather_main: 'Initial',
-          weather_description: 'Initial data (fetching soon...)',
-          wind_speed: 5,
-          wind_direction: 180,
-          visibility: 10000,
-          recorded_at: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(), // 24 hours ago to trigger fetch
-          alert_level: 'none',
-          alert_message: null,
-          alert_reason: null,
-          created_at: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
-        } as DbWeatherData;
-      }
-      const { data, error } = await db
-        .from('weather_data')
-        .select('*')
-        .eq('destination_id', destinationId)
-        .order('recorded_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
+        const { data, error } = await db
+          .from('weather_data')
+          .select('*')
+          .eq('destination_id', destinationId)
+          .order('recorded_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
 
-      if (error || !data) {
+        if (error || !data) {
+          return null;
+        }
+
+        return data;
+      } catch (error) {
+        console.error('Error in getLatestWeatherData:', error);
         return null;
       }
-
-      return data;
-    } catch (error) {
-      console.error('Error in getLatestWeatherData:', error);
-      return null;
-    }
+    });
   }
 
   // Get weather alerts from weather data (replaces alerts table for weather alerts)

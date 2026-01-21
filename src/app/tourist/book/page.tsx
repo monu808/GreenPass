@@ -5,7 +5,7 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import { Calendar, Users, MapPin, Star, AlertTriangle, CheckCircle, Leaf, ShieldAlert, XCircle, RefreshCw, Globe, TreePine, Zap, Info } from 'lucide-react';
 import TouristLayout from '@/components/TouristLayout';
 import { getDbService } from '@/lib/databaseService';
-import { getPolicyEngine } from '@/lib/ecologicalPolicyEngine';
+import { getPolicyEngine, WeatherConditions } from '@/lib/ecologicalPolicyEngine';
 import { getCarbonCalculator } from '@/lib/carbonFootprintCalculator';
 import { 
   sanitizeForDatabase, 
@@ -127,14 +127,23 @@ function BookDestinationForm() {
       if (found) {
         setDestination(found);
         
-        // Load capacity info
-        const [available, adjusted, dynResult] = await Promise.all([
-          policyEngine.getAvailableSpots(found),
-          policyEngine.getAdjustedCapacity(found),
-          policyEngine.getDynamicCapacity(found)
+        // 1. Fetch weather and indicators once
+        const [weather, indicators] = await Promise.all([
+          dbService.getLatestWeatherData(found.id),
+          dbService.getLatestEcologicalIndicators(found.id)
         ]);
-        setAvailableSpots(available);
-        setAdjustedCapacity(adjusted);
+
+        const weatherConditions: WeatherConditions | undefined = weather ? {
+          alert_level: weather.alert_level || 'none',
+          temperature: weather.temperature,
+          humidity: weather.humidity
+        } : undefined;
+
+        // 2. Use single dynamic capacity call with pre-fetched data
+        const dynResult = await policyEngine.getDynamicCapacity(found, weatherConditions, indicators);
+        
+        setAvailableSpots(dynResult.availableSpots);
+        setAdjustedCapacity(dynResult.adjustedCapacity);
         setCapacityResult(dynResult);
         
         // Generate ecological alert if applicable

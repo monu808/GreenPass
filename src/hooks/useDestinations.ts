@@ -13,5 +13,6 @@ export function useDestinations() {
       return destinations.map(d => dbService.transformDbDestinationToDestination(d));
     },
     staleTime: 1000 * 60 * 60, // 1 hour
+    gcTime: 1000 * 60 * 60, // 1 hour
   });
 }

@@ -36,16 +36,6 @@ To ensure optimal performance, the following indexes should be applied to the Su
   ON policy_violations (destination_id);
   ```
 
-### 4. Ecological Indicators - Batch Queries
-**Purpose:** Optimizes batch processing and retrieval of ecological indicators over time.
-- **Table:** `ecological_indicators`
-- **Columns:** `destination_id`, `recorded_at DESC`
-- **SQL:**
-  ```sql
-  CREATE INDEX IF NOT EXISTS idx_ecological_indicators_destination_recorded_at 
-  ON ecological_indicators (destination_id, recorded_at DESC);
-  ```
-
 ---
 
 ## Application Instructions
@@ -72,10 +62,6 @@ ON tourists (destination_id);
 -- 3. Policy Violations Index
 CREATE INDEX IF NOT EXISTS idx_policy_violations_destination_id 
 ON policy_violations (destination_id);
-
--- 4. Ecological Indicators Index
-CREATE INDEX IF NOT EXISTS idx_ecological_indicators_destination_recorded_at 
-ON ecological_indicators (destination_id, recorded_at DESC);
 ```
 
 6. Click **Run**.

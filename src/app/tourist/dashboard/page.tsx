@@ -14,6 +14,8 @@ import { getDbService } from '@/lib/databaseService';
 import { getPolicyEngine } from '@/lib/ecologicalPolicyEngine';
 import { getEcoFriendlyAlternatives } from '@/lib/recommendationEngine';
 import { Destination } from '@/types';
+import { useDestinations } from '@/hooks/useDestinations';
+import { useWeatherDataBatch } from '@/hooks/useWeatherData';
 
 // BUILD FIX: Explicit interface for weather to prevent 'any' type build failures
 interface WeatherData {
@@ -34,43 +36,66 @@ export default function TouristDashboard() {
   const [weatherMap, setWeatherMap] = useState<Record<string, WeatherData>>({});
   const weatherMapRef = useRef<Record<string, WeatherData>>({});
 
+  // 1. Use React Query hooks for client-side caching
+  const { data: destinationsData, isLoading: destLoading } = useDestinations();
+  const { data: batchWeatherData } = useWeatherDataBatch(
+    destinationsData ? destinationsData.map(d => d.id) : []
+  );
+
+  // Sync destinations from React Query
   useEffect(() => {
-    weatherMapRef.current = weatherMap;
-  }, [weatherMap]);
+    if (destinationsData) {
+      setDestinations(destinationsData);
+    }
+  }, [destinationsData]);
+
+  // Sync weather from React Query
+  useEffect(() => {
+    if (batchWeatherData) {
+      const newWeatherMap: Record<string, WeatherData> = {};
+      batchWeatherData.forEach((data, id) => {
+        newWeatherMap[id] = {
+          temperature: data.temperature,
+          humidity: data.humidity,
+          weatherMain: data.weather_main,
+          weatherDescription: data.weather_description,
+          recordedAt: data.recorded_at
+        };
+      });
+      setWeatherMap(newWeatherMap);
+    }
+  }, [batchWeatherData]);
 
   const loadTouristData = useCallback(async () => {
+    if (!destinationsData) return;
+    
     try {
-      const dbService = getDbService();
       const policyEngine = getPolicyEngine();
-      const destinationsData = await dbService.getDestinations();
+      const dbService = getDbService();
 
-      const transformedDestinations: Destination[] = destinationsData.map(dest => ({
-        id: dest.id,
-        name: dest.name,
-        location: dest.location,
-        maxCapacity: dest.max_capacity,
-        currentOccupancy: dest.current_occupancy,
-        description: dest.description,
-        guidelines: dest.guidelines || [], // Ensure array fallback
-        isActive: dest.is_active,
-        ecologicalSensitivity: dest.ecological_sensitivity,
-        sustainabilityFeatures: dest.sustainability_features || undefined,
-        coordinates: {
-          latitude: dest.latitude,
-          longitude: dest.longitude
-        }
-      }));
+      // 2. Use batch adjusted capacities calculation
+      const destinationIds = destinationsData.map(d => d.id);
+      
+      // Batch-fetch indicators (Phase 1 method)
+      const indicatorsMap = await dbService.getEcologicalIndicatorsForDestinations(destinationIds);
+      
+      // We already have weather from React Query or can fetch it if needed
+      const weatherInputMap = batchWeatherData || new Map();
+      
+      const batchCapacitiesMap = await policyEngine.getBatchAdjustedCapacities(
+        destinationsData,
+        weatherInputMap,
+        indicatorsMap
+      );
 
-      setDestinations(transformedDestinations);
-
-      // Pre-calculate adjusted capacities
       const calculatedAdjustedCapacities: Record<string, number> = {};
-      await Promise.all(transformedDestinations.map(async (dest) => {
-        calculatedAdjustedCapacities[dest.id] = await policyEngine.getAdjustedCapacity(dest);
-      }));
+      batchCapacitiesMap.forEach((cap, id) => {
+        calculatedAdjustedCapacities[id] = cap;
+      });
+      
       setAdjustedCapacities(calculatedAdjustedCapacities);
 
-      const featured = transformedDestinations
+      const featured = destinationsData
         .filter(dest => dest.isActive)
         .sort((a, b) => {
           const aCap = calculatedAdjustedCapacities[a.id] ?? a.maxCapacity;
@@ -82,36 +107,18 @@ export default function TouristDashboard() {
         .slice(0, 3);
 
       setFeaturedDestinations(featured);
-      updateWeatherData(featured);
     } catch (error) {
       console.error('Error loading tourist data:', error);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [destinationsData, batchWeatherData]);
 
-  const updateWeatherData = async (featured: Destination[]) => {
-    const dbService = getDbService();
-    for (const destination of featured) {
-      try {
-        const latestWeather = await dbService.getLatestWeatherData(destination.id);
-        if (latestWeather) {
-          setWeatherMap(prev => ({
-            ...prev,
-            [destination.id]: {
-              temperature: latestWeather.temperature,
-              humidity: latestWeather.humidity,
-              weatherMain: latestWeather.weather_main,
-              weatherDescription: latestWeather.weather_description,
-              recordedAt: latestWeather.recorded_at
-            }
-          }));
-        }
-      } catch (error) {
-        console.error(`Error updating weather:`, error);
-      }
+  useEffect(() => {
+    if (destinationsData) {
+      loadTouristData();
     }
-  };
+  }, [destinationsData, loadTouristData]);
 
   useEffect(() => {
     loadTouristData();

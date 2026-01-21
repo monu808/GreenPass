@@ -25,6 +25,7 @@ import { getCapacityStatus, formatDateTime } from '@/lib/utils';
 import { DashboardStats, Destination, Alert } from '@/types';
 import { getPolicyEngine, DEFAULT_POLICIES, SensitivityLevel, EcologicalPolicy } from '@/lib/ecologicalPolicyEngine';
 import EcologicalDashboard from './EcologicalDashboard';
+import { useWeatherDataBatch } from "@/hooks/useWeatherData";
 
 export default function AdminDashboard() {
   const [stats, setStats] = useState<DashboardStats>({
@@ -55,105 +56,126 @@ export default function AdminDashboard() {
 
   const [activeTab, setActiveTab] = useState<'overview' | 'policies' | 'ecological'>('overview');
 
+  // Use React Query for batch weather data display
+  const { data: batchWeatherData, refetch: refetchWeather } = useWeatherDataBatch(
+    destinations.map(d => d.id)
+  );
+
+  // Sync React Query data with local weatherMap state for compatibility with existing UI
+  useEffect(() => {
+    if (batchWeatherData) {
+      const newMap: Record<string, any> = {};
+      batchWeatherData.forEach((data, id) => {
+        newMap[id] = {
+          temperature: data.temperature,
+          humidity: data.humidity,
+          weatherMain: data.weather_main,
+          weatherDescription: data.weather_description,
+          windSpeed: data.wind_speed,
+          recordedAt: data.recorded_at
+        };
+      });
+      setWeatherMap(prev => ({ ...prev, ...newMap }));
+    }
+  }, [batchWeatherData]);
+
   const updateWeatherData = useCallback(async (destinations: Destination[]) => {
     const dbService = getDbService();
     const newWeatherMap: Record<string, any> = {};
+    const destinationIds = destinations.map(d => d.id);
 
-    await Promise.all(destinations.map(async (destination) => {
-      try {
-        let weatherDataForMap = null;
+    try {
+      // 1. Batch-fetch existing weather data from DB for all destinations at once
+      const latestWeatherBatch = await dbService.getWeatherDataForDestinations(destinationIds);
+      const sixHoursInMs = 6 * 60 * 60 * 1000;
+      const now = Date.now();
 
-        // First, try to get the latest weather from the database
-        const latestWeather = await dbService.getLatestWeatherData(destination.id);
+      // 2. Process each destination sequentially for API calls (to respect rate limits)
+      for (const destination of destinations) {
+        try {
+          const latestWeather = latestWeatherBatch.get(destination.id);
+          let weatherDataForMap = null;
 
-        if (latestWeather) {
-          weatherDataForMap = {
-            temperature: latestWeather.temperature,
-            humidity: latestWeather.humidity,
-            weatherMain: latestWeather.weather_main,
-            weatherDescription: latestWeather.weather_description,
-            windSpeed: latestWeather.wind_speed,
-            recordedAt: latestWeather.recorded_at
-          };
-        }
-
-        const coordinates = (destinationCoordinates as Record<string, { lat: number; lon: number; name?: string }>)[destination.id] ||
-          (destinationCoordinates as Record<string, { lat: number; lon: number; name?: string }>)[destination.name?.toLowerCase().replace(/\s+/g, '')] ||
-          (destinationCoordinates as Record<string, { lat: number; lon: number; name?: string }>)[destination.name?.toLowerCase()];
-
-        // Check if we already have recent weather data
-        // We use the data we just fetched from DB (if any) as the baseline
-        const existingWeather = weatherDataForMap;
-        const sixHoursInMs = 6 * 60 * 60 * 1000;
-        const isFresh = existingWeather &&
-          (new Date().getTime() - new Date(existingWeather.recordedAt).getTime() < sixHoursInMs);
-
-        if (coordinates && !isFresh) {
-          const weatherData = await weatherService.getWeatherByCoordinates(
-            coordinates.lat,
-            coordinates.lon,
-            coordinates.name || destination.name
-          );
-
-          if (weatherData) {
-            // Save weather data to database
-            await dbService.saveWeatherData({
-              destination_id: destination.id,
-              temperature: weatherData.temperature,
-              humidity: weatherData.humidity,
-              pressure: weatherData.pressure,
-              weather_main: weatherData.weatherMain,
-              weather_description: weatherData.weatherDescription,
-              wind_speed: weatherData.windSpeed,
-              wind_direction: weatherData.windDirection,
-              visibility: weatherData.visibility,
-              recorded_at: new Date().toISOString()
-            });
-
+          if (latestWeather) {
             weatherDataForMap = {
-              temperature: weatherData.temperature,
-              humidity: weatherData.humidity,
-              weatherMain: weatherData.weatherMain,
-              weatherDescription: weatherData.weatherDescription,
-              windSpeed: weatherData.windSpeed,
-              recordedAt: new Date().toISOString()
+              temperature: latestWeather.temperature,
+              humidity: latestWeather.humidity,
+              weatherMain: latestWeather.weather_main,
+              weatherDescription: latestWeather.weather_description,
+              windSpeed: latestWeather.wind_speed,
+              recordedAt: latestWeather.recorded_at
             };
+          }
 
-            // Check if weather data triggers a policy alert
-            const policyEngine = getPolicyEngine();
-            const alertCheck = policyEngine.checkWeatherAlerts(destination, weatherData);
+          const coordinates = (destinationCoordinates as Record<string, { lat: number; lon: number; name?: string }>)[destination.id] ||
+            (destinationCoordinates as Record<string, { lat: number; lon: number; name?: string }>)[destination.name?.toLowerCase().replace(/\s+/g, '')] ||
+            (destinationCoordinates as Record<string, { lat: number; lon: number; name?: string }>)[destination.name?.toLowerCase()];
 
-            if (alertCheck.shouldAlert) {
-              await dbService.addAlert({
-                type: "weather",
-                title: `Weather Alert - ${destination.name}`,
-                message: alertCheck.reason,
-                severity: alertCheck.severity || "medium",
-                destinationId: destination.id,
-                isActive: true,
+          const isFresh = weatherDataForMap &&
+            (now - new Date(weatherDataForMap.recordedAt).getTime() < sixHoursInMs);
+
+          if (coordinates && !isFresh) {
+            console.log(`🌐 Refreshing weather for ${destination.name}...`);
+            const weatherData = await weatherService.getWeatherByCoordinates(
+              coordinates.lat,
+              coordinates.lon,
+              coordinates.name || destination.name
+            );
+
+            if (weatherData) {
+              await dbService.saveWeatherData({
+                destination_id: destination.id,
+                temperature: weatherData.temperature,
+                humidity: weatherData.humidity,
+                pressure: weatherData.pressure,
+                weather_main: weatherData.weatherMain,
+                weather_description: weatherData.weatherDescription,
+                wind_speed: weatherData.windSpeed,
+                wind_direction: weatherData.windDirection,
+                visibility: weatherData.visibility,
+                recorded_at: new Date().toISOString()
               });
+
+              weatherDataForMap = {
+                temperature: weatherData.temperature,
+                humidity: weatherData.humidity,
+                weatherMain: weatherData.weatherMain,
+                weatherDescription: weatherData.weatherDescription,
+                windSpeed: weatherData.windSpeed,
+                recordedAt: new Date().toISOString()
+              };
+
+              const policyEngine = getPolicyEngine();
+              const alertCheck = policyEngine.checkWeatherAlerts(destination, weatherData);
+
+              if (alertCheck.shouldAlert) {
+                await dbService.addAlert({
+                  type: "weather",
+                  title: `Weather Alert - ${destination.name}`,
+                  message: alertCheck.reason,
+                  severity: alertCheck.severity || "medium",
+                  destinationId: destination.id,
+                  isActive: true,
+                });
+              }
             }
           }
-        }
 
-        if (weatherDataForMap) {
-          newWeatherMap[destination.id] = weatherDataForMap;
+          if (weatherDataForMap) {
+            newWeatherMap[destination.id] = weatherDataForMap;
+          }
+        } catch (err) {
+          console.error(`Error updating weather for ${destination.name}:`, err);
         }
-
-      } catch (error) {
-        console.error(
-          `Error updating weather for ${destination.name}:`,
-          error
-        );
       }
-    }));
 
-    // Update state once with all the collected data
-    setWeatherMap(prev => ({
-      ...prev,
-      ...newWeatherMap
-    }));
-  }, []);
+      setWeatherMap(prev => ({ ...prev, ...newWeatherMap }));
+      // Invalidate React Query cache to reflect new data
+      refetchWeather();
+    } catch (error) {
+      console.error("Error in batch weather update:", error);
+    }
+  }, [refetchWeather]);
 
   const loadDashboardData = useCallback(async () => {
     try {
@@ -220,12 +242,27 @@ export default function AdminDashboard() {
 
       setDestinations(transformedDestinations);
 
-      // Calculate adjusted capacities
+      // Calculate adjusted capacities in batch
       const policyEngine = getPolicyEngine();
+      
+      // Batch-fetch weather and indicators for capacity calculations
+      const destinationIds = transformedDestinations.map(d => d.id);
+      const [weatherBatch, indicatorsBatch] = await Promise.all([
+        dbService.getWeatherDataForDestinations(destinationIds),
+        dbService.getEcologicalIndicatorsForDestinations(destinationIds)
+      ]);
+
+      const batchCapacitiesMap = await policyEngine.getBatchAdjustedCapacities(
+        transformedDestinations,
+        weatherBatch,
+        indicatorsBatch
+      );
+
       const newAdjustedCapacities: Record<string, number> = {};
-      await Promise.all(transformedDestinations.map(async (dest) => {
-        newAdjustedCapacities[dest.id] = await policyEngine.getAdjustedCapacity(dest);
-      }));
+      batchCapacitiesMap.forEach((cap, id) => {
+        newAdjustedCapacities[id] = cap;
+      });
+      
       setAdjustedCapacities(newAdjustedCapacities);
 
       // Update weather data for all destinations
@@ -260,10 +297,26 @@ export default function AdminDashboard() {
   useEffect(() => {
     const recalculateCapacities = async () => {
       const policyEngine = getPolicyEngine();
+      const dbService = getDbService();
+      
+      // Batch-fetch weather and indicators for capacity calculations
+      const destinationIds = destinations.map(d => d.id);
+      const [weatherBatch, indicatorsBatch] = await Promise.all([
+        dbService.getWeatherDataForDestinations(destinationIds),
+        dbService.getEcologicalIndicatorsForDestinations(destinationIds)
+      ]);
+
+      const batchCapacitiesMap = await policyEngine.getBatchAdjustedCapacities(
+        destinations,
+        weatherBatch,
+        indicatorsBatch
+      );
+
       const newAdjustedCapacities: Record<string, number> = {};
-      await Promise.all(destinations.map(async (dest) => {
-        newAdjustedCapacities[dest.id] = await policyEngine.getAdjustedCapacity(dest);
-      }));
+      batchCapacitiesMap.forEach((cap, id) => {
+        newAdjustedCapacities[id] = cap;
+      });
+      
       setAdjustedCapacities(newAdjustedCapacities);
     };
 

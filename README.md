@@ -86,10 +86,31 @@ GreenPass helps manage tourist capacity in sensitive Himalayan regions to preven
 
 ## 🛠️ Tech Stack
 
-**Frontend**: Next.js 15, TypeScript, Tailwind CSS  
-**Backend**: Supabase (Auth + PostgreSQL)  
+**Frontend**: Next.js 15, TypeScript, Tailwind CSS, TanStack Query (React Query)
+**Backend**: Supabase (Auth + PostgreSQL), LRU Cache
 **UI**: Radix UI, Lucide Icons, Recharts  
 **Tools**: NextAuth, date-fns, Turbopack
+
+---
+
+## 🚀 Performance Optimization
+
+To maintain high performance and eliminate N+1 query patterns, we recommend the following database indexes:
+
+```sql
+-- Index for destination lookups in tourists table
+CREATE INDEX idx_tourists_destination_id ON tourists(destination_id);
+
+-- Index for status-based occupancy calculations
+CREATE INDEX idx_tourists_status ON tourists(status) WHERE status IN ('checked-in', 'approved');
+
+-- Index for temporal queries (latest weather, latest indicators)
+CREATE INDEX idx_weather_data_destination_created ON weather_data(destination_id, created_at DESC);
+CREATE INDEX idx_ecological_indicators_destination_created ON ecological_indicators(destination_id, created_at DESC);
+
+-- Index for tourist lookups by user
+CREATE INDEX idx_tourists_user_id ON tourists(user_id);
+```
 
 ---
 

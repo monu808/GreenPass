@@ -68,6 +68,15 @@ export interface Destination {
     longitude: number;
   };
   sustainabilityFeatures?: SustainabilityFeatures;
+  weather?: {
+    temperature: number;
+    humidity: number;
+    weatherMain: string;
+    weatherDescription: string;
+    windSpeed: number;
+    alertLevel: string;
+    recordedAt: string;
+  };
 }
 
 export interface BookingSlot {

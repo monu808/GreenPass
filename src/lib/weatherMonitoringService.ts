@@ -49,12 +49,19 @@ class WeatherMonitor implements WeatherMonitoringService {
         return;
       }
 
+      // 1. Batch-fetch existing weather data from DB for all destinations at once
+      const destinationIds = destinations.map(d => d.id);
+      const latestWeatherBatch = await dbService.getWeatherDataForDestinations(destinationIds);
+      const sixHoursInMs = 6 * 60 * 60 * 1000;
+      const now = Date.now();
+
       // Check weather for each destination with rate limiting
       for (const dbDestination of destinations) {
         try {
           const destination = dbService.transformDbDestinationToDestination(dbDestination);
-          // Always check the database first to have some data (even if old)
-          const latestWeather = await dbService.getLatestWeatherData(destination.id);
+          
+          // 2. Use prefetched batch data for freshness checks
+          const latestWeather = latestWeatherBatch.get(destination.id);
 
           if (latestWeather && latestWeather.recorded_at) {
             const recordedAt = new Date(latestWeather.recorded_at).getTime();
@@ -75,9 +82,8 @@ class WeatherMonitor implements WeatherMonitoringService {
             });
 
             // Check if this data is fresh enough (6 hours)
-            const sixHoursAgo = Date.now() - this.checkInterval;
-            if (recordedAt > sixHoursAgo) {
-              const minutesOld = Math.round((Date.now() - recordedAt) / 60000);
+            if (recordedAt > now - sixHoursInMs) {
+              const minutesOld = Math.round((now - recordedAt) / 60000);
               console.log(`✅ Weather for ${destination.name} is fresh (${minutesOld} min old). Skipping external API call.`);
               continue;
             }
@@ -95,9 +101,9 @@ class WeatherMonitor implements WeatherMonitoringService {
           console.log(`🌐 FETCHING fresh weather data from Tomorrow.io for ${destination.name}...`);
 
           // Rate limiting: ensure minimum delay between API calls
-          const now = Date.now();
-          if (now - this.lastApiCall < this.apiCallDelay) {
-            const waitTime = this.apiCallDelay - (now - this.lastApiCall);
+          const currentApiTime = Date.now();
+          if (currentApiTime - this.lastApiCall < this.apiCallDelay) {
+            const waitTime = this.apiCallDelay - (currentApiTime - this.lastApiCall);
             console.log(`⏱️ Rate limiting: waiting ${waitTime}ms before API call...`);
             await new Promise(resolve => setTimeout(resolve, waitTime));
           }

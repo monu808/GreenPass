@@ -12,6 +12,8 @@ import {
   Target
 } from 'lucide-react';
 import { getDbService } from '@/lib/databaseService';
+import { useTourists } from '@/hooks/useTourists';
+import { useDestinations } from '@/hooks/useDestinations';
 
 interface AnalyticsData {
   totalTourists: number;
@@ -28,21 +30,19 @@ export default function AnalyticsPage() {
   const [loading, setLoading] = useState(true);
   const [selectedTimeRange, setSelectedTimeRange] = useState('30d');
 
-  useEffect(() => {
-    loadAnalytics();
-  }, [selectedTimeRange]);
+  const { data: tourists, isLoading: touristsLoading } = useTourists();
+  const { data: destinations, isLoading: destinationsLoading } = useDestinations();
 
-  const loadAnalytics = async () => {
+  useEffect(() => {
+    if (tourists && destinations) {
+      processAnalytics(tourists, destinations);
+    }
+  }, [tourists, destinations, selectedTimeRange]);
+
+  const processAnalytics = (tourists: any[], destinations: any[]) => {
     try {
       setLoading(true);
-      const dbService = getDbService();
       
-      // Get raw data
-      const [tourists, destinations] = await Promise.all([
-        dbService.getTourists(),
-        dbService.getDestinations()
-      ]);
-
       // Process analytics data
       const totalTourists = tourists.length;
       const totalDestinations = destinations.length;
@@ -101,9 +101,8 @@ export default function AnalyticsPage() {
         statusDistribution,
         capacityUtilization
       });
-
     } catch (error) {
-      console.error('Error loading analytics:', error);
+      console.error('Error processing analytics:', error);
     } finally {
       setLoading(false);
     }
@@ -151,12 +150,13 @@ export default function AnalyticsPage() {
     );
   };
 
-  if (loading) {
+  const isDataLoading = touristsLoading || destinationsLoading || loading;
+
+  if (isDataLoading && !analytics) {
     return (
       <Layout>
-        <div className="flex items-center justify-center h-64">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600"></div>
-          <span className="ml-2 text-gray-600">Loading analytics...</span>
+        <div className="flex items-center justify-center min-h-screen">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-500"></div>
         </div>
       </Layout>
     );

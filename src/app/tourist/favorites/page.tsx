@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import Image from 'next/image';
 import TouristLayout from '@/components/TouristLayout';
 import { 
   Heart, 
@@ -194,11 +195,14 @@ export default function Favorites() {
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                   {visitedDestinations.map((destination) => (
                     <div key={destination.id} className="destination-memory-card">
-                      <div className="relative">
-                        <img
+                      <div className="relative h-48 bg-slate-100 shimmer">
+                        <Image
                           src={destination.image}
                           alt={destination.name}
-                          className="w-full h-48 object-cover rounded-lg"
+                          className="w-full h-full object-cover rounded-lg"
+                          fill
+                          sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                          priority
                         />
                         <div className="absolute top-3 right-3 flex space-x-2">
                           <button className="glass-button p-2 text-red-500 hover:text-red-600">
@@ -256,11 +260,13 @@ export default function Favorites() {
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                   {bucketListDestinations.map((destination) => (
                     <div key={destination.id} className="destination-memory-card">
-                      <div className="relative">
-                        <img
+                      <div className="relative h-48 bg-slate-100 shimmer">
+                        <Image
                           src={destination.image}
                           alt={destination.name}
-                          className="w-full h-48 object-cover rounded-lg"
+                          className="w-full h-full object-cover rounded-lg"
+                          fill
+                          sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                         />
                         <div className="absolute top-3 right-3 flex space-x-2">
                           <button className="glass-button p-2 text-red-500 hover:text-red-600">

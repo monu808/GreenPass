@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import Image from 'next/image';
 import TouristLayout from '@/components/TouristLayout';
 import { 
   Leaf, 
@@ -230,11 +231,13 @@ export default function EcoInitiativesPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
               {activities.map(activity => (
                 <div key={activity.id} className="group bg-white rounded-3xl overflow-hidden border border-slate-200 shadow-sm hover:shadow-xl transition-all duration-300 flex flex-col">
-                  <div className="relative h-48 bg-slate-200">
-                    <img 
+                  <div className="relative h-48 bg-slate-100 shimmer">
+                    <Image 
                       src={`https://source.unsplash.com/featured/?nature,cleanup&sig=${activity.id}`} 
                       alt={activity.title}
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                      fill
+                      sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                     />
                     <div className="absolute top-4 right-4 bg-white/90 backdrop-blur-md px-4 py-2 rounded-xl border border-white/20 shadow-lg">
                       <div className="flex items-center gap-1.5 text-emerald-600 font-black">
@@ -320,11 +323,13 @@ export default function EcoInitiativesPage() {
             </div>
             
             <div className="relative">
-              <div className="aspect-video bg-emerald-900 rounded-3xl overflow-hidden shadow-2xl group">
-                <img 
+              <div className="aspect-video bg-slate-100 shimmer rounded-3xl overflow-hidden shadow-2xl group relative">
+                <Image 
                   src="https://source.unsplash.com/featured/?conservation,cleanup" 
                   className="w-full h-full object-cover opacity-60 group-hover:scale-110 transition-transform duration-700"
                   alt="Environmental impact"
+                  fill
+                  sizes="(max-width: 1024px) 100vw, 50vw"
                 />
                 <div className="absolute inset-0 flex items-center justify-center">
                   <div className="p-6 bg-white/10 backdrop-blur-md rounded-2xl border border-white/20 text-center max-w-xs">
@@ -359,8 +364,14 @@ export default function EcoInitiativesPage() {
                         <tr key={reg.id} className="hover:bg-slate-50/50 transition-colors">
                           <td className="px-8 py-6">
                             <div className="flex items-center gap-4">
-                              <div className="w-12 h-12 rounded-xl bg-slate-100 overflow-hidden flex-shrink-0">
-                                <img src={`https://source.unsplash.com/featured/?nature,cleanup&sig=${reg.id}`} className="w-full h-full object-cover" />
+                              <div className="w-12 h-12 rounded-xl bg-slate-100 shimmer overflow-hidden flex-shrink-0 relative">
+                                <Image 
+                                  src={`https://source.unsplash.com/featured/?nature,cleanup&sig=${reg.id}`} 
+                                  className="w-full h-full object-cover" 
+                                  alt={activity?.title || 'Cleanup activity'}
+                                  fill
+                                  sizes="48px"
+                                />
                               </div>
                               <div>
                                 <p className="font-bold text-slate-900">{activity?.title || 'Unknown Activity'}</p>

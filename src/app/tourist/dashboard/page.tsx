@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import Image from 'next/image';
 import {
   MapPin, Star, Calendar, Users, Camera, TrendingUp,
   Award, ArrowRight, Play, Navigation, Compass,
@@ -174,11 +175,14 @@ export default function TouristDashboard() {
         <div className="max-w-7xl mx-auto space-y-10 pb-20 px-6">
 
           {/* HERO SECTION - UNTOUCHED (Premium Branding) */}
-          <div className="relative h-[480px] rounded-[3.5rem] overflow-hidden group shadow-2xl shadow-emerald-900/10">
-            <img
+          <div className="relative h-[480px] rounded-[3.5rem] overflow-hidden group shadow-2xl shadow-emerald-900/10 bg-slate-100 shimmer">
+            <Image
               src="https://images.unsplash.com/photo-1501785888041-af3ef285b470?auto=format&fit=crop&q=80"
               className="absolute inset-0 w-full h-full object-cover transition-transform duration-1000 group-hover:scale-110"
               alt="Hero Nature"
+              fill
+              priority
+              sizes="(max-width: 768px) 100vw, (max-width: 1200px) 100vw, 1200px"
             />
             <div className="absolute inset-0 bg-gradient-to-r from-emerald-950/90 via-emerald-900/40 to-transparent" />
             <div className="relative h-full flex flex-col justify-center p-12 sm:p-20 space-y-8 max-w-4xl">
@@ -230,12 +234,14 @@ export default function TouristDashboard() {
                 return (
                   <div key={dest.id} className="space-y-4">
                     <div className="group bg-white rounded-[2.5rem] border border-gray-100 overflow-hidden shadow-sm hover:shadow-2xl transition-all duration-500">
-                      <div className="h-60 relative overflow-hidden bg-emerald-900">
+                      <div className="h-60 relative overflow-hidden bg-slate-100 shimmer">
                         {/* Background visual for card */}
-                        <img
+                        <Image
                           src="https://images.unsplash.com/photo-1596394516093-501ba68a0ba6?w=800"
                           className="w-full h-full object-cover opacity-50 transition-transform duration-700 group-hover:scale-110"
                           alt={dest.name}
+                          fill
+                          sizes="(max-width: 768px) 100vw, (max-width: 1200px) 33vw, 33vw"
                         />
                         <div className="absolute inset-0 p-8 flex flex-col justify-between z-10 text-white">
                           <div className="flex justify-between items-start">

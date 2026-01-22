@@ -113,6 +113,26 @@ npm run dev
 ```
 
 ---
+### 🔑 Environment Variables
+
+Create a file named `.env.local` in the root directory and add the following keys (see `.env.example`):
+
+| Variable | Description |
+|----------|-------------|
+| **Supabase** | |
+| `NEXT_PUBLIC_SUPABASE_URL` | Your Supabase project URL. |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Your Supabase API Anon Key. |
+| `SUPABASE_SERVICE_ROLE_KEY` | Service Role Key (Keep this secret!). |
+| **Weather API** | |
+| `TOMORROW_API_KEY` | API Key from Tomorrow.io. |
+| `NEXT_PUBLIC_TOMORROW_API_KEY` | Public Weather API Key. |
+| **App & Auth** | |
+| `NEXT_PUBLIC_APP_URL` | Base URL (e.g., `http://localhost:3000`). |
+| `NEXTAUTH_URL` | Canonical URL for NextAuth (same as App URL). |
+| `NEXTAUTH_SECRET` | Secret string for session encryption. |
+| **Google OAuth** | |
+| `GOOGLE_CLIENT_ID` | OAuth Client ID from Google Cloud. |
+| `GOOGLE_CLIENT_SECRET` | OAuth Client Secret from Google Cloud. |
 
 ## 📱 Usage
 
@@ -152,3 +172,17 @@ MIT License - see [LICENSE](./LICENSE)
 ---
 
 **Built with ❤️ for sustainable tourism in India**
+
+## 🚀 Deployment
+
+The easiest way to deploy this Next.js app is to use the [Vercel Platform](https://vercel.com/new) from the creators of Next.js.
+
+1.  Push your code to a GitHub repository.
+2.  Go to Vercel and import your project.
+3.  **Crucial:** Add your **Environment Variables** (the ones listed above) in the Vercel Project Settings.
+4.  Click **Deploy**.
+
+For manual production builds:
+```bash
+npm run build
+npm start

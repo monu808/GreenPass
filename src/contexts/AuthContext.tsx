@@ -105,13 +105,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         console.log('Auth state changed:', event, session?.user?.email);
         
         if (mountedRef.current) {
-          if (event === 'SIGNED_OUT' || event === 'TOKEN_REFRESHED') {
-            setSession(session);
-            setUser(session?.user ?? null);
-          } else {
-            setSession(session);
-            setUser(session?.user ?? null);
-          }
+          setSession(session);
+          setUser(session?.user ?? null);
           
           if (session?.user) {
             checkAdminStatus(session.user.id, session.user.email);

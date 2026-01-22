@@ -11,12 +11,14 @@ import TouristLayout from '@/components/TouristLayout';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import EcoSensitivityBadge from '@/components/EcoSensitivityBadge';
 import EcoCapacityAlert from '@/components/EcoCapacityAlert';
+import ConnectionStatusIndicator from '@/components/ConnectionStatusIndicator';
 import { getDbService } from '@/lib/databaseService';
 import { getPolicyEngine } from '@/lib/ecologicalPolicyEngine';
 import { getEcoFriendlyAlternatives } from '@/lib/recommendationEngine';
 import { Destination } from '@/types';
 import { useDestinations } from '@/hooks/useDestinations';
 import { useWeatherDataBatch } from '@/hooks/useWeatherData';
+import { useSSE } from '@/contexts/ConnectionContext';
 
 // BUILD FIX: Explicit interface for weather to prevent 'any' type build failures
 interface WeatherData {
@@ -42,30 +44,6 @@ export default function TouristDashboard() {
   const { data: batchWeatherData } = useWeatherDataBatch(
     destinationsData ? destinationsData.map(d => d.id) : []
   );
-
-  // Sync destinations from React Query
-  useEffect(() => {
-    if (destinationsData) {
-      setDestinations(destinationsData);
-    }
-  }, [destinationsData]);
-
-  // Sync weather from React Query
-  useEffect(() => {
-    if (batchWeatherData) {
-      const newWeatherMap: Record<string, WeatherData> = {};
-      batchWeatherData.forEach((data, id) => {
-        newWeatherMap[id] = {
-          temperature: data.temperature,
-          humidity: data.humidity,
-          weatherMain: data.weather_main,
-          weatherDescription: data.weather_description,
-          recordedAt: data.recorded_at
-        };
-      });
-      setWeatherMap(newWeatherMap);
-    }
-  }, [batchWeatherData]);
 
   const loadTouristData = useCallback(async () => {
     if (!destinationsData) return;
@@ -114,25 +92,11 @@ export default function TouristDashboard() {
       setLoading(false);
     }
   }, [destinationsData, batchWeatherData]);
-
-  useEffect(() => {
-    if (destinationsData) {
-      loadTouristData();
-    }
-  }, [destinationsData, loadTouristData]);
-
-  useEffect(() => {
-    loadTouristData();
-
-    // Set up real-time SSE connection
-    const eventSource = new EventSource('/api/weather-monitor');
-
-    eventSource.onmessage = (event) => {
+  
+  const { connectionState, reconnect } = useSSE(
+    useCallback((event: MessageEvent) => {
       try {
         const data = JSON.parse(event.data);
-        console.log('🔔 Real-time update received:', data.type);
-
-        // Refresh data on any relevant update
         if (data.type === 'weather_update_available' ||
           data.type === 'capacity_update' ||
           data.type === 'weather_update') {
@@ -141,17 +105,38 @@ export default function TouristDashboard() {
       } catch (err) {
         console.error('Error parsing SSE message:', err);
       }
-    };
+    }, [loadTouristData])
+  );
 
-    eventSource.onerror = (error) => {
-      console.error('SSE connection error:', error);
-      // EventSource automatically attempts to reconnect, but we log it for debugging
-    };
+  // Sync destinations from React Query
+  useEffect(() => {
+    if (destinationsData) {
+      setDestinations(destinationsData);
+    }
+  }, [destinationsData]);
 
-    return () => {
-      eventSource.close();
-    };
-  }, [loadTouristData]);
+  // Sync weather from React Query
+  useEffect(() => {
+    if (batchWeatherData) {
+      const newWeatherMap: Record<string, WeatherData> = {};
+      batchWeatherData.forEach((data, id) => {
+        newWeatherMap[id] = {
+          temperature: data.temperature,
+          humidity: data.humidity,
+          weatherMain: data.weather_main,
+          weatherDescription: data.weather_description,
+          recordedAt: data.recorded_at
+        };
+      });
+      setWeatherMap(newWeatherMap);
+    }
+  }, [batchWeatherData]);
+
+  useEffect(() => {
+    if (destinationsData) {
+      loadTouristData();
+    }
+  }, [destinationsData, loadTouristData]);
 
   // BOT FIX: Standardized navigation handler
   const handleNavigation = (link: string): void => {
@@ -189,6 +174,11 @@ export default function TouristDashboard() {
               <div className="flex items-center gap-2 text-emerald-400">
                 <Leaf className="h-5 w-5 fill-current" />
                 <span className="text-[10px] font-black tracking-[0.4em] uppercase">Beautiful World Expedition</span>
+                <ConnectionStatusIndicator 
+                  connectionState={connectionState} 
+                  onRetry={reconnect} 
+                  className="ml-4 bg-emerald-950/40 border-emerald-500/30"
+                />
               </div>
               <h1 className="text-5xl sm:text-7xl font-black text-white tracking-tighter leading-none">
                 Travel Around The <br /> <span className="text-emerald-400">Beautiful World</span>

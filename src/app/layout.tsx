@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono, Playfair_Display, Inter } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/contexts/AuthContext";
+import { ConnectionProvider } from "@/contexts/ConnectionContext";
 import { QueryProvider } from "@/components/providers/QueryProvider";
 
 const geistSans = Geist({
@@ -43,7 +44,9 @@ export default function RootLayout({
       >
         <QueryProvider>
           <AuthProvider>
-            {children}
+            <ConnectionProvider>
+              {children}
+            </ConnectionProvider>
           </AuthProvider>
         </QueryProvider>
       </body>

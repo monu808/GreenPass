@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, useEffect, useState } from 'react';
+import { createContext, useContext, useEffect, useState, useRef } from 'react';
 import { User, Session, AuthError } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
 import ErrorBoundary from '@/components/ErrorBoundary';
@@ -26,13 +26,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
+  const mountedRef = useRef(true);
 
   useEffect(() => {
+    mountedRef.current = true;
+    
     // Get initial session
     const getSession = async () => {
       try {
         if (!supabase) {
-          setLoading(false);
+          if (mountedRef.current) setLoading(false);
           return;
         }
         
@@ -43,27 +46,33 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           console.error('Error getting session:', error);
           // Clear any invalid session data
           await supabase.auth.signOut();
-          setSession(null);
-          setUser(null);
-          setIsAdmin(false);
-        } else {
-          setSession(session || null);
-          setUser(session?.user ?? null);
-          
-          if (session?.user) {
-            checkAdminStatus(session.user.id, session.user.email);
-          } else {
+          if (mountedRef.current) {
+            setSession(null);
+            setUser(null);
             setIsAdmin(false);
+          }
+        } else {
+          if (mountedRef.current) {
+            setSession(session || null);
+            setUser(session?.user ?? null);
+            
+            if (session?.user) {
+              checkAdminStatus(session.user.id, session.user.email);
+            } else {
+              setIsAdmin(false);
+            }
           }
         }
       } catch (error) {
         console.error('Session error:', error);
-        setSession(null);
-        setUser(null);
-        setIsAdmin(false);
+        if (mountedRef.current) {
+          setSession(null);
+          setUser(null);
+          setIsAdmin(false);
+        }
       }
       
-      setLoading(false);
+      if (mountedRef.current) setLoading(false);
     };
 
     getSession();
@@ -95,25 +104,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       async (event, session) => {
         console.log('Auth state changed:', event, session?.user?.email);
         
-        if (event === 'SIGNED_OUT' || event === 'TOKEN_REFRESHED') {
+        if (mountedRef.current) {
           setSession(session);
           setUser(session?.user ?? null);
-        } else {
-          setSession(session);
-          setUser(session?.user ?? null);
+          
+          if (session?.user) {
+            checkAdminStatus(session.user.id, session.user.email);
+          } else {
+            setIsAdmin(false);
+          }
+          
+          setLoading(false);
         }
-        
-        if (session?.user) {
-          checkAdminStatus(session.user.id, session.user.email);
-        } else {
-          setIsAdmin(false);
-        }
-        
-        setLoading(false);
       }
     );
 
     return () => {
+      mountedRef.current = false;
       clearTimeout(triggerMonitor);
       subscription.unsubscribe();
     };
@@ -128,11 +135,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const isEmailAdmin = email && adminEmails.includes(email.toLowerCase());
       
       console.log('Email-based admin check result:', isEmailAdmin);
-      setIsAdmin(isEmailAdmin || false);
+      if (mountedRef.current) {
+        setIsAdmin(isEmailAdmin || false);
+      }
       
     } catch (error) {
       console.error('Error checking admin status:', error);
-      setIsAdmin(false);
+      if (mountedRef.current) {
+        setIsAdmin(false);
+      }
     }
   };
 

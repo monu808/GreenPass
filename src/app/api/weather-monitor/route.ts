@@ -10,10 +10,14 @@ import { broadcast, BroadcastPayload } from '@/lib/messagingService';
 const activeWriters = new Set<WritableStreamDefaultWriter>();
 const encoder = new TextEncoder();
 
+// Instance-wide Supabase channel for distributed broadcasts
+let sharedChannel: RealtimeChannel | null = null;
+let heartbeatInterval: NodeJS.Timeout | null = null;
+
 /**
  * localFlush sends a message to all SSE connections connected to THIS instance.
  */
-const localFlush = async (data: BroadcastPayload) => {
+const localFlush = async (data: any) => {
   const message = `data: ${JSON.stringify(data)}\n\n`;
   const encoded = encoder.encode(message);
   
@@ -27,6 +31,57 @@ const localFlush = async (data: BroadcastPayload) => {
   });
   
   await Promise.all(writePromises);
+};
+
+/**
+ * Ensures a single shared subscription for the whole instance
+ */
+const ensureSharedSubscription = () => {
+  if (sharedChannel || activeWriters.size === 0) return;
+
+  const supabase = createServerComponentClient();
+  if (!supabase) {
+    console.warn('⚠️ Cannot establish shared subscription: Supabase client unavailable');
+    return;
+  }
+
+  console.log('📡 Establishing instance-wide shared channel subscription');
+  sharedChannel = supabase.channel('weather-monitor-shared')
+    .on('broadcast', { event: 'weather_update' }, ({ payload }) => {
+      console.log('📥 Shared broadcast received, flushing to local clients');
+      localFlush(payload);
+    })
+    .subscribe((status) => {
+      if (status === 'SUBSCRIBED') {
+        console.log('✅ Instance-wide shared channel subscribed');
+      }
+    });
+
+  // Start heartbeat if not already running
+  if (!heartbeatInterval) {
+    heartbeatInterval = setInterval(() => {
+      if (activeWriters.size > 0) {
+        localFlush({ type: 'heartbeat', timestamp: new Date().toISOString() });
+      } else {
+        stopSharedSubscription();
+      }
+    }, 15000); // 15s heartbeat
+  }
+};
+
+/**
+ * Stops the shared subscription if no local clients remain
+ */
+const stopSharedSubscription = () => {
+  if (heartbeatInterval) {
+    clearInterval(heartbeatInterval);
+    heartbeatInterval = null;
+  }
+  if (sharedChannel) {
+    console.log('🔌 Closing instance-wide shared channel subscription');
+    sharedChannel.unsubscribe();
+    sharedChannel = null;
+  }
 };
 
 export async function POST(request: NextRequest) {
@@ -88,24 +143,9 @@ export async function GET(_request: NextRequest) {
   const writer = responseStream.writable.getWriter();
   activeWriters.add(writer);
 
-  // Set up shared channel subscription for THIS instance's connections
+  // Set up shared channel subscription if this is the first client
   const supabase = createServerComponentClient();
-  let channel: RealtimeChannel | null = null;
-  
-  if (supabase) {
-    channel = supabase.channel('weather-monitor-shared')
-      .on('broadcast', { event: 'weather_update' }, ({ payload }) => {
-        console.log('📥 Received shared broadcast, flushing to local SSE clients');
-        localFlush(payload as BroadcastPayload);
-      })
-      .subscribe((status) => {
-        if (status === 'SUBSCRIBED') {
-          console.log('✅ Instance subscribed to shared weather channel');
-        }
-      });
-  } else {
-    console.warn('⚠️ Skipping Supabase channel subscription due to missing client');
-  }
+  ensureSharedSubscription();
 
   // Send initial connection success
   await writer.write(encoder.encode(`data: ${JSON.stringify({ 
@@ -117,7 +157,12 @@ export async function GET(_request: NextRequest) {
   _request.signal.onabort = () => {
     console.log("🛑 One Dashboard connection closed.");
     activeWriters.delete(writer);
-    if (channel) channel.unsubscribe();
+    
+    // Cleanup shared subscription if no clients left
+    if (activeWriters.size === 0) {
+      stopSharedSubscription();
+    }
+    
     writer.close();
   };
 

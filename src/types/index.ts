@@ -298,6 +298,23 @@ export interface EcoPointsLeaderboardEntry {
 
 export type EcoImpactCategory = 'low-carbon' | 'community-friendly' | 'wildlife-safe';
 
+export type ConnectionState = 'connecting' | 'connected' | 'disconnected' | 'error';
+
+export interface EventSourceOptions {
+  reconnect?: boolean;
+  maxRetries?: number;
+  heartbeatTimeout?: number; // ms to wait before considering connection dead
+  onMessage?: (event: MessageEvent) => void;
+  onStateChange?: (state: ConnectionState) => void;
+}
+
+export interface UseEventSourceReturn {
+  connectionState: ConnectionState;
+  error: Error | null;
+  reconnect: () => void;
+  disconnect: () => void;
+}
+
 export interface SustainabilityScore {
   overallScore: number;
   ecologicalSensitivity: number;

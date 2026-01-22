@@ -10,6 +10,7 @@ import {
 import TouristLayout from '@/components/TouristLayout';
 import EcoSensitivityBadge from '@/components/EcoSensitivityBadge';
 import EcoCapacityAlert from '@/components/EcoCapacityAlert';
+import ConnectionStatusIndicator from '@/components/ConnectionStatusIndicator';
 import { getDbService } from '@/lib/databaseService';
 import { getPolicyEngine } from '@/lib/ecologicalPolicyEngine';
 import { getEcoFriendlyAlternatives } from '@/lib/recommendationEngine';
@@ -27,6 +28,7 @@ import {
 import { Destination, DynamicCapacityResult } from '@/types';
 import { sanitizeSearchTerm } from '@/lib/utils';
 import { validateInput, SearchFilterSchema } from '@/lib/validation';
+import { useSSE } from '@/contexts/ConnectionContext';
 
 export default function TouristDestinations() {
   // 1. STATE MANAGEMENT
@@ -42,7 +44,7 @@ export default function TouristDestinations() {
   const [expandedAlternatives, setExpandedAlternatives] = useState<Record<string, boolean>>({});
 
   // 2. DATA LOADING LOGIC (Direct Database Sync)
-  const loadData = async (): Promise<void> => {
+  const loadData = useCallback(async (): Promise<void> => {
     try {
       const dbService = getDbService();
       const data = await dbService.getDestinations();
@@ -76,7 +78,22 @@ export default function TouristDestinations() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  const { connectionState, reconnect } = useSSE(
+    useCallback((event: MessageEvent) => {
+      try {
+        const data = JSON.parse(event.data);
+        if (data.type === 'weather_update_available' || 
+            data.type === 'capacity_update' || 
+            data.type === 'weather_update') {
+          loadData();
+        }
+      } catch (err) {
+        console.error('Error parsing SSE message:', err);
+      }
+    }, [loadData])
+  );
 
   // 3. FILTERING ENGINE (Using Policy Engine for dynamic capacity)
   const filterData = useCallback((): void => {
@@ -128,29 +145,6 @@ export default function TouristDestinations() {
 
   useEffect(() => { 
     loadData(); 
-
-    // Set up real-time SSE connection
-    const eventSource = new EventSource('/api/weather-monitor');
-    
-    eventSource.onmessage = (event) => {
-      try {
-        const data = JSON.parse(event.data);
-        console.log('🔔 Real-time update received:', data.type);
-        
-        // Refresh data on any relevant update
-        if (data.type === 'weather_update_available' || 
-            data.type === 'capacity_update' || 
-            data.type === 'weather_update') {
-          loadData();
-        }
-      } catch (err) {
-        console.error('Error parsing SSE message:', err);
-      }
-    };
-
-    return () => {
-      eventSource.close();
-    };
   }, []);
  useEffect(() => {
     setIsSearching(true);
@@ -198,6 +192,11 @@ export default function TouristDestinations() {
             <div className="flex items-center gap-2 text-emerald-600">
               <Compass className="h-5 w-5" />
               <span className="text-[9px] font-bold tracking-[0.3em] uppercase opacity-70">Managed Eco-Trails</span>
+              <ConnectionStatusIndicator 
+                connectionState={connectionState} 
+                onRetry={reconnect} 
+                className="ml-4"
+              />
             </div>
             <h1 className="text-6xl font-black text-gray-900 tracking-tighter leading-none">
               Explore <span className="text-emerald-600">Nature</span>

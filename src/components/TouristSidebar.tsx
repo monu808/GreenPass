@@ -1,10 +1,11 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { getDbService } from '@/lib/databaseService';
 import { weatherService, destinationCoordinates } from '@/lib/weatherService';
+import { useFocusTrap, useEscapeKey } from '@/lib/accessibility';
 
 interface SidebarWeatherData {
   temperature: number;
@@ -59,6 +60,11 @@ export default function TouristSidebar({ isOpen, setIsOpen }: SidebarProps) {
   const pathname = usePathname();
   const [weather, setWeather] = useState<SidebarWeatherData | null>(null);
   const [loadingWeather, setLoadingWeather] = useState(true);
+  const sidebarRef = useRef<HTMLDivElement>(null);
+
+  // Focus trap and escape key for mobile drawer
+  useFocusTrap(sidebarRef, !!isOpen);
+  useEscapeKey(() => setIsOpen?.(false), !!isOpen);
 
   useEffect(() => {
     const fetchDefaultWeather = async () => {
@@ -121,12 +127,12 @@ export default function TouristSidebar({ isOpen, setIsOpen }: SidebarProps) {
 
   const getWeatherIcon = (weatherMain: string) => {
     switch (weatherMain?.toLowerCase()) {
-      case 'clear': return <Sun className="h-6 w-6 text-yellow-500" />;
-      case 'clouds': return <Cloud className="h-6 w-6 text-gray-500" />;
-      case 'rain': return <CloudRain className="h-6 w-6 text-blue-500" />;
-      case 'snow': return <CloudSnow className="h-6 w-6 text-blue-200" />;
-      case 'thunderstorm': return <CloudLightning className="h-6 w-6 text-purple-500" />;
-      default: return <Sun className="h-6 w-6 text-yellow-500" />;
+      case 'clear': return <Sun className="h-6 w-6 text-yellow-500" aria-hidden="true" title="Clear sky" />;
+      case 'clouds': return <Cloud className="h-6 w-6 text-gray-500" aria-hidden="true" title="Cloudy" />;
+      case 'rain': return <CloudRain className="h-6 w-6 text-blue-500" aria-hidden="true" title="Rainy" />;
+      case 'snow': return <CloudSnow className="h-6 w-6 text-blue-200" aria-hidden="true" title="Snowy" />;
+      case 'thunderstorm': return <CloudLightning className="h-6 w-6 text-purple-500" aria-hidden="true" title="Thunderstorm" />;
+      default: return <Sun className="h-6 w-6 text-yellow-500" aria-hidden="true" title="Clear sky" />;
     }
   };
 
@@ -135,94 +141,123 @@ export default function TouristSidebar({ isOpen, setIsOpen }: SidebarProps) {
       {/* Mobile Overlay */}
       {isOpen && (
         <div 
-          className="fixed inset-0 bg-black/50 z-40 lg:hidden backdrop-blur-sm"
+          className="fixed inset-0 bg-black/50 z-40 lg:hidden backdrop-blur-sm border-none"
           onClick={() => setIsOpen?.(false)}
+          aria-hidden="true"
         />
       )}
 
-      <div className={cn(
+      <aside 
+        ref={sidebarRef}
+        aria-label="Sidebar navigation"
+        className={cn(
         "fixed inset-y-0 left-0 z-50 w-64 bg-white border-r border-gray-200 shadow-xl lg:shadow-sm transition-transform duration-300 lg:translate-x-0",
         isOpen ? "translate-x-0" : "-translate-x-full"
       )}>
         <div className="flex flex-col h-full">
           {/* Logo Section */}
-          <div className="flex items-center justify-between h-20 px-6 bg-gradient-to-br from-green-600 via-blue-600 to-green-600">
+          <header 
+            className="flex items-center justify-between h-20 px-6 bg-gradient-to-br from-green-600 via-blue-600 to-green-600"
+            aria-labelledby="sidebar-logo-title"
+          >
             <div className="flex items-center space-x-3">
               <div className="p-2 bg-white/20 rounded-lg">
-                <Mountain className="h-8 w-8 text-white" />
+                <Mountain className="h-8 w-8 text-white" aria-hidden="true" />
               </div>
               <div className="text-white">
-                <h1 className="text-lg font-semibold">Paradise</h1>
-                <p className="text-xs opacity-90">Tourism</p>
+                <span id="sidebar-logo-title" className="text-lg font-semibold block">Paradise Tourism</span>
+                <p className="text-xs opacity-90" aria-hidden="true">Tourism Management</p>
               </div>
             </div>
             {/* Close button for mobile */}
             <button 
-              className="lg:hidden p-2 text-white/50 hover:text-white hover:bg-white/10 rounded-lg"
+              id="close-sidebar-button"
+              className="lg:hidden p-2 text-white/50 hover:text-white hover:bg-white/10 rounded-lg focus:outline-none focus:ring-2 focus:ring-white"
               onClick={() => setIsOpen?.(false)}
+              aria-label="Close sidebar navigation menu"
             >
-              <X className="h-5 w-5" />
+              <X className="h-5 w-5" aria-hidden="true" />
             </button>
-          </div>
+          </header>
 
           {/* Navigation */}
-          <nav className="flex-1 px-4 py-6 space-y-1 overflow-y-auto">
-            {touristNavItems.map((item) => {
-              const isActive = pathname === item.href;
-              return (
-                <Link
-                  key={item.name}
-                  href={item.href}
-                  onClick={() => setIsOpen?.(false)}
-                  className={cn(
-                    "group flex items-center space-x-3 px-4 py-2.5 text-sm font-medium rounded-lg transition-all duration-200",
-                    isActive
-                      ? 'bg-green-50 text-green-700 border-r-2 border-green-600'
-                      : 'text-gray-700 hover:text-green-600 hover:bg-gray-50'
-                  )}
-                >
-                  <item.icon className={cn(
-                    "h-5 w-5 transition-colors duration-200",
-                    isActive 
-                      ? 'text-green-600' 
-                      : 'text-gray-500 group-hover:text-green-600'
-                  )} />
-                  <span>{item.name}</span>
-                </Link>
-              );
-            })}
+          <nav aria-label="Main navigation" className="flex-1 px-4 py-6 overflow-y-auto">
+            <ul className="space-y-1" role="list">
+              {touristNavItems.map((item, index) => {
+                const isActive = pathname === item.href;
+                const itemId = `sidebar-nav-item-${index}`;
+                return (
+                  <li key={item.name}>
+                    <Link
+                      id={itemId}
+                      href={item.href}
+                      onClick={() => setIsOpen?.(false)}
+                      aria-current={isActive ? 'page' : undefined}
+                      className={cn(
+                        "group flex items-center space-x-3 px-4 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-inset",
+                        isActive
+                          ? 'bg-green-50 text-green-700 border-r-2 border-green-600'
+                          : 'text-gray-700 hover:text-green-600 hover:bg-gray-50'
+                      )}
+                    >
+                      <item.icon className={cn(
+                        "h-5 w-5 transition-colors duration-200",
+                        isActive 
+                          ? 'text-green-600' 
+                          : 'text-gray-500 group-hover:text-green-600'
+                      )} aria-hidden="true" />
+                      <span>{item.name}</span>
+                    </Link>
+                  </li>
+                );
+              })}
+            </ul>
           </nav>
 
           {/* Weather Widget */}
-          <div className="p-4 m-4 bg-gradient-to-br from-blue-50 to-green-50 rounded-lg border border-gray-200">
+          <div 
+            className="p-4 m-4 bg-gradient-to-br from-blue-50 to-green-50 rounded-lg border border-gray-200"
+            role="region"
+            aria-labelledby="sidebar-weather-title"
+          >
+            <h2 id="sidebar-weather-title" className="sr-only">Current Weather</h2>
+            <div 
+              role="status" 
+              aria-live="polite"
+            >
             {loadingWeather ? (
               <div className="flex items-center justify-center py-2 space-x-2">
-                <RefreshCw className="h-4 w-4 animate-spin text-blue-500" />
-                <span className="text-xs text-gray-500">Updating...</span>
+                <RefreshCw className="h-4 w-4 animate-spin text-blue-500" aria-hidden="true" />
+                <span className="text-xs text-gray-500">Updating weather...</span>
               </div>
             ) : (
               <div className="text-center">
                 <div className="flex items-center space-x-2">
-                  <div className="p-2 bg-white rounded-lg shadow-sm">
+                  <div className="p-2 bg-white rounded-lg shadow-sm" aria-hidden="true">
                     {getWeatherIcon(weather?.weatherMain || '')}
                   </div>
                   <div className="text-left">
-                    <p className="text-lg font-bold text-gray-800">{Math.round(weather?.temperature || 0)}°C</p>
+                    <p className="text-lg font-bold text-gray-800">
+                      <span className="sr-only">Current temperature in Srinagar: </span>
+                      {Math.round(weather?.temperature || 0)}°C
+                    </p>
                     <p className="text-[10px] font-medium text-gray-500 uppercase tracking-wider">Srinagar</p>
+                    <p className="sr-only">Weather condition: {weather?.weatherDescription}</p>
                   </div>
                 </div>
               </div>
-            )}
+              )}
+            </div>
           </div>
 
           {/* Footer */}
-          <div className="p-4 border-t border-gray-200">
+          <footer className="p-4 border-t border-gray-200" role="contentinfo">
             <div className="text-center text-xs text-gray-600">
               <p className="font-medium text-gray-800">© 2026 Paradise Tourism</p>
             </div>
-          </div>
+          </footer>
         </div>
-      </div>
+      </aside>
     </>
   );
 }

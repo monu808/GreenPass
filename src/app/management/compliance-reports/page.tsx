@@ -1,7 +1,8 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import Layout from "@/components/Layout";
+import { useModalAccessibility } from "@/lib/accessibility";
 import {
   FileText,
   Download,
@@ -31,6 +32,13 @@ export default function ComplianceReportsPage() {
   const [reportYear, setReportYear] = useState(new Date().getFullYear().toString());
   const [reportType, setReportType] = useState<"monthly" | "quarterly">("monthly");
   const [filterType, setFilterType] = useState<string>("All Types");
+  
+  const modalRef = useRef<HTMLDivElement>(null);
+  useModalAccessibility({
+    modalRef,
+    isOpen: showGenerateModal,
+    onClose: () => setShowGenerateModal(false)
+  });
 
   const dbService = getDbService();
 
@@ -361,23 +369,33 @@ export default function ComplianceReportsPage() {
 
         {/* Generate Modal */}
         {showGenerateModal && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
-            <div className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden">
+          <div 
+            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 backdrop-blur-sm"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="modal-title"
+          >
+            <div 
+              ref={modalRef}
+              className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden"
+            >
               <div className="p-6 border-b border-gray-200 flex items-center justify-between">
-                <h3 className="text-lg font-bold text-gray-900">Generate Compliance Report</h3>
+                <h3 id="modal-title" className="text-lg font-bold text-gray-900">Generate Compliance Report</h3>
                 <button
                   onClick={() => setShowGenerateModal(false)}
-                  className="text-gray-400 hover:text-gray-600 transition-colors"
+                  className="text-gray-400 hover:text-gray-600 transition-colors focus:outline-none focus:ring-2 focus:ring-green-500 rounded-lg p-1"
+                  aria-label="Close modal"
                 >
-                  <Plus className="h-6 w-6 rotate-45" />
+                  <Plus className="h-6 w-6 rotate-45" aria-hidden="true" />
                 </button>
               </div>
               <div className="p-6 space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label htmlFor="report-type-select" className="block text-sm font-medium text-gray-700 mb-1">
                     Report Type
                   </label>
                   <select
+                    id="report-type-select"
                     value={reportType}
                     onChange={(e) => setReportType(e.target.value as "monthly" | "quarterly")}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 outline-none text-gray-900 bg-white"
@@ -390,10 +408,11 @@ export default function ComplianceReportsPage() {
                 {reportType === "monthly" ? (
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                      <label htmlFor="report-year-input" className="block text-sm font-medium text-gray-700 mb-1">
                         Year
                       </label>
                       <input
+                        id="report-year-input"
                         type="number"
                         value={reportYear}
                         onChange={(e) => setReportYear(e.target.value)}
@@ -403,10 +422,11 @@ export default function ComplianceReportsPage() {
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                      <label htmlFor="report-month-select" className="block text-sm font-medium text-gray-700 mb-1">
                         Month
                       </label>
                       <select
+                        id="report-month-select"
                         value={reportMonth}
                         onChange={(e) => setReportMonth(e.target.value)}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 outline-none text-gray-900 bg-white"
@@ -429,10 +449,11 @@ export default function ComplianceReportsPage() {
                 ) : (
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                      <label htmlFor="report-year-input-q" className="block text-sm font-medium text-gray-700 mb-1">
                         Year
                       </label>
                       <input
+                        id="report-year-input-q"
                         type="number"
                         value={reportYear}
                         onChange={(e) => setReportYear(e.target.value)}
@@ -442,18 +463,19 @@ export default function ComplianceReportsPage() {
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                      <label htmlFor="report-quarter-select" className="block text-sm font-medium text-gray-700 mb-1">
                         Quarter
                       </label>
                       <select
+                        id="report-quarter-select"
                         value={reportQuarter}
                         onChange={(e) => setReportQuarter(e.target.value)}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 outline-none text-gray-900 bg-white"
                       >
-                        <option value="1">Q1 (Jan-Mar)</option>
-                        <option value="2">Q2 (Apr-Jun)</option>
-                        <option value="3">Q3 (Jul-Sep)</option>
-                        <option value="4">Q4 (Oct-Dec)</option>
+                        <option value="1">Q1 (Jan - Mar)</option>
+                        <option value="2">Q2 (Apr - Jun)</option>
+                        <option value="3">Q3 (Jul - Sep)</option>
+                        <option value="4">Q4 (Oct - Dec)</option>
                       </select>
                     </div>
                   </div>

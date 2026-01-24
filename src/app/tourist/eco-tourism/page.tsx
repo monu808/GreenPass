@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import { useRef, useState, useMemo } from 'react';
+import { useModalAccessibility } from '@/lib/accessibility';
 import TouristLayout from '@/components/TouristLayout';
 import { 
   TreePine, 
@@ -52,6 +53,13 @@ export default function EcoTourism() {
   const [ecoImpactFilter, setEcoImpactFilter] = useState<EcoImpactCategory | 'all'>('all');
   const [comparisonList, setComparisonList] = useState<Destination[]>([]);
   const [isComparisonOpen, setIsComparisonOpen] = useState(false);
+  const comparisonModalRef = useRef<HTMLDivElement>(null);
+
+  useModalAccessibility({
+    modalRef: comparisonModalRef,
+    isOpen: isComparisonOpen,
+    onClose: () => setIsComparisonOpen(false)
+  });
   const [selectedRating, setSelectedRating] = useState<string>('all');
 
   const [ecoInitiatives] = useState<EcoInitiative[]>([
@@ -212,8 +220,10 @@ export default function EcoTourism() {
           <div className="flex flex-col space-y-4">
             <div className="flex flex-col lg:flex-row lg:items-center gap-4">
               <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                <label htmlFor="destination-search" className="sr-only">Search eco destinations</label>
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" aria-hidden="true" />
                 <input
+                  id="destination-search"
                   type="text"
                   placeholder="Search eco destinations..."
                   value={searchTerm}
@@ -223,7 +233,9 @@ export default function EcoTourism() {
               </div>
               
               <div className="flex gap-3">
+                <label htmlFor="rating-filter" className="sr-only">Filter by rating</label>
                 <select
+                  id="rating-filter"
                   value={selectedRating}
                   onChange={(e) => setSelectedRating(e.target.value)}
                   className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
@@ -237,8 +249,9 @@ export default function EcoTourism() {
                   <button
                     onClick={() => setIsComparisonOpen(true)}
                     className="flex items-center px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors font-medium"
+                    aria-label={`Compare ${comparisonList.length} destinations`}
                   >
-                    <Scale className="h-4 w-4 mr-2" />
+                    <Scale className="h-4 w-4 mr-2" aria-hidden="true" />
                     Compare ({comparisonList.length})
                   </button>
                 )}
@@ -246,7 +259,7 @@ export default function EcoTourism() {
             </div>
 
             {/* Eco Impact Filter Buttons */}
-            <div className="flex flex-wrap gap-2 pt-2 border-t border-gray-100">
+            <div className="flex flex-wrap gap-2 pt-2 border-t border-gray-100" role="group" aria-label="Filter by eco impact">
               <button
                 onClick={() => setEcoImpactFilter('all')}
                 className={`px-4 py-1.5 rounded-full text-sm font-medium transition-colors ${
@@ -254,6 +267,7 @@ export default function EcoTourism() {
                     ? 'bg-green-600 text-white' 
                     : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                 }`}
+                aria-pressed={ecoImpactFilter === 'all'}
               >
                 All Impact
               </button>
@@ -264,8 +278,9 @@ export default function EcoTourism() {
                     ? 'bg-blue-600 text-white' 
                     : 'bg-blue-50 text-blue-600 hover:bg-blue-100'
                 }`}
+                aria-pressed={ecoImpactFilter === 'low-carbon'}
               >
-                <Zap className="h-3.5 w-3.5 mr-1.5" />
+                <Zap className="h-3.5 w-3.5 mr-1.5" aria-hidden="true" />
                 Low Carbon Footprint
               </button>
               <button
@@ -275,8 +290,9 @@ export default function EcoTourism() {
                     ? 'bg-purple-600 text-white' 
                     : 'bg-purple-50 text-purple-600 hover:bg-purple-100'
                 }`}
+                aria-pressed={ecoImpactFilter === 'community-friendly'}
               >
-                <Users className="h-3.5 w-3.5 mr-1.5" />
+                <Users className="h-3.5 w-3.5 mr-1.5" aria-hidden="true" />
                 Community-Friendly
               </button>
               <button
@@ -286,8 +302,9 @@ export default function EcoTourism() {
                     ? 'bg-orange-600 text-white' 
                     : 'bg-orange-50 text-orange-600 hover:bg-orange-100'
                 }`}
+                aria-pressed={ecoImpactFilter === 'wildlife-safe'}
               >
-                <Bird className="h-3.5 w-3.5 mr-1.5" />
+                <Bird className="h-3.5 w-3.5 mr-1.5" aria-hidden="true" />
                 Wildlife-Safe
               </button>
             </div>
@@ -353,7 +370,7 @@ export default function EcoTourism() {
                       </div>
                       
                       {/* Comparison Checkbox */}
-                      <div className="absolute top-3 right-3 flex items-center space-x-2">
+                      <div className="absolute top-3 right-3 flex flex-col space-y-2">
                         <button 
                           onClick={() => handleCompareToggle(destination)}
                           className={`p-2 rounded-full shadow-md transition-colors ${
@@ -361,12 +378,16 @@ export default function EcoTourism() {
                               ? 'bg-emerald-600 text-white' 
                               : 'bg-white/90 text-gray-600 hover:bg-white'
                           }`}
-                          title={isComparing ? 'Remove from comparison' : 'Add to comparison'}
+                          aria-label={`${isComparing ? 'Remove' : 'Add'} ${destination.name} ${isComparing ? 'from' : 'to'} comparison`}
+                          aria-pressed={isComparing}
                         >
-                          <Scale className="h-4 w-4" />
+                          <Scale className="h-4 w-4" aria-hidden="true" />
                         </button>
-                        <button className="p-2 bg-white/90 text-gray-600 rounded-full shadow-md hover:bg-white transition-colors">
-                          <Heart className="h-4 w-4" />
+                        <button 
+                          className="p-2 bg-white/90 text-gray-600 rounded-full shadow-md hover:bg-white transition-colors"
+                          aria-label={`Add ${destination.name} to favorites`}
+                        >
+                          <Heart className="h-4 w-4" aria-hidden="true" />
                         </button>
                       </div>
                       
@@ -451,8 +472,11 @@ export default function EcoTourism() {
                           Book Responsibly
                           <ArrowRight className="h-4 w-4 ml-2" />
                         </button>
-                        <button className="p-2 border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 transition-colors">
-                          <Info className="h-5 w-5" />
+                        <button 
+                          className="p-2 border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 transition-colors"
+                          aria-label={`View more information about ${destination.name}`}
+                        >
+                          <Info className="h-5 w-5" aria-hidden="true" />
                         </button>
                       </div>
                     </div>
@@ -553,32 +577,37 @@ export default function EcoTourism() {
 
       {/* Comparison Modal */}
       {isComparisonOpen && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-5xl max-h-[90vh] overflow-hidden flex flex-col">
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="comparison-modal-title">
+          <div 
+            ref={comparisonModalRef}
+            className="bg-white rounded-2xl shadow-2xl w-full max-w-5xl max-h-[90vh] overflow-hidden flex flex-col"
+          >
             <div className="p-6 border-b border-gray-100 flex items-center justify-between bg-emerald-600 text-white">
               <div className="flex items-center">
-                <Scale className="h-6 w-6 mr-3" />
+                <Scale className="h-6 w-6 mr-3" aria-hidden="true" />
                 <div>
-                  <h2 className="text-xl font-bold">Compare Eco Destinations</h2>
+                  <h2 id="comparison-modal-title" className="text-xl font-bold">Compare Eco Destinations</h2>
                   <p className="text-emerald-100 text-sm">Side-by-side sustainability analysis</p>
                 </div>
               </div>
               <button 
                 onClick={() => setIsComparisonOpen(false)}
-                className="p-2 hover:bg-white/10 rounded-full transition-colors"
+                className="p-2 hover:bg-white/10 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-white/50"
+                aria-label="Close comparison modal"
               >
-                <X className="h-6 w-6" />
+                <X className="h-6 w-6" aria-hidden="true" />
               </button>
             </div>
 
             <div className="flex-1 overflow-x-auto p-6">
               <div className="min-w-[800px]">
-                <table className="w-full">
+                <table className="w-full border-collapse">
+                  <caption className="sr-only">Sustainability comparison of selected destinations</caption>
                   <thead>
                     <tr>
-                      <th className="w-1/4 p-4 text-left text-gray-500 font-medium border-b">Feature</th>
+                      <th scope="col" className="w-1/4 p-4 text-left text-gray-500 font-medium border-b">Feature</th>
                       {comparisonList.map(dest => (
-                        <th key={dest.id} className="w-1/4 p-4 text-left border-b">
+                        <th key={dest.id} scope="col" className="w-1/4 p-4 text-left border-b">
                           <div className="font-bold text-gray-900">{dest.name}</div>
                           <div className="text-xs text-gray-500 font-normal">{dest.location}</div>
                         </th>
@@ -587,13 +616,13 @@ export default function EcoTourism() {
                   </thead>
                   <tbody className="divide-y divide-gray-100">
                     <tr>
-                      <td className="p-4 text-sm font-semibold text-gray-700 bg-gray-50">Sustainability Score</td>
+                      <th scope="row" className="p-4 text-sm font-semibold text-gray-700 bg-gray-50 text-left">Sustainability Score</th>
                       {comparisonList.map(dest => {
                         const score = calculateSustainabilityScore(dest);
                         return (
                           <td key={dest.id} className="p-4">
                             <div className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold border ${getScoreColor(score.overallScore)}`}>
-                              <Award className="h-3 w-3 mr-1" />
+                              <Award className="h-3 w-3 mr-1" aria-hidden="true" />
                               {score.overallScore}/100
                             </div>
                           </td>
@@ -601,7 +630,7 @@ export default function EcoTourism() {
                       })}
                     </tr>
                     <tr>
-                      <td className="p-4 text-sm font-semibold text-gray-700 bg-gray-50">Carbon Footprint</td>
+                      <th scope="row" className="p-4 text-sm font-semibold text-gray-700 bg-gray-50 text-left">Carbon Footprint</th>
                       {comparisonList.map(dest => {
                         const offset = calculateCarbonOffset(dest, 1);
                         return (
@@ -613,7 +642,7 @@ export default function EcoTourism() {
                       })}
                     </tr>
                     <tr>
-                      <td className="p-4 text-sm font-semibold text-gray-700 bg-gray-50">Community Impact</td>
+                      <th scope="row" className="p-4 text-sm font-semibold text-gray-700 bg-gray-50 text-left">Community Impact</th>
                       {comparisonList.map(dest => {
                         const community = getCommunityBenefitMetrics(dest);
                         return (
@@ -625,12 +654,12 @@ export default function EcoTourism() {
                       })}
                     </tr>
                     <tr>
-                      <td className="p-4 text-sm font-semibold text-gray-700 bg-gray-50">Wildlife Features</td>
+                      <th scope="row" className="p-4 text-sm font-semibold text-gray-700 bg-gray-50 text-left">Wildlife Features</th>
                       {comparisonList.map(dest => (
                         <td key={dest.id} className="p-4 text-sm text-gray-600">
                           {dest.sustainabilityFeatures?.wildlifeProtectionProgram ? (
                             <div className="flex items-center text-orange-600">
-                              <Bird className="h-4 w-4 mr-1.5" />
+                              <Bird className="h-4 w-4 mr-1.5" aria-hidden="true" />
                               Protected Habitat
                             </div>
                           ) : 'Standard Protection'}
@@ -638,7 +667,7 @@ export default function EcoTourism() {
                       ))}
                     </tr>
                     <tr>
-                      <td className="p-4 text-sm font-semibold text-gray-700 bg-gray-50">Certifications</td>
+                      <th scope="row" className="p-4 text-sm font-semibold text-gray-700 bg-gray-50 text-left">Certifications</th>
                       {comparisonList.map(dest => (
                         <td key={dest.id} className="p-4">
                           <div className="flex flex-wrap gap-1">
@@ -651,7 +680,7 @@ export default function EcoTourism() {
                       ))}
                     </tr>
                     <tr>
-                      <td className="p-4 text-sm font-semibold text-gray-700 bg-gray-50">Pricing</td>
+                      <th scope="row" className="p-4 text-sm font-semibold text-gray-700 bg-gray-50 text-left">Pricing</th>
                       {comparisonList.map(dest => {
                         const score = calculateSustainabilityScore(dest);
                         return (
@@ -671,8 +700,9 @@ export default function EcoTourism() {
               <button 
                 onClick={() => setComparisonList([])}
                 className="flex items-center text-red-600 hover:text-red-700 font-medium text-sm transition-colors"
+                aria-label="Clear all destinations from comparison"
               >
-                <Trash2 className="h-4 w-4 mr-2" />
+                <Trash2 className="h-4 w-4 mr-2" aria-hidden="true" />
                 Clear Comparison
               </button>
               <div className="flex space-x-3">

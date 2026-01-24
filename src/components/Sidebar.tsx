@@ -1,9 +1,10 @@
 'use client';
 
-import React from 'react';
+import React, { useRef } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
+import { useFocusTrap, useEscapeKey } from '@/lib/accessibility';
 import { 
   MapPin, 
   Users, 
@@ -40,6 +41,11 @@ interface SidebarProps {
 
 export default function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
   const pathname = usePathname();
+  const sidebarRef = useRef<HTMLDivElement>(null);
+
+  // Focus trap and escape key for mobile drawer
+  useFocusTrap(sidebarRef, !!isOpen);
+  useEscapeKey(() => setIsOpen?.(false), !!isOpen);
 
   return (
     <>
@@ -48,68 +54,80 @@ export default function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
         <div 
           className="fixed inset-0 bg-black/50 z-40 lg:hidden backdrop-blur-sm"
           onClick={() => setIsOpen?.(false)}
+          aria-hidden="true"
         />
       )}
 
-      <div className={cn(
+      <aside 
+        ref={sidebarRef}
+        aria-label="Sidebar navigation"
+        className={cn(
         "h-full bg-white border-r border-gray-200 w-64 fixed left-0 top-0 z-50 transition-transform duration-300 lg:translate-x-0 shadow-xl lg:shadow-none",
         isOpen ? "translate-x-0" : "-translate-x-full"
       )}>
         <div className="flex flex-col h-full">
           {/* Logo */}
-          <div className="p-6 border-b border-gray-200 flex items-center justify-between">
+          <div 
+            className="p-6 border-b border-gray-200 flex items-center justify-between"
+            aria-labelledby="sidebar-logo-title"
+          >
             <div className="flex items-center space-x-3">
               <div className="w-8 h-8 bg-green-600 rounded-lg flex items-center justify-center">
-                <MapPin className="h-5 w-5 text-white" />
+                <MapPin className="h-5 w-5 text-white" aria-hidden="true" />
               </div>
               <div>
-                <h1 className="font-bold text-lg text-gray-900">TMS</h1>
-                <p className="text-xs text-gray-500">Tourist Management</p>
+                <h1 id="sidebar-logo-title" className="font-bold text-lg text-gray-900">TMS</h1>
+                <p className="text-xs text-gray-500" aria-hidden="true">Tourist Management</p>
               </div>
             </div>
             {/* Close button for mobile */}
             <button 
-              className="lg:hidden p-2 text-gray-500 hover:bg-gray-100 rounded-lg"
+              className="lg:hidden p-2 text-gray-500 hover:bg-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
               onClick={() => setIsOpen?.(false)}
+              aria-label="Close navigation menu"
             >
-              <X className="h-5 w-5" />
+              <X className="h-5 w-5" aria-hidden="true" />
             </button>
           </div>
 
           {/* Navigation */}
-          <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
-            {navigationItems.map((item) => {
-              const Icon = item.icon;
-              const isActive = pathname === item.href;
-              
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  onClick={() => setIsOpen?.(false)}
-                  className={cn(
-                    'flex items-center space-x-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors',
-                    isActive
-                      ? 'bg-green-50 text-green-700 border border-green-200'
-                      : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
-                  )}
-                >
-                  <Icon className="h-4 w-4" />
-                  <span>{item.label}</span>
-                </Link>
-              );
-            })}
+          <nav aria-label="Admin navigation" className="flex-1 p-4 overflow-y-auto">
+            <ul className="space-y-2" role="list">
+              {navigationItems.map((item) => {
+                const Icon = item.icon;
+                const isActive = pathname === item.href;
+                
+                return (
+                  <li key={item.href}>
+                    <Link
+                      href={item.href}
+                      onClick={() => setIsOpen?.(false)}
+                      aria-current={isActive ? 'page' : undefined}
+                      className={cn(
+                        'flex items-center space-x-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-inset',
+                        isActive
+                          ? 'bg-green-50 text-green-700 border border-green-200'
+                          : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                      )}
+                    >
+                      <Icon className="h-4 w-4" aria-hidden="true" />
+                      <span>{item.label}</span>
+                    </Link>
+                  </li>
+                );
+              })}
+            </ul>
           </nav>
 
           {/* Footer */}
-          <div className="p-4 border-t border-gray-200">
+          <footer className="p-4 border-t border-gray-200" role="contentinfo">
             <div className="text-xs text-gray-500 text-center">
-              <p>Tourist Management System</p>
+              <p className="font-medium text-gray-900">Tourist Management System</p>
               <p>Jammu & Himachal Pradesh</p>
             </div>
-          </div>
+          </footer>
         </div>
-      </div>
+      </aside>
     </>
   );
 }

@@ -1,7 +1,8 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import Layout from "@/components/Layout";
+import { useModalAccessibility } from "@/lib/accessibility";
 import {
   History,
   AlertTriangle,
@@ -40,6 +41,14 @@ export default function CapacityRulesPage() {
   const [historySearch, setHistorySearch] = useState("");
   const [isSavingOverride, setIsSavingOverride] = useState(false);
   const [overrideError, setOverrideError] = useState<string | null>(null);
+
+  // Modal accessibility
+  const modalRef = useRef<HTMLDivElement>(null);
+  useModalAccessibility({
+    modalRef,
+    isOpen: isOverrideModalOpen,
+    onClose: () => setIsOverrideModalOpen(false)
+  });
 
   // Override Form State
   const [overrideForm, setOverrideForm] = useState<{
@@ -486,31 +495,41 @@ export default function CapacityRulesPage() {
 
         {/* Override Modal */}
         {isOverrideModalOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-            <div className="bg-white text-gray-900 rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in duration-200">
+          <div 
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="modal-title"
+          >
+            <div 
+              ref={modalRef}
+              className="bg-white text-gray-900 rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in duration-200"
+            >
               <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
-                <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+                <h2 id="modal-title" className="text-xl font-bold text-gray-900 flex items-center gap-2">
                   <ShieldAlert className="h-5 w-5 text-red-500" />
                   Manual Capacity Override
                 </h2>
                 <button
                   onClick={() => setIsOverrideModalOpen(false)}
-                  className="p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-colors"
+                  className="p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-green-500"
+                  aria-label="Close modal"
                 >
-                  <XCircle className="h-6 w-6" />
+                  <XCircle className="h-6 w-6" aria-hidden="true" />
                 </button>
               </div>
               <form onSubmit={handleSetOverride} className="p-6 space-y-5">
                 {overrideError && (
-                  <div className="p-3 bg-red-50 border border-red-200 rounded-lg flex items-start gap-2 text-red-700 text-sm animate-in fade-in slide-in-from-top-2 duration-200">
-                    <AlertTriangle className="h-4 w-4 mt-0.5 flex-shrink-0" />
+                  <div role="alert" className="p-3 bg-red-50 border border-red-200 rounded-lg flex items-start gap-2 text-red-700 text-sm animate-in fade-in slide-in-from-top-2 duration-200">
+                    <AlertTriangle className="h-4 w-4 mt-0.5 flex-shrink-0" aria-hidden="true" />
                     <p>{overrideError}</p>
                   </div>
                 )}
                 
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-1">Destination</label>
+                  <label htmlFor="destination-select" className="block text-sm font-semibold text-gray-700 mb-1">Destination</label>
                   <select
+                    id="destination-select"
                     required
                     disabled={isSavingOverride}
                     value={overrideForm.destinationId}
@@ -526,12 +545,13 @@ export default function CapacityRulesPage() {
 
                 <div>
                   <div className="flex justify-between items-center mb-1">
-                    <label className="text-sm font-semibold text-gray-700">Capacity Multiplier</label>
-                    <span className="text-sm font-bold text-green-600 bg-green-50 px-2 py-0.5 rounded">
+                    <label htmlFor="multiplier-range" className="text-sm font-semibold text-gray-700">Capacity Multiplier</label>
+                    <span className="text-sm font-bold text-green-600 bg-green-50 px-2 py-0.5 rounded" id="multiplier-value">
                       {Math.round(overrideForm.multiplier * 100)}%
                     </span>
                   </div>
                   <input
+                    id="multiplier-range"
                     type="range"
                     min="0.5"
                     max="1.0"
@@ -540,16 +560,18 @@ export default function CapacityRulesPage() {
                     value={overrideForm.multiplier}
                     onChange={(e) => setOverrideForm({ ...overrideForm, multiplier: parseFloat(e.target.value) })}
                     className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-green-600 disabled:opacity-50"
+                    aria-describedby="multiplier-value"
                   />
-                  <div className="flex justify-between text-[10px] text-gray-400 mt-1">
+                  <div className="flex justify-between text-[10px] text-gray-400 mt-1" aria-hidden="true">
                     <span>50% (Strict)</span>
                     <span>100% (No adjustment)</span>
                   </div>
                 </div>
 
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-1">Justification</label>
+                  <label htmlFor="override-reason" className="block text-sm font-semibold text-gray-700 mb-1">Justification</label>
                   <textarea
+                    id="override-reason"
                     required
                     disabled={isSavingOverride}
                     placeholder="Provide reason for this override (e.g., Local festival, emergency maintenance...)"
@@ -560,11 +582,12 @@ export default function CapacityRulesPage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-1 flex items-center gap-1">
-                    <Clock className="h-4 w-4" />
+                  <label htmlFor="expiration-date" className="block text-sm font-semibold text-gray-700 mb-1 flex items-center gap-1">
+                    <Clock className="h-4 w-4" aria-hidden="true" />
                     Expiration Date
                   </label>
                   <input
+                    id="expiration-date"
                     type="datetime-local"
                     required
                     disabled={isSavingOverride}

@@ -1,8 +1,9 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Image from 'next/image';
 import TouristLayout from '@/components/TouristLayout';
+import { useModalAccessibility } from "@/lib/accessibility";
 import { 
   Leaf, 
   Award, 
@@ -38,6 +39,12 @@ export default function EcoInitiativesPage() {
   const [isRegistering, setIsRegistering] = useState(false);
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [selectedRegistration, setSelectedRegistration] = useState<CleanupRegistration | null>(null);
+
+  const registrationModalRef = useRef<HTMLDivElement>(null);
+  const cancelModalRef = useRef<HTMLDivElement>(null);
+
+  useModalAccessibility({ modalRef: registrationModalRef, isOpen: showConfirmModal, onClose: () => setShowConfirmModal(false) });
+  useModalAccessibility({ modalRef: cancelModalRef, isOpen: showCancelModal, onClose: () => setShowCancelModal(false) });
 
   useEffect(() => {
     fetchData();
@@ -419,13 +426,21 @@ export default function EcoInitiativesPage() {
 
       {/* Registration Modal */}
       {showConfirmModal && selectedActivity && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-300">
-          <div className="bg-white rounded-[2.5rem] p-8 lg:p-12 w-full max-w-xl shadow-2xl animate-in zoom-in-95 duration-300">
+        <div 
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-300"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="registration-modal-title"
+        >
+          <div 
+            ref={registrationModalRef}
+            className="bg-white rounded-[2.5rem] p-8 lg:p-12 w-full max-w-xl shadow-2xl animate-in zoom-in-95 duration-300"
+          >
             <div className="flex flex-col items-center text-center">
               <div className="w-20 h-20 bg-emerald-100 rounded-[2rem] flex items-center justify-center mb-8">
-                <Leaf className="h-10 w-10 text-emerald-600" />
+                <Leaf className="h-10 w-10 text-emerald-600" aria-hidden="true" />
               </div>
-              <h3 className="text-3xl font-black text-slate-900 mb-4">Join this initiative?</h3>
+              <h3 id="registration-modal-title" className="text-3xl font-black text-slate-900 mb-4">Join this initiative?</h3>
               <p className="text-slate-500 font-medium mb-8">
                 You're about to join <span className="text-emerald-600 font-bold">{selectedActivity.title}</span> in {selectedActivity.location}. 
                 Earn <span className="text-emerald-600 font-bold">{selectedActivity.ecoPointsReward} Eco-Points</span> upon successful participation.
@@ -435,18 +450,18 @@ export default function EcoInitiativesPage() {
                 <button 
                   onClick={confirmRegistration}
                   disabled={isRegistering}
-                  className="w-full py-5 bg-emerald-600 text-white font-black rounded-3xl hover:bg-emerald-700 transition-all shadow-xl shadow-emerald-200 flex items-center justify-center gap-3 disabled:opacity-50"
+                  className="w-full py-5 bg-emerald-600 text-white font-black rounded-3xl hover:bg-emerald-700 transition-all shadow-xl shadow-emerald-200 flex items-center justify-center gap-3 disabled:opacity-50 focus:outline-none focus:ring-4 focus:ring-emerald-500/20"
                 >
                   {isRegistering ? 'Processing...' : (
                     <>
                       Confirm Registration
-                      <ArrowRight className="h-5 w-5" />
+                      <ArrowRight className="h-5 w-5" aria-hidden="true" />
                     </>
                   )}
                 </button>
                 <button 
                   onClick={() => setShowConfirmModal(false)}
-                  className="w-full py-5 bg-slate-100 text-slate-600 font-black rounded-3xl hover:bg-slate-200 transition-all"
+                  className="w-full py-5 bg-slate-100 text-slate-600 font-black rounded-3xl hover:bg-slate-200 transition-all focus:outline-none focus:ring-4 focus:ring-slate-500/10"
                 >
                   Go Back
                 </button>
@@ -458,13 +473,21 @@ export default function EcoInitiativesPage() {
 
       {/* Cancellation Modal */}
       {showCancelModal && selectedRegistration && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-300">
-          <div className="bg-white rounded-[2.5rem] p-8 lg:p-12 w-full max-w-xl shadow-2xl animate-in zoom-in-95 duration-300">
+        <div 
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-300"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="cancel-modal-title"
+        >
+          <div 
+            ref={cancelModalRef}
+            className="bg-white rounded-[2.5rem] p-8 lg:p-12 w-full max-w-xl shadow-2xl animate-in zoom-in-95 duration-300"
+          >
             <div className="flex flex-col items-center text-center">
               <div className="w-20 h-20 bg-red-50 rounded-[2rem] flex items-center justify-center mb-8">
-                <AlertCircle className="h-10 w-10 text-red-500" />
+                <AlertCircle className="h-10 w-10 text-red-500" aria-hidden="true" />
               </div>
-              <h3 className="text-3xl font-black text-slate-900 mb-4">Cancel Registration?</h3>
+              <h3 id="cancel-modal-title" className="text-3xl font-black text-slate-900 mb-4">Cancel Registration?</h3>
               <p className="text-slate-500 font-medium mb-8">
                 Are you sure you want to cancel your registration for this event? This action will free up your spot for other volunteers.
               </p>
@@ -472,15 +495,15 @@ export default function EcoInitiativesPage() {
               <div className="w-full space-y-4">
                 <button 
                   onClick={confirmCancellation}
-                  className="w-full py-5 bg-red-500 text-white font-black rounded-3xl hover:bg-red-600 transition-all shadow-xl shadow-red-100"
+                  className="w-full py-5 bg-red-500 text-white font-black rounded-3xl hover:bg-red-600 transition-all shadow-xl shadow-red-100 focus:outline-none focus:ring-4 focus:ring-red-500/20"
                 >
                   Yes, Cancel Registration
                 </button>
                 <button 
                   onClick={() => setShowCancelModal(false)}
-                  className="w-full py-5 bg-slate-100 text-slate-600 font-black rounded-3xl hover:bg-slate-200 transition-all"
+                  className="w-full py-5 bg-slate-100 text-slate-600 font-black rounded-3xl hover:bg-slate-200 transition-all focus:outline-none focus:ring-4 focus:ring-slate-500/10"
                 >
-                  No, Keep It
+                  Keep Registration
                 </button>
               </div>
             </div>

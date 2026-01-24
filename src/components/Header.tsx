@@ -268,7 +268,6 @@ export default function Header({ onMenuClick }: HeaderProps) {
                   </button>
                 </div>
               </div>
-              </div>
             )}
           </div>
         </div>

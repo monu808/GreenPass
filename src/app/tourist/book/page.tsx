@@ -485,8 +485,11 @@ function BookDestinationForm() {
       <div className="max-w-4xl mx-auto space-y-6 pb-12">
         {/* Eligibility Warning */}
         {!eligibility.allowed && (
-          <div className="p-4 bg-red-100 border border-red-300 text-red-900 rounded-xl flex items-start space-x-3 animate-in slide-in-from-top duration-300">
-            <XCircle className="h-6 w-6 flex-shrink-0" />
+          <div 
+            className="p-4 bg-red-100 border border-red-300 text-red-900 rounded-xl flex items-start space-x-3 animate-in slide-in-from-top duration-300"
+            role="alert"
+          >
+            <XCircle className="h-6 w-6 flex-shrink-0" aria-hidden="true" />
             <div>
               <h4 className="font-bold">Booking Restricted</h4>
               <p className="text-sm">{eligibility.reason}</p>
@@ -496,8 +499,11 @@ function BookDestinationForm() {
 
         {/* Ecological Alert (Fix for #81) */}
         {ecoAlert && (
-          <div className="p-4 bg-yellow-50 border border-yellow-200 text-yellow-800 rounded-xl flex items-start space-x-3 animate-in slide-in-from-top duration-300">
-            <AlertTriangle className="h-6 w-6 flex-shrink-0 text-yellow-600" />
+          <div 
+            className="p-4 bg-yellow-50 border border-yellow-200 text-yellow-800 rounded-xl flex items-start space-x-3 animate-in slide-in-from-top duration-300"
+            role="alert"
+          >
+            <AlertTriangle className="h-6 w-6 flex-shrink-0 text-yellow-600" aria-hidden="true" />
             <div>
               <h4 className="font-bold">Ecological Notice</h4>
               <p className="text-sm">{ecoAlert.message}</p>
@@ -513,14 +519,14 @@ function BookDestinationForm() {
               
               <div className="space-y-1">
                 <div className="flex items-center text-gray-500 font-medium">
-                  <MapPin className="h-5 w-5 mr-2 text-gray-400" />
+                  <MapPin className="h-5 w-5 mr-2 text-gray-400" aria-hidden="true" />
                   {destination.name}, {destination.location}
                 </div>
               </div>
 
               <div className="flex flex-wrap items-center gap-3 mt-6">
                 <div className="flex items-center px-4 py-2 bg-blue-50 text-blue-700 rounded-xl border border-blue-100">
-                  <Users className="h-5 w-5 mr-2" />
+                  <Users className="h-5 w-5 mr-2" aria-hidden="true" />
                   <span className="font-semibold">
                     {availableSpots} / {adjustedCapacity} spots free (adjusted)
                   </span>
@@ -528,31 +534,31 @@ function BookDestinationForm() {
                 
                 {capacityResult?.activeFactorFlags.weather && (
                   <div className="flex items-center px-3 py-1 bg-sky-50 text-sky-700 rounded-lg border border-sky-100 text-xs font-bold">
-                    <AlertTriangle className="h-3 w-3 mr-1" />
+                    <AlertTriangle className="h-3 w-3 mr-1" aria-hidden="true" />
                     Weather Adjustment
                   </div>
                 )}
                 {capacityResult?.activeFactorFlags.season && (
                   <div className="flex items-center px-3 py-1 bg-amber-50 text-amber-700 rounded-lg border border-amber-100 text-xs font-bold">
-                    <Calendar className="h-3 w-3 mr-1" />
+                    <Calendar className="h-3 w-3 mr-1" aria-hidden="true" />
                     Seasonal Factor
                   </div>
                 )}
                 {capacityResult?.activeFactorFlags.utilization && (
                   <div className="flex items-center px-3 py-1 bg-purple-50 text-purple-700 rounded-lg border border-purple-100 text-xs font-bold">
-                    <Users className="h-3 w-3 mr-1" />
+                    <Users className="h-3 w-3 mr-1" aria-hidden="true" />
                     High Utilization
                   </div>
                 )}
                 {capacityResult?.activeFactorFlags.infrastructure && (
                   <div className="flex items-center px-3 py-1 bg-emerald-50 text-emerald-700 rounded-lg border border-emerald-100 text-xs font-bold">
-                    <Leaf className="h-3 w-3 mr-1" />
+                    <Leaf className="h-3 w-3 mr-1" aria-hidden="true" />
                     Eco Strain
                   </div>
                 )}
                 {capacityResult?.activeFactorFlags.override && (
                   <div className="flex items-center px-3 py-1 bg-rose-50 text-rose-700 rounded-lg border border-rose-100 text-xs font-bold">
-                    <ShieldAlert className="h-3 w-3 mr-1" />
+                    <ShieldAlert className="h-3 w-3 mr-1" aria-hidden="true" />
                     Admin Override
                   </div>
                 )}
@@ -562,7 +568,7 @@ function BookDestinationForm() {
             <div className="flex flex-col items-end space-y-4">
               <div className="flex flex-col items-end">
                 <div className="flex items-center space-x-1">
-                  <Star className="h-5 w-5 text-yellow-400 fill-current" />
+                  <Star className="h-5 w-5 text-yellow-400 fill-current" aria-hidden="true" />
                   <span className="text-lg font-bold text-gray-300">4.3</span>
                 </div>
                 <span className={`text-sm font-bold mt-1 ${
@@ -578,7 +584,7 @@ function BookDestinationForm() {
                 destination.ecologicalSensitivity === 'medium' ? 'bg-yellow-50 border-yellow-100 text-yellow-600' :
                 'bg-green-50 border-green-100 text-green-600'
               }`}>
-                <RefreshCw className="h-4 w-4 mr-2" />
+                <RefreshCw className="h-4 w-4 mr-2" aria-hidden="true" />
                 <span className="text-sm font-bold capitalize">{destination.ecologicalSensitivity} Sensitivity</span>
               </div>
             </div>
@@ -602,7 +608,7 @@ function BookDestinationForm() {
                   destination.ecologicalSensitivity === 'critical' ? 'text-red-700' :
                   destination.ecologicalSensitivity === 'high' ? 'text-orange-700' :
                   'text-yellow-700'
-                } h-8 w-8`} />
+                } h-8 w-8`} aria-hidden="true" />
               </div>
               <div className="space-y-4">
                 <div>
@@ -654,21 +660,25 @@ function BookDestinationForm() {
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
               <div className="space-y-2">
-                <label className="text-sm font-bold text-gray-600">Full Name *</label>
+                <label htmlFor="book-name" className="text-sm font-bold text-gray-600">Full Name *</label>
                 <input
+                  id="book-name"
                   type="text"
                   name="name"
                   value={formData.name}
                   onChange={handleInputChange}
                   required
                   className={`w-full px-4 py-4 bg-white border ${errors.name ? 'border-red-500' : 'border-gray-200'} rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all outline-none text-gray-900`}
+                  aria-invalid={!!errors.name}
+                  aria-describedby={errors.name ? "name-error" : undefined}
                 />
-                {errors.name && <p className="text-xs text-red-500 font-bold mt-1">{errors.name}</p>}
+                {errors.name && <p id="name-error" className="text-xs text-red-500 font-bold mt-1" role="alert">{errors.name}</p>}
               </div>
               
               <div className="space-y-2">
-                <label className="text-sm font-bold text-gray-600">Email Address *</label>
+                <label htmlFor="book-email" className="text-sm font-bold text-gray-600">Email Address *</label>
                 <input
+                  id="book-email"
                   type="email"
                   name="email"
                   autoComplete="email"
@@ -676,13 +686,16 @@ function BookDestinationForm() {
                   onChange={handleInputChange}
                   required
                   className={`w-full px-4 py-4 bg-white border ${errors.email ? 'border-red-500' : 'border-gray-200'} rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all outline-none text-gray-900`}
+                  aria-invalid={!!errors.email}
+                  aria-describedby={errors.email ? "email-error" : undefined}
                 />
-                {errors.email && <p className="text-xs text-red-500 font-bold mt-1">{errors.email}</p>}
+                {errors.email && <p id="email-error" className="text-xs text-red-500 font-bold mt-1" role="alert">{errors.email}</p>}
               </div>
               
               <div className="space-y-2">
-                <label className="text-sm font-bold text-gray-600">Phone Number *</label>
+                <label htmlFor="book-phone" className="text-sm font-bold text-gray-600">Phone Number *</label>
                 <input
+                  id="book-phone"
                   type="tel"
                   autoComplete="tel"
                   name="phone"
@@ -690,26 +703,32 @@ function BookDestinationForm() {
                   onChange={handleInputChange}
                   required
                   className={`w-full px-4 py-4 bg-white border ${errors.phone ? 'border-red-500' : 'border-gray-200'} rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all outline-none text-gray-900`}
+                  aria-invalid={!!errors.phone}
+                  aria-describedby={errors.phone ? "phone-error" : undefined}
                 />
-                {errors.phone && <p className="text-xs text-red-500 font-bold mt-1">{errors.phone}</p>}
+                {errors.phone && <p id="phone-error" className="text-xs text-red-500 font-bold mt-1" role="alert">{errors.phone}</p>}
               </div>
               
               <div className="space-y-2">
-                <label className="text-sm font-bold text-gray-600">Nationality *</label>
+                <label htmlFor="book-nationality" className="text-sm font-bold text-gray-600">Nationality *</label>
                 <input
+                  id="book-nationality"
                   type="text"
                   name="nationality"
                   value={formData.nationality}
                   onChange={handleInputChange}
                   required
                   className={`w-full px-4 py-4 bg-white border ${errors.nationality ? 'border-red-500' : 'border-gray-200'} rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all outline-none text-gray-900`}
+                  aria-invalid={!!errors.nationality}
+                  aria-describedby={errors.nationality ? "nationality-error" : undefined}
                 />
-                {errors.nationality && <p className="text-xs text-red-500 font-bold mt-1">{errors.nationality}</p>}
+                {errors.nationality && <p id="nationality-error" className="text-xs text-red-500 font-bold mt-1" role="alert">{errors.nationality}</p>}
               </div>
               
               <div className="space-y-2">
-                <label className="text-sm font-bold text-gray-600">ID Proof Number *</label>
+                <label htmlFor="book-idProof" className="text-sm font-bold text-gray-600">ID Proof Number *</label>
                 <input
+                  id="book-idProof"
                   type="text"
                   name="idProof"
                   value={formData.idProof}
@@ -717,18 +736,23 @@ function BookDestinationForm() {
                   required
                   placeholder="Passport/Aadhar/Driving License"
                   className={`w-full px-4 py-4 bg-white border ${errors.idProof ? 'border-red-500' : 'border-gray-200'} rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all outline-none placeholder:text-gray-300 text-gray-900`}
+                  aria-invalid={!!errors.idProof}
+                  aria-describedby={errors.idProof ? "idProof-error" : undefined}
                 />
-                {errors.idProof && <p className="text-xs text-red-500 font-bold mt-1">{errors.idProof}</p>}
+                {errors.idProof && <p id="idProof-error" className="text-xs text-red-500 font-bold mt-1" role="alert">{errors.idProof}</p>}
               </div>
 
               <div className="space-y-2">
-                <label className="text-sm font-bold text-gray-600">Origin Location *</label>
+                <label htmlFor="book-originLocation" className="text-sm font-bold text-gray-600">Origin Location *</label>
                 <select
+                  id="book-originLocation"
                   name="originLocation"
                   value={formData.originLocation}
                   onChange={handleInputChange}
                   required
                   className={`w-full px-4 py-4 bg-white border ${errors.originLocation ? 'border-red-500' : 'border-gray-200'} rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all outline-none text-gray-900`}
+                  aria-invalid={!!errors.originLocation}
+                  aria-describedby={errors.originLocation ? "originLocation-error" : "originLocation-info"}
                 >
                   <option value="">Select your origin state/region</option>
                   {ORIGIN_LOCATIONS.map(location => (
@@ -737,37 +761,40 @@ function BookDestinationForm() {
                     </option>
                   ))}
                 </select>
-                {errors.originLocation && <p className="text-xs text-red-500 font-bold mt-1">{errors.originLocation}</p>}
-                <p className="text-xs text-gray-500 mt-1 flex items-center">
-                  <Info className="h-3 w-3 mr-1" />
+                {errors.originLocation && <p id="originLocation-error" className="text-xs text-red-500 font-bold mt-1" role="alert">{errors.originLocation}</p>}
+                <p id="originLocation-info" className="text-xs text-gray-500 mt-1 flex items-center">
+                  <Info className="h-3 w-3 mr-1" aria-hidden="true" />
                   Used to calculate your travel carbon footprint
                 </p>
               </div>
 
               <div className="space-y-2">
-                <label className="text-sm font-bold text-gray-600">Transport Type *</label>
+                <label htmlFor="book-transportType" className="text-sm font-bold text-gray-600">Transport Type *</label>
                 <select
+                  id="book-transportType"
                   name="transportType"
                   value={formData.transportType}
                   onChange={handleInputChange}
                   required
                   className="w-full px-4 py-4 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all outline-none appearance-none text-gray-900"
+                  aria-describedby="transportType-info"
                 >
                   <option value="TRAIN_PER_KM">Train (Eco-Friendly)</option>
                   <option value="BUS_PER_KM">Public Bus (Eco-Friendly)</option>
                   <option value="CAR_PER_KM">Car / Private Vehicle</option>
                   <option value="FLIGHT_PER_KM">Flight</option>
                 </select>
-                <p className="text-xs text-gray-500 mt-1 flex items-center">
-                  <Leaf className="h-3 w-3 mr-1 text-green-600" />
+                <p id="transportType-info" className="text-xs text-gray-500 mt-1 flex items-center">
+                  <Leaf className="h-3 w-3 mr-1 text-green-600" aria-hidden="true" />
                   Public transport significantly reduces your footprint!
                 </p>
               </div>
 
               {(destination.ecologicalSensitivity === 'high' || destination.ecologicalSensitivity === 'critical') && policy?.requiresPermit && (
                 <div className="space-y-2">
-                  <label className="text-sm font-bold text-gray-600">Ecological Permit Number *</label>
+                  <label htmlFor="book-ecoPermitNumber" className="text-sm font-bold text-gray-600">Ecological Permit Number *</label>
                   <input
+                    id="book-ecoPermitNumber"
                     type="text"
                     name="ecoPermitNumber"
                     value={formData.ecoPermitNumber}
@@ -775,18 +802,21 @@ function BookDestinationForm() {
                     required
                     placeholder="Enter your pre-obtained permit number"
                     className={`w-full px-4 py-4 bg-orange-50/30 border ${errors.ecoPermitNumber ? 'border-red-500' : 'border-orange-200'} rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all outline-none placeholder:text-gray-300 text-gray-900`}
+                    aria-invalid={!!errors.ecoPermitNumber}
+                    aria-describedby={errors.ecoPermitNumber ? "ecoPermitNumber-error" : "ecoPermitNumber-info"}
                   />
                   {errors.ecoPermitNumber ? (
-                    <p className="text-xs text-red-500 font-bold mt-1">{errors.ecoPermitNumber}</p>
+                    <p id="ecoPermitNumber-error" className="text-xs text-red-500 font-bold mt-1" role="alert">{errors.ecoPermitNumber}</p>
                   ) : (
-                    <p className="text-[10px] font-bold text-orange-600 ml-1 uppercase tracking-wider">Required for {destination.ecologicalSensitivity} sensitivity areas.</p>
+                    <p id="ecoPermitNumber-info" className="text-[10px] font-bold text-orange-600 ml-1 uppercase tracking-wider">Required for {destination.ecologicalSensitivity} sensitivity areas.</p>
                   )}
                 </div>
               )}
               
               <div className="space-y-2">
-                <label className="text-sm font-bold text-gray-600">Group Size *</label>
+                <label htmlFor="book-groupSize" className="text-sm font-bold text-gray-600">Group Size *</label>
                 <select
+                  id="book-groupSize"
                   name="groupSize"
                   value={formData.groupSize}
                   onChange={handleInputChange}
@@ -809,32 +839,40 @@ function BookDestinationForm() {
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
               <div className="space-y-2">
-                <label className="text-sm font-bold text-gray-600">Check-in Date *</label>
+                <label htmlFor="book-checkInDate" className="text-sm font-bold text-gray-600">Check-in Date *</label>
                 <div className="relative">
                   <input
+                    id="book-checkInDate"
                     type="date"
                     name="checkInDate"
                     value={formData.checkInDate}
                     onChange={handleInputChange}
                     required
                     min={new Date().toISOString().split('T')[0]}
-                    className="w-full px-4 py-4 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all outline-none pr-12 text-gray-900"
+                    className={`w-full px-4 py-4 bg-white border ${errors.checkInDate ? 'border-red-500' : 'border-gray-200'} rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all outline-none pr-12 text-gray-900`}
+                    aria-invalid={!!errors.checkInDate}
+                    aria-describedby={errors.checkInDate ? "checkInDate-error" : undefined}
                   />
+                  {errors.checkInDate && <p id="checkInDate-error" className="text-xs text-red-500 font-bold mt-1" role="alert">{errors.checkInDate}</p>}
                 </div>
               </div>
               
               <div className="space-y-2">
-                <label className="text-sm font-bold text-gray-600">Check-out Date *</label>
+                <label htmlFor="book-checkOutDate" className="text-sm font-bold text-gray-600">Check-out Date *</label>
                 <div className="relative">
                   <input
+                    id="book-checkOutDate"
                     type="date"
                     name="checkOutDate"
                     value={formData.checkOutDate}
                     onChange={handleInputChange}
                     required
                     min={formData.checkInDate || new Date().toISOString().split('T')[0]}
-                    className="w-full px-4 py-4 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all outline-none pr-12 text-gray-900"
+                    className={`w-full px-4 py-4 bg-white border ${errors.checkOutDate ? 'border-red-500' : 'border-gray-200'} rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all outline-none pr-12 text-gray-900`}
+                    aria-invalid={!!errors.checkOutDate}
+                    aria-describedby={errors.checkOutDate ? "checkOutDate-error" : undefined}
                   />
+                  {errors.checkOutDate && <p id="checkOutDate-error" className="text-xs text-red-500 font-bold mt-1" role="alert">{errors.checkOutDate}</p>}
                 </div>
               </div>
             </div>
@@ -846,21 +884,25 @@ function BookDestinationForm() {
             
             <div className="grid grid-cols-1 md:grid-cols-3 gap-x-6 gap-y-6">
               <div className="space-y-2">
-                <label className="text-sm font-bold text-gray-600">Contact Name *</label>
+                <label htmlFor="emergency-contact-name" className="text-sm font-bold text-gray-600">Contact Name *</label>
                 <input
+                  id="emergency-contact-name"
                   type="text"
                   name="emergencyContact.name"
                   value={formData.emergencyContact.name}
                   onChange={handleInputChange}
                   required
                   className={`w-full px-4 py-4 bg-white border ${errors['emergencyContact.name'] ? 'border-red-500' : 'border-gray-200'} rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all outline-none text-gray-900`}
+                  aria-invalid={!!errors['emergencyContact.name']}
+                  aria-describedby={errors['emergencyContact.name'] ? "emergency-contact-name-error" : undefined}
                 />
-                {errors['emergencyContact.name'] && <p className="text-xs text-red-500 font-bold mt-1">{errors['emergencyContact.name']}</p>}
+                {errors['emergencyContact.name'] && <p id="emergency-contact-name-error" className="text-xs text-red-500 font-bold mt-1" role="alert">{errors['emergencyContact.name']}</p>}
               </div>
               
               <div className="space-y-2">
-                <label className="text-sm font-bold text-gray-600">Contact Phone *</label>
+                <label htmlFor="emergency-contact-phone" className="text-sm font-bold text-gray-600">Contact Phone *</label>
                 <input
+                  id="emergency-contact-phone"
                   type="tel"
                   autoComplete="tel"
                   name="emergencyContact.phone"
@@ -868,18 +910,23 @@ function BookDestinationForm() {
                   onChange={handleInputChange}
                   required
                   className={`w-full px-4 py-4 bg-white border ${errors['emergencyContact.phone'] ? 'border-red-500' : 'border-gray-200'} rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all outline-none text-gray-900`}
+                  aria-invalid={!!errors['emergencyContact.phone']}
+                  aria-describedby={errors['emergencyContact.phone'] ? "emergency-contact-phone-error" : undefined}
                 />
-                {errors['emergencyContact.phone'] && <p className="text-xs text-red-500 font-bold mt-1">{errors['emergencyContact.phone']}</p>}
+                {errors['emergencyContact.phone'] && <p id="emergency-contact-phone-error" className="text-xs text-red-500 font-bold mt-1" role="alert">{errors['emergencyContact.phone']}</p>}
               </div>
               
               <div className="space-y-2">
-                <label className="text-sm font-bold text-gray-600">Relationship *</label>
+                <label htmlFor="emergency-contact-relationship" className="text-sm font-bold text-gray-600">Relationship *</label>
                 <select
+                  id="emergency-contact-relationship"
                   name="emergencyContact.relationship"
                   value={formData.emergencyContact.relationship}
                   onChange={handleInputChange}
                   required
                   className={`w-full px-4 py-4 bg-white border ${errors['emergencyContact.relationship'] ? 'border-red-500' : 'border-gray-200'} rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all outline-none appearance-none text-gray-900`}
+                  aria-invalid={!!errors['emergencyContact.relationship']}
+                  aria-describedby={errors['emergencyContact.relationship'] ? "emergency-contact-relationship-error" : undefined}
                 >
                   <option value="">Select Relationship</option>
                   <option value="parent">Parent</option>
@@ -888,16 +935,16 @@ function BookDestinationForm() {
                   <option value="friend">Friend</option>
                   <option value="other">Other</option>
                 </select>
-                {errors['emergencyContact.relationship'] && <p className="text-xs text-red-500 font-bold mt-1">{errors['emergencyContact.relationship']}</p>}
+                {errors['emergencyContact.relationship'] && <p id="emergency-contact-relationship-error" className="text-xs text-red-500 font-bold mt-1" role="alert">{errors['emergencyContact.relationship']}</p>}
               </div>
             </div>
           </div>
 
           {/* Environmental Impact & Sustainability */}
           {carbonFootprint && (
-            <div className="space-y-6">
+            <div className="space-y-6" role="region" aria-label="Environmental Impact Analysis">
               {/* Carbon Footprint Display */}
-              <div className="bg-white rounded-2xl p-8 shadow-sm border border-gray-100">
+              <div className="bg-white rounded-2xl p-8 shadow-sm border border-gray-100" aria-live="polite">
                 <div className="flex items-center justify-between mb-8">
                   <h3 className="text-2xl font-bold text-gray-900">Environmental Impact</h3>
                   <div className={`px-4 py-1 rounded-full text-xs font-bold uppercase tracking-wider ${
@@ -912,7 +959,7 @@ function BookDestinationForm() {
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                   <div className="bg-gray-50 rounded-2xl p-6 border border-gray-100 text-center">
                     <div className="bg-white w-12 h-12 rounded-xl flex items-center justify-center mx-auto mb-4 shadow-sm">
-                      <Globe className="h-6 w-6 text-blue-600" />
+                      <Globe className="h-6 w-6 text-blue-600" aria-hidden="true" />
                     </div>
                     <div className="text-2xl font-black text-gray-900">{carbonFootprint.totalEmissions.toFixed(2)}</div>
                     <div className="text-xs font-bold text-gray-500 uppercase">kg CO2e Total</div>
@@ -920,7 +967,7 @@ function BookDestinationForm() {
 
                   <div className="bg-gray-50 rounded-2xl p-6 border border-gray-100 text-center">
                     <div className="bg-white w-12 h-12 rounded-xl flex items-center justify-center mx-auto mb-4 shadow-sm">
-                      <Zap className="h-6 w-6 text-amber-600" />
+                      <Zap className="h-6 w-6 text-amber-600" aria-hidden="true" />
                     </div>
                     <div className="text-2xl font-black text-gray-900">{carbonFootprint.emissionsPerPerson.toFixed(2)}</div>
                     <div className="text-xs font-bold text-gray-500 uppercase">kg CO2e / Person</div>
@@ -928,7 +975,7 @@ function BookDestinationForm() {
 
                   <div className="bg-gray-50 rounded-2xl p-6 border border-gray-100 text-center">
                     <div className="bg-white w-12 h-12 rounded-xl flex items-center justify-center mx-auto mb-4 shadow-sm">
-                      <TreePine className="h-6 w-6 text-green-600" />
+                      <TreePine className="h-6 w-6 text-green-600" aria-hidden="true" />
                     </div>
                     <div className="text-2xl font-black text-gray-900">{carbonFootprint.ecoPointsReward}</div>
                     <div className="text-xs font-bold text-gray-500 uppercase">Eco-Points Potential</div>
@@ -936,7 +983,7 @@ function BookDestinationForm() {
                 </div>
 
                 <div className="mt-8 p-4 bg-blue-50/50 rounded-xl border border-blue-100 flex items-start space-x-3">
-                  <Info className="h-5 w-5 text-blue-600 mt-0.5" />
+                  <Info className="h-5 w-5 text-blue-600 mt-0.5" aria-hidden="true" />
                   <p className="text-sm text-blue-800 leading-relaxed">
                     This trip&apos;s emissions are equivalent to <strong>{carbonFootprint.comparison.trees_equivalent}</strong> trees absorbing CO2 for a year, or <strong>{carbonFootprint.comparison.car_miles_equivalent}</strong> miles driven in an average car.
                   </p>
@@ -947,7 +994,7 @@ function BookDestinationForm() {
               <div className="bg-emerald-900 rounded-2xl p-8 text-white shadow-xl shadow-emerald-100/50">
                 <div className="flex items-center space-x-3 mb-6">
                   <div className="bg-emerald-800 p-2 rounded-lg">
-                    <Leaf className="h-6 w-6 text-emerald-300" />
+                    <Leaf className="h-6 w-6 text-emerald-300" aria-hidden="true" />
                   </div>
                   <h3 className="text-xl font-bold">Sustainability Tips for {destination.name}</h3>
                 </div>
@@ -969,7 +1016,7 @@ function BookDestinationForm() {
             <div className="bg-emerald-50 rounded-2xl p-8 border border-emerald-200">
               <div className="flex items-center space-x-3 mb-6">
                 <div className="bg-emerald-100 p-2 rounded-lg">
-                  <Leaf className="h-6 w-6 text-emerald-700" />
+                  <Leaf className="h-6 w-6 text-emerald-700" aria-hidden="true" />
                 </div>
                 <div>
                   <h3 className="text-xl font-bold text-emerald-900 tracking-tight leading-none">High Ecological Impact Detected</h3>
@@ -1023,9 +1070,10 @@ function BookDestinationForm() {
             
             {destination && (destination.ecologicalSensitivity === 'high' || destination.ecologicalSensitivity === 'critical') && policy?.requiresEcoBriefing && (
               <div className="bg-green-50/50 border border-green-200 rounded-xl p-6 mb-6">
-                <label className="flex items-start space-x-4 cursor-pointer">
+                <label htmlFor="acknowledged" className="flex items-start space-x-4 cursor-pointer">
                   <div className="mt-1">
                     <input
+                      id="acknowledged"
                       type="checkbox"
                       name="acknowledged"
                       checked={formData.acknowledged}
@@ -1042,8 +1090,9 @@ function BookDestinationForm() {
             )}
 
             <div className="space-y-2">
-              <label className="text-sm font-bold text-gray-600">Special Requests (Optional)</label>
+              <label htmlFor="special-requests" className="text-sm font-bold text-gray-600">Special Requests (Optional)</label>
               <textarea
+                id="special-requests"
                 name="specialRequests"
                 value={formData.specialRequests}
                 onChange={handleInputChange}

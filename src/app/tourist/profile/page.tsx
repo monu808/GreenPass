@@ -324,9 +324,10 @@ export default function MyProfile() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                 <div className="space-y-5">
                   <div className="group">
-                    <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-1.5 group-focus-within:text-purple-600 transition-colors">Full Name</label>
+                    <label htmlFor="full-name" className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-1.5 group-focus-within:text-purple-600 transition-colors">Full Name</label>
                     {isEditing ? (
                       <input
+                        id="full-name"
                         type="text"
                         value={userProfile.name}
                         onChange={(e) => setUserProfile({...userProfile, name: e.target.value})}
@@ -340,9 +341,10 @@ export default function MyProfile() {
                   </div>
 
                   <div className="group">
-                    <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-1.5 group-focus-within:text-purple-600 transition-colors">Email Address</label>
+                    <label htmlFor="email-address" className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-1.5 group-focus-within:text-purple-600 transition-colors">Email Address</label>
                     {isEditing ? (
                       <input
+                        id="email-address"
                         type="email"
                         autoComplete="email"
                         value={userProfile.email}
@@ -357,9 +359,10 @@ export default function MyProfile() {
                   </div>
 
                   <div className="group">
-                    <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-1.5 group-focus-within:text-purple-600 transition-colors">Phone Number</label>
+                    <label htmlFor="phone-number" className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-1.5 group-focus-within:text-purple-600 transition-colors">Phone Number</label>
                     {isEditing ? (
                       <input
+                        id="phone-number"
                         type="tel"
                         autoComplete="tel"
                         value={userProfile.phone}
@@ -374,9 +377,10 @@ export default function MyProfile() {
                   </div>
 
                   <div className="group">
-                    <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-1.5 group-focus-within:text-purple-600 transition-colors">Location</label>
+                    <label htmlFor="location" className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-1.5 group-focus-within:text-purple-600 transition-colors">Location</label>
                     {isEditing ? (
                       <input
+                        id="location"
                         type="text"
                         value={userProfile.location}
                         onChange={(e) => setUserProfile({...userProfile, location: e.target.value})}
@@ -392,9 +396,10 @@ export default function MyProfile() {
 
                 <div className="space-y-5">
                   <div className="group">
-                    <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-1.5 group-focus-within:text-purple-600 transition-colors">Date of Birth</label>
+                    <label htmlFor="dob" className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-1.5 group-focus-within:text-purple-600 transition-colors">Date of Birth</label>
                     {isEditing ? (
                       <input
+                        id="dob"
                         type="date"
                         value={userProfile.dateOfBirth}
                         onChange={(e) => setUserProfile({...userProfile, dateOfBirth: e.target.value})}
@@ -445,9 +450,10 @@ export default function MyProfile() {
               </div>
 
               <div className="group">
-                <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-1.5 group-focus-within:text-purple-600 transition-colors">About Me</label>
+                <label htmlFor="bio" className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-1.5 group-focus-within:text-purple-600 transition-colors">About Me</label>
                 {isEditing ? (
                   <textarea
+                    id="bio"
                     value={userProfile.bio}
                     onChange={(e) => setUserProfile({...userProfile, bio: e.target.value})}
                     rows={4}
@@ -773,22 +779,22 @@ export default function MyProfile() {
                     Notification Preferences
                   </h3>
                   <div className="space-y-3">
-                    <label className="flex items-center justify-between">
-                      <span className="text-gray-700">Email notifications</span>
-                      <input type="checkbox" defaultChecked className="rounded text-purple-600" />
-                    </label>
-                    <label className="flex items-center justify-between">
-                      <span className="text-gray-700">SMS notifications</span>
-                      <input type="checkbox" defaultChecked className="rounded text-purple-600" />
-                    </label>
-                    <label className="flex items-center justify-between">
-                      <span className="text-gray-700">Push notifications</span>
-                      <input type="checkbox" className="rounded text-purple-600" />
-                    </label>
-                    <label className="flex items-center justify-between">
-                      <span className="text-gray-700">Travel deals and offers</span>
-                      <input type="checkbox" defaultChecked className="rounded text-purple-600" />
-                    </label>
+                    <div className="flex items-center justify-between">
+                      <label htmlFor="email-notif" className="text-gray-700">Email notifications</label>
+                      <input id="email-notif" type="checkbox" defaultChecked className="rounded text-purple-600" />
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <label htmlFor="sms-notif" className="text-gray-700">SMS notifications</label>
+                      <input id="sms-notif" type="checkbox" defaultChecked className="rounded text-purple-600" />
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <label htmlFor="push-notif" className="text-gray-700">Push notifications</label>
+                      <input id="push-notif" type="checkbox" className="rounded text-purple-600" />
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <label htmlFor="deals-notif" className="text-gray-700">Travel deals and offers</label>
+                      <input id="deals-notif" type="checkbox" defaultChecked className="rounded text-purple-600" />
+                    </div>
                   </div>
                 </div>
 
@@ -798,22 +804,22 @@ export default function MyProfile() {
                     Privacy Settings
                   </h3>
                   <div className="space-y-3">
-                    <label className="flex items-center justify-between">
-                      <span className="text-gray-700">Profile visibility</span>
-                      <select className="rounded border-gray-300 text-sm">
+                    <div className="flex items-center justify-between">
+                      <label htmlFor="profile-visibility" className="text-gray-700">Profile visibility</label>
+                      <select id="profile-visibility" className="rounded border-gray-300 text-sm">
                         <option>Public</option>
                         <option>Friends only</option>
                         <option>Private</option>
                       </select>
-                    </label>
-                    <label className="flex items-center justify-between">
-                      <span className="text-gray-700">Show travel history</span>
-                      <input type="checkbox" defaultChecked className="rounded text-purple-600" />
-                    </label>
-                    <label className="flex items-center justify-between">
-                      <span className="text-gray-700">Allow friend requests</span>
-                      <input type="checkbox" defaultChecked className="rounded text-purple-600" />
-                    </label>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <label htmlFor="show-history" className="text-gray-700">Show travel history</label>
+                      <input id="show-history" type="checkbox" defaultChecked className="rounded text-purple-600" />
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <label htmlFor="allow-friend-requests" className="text-gray-700">Allow friend requests</label>
+                      <input id="allow-friend-requests" type="checkbox" defaultChecked className="rounded text-purple-600" />
+                    </div>
                   </div>
                 </div>
 
@@ -824,10 +830,12 @@ export default function MyProfile() {
                   </h3>
                   <div className="space-y-4">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Change Password</label>
+                      <h4 className="text-sm font-medium text-gray-700 mb-2">Change Password</h4>
                       <div className="space-y-3">
                         <div className="relative">
+                          <label htmlFor="current-password" name="current-password" className="sr-only">Current Password</label>
                           <input
+                            id="current-password"
                             type={showPassword ? 'text' : 'password'}
                             placeholder="Current password"
                             className="w-full px-3 py-2 border border-gray-300 rounded-lg pr-10"
@@ -835,21 +843,26 @@ export default function MyProfile() {
                           <button
                             onClick={() => setShowPassword(!showPassword)}
                             className="absolute right-3 top-1/2 transform -translate-y-1/2"
+                            aria-label={showPassword ? "Hide password" : "Show password"}
                           >
                             {showPassword ? (
-                              <EyeOff className="h-4 w-4 text-gray-400" />
+                              <EyeOff className="h-4 w-4 text-gray-400" aria-hidden="true" />
                             ) : (
-                              <Eye className="h-4 w-4 text-gray-400" />
+                              <Eye className="h-4 w-4 text-gray-400" aria-hidden="true" />
                             )}
                           </button>
                         </div>
+                        <label htmlFor="new-password" name="new-password" className="sr-only">New Password</label>
                         <input
+                          id="new-password"
                           type="password"
                           autoComplete="new-password"
                           placeholder="New password"
                           className="w-full px-3 py-2 border border-gray-300 rounded-lg"
                         />
+                        <label htmlFor="confirm-password" name="confirm-password" className="sr-only">Confirm New Password</label>
                         <input
+                          id="confirm-password"
                           type="password"
                           autoComplete="new-password"
                           placeholder="Confirm new password"
@@ -870,16 +883,16 @@ export default function MyProfile() {
                   </h3>
                   <div className="space-y-3">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Language</label>
-                      <select className="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                      <label htmlFor="language-pref" className="block text-sm font-medium text-gray-700 mb-2">Language</label>
+                      <select id="language-pref" className="w-full px-3 py-2 border border-gray-300 rounded-lg">
                         <option>English</option>
                         <option>Hindi</option>
                         <option>Punjabi</option>
                       </select>
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Currency</label>
-                      <select className="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                      <label htmlFor="currency-pref" className="block text-sm font-medium text-gray-700 mb-2">Currency</label>
+                      <select id="currency-pref" className="w-full px-3 py-2 border border-gray-300 rounded-lg">
                         <option>INR (₹)</option>
                         <option>USD ($)</option>
                         <option>EUR (€)</option>

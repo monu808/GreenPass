@@ -24,6 +24,15 @@ export default function OTPVerification({
   const [resendCooldown, setResendCooldown] = useState(0);
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
 
+  // Focus trap for modal-like behavior if needed, though this is usually a full page component
+  useEffect(() => {
+    // Focus first input on mount
+    const timer = setTimeout(() => {
+        inputRefs.current[0]?.focus();
+    }, 100);
+    return () => clearTimeout(timer);
+  }, []);
+
   // Cooldown timer for resend
   useEffect(() => {
     if (resendCooldown > 0) {
@@ -167,8 +176,8 @@ export default function OTPVerification({
           )}
 
           {/* OTP Input */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-3 text-center">
+          <div role="group" aria-labelledby="otp-label">
+            <label id="otp-label" className="block text-sm font-medium text-gray-700 mb-3 text-center">
               Enter Verification Code
             </label>
             <div className="flex justify-center gap-2 sm:gap-3" onPaste={handlePaste}>
@@ -183,7 +192,8 @@ export default function OTPVerification({
                   onChange={e => handleChange(index, e.target.value)}
                   onKeyDown={e => handleKeyDown(index, e)}
                   disabled={loading || success}
-                  className={`w-12 h-12 sm:w-14 sm:h-14 text-center text-xl font-bold border-2 rounded-lg focus:outline-none transition-all ${
+                  aria-label={`Digit ${index + 1}`}
+                  className={`w-12 h-12 sm:w-14 sm:h-14 text-center text-xl font-bold border-2 rounded-lg focus:outline-none transition-all focus:ring-4 focus:ring-green-500/10 ${
                     digit
                       ? 'border-green-500 bg-green-50'
                       : 'border-gray-300 bg-white'

@@ -1,13 +1,11 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import Image from 'next/image';
+import { MapPin, Calendar, Users, Eye, Download, XCircle, Leaf, Award, Wind, RefreshCw, ChevronDown, Filter, Search, CheckCircle, CreditCard, TrendingUp } from 'lucide-react';
 import TouristLayout from '@/components/TouristLayout';
-import { 
-  Calendar, MapPin, Users, CheckCircle, Eye, 
-  Search, Leaf, XCircle, CreditCard, Download,
-  TrendingUp, Award, Wind , RefreshCw
-} from 'lucide-react';
+import ProtectedRoute from '@/components/ProtectedRoute';
+import { useModalAccessibility } from '@/lib/accessibility';
 import { getDbService } from '@/lib/databaseService';
 import { useAuth } from '@/contexts/AuthContext';
 import { sanitizeSearchTerm } from '@/lib/utils';
@@ -43,6 +41,13 @@ export default function TouristBookings() {
   const [, setIsLoading] = useState(true);
   // Track which invoice is downloading
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
+
+  const modalRef = useRef<HTMLDivElement>(null);
+  useModalAccessibility({ 
+    modalRef, 
+    isOpen: !!selectedBooking, 
+    onClose: () => setSelectedBooking(null) 
+  });
 
   const handleAction = (action: string, id: string) => {
     if (action === 'Download') {
@@ -167,7 +172,7 @@ export default function TouristBookings() {
         <div className="pt-10 flex flex-col md:flex-row justify-between items-end gap-6 border-b border-gray-100 pb-10">
           <div className="space-y-4 text-center md:text-left">
             <div className="flex items-center gap-2 text-emerald-600 justify-center md:justify-start">
-               <CheckCircle className="h-5 w-5" />
+               <CheckCircle className="h-5 w-5" aria-hidden="true" />
                <span className="text-[10px] font-black tracking-[0.4em] uppercase">Expedition History</span>
             </div>
             <h1 className="text-6xl font-black text-gray-900 tracking-tighter leading-none">
@@ -186,7 +191,7 @@ export default function TouristBookings() {
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6 animate-in fade-in slide-in-from-top-4 duration-700">
             <div className="bg-gradient-to-br from-emerald-500 to-teal-600 rounded-[2.5rem] p-8 text-white shadow-xl shadow-emerald-200/50 relative overflow-hidden group">
               <div className="absolute -right-4 -bottom-4 opacity-10 group-hover:scale-110 transition-transform duration-700">
-                <Award className="h-32 w-32" />
+                <Award className="h-32 w-32" aria-hidden="true" />
               </div>
               <p className="text-[10px] font-black uppercase tracking-[0.2em] mb-4 opacity-80">Total Eco-Points</p>
               <div className="flex items-end gap-2">
@@ -197,7 +202,7 @@ export default function TouristBookings() {
 
             <div className="bg-white rounded-[2.5rem] p-8 border border-emerald-100 shadow-sm relative overflow-hidden group">
               <div className="absolute -right-4 -bottom-4 opacity-5 group-hover:scale-110 transition-transform duration-700 text-emerald-600">
-                <Leaf className="h-32 w-32" />
+                <Leaf className="h-32 w-32" aria-hidden="true" />
               </div>
               <p className="text-[10px] font-black uppercase tracking-[0.2em] mb-4 text-gray-400">Total Bookings</p>
               <div className="flex items-end gap-2">
@@ -208,7 +213,7 @@ export default function TouristBookings() {
 
             <div className="bg-white rounded-[2.5rem] p-8 border border-emerald-100 shadow-sm relative overflow-hidden group">
               <div className="absolute -right-4 -bottom-4 opacity-5 group-hover:scale-110 transition-transform duration-700 text-rose-600">
-                <TrendingUp className="h-32 w-32" />
+                <TrendingUp className="h-32 w-32" aria-hidden="true" />
               </div>
               <p className="text-[10px] font-black uppercase tracking-[0.2em] mb-4 text-gray-400">Cumulative Footprint</p>
               <div className="flex items-end gap-2">
@@ -219,7 +224,7 @@ export default function TouristBookings() {
 
             <div className="bg-emerald-50 rounded-[2.5rem] p-8 border border-emerald-100 shadow-sm relative overflow-hidden group">
               <div className="absolute -right-4 -bottom-4 opacity-10 group-hover:scale-110 transition-transform duration-700 text-emerald-600">
-                <Wind className="h-32 w-32" />
+                <Wind className="h-32 w-32" aria-hidden="true" />
               </div>
               <p className="text-[10px] font-black uppercase tracking-[0.2em] mb-4 text-emerald-600">Offset Contribution</p>
               <div className="flex items-end gap-2">
@@ -231,21 +236,27 @@ export default function TouristBookings() {
         )}
 
         {/* SEARCH BAR */}
-        <div className="relative group max-w-2xl">
-          <label htmlFor="booking-search" className="sr-only">Search bookings</label>
-          <Search className="absolute left-6 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400 group-focus-within:text-emerald-500 transition-colors" />
+        <div className="relative group">
+          <div className="absolute inset-y-0 left-6 flex items-center pointer-events-none">
+            <Search className="h-5 w-5 text-gray-400 group-focus-within:text-emerald-500 transition-colors" aria-hidden="true" />
+          </div>
+          <label htmlFor="booking-search" className="sr-only">Search your bookings</label>
           <input
             id="booking-search"
             type="text"
-            placeholder="Search by ID or destination..."
+            placeholder="Search by location, booking ID, or trip name..."
+            className="w-full bg-white border-2 border-gray-100 rounded-3xl py-6 pl-16 pr-8 text-lg font-bold text-gray-900 placeholder-gray-400 focus:outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 transition-all shadow-sm"
             value={searchTerm}
-            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchTerm(e.target.value)}
-            className="w-full pl-16 pr-8 py-5 bg-white border border-gray-100 rounded-[2rem] font-bold text-gray-700 outline-none focus:ring-4 focus:ring-emerald-500/5 transition-all shadow-sm"
+            onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
 
-        {/* BOOKINGS LIST (More images here) */}
-        <div className="grid grid-cols-1 gap-8">
+        {/* BOOKINGS GRID */}
+        <div 
+          className="grid grid-cols-1 lg:grid-cols-2 gap-8"
+          aria-live="polite"
+          aria-atomic="true"
+        >
           {filteredBookings.map((booking, index) => (
             <div key={booking.id} className="group bg-white rounded-[3rem] border border-gray-50 overflow-hidden shadow-sm hover:shadow-2xl transition-all duration-500 flex flex-col lg:flex-row">
               <div className="lg:w-80 h-56 lg:h-auto relative overflow-hidden bg-slate-100 shimmer">
@@ -278,23 +289,23 @@ export default function TouristBookings() {
                         booking.carbonFootprint < 200 ? 'bg-amber-100 text-amber-700' :
                         'bg-rose-100 text-rose-700'
                       }`}>
-                        <Leaf className="h-3 w-3" />
+                        <Leaf className="h-3 w-3" aria-hidden="true" />
                         {booking.carbonFootprint} kg CO2
                       </div>
                     )}
                     {booking.isOffset && (
                       <div className="flex items-center gap-1.5 px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-[10px] font-black uppercase tracking-wider">
-                        <Wind className="h-3 w-3" />
+                        <Wind className="h-3 w-3" aria-hidden="true" />
                         Offset
                       </div>
                     )}
                   </div>
                   <div className="flex flex-wrap justify-center md:justify-start gap-6 text-gray-400 font-bold text-xs">
-                     <span className="flex items-center gap-1.5"><MapPin className="h-4 w-4 text-emerald-500" /> {booking.destination}</span>
-                     <span className="flex items-center gap-1.5"><Calendar className="h-4 w-4 text-emerald-500" /> {booking.startDate}</span>
-                     <span className="flex items-center gap-1.5"><Users className="h-4 w-4 text-emerald-500" /> {booking.guests} Guests</span>
+                     <span className="flex items-center gap-1.5"><MapPin className="h-4 w-4 text-emerald-500" aria-hidden="true" /> {booking.destination}</span>
+                     <span className="flex items-center gap-1.5"><Calendar className="h-4 w-4 text-emerald-500" aria-hidden="true" /> {booking.startDate}</span>
+                     <span className="flex items-center gap-1.5"><Users className="h-4 w-4 text-emerald-500" aria-hidden="true" /> {booking.guests} Guests</span>
                      {booking.ecoPointsEarned && (
-                       <span className="flex items-center gap-1.5 text-emerald-600 font-black"><Award className="h-4 w-4" /> +{booking.ecoPointsEarned} Pts</span>
+                       <span className="flex items-center gap-1.5 text-emerald-600 font-black"><Award className="h-4 w-4" aria-hidden="true" /> +{booking.ecoPointsEarned} Pts</span>
                      )}
                   </div>
                 </div>
@@ -308,21 +319,22 @@ export default function TouristBookings() {
                     <button 
                       type="button"
                       onClick={() => setSelectedBooking(booking)}
-                      className="px-8 py-3.5 bg-gray-900 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-emerald-600 transition-all flex items-center gap-2 active:scale-95 shadow-xl"
+                      aria-label={`View details for booking ${booking.title}`}
+                      className="px-8 py-3.5 bg-gray-900 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-emerald-600 transition-all flex items-center gap-2 active:scale-95 shadow-xl focus:outline-none focus:ring-4 focus:ring-emerald-500/20"
                     >
-                      <Eye className="h-4 w-4" /> Details
+                      <Eye className="h-4 w-4" aria-hidden="true" /> Details
                     </button>
                    <button
   type="button"
   onClick={() => handleAction('Download', booking.id)}
   disabled={downloadingId === booking.id}
-  className="p-3.5 border border-gray-100 text-gray-400 rounded-xl hover:text-emerald-600 hover:border-emerald-100 transition-all disabled:opacity-70 disabled:cursor-wait"
-  aria-label="Download Invoice"
+  className="p-3.5 border border-gray-100 text-gray-400 rounded-xl hover:text-emerald-600 hover:border-emerald-100 transition-all disabled:opacity-70 disabled:cursor-wait focus:outline-none focus:ring-4 focus:ring-emerald-500/20"
+  aria-label={`Download Invoice for booking ${booking.id}`}
 >
   {downloadingId === booking.id ? (
-    <RefreshCw className="h-5 w-5 animate-spin text-emerald-600" />
+    <RefreshCw className="h-5 w-5 animate-spin text-emerald-600" aria-hidden="true" />
   ) : (
-    <Download className="h-5 w-5" />
+    <Download className="h-5 w-5" aria-hidden="true" />
   )}
 </button>
                   </div>
@@ -334,20 +346,29 @@ export default function TouristBookings() {
 
         {/* DETAILS MODAL */}
         {selectedBooking && (
-          <div className="fixed inset-0 bg-emerald-950/80 backdrop-blur-2xl z-[100] flex items-center justify-center p-6 animate-in fade-in duration-300">
-            <div className="relative w-full max-w-2xl bg-white rounded-[4rem] p-12 overflow-hidden shadow-2xl space-y-10">
+          <div 
+            className="fixed inset-0 bg-emerald-950/80 backdrop-blur-2xl z-[100] flex items-center justify-center p-6 animate-in fade-in duration-300"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="booking-details-title"
+          >
+            <div 
+              ref={modalRef}
+              className="relative w-full max-w-2xl bg-white rounded-[4rem] p-12 overflow-hidden shadow-2xl space-y-10"
+              tabIndex={-1}
+            >
               <button
                 type="button"
                 aria-label="Close booking details"
                 onClick={() => setSelectedBooking(null)}
-                className="absolute top-10 right-10 p-2 text-gray-400 hover:text-rose-500 transition-all"
+                className="absolute top-10 right-10 p-2 text-gray-400 hover:text-rose-500 transition-all focus:outline-none focus:ring-2 focus:ring-rose-500 rounded-full"
               >
-                <XCircle className="h-8 w-8" />
+                <XCircle className="h-8 w-8" aria-hidden="true" />
               </button>
               
               <div className="space-y-2">
                 <p className="text-[10px] font-black text-emerald-600 uppercase tracking-[0.3em]">Official Expedition Log</p>
-                <h2 className="text-5xl font-black text-gray-900 tracking-tighter">Booking Details</h2>
+                <h2 id="booking-details-title" className="text-5xl font-black text-gray-900 tracking-tighter">Booking Details</h2>
               </div>
 
               <div className="grid grid-cols-2 gap-8 py-8 border-t border-gray-100">
@@ -380,7 +401,7 @@ export default function TouristBookings() {
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <div className="p-3 bg-emerald-500 rounded-2xl text-white shadow-lg shadow-emerald-200">
-                      <Leaf className="h-5 w-5" />
+                      <Leaf className="h-5 w-5" aria-hidden="true" />
                     </div>
                     <div>
                       <h4 className="text-sm font-black text-gray-900 uppercase tracking-tight">Environmental Impact</h4>
@@ -389,7 +410,7 @@ export default function TouristBookings() {
                   </div>
                   {selectedBooking.ecoPointsEarned && (
                     <div className="flex items-center gap-2 px-4 py-2 bg-white rounded-xl border border-emerald-100 shadow-sm">
-                      <Award className="h-4 w-4 text-emerald-500" />
+                      <Award className="h-4 w-4 text-emerald-500" aria-hidden="true" />
                       <span className="text-xs font-black text-emerald-700">+{selectedBooking.ecoPointsEarned} Pts</span>
                     </div>
                   )}
@@ -417,13 +438,13 @@ export default function TouristBookings() {
                   </div>
                   
                   {/* IMPACT VISUALIZATION */}
-                  <div className="space-y-3">
+                  <div className="space-y-3" role="img" aria-label={`Carbon footprint breakdown: Travel ${selectedBooking.breakdown?.travel}kg, Accommodation ${selectedBooking.breakdown?.accommodation}kg, Activities ${selectedBooking.breakdown?.activities}kg`}>
                     <div className="h-2 w-full bg-gray-100 rounded-full overflow-hidden flex">
                       <div className="h-full bg-emerald-500" style={{ width: '40%' }}></div>
                       <div className="h-full bg-amber-400" style={{ width: '30%' }}></div>
                       <div className="h-full bg-blue-400" style={{ width: '30%' }}></div>
                     </div>
-                    <div className="flex justify-between text-[9px] font-bold text-gray-400 uppercase tracking-tighter">
+                    <div className="flex justify-between text-[9px] font-bold text-gray-400 uppercase tracking-tighter" aria-hidden="true">
                       <span className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-emerald-500"></div> Travel</span>
                       <span className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-amber-400"></div> Accommodation</span>
                       <span className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-blue-400"></div> Activities</span>
@@ -432,7 +453,7 @@ export default function TouristBookings() {
 
                   <div className="pt-4 border-t border-gray-50 flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <Wind className={`h-5 w-5 ${selectedBooking.isOffset ? 'text-blue-500' : 'text-gray-300'}`} />
+                      <Wind className={`h-5 w-5 ${selectedBooking.isOffset ? 'text-blue-500' : 'text-gray-300'}`} aria-hidden="true" />
                       <p className="text-[10px] font-black text-gray-600 uppercase tracking-widest">
                         {selectedBooking.isOffset ? 'Footprint Fully Offset' : 'Not Offset'}
                       </p>
@@ -446,7 +467,7 @@ export default function TouristBookings() {
 
               <div className="flex items-center justify-between p-8 bg-gray-50 rounded-3xl border border-gray-100">
                  <div className="flex items-center gap-4 text-emerald-600">
-                    <CreditCard className="h-8 w-8" />
+                    <CreditCard className="h-8 w-8" aria-hidden="true" />
                     <div><p className="text-[9px] font-black uppercase text-gray-400">Total Price</p><p className="text-2xl font-black">₹{selectedBooking.totalAmount.toLocaleString()}</p></div>
                  </div>
                  <button 

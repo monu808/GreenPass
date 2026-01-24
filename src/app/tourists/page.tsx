@@ -1,7 +1,8 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Layout from '@/components/Layout';
+import { useModalAccessibility } from '@/lib/accessibility';
 import { 
   Users, 
   Search, 
@@ -108,16 +109,32 @@ export default function TouristManagement() {
     </span>
   );
 
-  const TouristDetailsModal = ({ tourist, onClose }: { tourist: Tourist; onClose: () => void }) => (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-        <div className="p-6">
-          <div className="flex justify-between items-start mb-6">
-            <h2 className="text-2xl font-bold text-gray-900">Tourist Details</h2>
-            <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
-              <XCircle className="h-6 w-6" />
-            </button>
-          </div>
+  const TouristDetailsModal = ({ tourist, onClose }: { tourist: Tourist; onClose: () => void }) => {
+    const modalRef = useRef<HTMLDivElement>(null);
+    useModalAccessibility({ modalRef, isOpen: true, onClose });
+
+    return (
+      <div 
+        className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="tourist-details-title"
+      >
+        <div 
+          ref={modalRef}
+          className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto"
+        >
+          <div className="p-6">
+            <div className="flex justify-between items-start mb-6">
+              <h2 id="tourist-details-title" className="text-2xl font-bold text-gray-900">Tourist Details</h2>
+              <button 
+                onClick={onClose} 
+                className="text-gray-400 hover:text-gray-600"
+                aria-label="Close modal"
+              >
+                <XCircle className="h-6 w-6" />
+              </button>
+            </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-4">
@@ -231,6 +248,7 @@ export default function TouristManagement() {
       </div>
     </div>
   );
+};
 
   return (
     <Layout>
@@ -252,8 +270,10 @@ export default function TouristManagement() {
           <div className="flex flex-col sm:flex-row gap-4">
             <div className="flex-1">
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                <label htmlFor="tourist-search" className="sr-only">Search tourists by name, email, or phone</label>
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" aria-hidden="true" />
                 <input
+                  id="tourist-search"
                   type="text"
                   placeholder="Search by name, email, or phone..."
                   value={searchTerm}
@@ -263,7 +283,9 @@ export default function TouristManagement() {
               </div>
             </div>
             <div className="sm:w-48">
+              <label htmlFor="status-filter" className="sr-only">Filter by status</label>
               <select
+                id="status-filter"
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none"
@@ -342,24 +364,27 @@ export default function TouristManagement() {
                               setShowDetails(true);
                             }}
                             className="text-green-600 hover:text-green-700"
+                            aria-label={`View details for ${tourist.name}`}
                           >
-                            <Eye className="h-4 w-4" />
+                            <Eye className="h-4 w-4" aria-hidden="true" />
                           </button>
                           {tourist.status === 'pending' && (
                             <>
                               <button
                                 onClick={() => handleStatusUpdate(tourist.id, 'approved')}
                                 className="text-green-600 hover:text-green-700"
+                                aria-label={`Approve ${tourist.name}`}
                                 title="Approve"
                               >
-                                <CheckCircle className="h-4 w-4" />
+                                <CheckCircle className="h-4 w-4" aria-hidden="true" />
                               </button>
                               <button
                                 onClick={() => handleStatusUpdate(tourist.id, 'cancelled')}
                                 className="text-red-600 hover:text-red-700"
+                                aria-label={`Reject ${tourist.name}`}
                                 title="Reject"
                               >
-                                <XCircle className="h-4 w-4" />
+                                <XCircle className="h-4 w-4" aria-hidden="true" />
                               </button>
                             </>
                           )}

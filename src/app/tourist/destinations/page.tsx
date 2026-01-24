@@ -26,9 +26,10 @@ import {
   isValidEcologicalSensitivity, 
 } from '@/lib/typeGuards';
 import { Destination, DynamicCapacityResult } from '@/types';
-import { sanitizeSearchTerm } from '@/lib/utils';
+import { sanitizeSearchTerm, cn } from '@/lib/utils';
 import { validateInput, SearchFilterSchema } from '@/lib/validation';
 import { useSSE } from '@/contexts/ConnectionContext';
+import { useModalAccessibility } from '@/lib/accessibility';
 
 export default function TouristDestinations() {
   // 1. STATE MANAGEMENT
@@ -42,6 +43,15 @@ export default function TouristDestinations() {
   const [isComparisonOpen, setIsComparisonOpen] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
   const [expandedAlternatives, setExpandedAlternatives] = useState<Record<string, boolean>>({});
+
+  const comparisonModalRef = useRef<HTMLDivElement>(null);
+
+  // Modal accessibility for comparison
+  useModalAccessibility({
+    modalRef: comparisonModalRef,
+    isOpen: isComparisonOpen,
+    onClose: () => setIsComparisonOpen(false)
+  });
 
   // 2. DATA LOADING LOGIC (Direct Database Sync)
   const loadData = useCallback(async (): Promise<void> => {
@@ -215,9 +225,9 @@ export default function TouristDestinations() {
             <div className="flex-1 relative group">
   <label htmlFor="dest-search-input" className="sr-only">Search valley destinations</label>
   {isSearching ? (
-    <RefreshCw className="absolute left-6 top-1/2 -translate-y-1/2 h-5 w-5 text-emerald-500 animate-spin" />
+    <RefreshCw className="absolute left-6 top-1/2 -translate-y-1/2 h-5 w-5 text-emerald-500 animate-spin" aria-hidden="true" />
   ) : (
-    <Search className="absolute left-6 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400 group-focus-within:text-emerald-500 transition-colors" />
+    <Search className="absolute left-6 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400 group-focus-within:text-emerald-500 transition-colors" aria-hidden="true" />
   )}
   <input
     id="dest-search-input"
@@ -226,15 +236,18 @@ export default function TouristDestinations() {
     value={searchTerm}
     onChange={(e: ChangeEvent<HTMLInputElement>) => setSearchTerm(e.target.value)}
     className="w-full pl-16 pr-8 py-5 bg-gray-50 border-none rounded-[1.8rem] font-bold text-gray-700 outline-none focus:ring-4 focus:ring-emerald-500/5 transition-all"
+    aria-controls="destinations-results"
   />
 </div>
 
-            <div className="flex bg-gray-100 p-1.5 rounded-[1.8rem] border border-gray-100 overflow-x-auto scrollbar-hide">
+            <div className="flex bg-gray-100 p-1.5 rounded-[1.8rem] border border-gray-100 overflow-x-auto scrollbar-hide" role="tablist" aria-label="Destination filters">
               {(['all', 'available', 'popular', 'high-sensitivity', 'low-carbon', 'community-friendly', 'wildlife-safe', 'eco-friendly'] as const).map((filter) => (
                 <button
                   key={filter}
                   type="button"
                   onClick={() => setSelectedFilter(filter)}
+                  role="tab"
+                  aria-selected={selectedFilter === filter}
                   className={`px-6 py-3 rounded-[1.5rem] text-[9px] font-bold uppercase tracking-wider transition-all whitespace-nowrap ${
                     selectedFilter === filter ? "bg-white text-emerald-600 shadow-sm" : "text-gray-400 hover:text-gray-600"
                   }`}
@@ -247,13 +260,21 @@ export default function TouristDestinations() {
         </div>
 
         {/* DESTINATIONS LIST */}
+        <div id="destinations-results" aria-live="polite" className="sr-only">
+          {loading ? 'Loading trail data...' : `Found ${filteredDestinations.length} destinations.`}
+        </div>
+
         {loading ? (
           <div className="flex flex-col items-center justify-center py-32 space-y-4">
-            <RefreshCw className="h-12 w-12 text-emerald-500 animate-spin" />
+            <RefreshCw className="h-12 w-12 text-emerald-500 animate-spin" aria-hidden="true" />
             <p className="text-emerald-600 font-black text-[10px] uppercase tracking-widest">Updating Trail Data...</p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10">
+          <div 
+            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10"
+            aria-live="polite"
+            aria-atomic="true"
+          >
             {filteredDestinations.map((d, index) => {
               const dynResult = capacityResults[d.id];
               const adjustedCap = dynResult?.adjustedCapacity ?? d.maxCapacity;
@@ -269,12 +290,14 @@ export default function TouristDestinations() {
                   {/* COMPARISON TOGGLE */}
                   <button 
                     onClick={() => handleCompareToggle(d)}
+                    aria-label={isComparing ? `Remove ${d.name} from comparison` : `Add ${d.name} to comparison`}
+                    aria-pressed={isComparing}
                     className={`absolute top-6 left-8 z-10 p-3 rounded-2xl backdrop-blur-md transition-all ${
                       isComparing ? 'bg-emerald-600 text-white shadow-lg' : 'bg-white/20 text-white hover:bg-white/40'
                     }`}
                     title={isComparing ? "Remove from comparison" : "Add to comparison"}
                   >
-                    <Scale className="h-5 w-5" />
+                    <Scale className="h-5 w-5" aria-hidden="true" />
                   </button>
 
                   <div className="h-56 relative overflow-hidden bg-slate-100 shimmer">
@@ -386,17 +409,19 @@ export default function TouristDestinations() {
                       <div className="pt-4 border-t border-gray-100 space-y-3">
                         <button
                           onClick={() => setExpandedAlternatives(prev => ({ ...prev, [d.id]: !prev[d.id] }))}
+                          aria-expanded={expandedAlternatives[d.id] || false}
+                          aria-controls={`alternatives-${d.id}`}
                           className="w-full flex items-center justify-between text-[9px] font-bold text-emerald-600 uppercase tracking-wider hover:text-emerald-700 transition-colors"
                         >
                           <span className="flex items-center gap-2">
-                            <Leaf className="h-3.5 w-3.5" />
+                            <Leaf className="h-3.5 w-3.5" aria-hidden="true" />
                             {expandedAlternatives[d.id] ? 'Hide Alternatives' : 'See Eco-Friendly Alternatives'}
                           </span>
-                          <ArrowRight className={`h-3.5 w-3.5 transition-transform duration-300 ${expandedAlternatives[d.id] ? 'rotate-90' : ''}`} />
+                          <ArrowRight className={`h-3.5 w-3.5 transition-transform duration-300 ${expandedAlternatives[d.id] ? 'rotate-90' : ''}`} aria-hidden="true" />
                         </button>
 
                         {expandedAlternatives[d.id] && (
-                          <div className="space-y-3 animate-in fade-in slide-in-from-top-2 duration-300">
+                          <div id={`alternatives-${d.id}`} className="space-y-3 animate-in fade-in slide-in-from-top-2 duration-300">
                             <p className="text-[10px] text-gray-400 font-bold italic">
                               High occupancy detected. Consider these lower-impact valleys:
                             </p>
@@ -506,30 +531,35 @@ export default function TouristDestinations() {
 
         {/* COMPARISON MODAL */}
         {isComparisonOpen && (
-          <div className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-xl flex items-center justify-center p-6">
-            <div className="bg-white w-full max-w-6xl rounded-[4rem] overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
+          <div className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-xl flex items-center justify-center p-6" role="dialog" aria-modal="true" aria-labelledby="comparison-title">
+            <div 
+              ref={comparisonModalRef}
+              className="bg-white w-full max-w-6xl rounded-[4rem] overflow-hidden shadow-2xl flex flex-col max-h-[90vh]"
+            >
               <div className="p-10 border-b border-gray-100 flex justify-between items-center">
                 <div className="flex items-center gap-4">
                   <div className="p-4 bg-emerald-50 rounded-2xl text-emerald-600">
-                    <Scale className="h-6 w-6" />
+                    <Scale className="h-6 w-6" aria-hidden="true" />
                   </div>
                   <div>
-                    <h2 className="text-3xl font-black text-gray-900 tracking-tighter leading-none">Sustainability Comparison</h2>
+                    <h2 id="comparison-title" className="text-3xl font-black text-gray-900 tracking-tighter leading-none">Sustainability Comparison</h2>
                     <p className="text-gray-400 font-bold text-xs mt-2 uppercase tracking-widest">Side-by-side impact analysis</p>
                   </div>
                 </div>
                 <div className="flex gap-4">
                   <button 
                     onClick={() => setComparisonList([])}
-                    className="px-6 py-3 rounded-2xl bg-gray-50 text-gray-400 font-black text-[10px] uppercase tracking-widest hover:bg-gray-100 transition-all flex items-center gap-2"
+                    className="px-6 py-3 rounded-2xl bg-gray-50 text-gray-400 font-black text-[10px] uppercase tracking-widest hover:bg-gray-100 transition-all flex items-center gap-2 focus:outline-none focus:ring-2 focus:ring-gray-300"
+                    aria-label="Clear all compared destinations"
                   >
-                    <Trash2 className="h-4 w-4" /> Clear All
+                    <Trash2 className="h-4 w-4" aria-hidden="true" /> Clear All
                   </button>
                   <button 
                     onClick={() => setIsComparisonOpen(false)}
-                    className="p-3 rounded-2xl bg-gray-900 text-white hover:bg-gray-800 transition-all"
+                    className="p-3 rounded-2xl bg-gray-900 text-white hover:bg-gray-800 transition-all focus:outline-none focus:ring-4 focus:ring-emerald-500/20"
+                    aria-label="Close comparison modal"
                   >
-                    <X className="h-6 w-6" />
+                    <X className="h-6 w-6" aria-hidden="true" />
                   </button>
                 </div>
               </div>

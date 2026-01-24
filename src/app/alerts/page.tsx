@@ -1,7 +1,8 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import Layout from "@/components/Layout";
+import { useModalAccessibility } from "@/lib/accessibility";
 import {
   AlertTriangle,
   Search,
@@ -254,6 +255,9 @@ export default function AlertsPage() {
   );
 
   const CreateAlertModal = ({ onClose }: { onClose: () => void }) => {
+    const modalRef = useRef<HTMLDivElement>(null);
+    useModalAccessibility({ modalRef, isOpen: true, onClose });
+
     const [formData, setFormData] = useState({
       type: "weather",
       title: "",
@@ -284,19 +288,28 @@ export default function AlertsPage() {
     };
 
     return (
-      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-        <div className="bg-white rounded-lg max-w-md w-full">
+      <div 
+        className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="create-alert-title"
+      >
+        <div 
+          ref={modalRef}
+          className="bg-white rounded-lg max-w-md w-full"
+        >
           <div className="p-6">
-            <h2 className="text-xl font-bold text-gray-900 mb-4">
+            <h2 id="create-alert-title" className="text-xl font-bold text-gray-900 mb-4">
               Create New Alert
             </h2>
 
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label htmlFor="alert-type" className="block text-sm font-medium text-gray-700 mb-2">
                   Type
                 </label>
                 <select
+                  id="alert-type"
                   value={formData.type}
                   onChange={(e) =>
                     setFormData((prev) => ({ ...prev, type: e.target.value }))
@@ -313,10 +326,11 @@ export default function AlertsPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label htmlFor="alert-title" className="block text-sm font-medium text-gray-700 mb-2">
                   Title
                 </label>
                 <input
+                  id="alert-title"
                   type="text"
                   value={formData.title}
                   onChange={(e) =>
@@ -328,10 +342,11 @@ export default function AlertsPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label htmlFor="alert-message" className="block text-sm font-medium text-gray-700 mb-2">
                   Message
                 </label>
                 <textarea
+                  id="alert-message"
                   value={formData.message}
                   onChange={(e) =>
                     setFormData((prev) => ({
@@ -346,10 +361,11 @@ export default function AlertsPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label htmlFor="alert-severity" className="block text-sm font-medium text-gray-700 mb-2">
                   Severity
                 </label>
                 <select
+                  id="alert-severity"
                   value={formData.severity}
                   onChange={(e) =>
                     setFormData((prev) => ({
@@ -368,10 +384,11 @@ export default function AlertsPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label htmlFor="alert-destination" className="block text-sm font-medium text-gray-700 mb-2">
                   Destination
                 </label>
                 <select
+                  id="alert-destination"
                   value={formData.destinationId}
                   onChange={(e) =>
                     setFormData((prev) => ({
@@ -620,8 +637,9 @@ export default function AlertsPage() {
               <button
                 onClick={() => setWeatherResult(null)}
                 className="text-gray-400 hover:text-gray-600"
+                aria-label="Close weather check results"
               >
-                <XCircle className="h-4 w-4" />
+                <XCircle className="h-4 w-4" aria-hidden="true" />
               </button>
             </div>
           </div>
@@ -632,8 +650,10 @@ export default function AlertsPage() {
           <div className="flex flex-col lg:flex-row gap-4">
             <div className="flex-1">
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                <label htmlFor="search-alerts" className="sr-only">Search alerts by title or message</label>
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" aria-hidden="true" />
                 <input
+                  id="search-alerts"
                   type="text"
                   placeholder="Search alerts..."
                   value={searchTerm}
@@ -643,7 +663,9 @@ export default function AlertsPage() {
               </div>
             </div>
             <div className="lg:w-40">
+              <label htmlFor="type-filter" className="sr-only">Filter by alert type</label>
               <select
+                id="type-filter"
                 value={typeFilter}
                 onChange={(e) => setTypeFilter(e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
@@ -656,7 +678,9 @@ export default function AlertsPage() {
               </select>
             </div>
             <div className="lg:w-40">
+              <label htmlFor="severity-filter" className="sr-only">Filter by severity</label>
               <select
+                id="severity-filter"
                 value={severityFilter}
                 onChange={(e) => setSeverityFilter(e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
@@ -669,7 +693,9 @@ export default function AlertsPage() {
               </select>
             </div>
             <div className="lg:w-40">
+              <label htmlFor="active-filter" className="sr-only">Filter by active status</label>
               <select
+                id="active-filter"
                 value={activeFilter}
                 onChange={(e) => setActiveFilter(e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
@@ -750,24 +776,27 @@ export default function AlertsPage() {
                           : "text-green-600 hover:bg-green-50"
                       }`}
                       title={alert.isActive ? "Deactivate" : "Activate"}
+                      aria-label={alert.isActive ? `Deactivate alert: ${alert.title}` : `Activate alert: ${alert.title}`}
                     >
                       {alert.isActive ? (
-                        <XCircle className="h-4 w-4" />
+                        <XCircle className="h-4 w-4" aria-hidden="true" />
                       ) : (
-                        <CheckCircle className="h-4 w-4" />
+                        <CheckCircle className="h-4 w-4" aria-hidden="true" />
                       )}
                     </button>
                     <button
                       className="p-2 text-gray-600 hover:bg-gray-50 rounded-lg"
                       title="Edit"
+                      aria-label={`Edit alert: ${alert.title}`}
                     >
-                      <Edit className="h-4 w-4" />
+                      <Edit className="h-4 w-4" aria-hidden="true" />
                     </button>
                     <button
                       className="p-2 text-red-600 hover:bg-red-50 rounded-lg"
                       title="Delete"
+                      aria-label={`Delete alert: ${alert.title}`}
                     >
-                      <Trash2 className="h-4 w-4" />
+                      <Trash2 className="h-4 w-4" aria-hidden="true" />
                     </button>
                   </div>
                 </div>

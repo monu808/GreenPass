@@ -1,8 +1,9 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import Layout from "@/components/Layout";
 import ProtectedRoute from "@/components/ProtectedRoute";
+import { useModalAccessibility } from "@/lib/accessibility";
 import {
   Trash2,
   Calendar,
@@ -311,11 +312,12 @@ function WasteAnalyticsTab({ trendData, distributionData, timeRange, setTimeRang
           <h2 className="text-lg font-semibold text-gray-900">Waste Trends & Distribution</h2>
           <p className="text-sm text-gray-500">Analyze historical waste collection patterns and composition.</p>
         </div>
-        <div className="flex bg-gray-100 p-1 rounded-lg">
+        <div className="flex bg-gray-100 p-1 rounded-lg" role="group" aria-label="Select time range for analytics">
           {[30, 90, 365].map((days) => (
             <button
               key={days}
               onClick={() => setTimeRange(days)}
+              aria-pressed={timeRange === days}
               className={cn(
                 "px-4 py-1.5 text-xs font-medium rounded-md transition-all",
                 timeRange === days
@@ -448,8 +450,10 @@ function WasteCollectionTab({ destinations, records, onRefresh }: {
       <div className="flex flex-col md:flex-row justify-between gap-4">
         <div className="flex flex-1 gap-4">
           <div className="relative flex-1 max-w-sm">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" aria-hidden="true" />
+            <label htmlFor="search-waste-records" className="sr-only">Search waste records</label>
             <input
+              id="search-waste-records"
               type="text"
               placeholder="Search waste records..."
               className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-green-500 outline-none text-gray-900 bg-white"
@@ -457,16 +461,20 @@ function WasteCollectionTab({ destinations, records, onRefresh }: {
               onChange={(e) => setSearchTerm(e.target.value)}
             />
           </div>
-          <select
-            className="px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-green-500 outline-none bg-white text-gray-900"
-            value={filterDestination}
-            onChange={(e) => setFilterDestination(e.target.value)}
-          >
-            <option value="all" className="text-gray-900">All Destinations</option>
-            {destinations.map(d => (
-              <option key={d.id} value={d.id} className="text-gray-900">{d.name}</option>
-            ))}
-          </select>
+          <div className="flex items-center gap-2">
+            <label htmlFor="filter-destination" className="sr-only">Filter by destination</label>
+            <select
+              id="filter-destination"
+              className="px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-green-500 outline-none bg-white text-gray-900"
+              value={filterDestination}
+              onChange={(e) => setFilterDestination(e.target.value)}
+            >
+              <option value="all" className="text-gray-900">All Destinations</option>
+              {destinations.map(d => (
+                <option key={d.id} value={d.id} className="text-gray-900">{d.name}</option>
+              ))}
+            </select>
+          </div>
         </div>
         <button
           onClick={() => setShowAddModal(true)}
@@ -515,10 +523,14 @@ function WasteCollectionTab({ destinations, records, onRefresh }: {
                 </td>
                 <td className="px-6 py-4 text-right">
                   <div className="flex justify-end gap-2">
-                    <button className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">
-                      <Edit2 className="h-4 w-4" />
+                    <button 
+                      aria-label={`Edit record for ${destinations.find(d => d.id === record.destinationId)?.name || 'Unknown'}`}
+                      className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                    >
+                      <Edit2 className="h-4 w-4" aria-hidden="true" />
                     </button>
                     <button 
+                      aria-label={`Delete record for ${destinations.find(d => d.id === record.destinationId)?.name || 'Unknown'}`}
                       onClick={async () => {
                         if (confirm("Are you sure you want to delete this record?")) {
                           await getDbService().deleteWasteData(record.id);
@@ -527,7 +539,7 @@ function WasteCollectionTab({ destinations, records, onRefresh }: {
                       }}
                       className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                     >
-                      <Trash className="h-4 w-4" />
+                      <Trash className="h-4 w-4" aria-hidden="true" />
                     </button>
                   </div>
                 </td>
@@ -558,6 +570,9 @@ function WasteLogModal({ destinations, onClose, onSuccess }: {
   onClose: () => void,
   onSuccess: () => void 
 }) {
+  const modalRef = useRef<HTMLDivElement>(null);
+  useModalAccessibility({ modalRef, isOpen: true, onClose });
+
   const [formData, setFormData] = useState({
     destination_id: destinations[0]?.id || "",
     waste_type: "plastic" as WasteType,
@@ -593,18 +608,31 @@ function WasteLogModal({ destinations, onClose, onSuccess }: {
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
-      <div className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden">
+    <div 
+      className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 backdrop-blur-sm"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="waste-log-title"
+    >
+      <div 
+        ref={modalRef}
+        className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden"
+      >
         <div className="p-6 border-b border-gray-100 flex items-center justify-between">
-          <h3 className="text-xl font-bold text-gray-900">Log Waste Collection</h3>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+          <h3 id="waste-log-title" className="text-xl font-bold text-gray-900">Log Waste Collection</h3>
+          <button 
+            onClick={onClose} 
+            className="text-gray-400 hover:text-gray-600"
+            aria-label="Close modal"
+          >
             <XCircle className="h-6 w-6" />
           </button>
         </div>
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Destination</label>
+            <label htmlFor="waste-destination" className="block text-sm font-medium text-gray-700 mb-1">Destination</label>
             <select
+              id="waste-destination"
               required
               className="w-full px-4 py-2 border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-green-500 text-gray-900 bg-white"
               value={formData.destination_id}
@@ -617,8 +645,9 @@ function WasteLogModal({ destinations, onClose, onSuccess }: {
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Waste Type</label>
+              <label htmlFor="waste-type" className="block text-sm font-medium text-gray-700 mb-1">Waste Type</label>
               <select
+                id="waste-type"
                 required
                 className="w-full px-4 py-2 border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-green-500 text-gray-900 bg-white"
                 value={formData.waste_type}
@@ -633,8 +662,9 @@ function WasteLogModal({ destinations, onClose, onSuccess }: {
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Quantity (kg)</label>
+              <label htmlFor="waste-quantity" className="block text-sm font-medium text-gray-700 mb-1">Quantity (kg)</label>
               <input
+                id="waste-quantity"
                 type="number"
                 required
                 step="0.1"
@@ -647,8 +677,9 @@ function WasteLogModal({ destinations, onClose, onSuccess }: {
             </div>
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Collection Date & Time</label>
+            <label htmlFor="waste-date" className="block text-sm font-medium text-gray-700 mb-1">Collection Date & Time</label>
             <input
+              id="waste-date"
               type="datetime-local"
               required
               className="w-full px-4 py-2 border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-green-500 text-gray-900 bg-white"
@@ -756,9 +787,10 @@ function CleanupActivitiesTab({ destinations, activities, onRefresh }: {
                 </div>
                 <button 
                   onClick={() => handleViewActivity(activity)}
-                  className="text-green-600 hover:text-green-700 font-medium text-sm flex items-center"
+                  aria-label={`Manage activity: ${activity.title}`}
+                  className="text-green-600 hover:text-green-700 font-medium text-sm flex items-center focus:outline-none focus:ring-2 focus:ring-green-500 rounded px-2 py-1"
                 >
-                  Manage <ChevronRight className="h-4 w-4 ml-1" />
+                  Manage <ChevronRight className="h-4 w-4 ml-1" aria-hidden="true" />
                 </button>
               </div>
             </div>
@@ -798,6 +830,9 @@ function CleanupActivityModal({ destinations, onClose, onSuccess }: {
   onClose: () => void,
   onSuccess: () => void 
 }) {
+  const modalRef = useRef<HTMLDivElement>(null);
+  useModalAccessibility({ modalRef, isOpen: true, onClose });
+
   const [formData, setFormData] = useState({
     destination_id: destinations[0]?.id || "",
     title: "",
@@ -842,18 +877,31 @@ function CleanupActivityModal({ destinations, onClose, onSuccess }: {
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
-      <div className="bg-white rounded-xl shadow-xl w-full max-w-lg overflow-hidden max-h-[90vh] overflow-y-auto">
+    <div 
+      className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 backdrop-blur-sm"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="cleanup-modal-title"
+    >
+      <div 
+        ref={modalRef}
+        className="bg-white rounded-xl shadow-xl w-full max-w-lg overflow-hidden max-h-[90vh] overflow-y-auto"
+      >
         <div className="p-6 border-b border-gray-100 flex items-center justify-between">
-          <h3 className="text-xl font-bold text-gray-900">Create Cleanup Activity</h3>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+          <h3 id="cleanup-modal-title" className="text-xl font-bold text-gray-900">Create Cleanup Activity</h3>
+          <button 
+            onClick={onClose} 
+            className="text-gray-400 hover:text-gray-600"
+            aria-label="Close modal"
+          >
             <XCircle className="h-6 w-6" />
           </button>
         </div>
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Destination</label>
+            <label htmlFor="cleanup-destination" className="block text-sm font-medium text-gray-700 mb-1">Destination</label>
             <select
+              id="cleanup-destination"
               required
               className="w-full px-4 py-2 border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-green-500 text-gray-900 bg-white"
               value={formData.destination_id}
@@ -865,8 +913,9 @@ function CleanupActivityModal({ destinations, onClose, onSuccess }: {
             </select>
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Activity Title</label>
+            <label htmlFor="cleanup-title" className="block text-sm font-medium text-gray-700 mb-1">Activity Title</label>
             <input
+              id="cleanup-title"
               type="text"
               required
               placeholder="e.g. Beach Cleanup Drive"
@@ -876,8 +925,9 @@ function CleanupActivityModal({ destinations, onClose, onSuccess }: {
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+            <label htmlFor="cleanup-description" className="block text-sm font-medium text-gray-700 mb-1">Description</label>
             <textarea
+              id="cleanup-description"
               required
               rows={3}
               placeholder="Describe the activity and what volunteers should bring..."
@@ -887,8 +937,9 @@ function CleanupActivityModal({ destinations, onClose, onSuccess }: {
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Specific Location</label>
+            <label htmlFor="cleanup-location" className="block text-sm font-medium text-gray-700 mb-1">Specific Location</label>
             <input
+              id="cleanup-location"
               type="text"
               required
               placeholder="e.g. Main Beach, near North Tower"
@@ -899,8 +950,9 @@ function CleanupActivityModal({ destinations, onClose, onSuccess }: {
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Start Time</label>
+              <label htmlFor="cleanup-start-time" className="block text-sm font-medium text-gray-700 mb-1">Start Time</label>
               <input
+                id="cleanup-start-time"
                 type="datetime-local"
                 required
                 className="w-full px-4 py-2 border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-green-500 text-gray-900 bg-white"
@@ -909,8 +961,9 @@ function CleanupActivityModal({ destinations, onClose, onSuccess }: {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">End Time</label>
+              <label htmlFor="cleanup-end-time" className="block text-sm font-medium text-gray-700 mb-1">End Time</label>
               <input
+                id="cleanup-end-time"
                 type="datetime-local"
                 required
                 className="w-full px-4 py-2 border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-green-500 text-gray-900 bg-white"
@@ -921,8 +974,9 @@ function CleanupActivityModal({ destinations, onClose, onSuccess }: {
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Max Participants</label>
+              <label htmlFor="cleanup-max-participants" className="block text-sm font-medium text-gray-700 mb-1">Max Participants</label>
               <input
+                id="cleanup-max-participants"
                 type="number"
                 required
                 min="1"
@@ -932,8 +986,9 @@ function CleanupActivityModal({ destinations, onClose, onSuccess }: {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Eco-Points Reward</label>
+              <label htmlFor="cleanup-eco-points" className="block text-sm font-medium text-gray-700 mb-1">Eco-Points Reward</label>
               <input
+                id="cleanup-eco-points"
                 type="number"
                 required
                 min="0"
@@ -972,6 +1027,9 @@ function ActivityManagementModal({ activity, registrations, loading, onClose, on
   onClose: () => void,
   onRefresh: () => void
 }) {
+  const modalRef = useRef<HTMLDivElement>(null);
+  useModalAccessibility({ modalRef, isOpen: true, onClose });
+
   const [cancelling, setCancelling] = useState(false);
 
   const handleConfirmAttendance = async (regId: string, currentStatus: string) => {
@@ -1006,14 +1064,26 @@ function ActivityManagementModal({ activity, registrations, loading, onClose, on
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
-      <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl overflow-hidden max-h-[90vh] flex flex-col">
+    <div 
+      className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 backdrop-blur-sm"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="activity-mgmt-title"
+    >
+      <div 
+        ref={modalRef}
+        className="bg-white rounded-xl shadow-xl w-full max-w-2xl overflow-hidden max-h-[90vh] flex flex-col"
+      >
         <div className="p-6 border-b border-gray-100 flex items-center justify-between bg-gray-50">
           <div>
-            <h3 className="text-xl font-bold text-gray-900">{activity.title}</h3>
+            <h3 id="activity-mgmt-title" className="text-xl font-bold text-gray-900">{activity.title}</h3>
             <p className="text-sm text-gray-500">{activity.location}</p>
           </div>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+          <button 
+            onClick={onClose} 
+            className="text-gray-400 hover:text-gray-600"
+            aria-label="Close modal"
+          >
             <XCircle className="h-6 w-6" />
           </button>
         </div>

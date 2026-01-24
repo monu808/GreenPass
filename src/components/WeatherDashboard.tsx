@@ -398,7 +398,7 @@ const WeatherDashboard: React.FC = () => {
   }
 
   return (
-    <div className="p-6">
+    <div aria-live="polite" className="p-6">
       <div className="mb-8">
         <h2 className="text-3xl font-black text-gray-900 mb-3 tracking-tight">
           Environmental Intelligence

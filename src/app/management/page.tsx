@@ -1,7 +1,8 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import Layout from "@/components/Layout";
+import { useModalAccessibility } from "@/lib/accessibility";
 import {
   Users,
   Search,
@@ -250,7 +251,7 @@ export default function TouristBookingManagement() {
           )}
         </div>
         <div className={`p-3 rounded-lg ${color}`}>
-          <Icon className="h-6 w-6" />
+          <Icon className="h-6 w-6" aria-hidden="true" />
         </div>
       </div>
     </div>
@@ -276,6 +277,7 @@ export default function TouristBookingManagement() {
                 }
               }}
               className="rounded border-gray-300 text-green-600 focus:ring-green-500"
+              aria-label={`Select ${tourist.name}`}
             />
             <div>
               <h3 className="font-semibold text-gray-900">{tourist.name}</h3>
@@ -287,7 +289,7 @@ export default function TouristBookingManagement() {
               tourist.status
             )}`}
           >
-            <StatusIcon className="h-3 w-3 mr-1" />
+            <StatusIcon className="h-3 w-3 mr-1" aria-hidden="true" />
             {tourist.status.charAt(0).toUpperCase() + tourist.status.slice(1)}
           </span>
         </div>
@@ -324,8 +326,9 @@ export default function TouristBookingManagement() {
               setShowDetails(true);
             }}
             className="text-sm text-green-600 hover:text-green-700 font-medium flex items-center"
+            aria-label={`View details for ${tourist.name}`}
           >
-            <Eye className="h-4 w-4 mr-1" />
+            <Eye className="h-4 w-4 mr-1" aria-hidden="true" />
             View Details
           </button>
 
@@ -336,15 +339,17 @@ export default function TouristBookingManagement() {
                   onClick={() => handleStatusUpdate(tourist.id, "approved")}
                   className="p-1 text-green-600 hover:text-green-700"
                   title="Approve"
+                  aria-label={`Approve ${tourist.name}`}
                 >
-                  <CheckCircle className="h-4 w-4" />
+                  <CheckCircle className="h-4 w-4" aria-hidden="true" />
                 </button>
                 <button
                   onClick={() => handleStatusUpdate(tourist.id, "cancelled")}
                   className="p-1 text-red-600 hover:text-red-700"
                   title="Reject"
+                  aria-label={`Reject ${tourist.name}`}
                 >
-                  <XCircle className="h-4 w-4" />
+                  <XCircle className="h-4 w-4" aria-hidden="true" />
                 </button>
               </>
             )}
@@ -353,8 +358,9 @@ export default function TouristBookingManagement() {
                 onClick={() => handleStatusUpdate(tourist.id, "checked-in")}
                 className="p-1 text-blue-600 hover:text-blue-700"
                 title="Check In"
+                aria-label={`Check in ${tourist.name}`}
               >
-                <UserCheck className="h-4 w-4" />
+                <UserCheck className="h-4 w-4" aria-hidden="true" />
               </button>
             )}
             {tourist.status === "checked-in" && (
@@ -362,8 +368,9 @@ export default function TouristBookingManagement() {
                 onClick={() => handleStatusUpdate(tourist.id, "checked-out")}
                 className="p-1 text-gray-600 hover:text-gray-700"
                 title="Check Out"
+                aria-label={`Check out ${tourist.name}`}
               >
-                <UserX className="h-4 w-4" />
+                <UserX className="h-4 w-4" aria-hidden="true" />
               </button>
             )}
           </div>
@@ -400,18 +407,18 @@ export default function TouristBookingManagement() {
           </div>
           <div className="flex flex-wrap gap-2 sm:space-x-3 sm:gap-0">
             <button className="flex-1 sm:flex-none flex items-center justify-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm">
-              <Plus className="h-4 w-4 mr-2" />
+              <Plus className="h-4 w-4 mr-2" aria-hidden="true" />
               New
             </button>
             <button className="flex-1 sm:flex-none flex items-center justify-center px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors text-sm">
-              <Download className="h-4 w-4 mr-2" />
+              <Download className="h-4 w-4 mr-2" aria-hidden="true" />
               Export
             </button>
             <button
               onClick={loadData}
               className="flex-1 sm:flex-none flex items-center justify-center px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors text-sm"
             >
-              <RefreshCw className="h-4 w-4 mr-2" />
+              <RefreshCw className="h-4 w-4 mr-2" aria-hidden="true" />
               Refresh
             </button>
           </div>
@@ -468,8 +475,10 @@ export default function TouristBookingManagement() {
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between space-y-4 lg:space-y-0 lg:space-x-4">
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:flex lg:flex-row gap-3 flex-1">
               <div className="relative col-span-1 sm:col-span-2 lg:flex-1">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                <label htmlFor="search-tourists" className="sr-only">Search tourists by name, email or phone</label>
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" aria-hidden="true" />
                 <input
+                  id="search-tourists"
                   type="text"
                   placeholder="Search..."
                   value={searchTerm}
@@ -478,31 +487,39 @@ export default function TouristBookingManagement() {
                 />
               </div>
 
-              <select
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-sm bg-white text-gray-900"
-              >
-                <option value="all" className="text-gray-900">All Status</option>
-                <option value="pending" className="text-gray-900">Pending</option>
-                <option value="approved" className="text-gray-900">Approved</option>
-                <option value="cancelled" className="text-gray-900">Cancelled</option>
-                <option value="checked-in" className="text-gray-900">Checked In</option>
-                <option value="checked-out" className="text-gray-900">Checked Out</option>
-              </select>
+              <div className="flex-1">
+                <label htmlFor="status-filter" className="sr-only">Filter by status</label>
+                <select
+                  id="status-filter"
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value)}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-sm bg-white text-gray-900"
+                >
+                  <option value="all" className="text-gray-900">All Status</option>
+                  <option value="pending" className="text-gray-900">Pending</option>
+                  <option value="approved" className="text-gray-900">Approved</option>
+                  <option value="cancelled" className="text-gray-900">Cancelled</option>
+                  <option value="checked-in" className="text-gray-900">Checked In</option>
+                  <option value="checked-out" className="text-gray-900">Checked Out</option>
+                </select>
+              </div>
 
-              <select
-                value={destinationFilter}
-                onChange={(e) => setDestinationFilter(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-sm bg-white text-gray-900"
-              >
-                <option value="all" className="text-gray-900">All Destinations</option>
-                {destinations.map((dest) => (
-                  <option key={dest.id} value={dest.id} className="text-gray-900">
-                    {dest.name}
-                  </option>
-                ))}
-              </select>
+              <div className="flex-1">
+                <label htmlFor="destination-filter" className="sr-only">Filter by destination</label>
+                <select
+                  id="destination-filter"
+                  value={destinationFilter}
+                  onChange={(e) => setDestinationFilter(e.target.value)}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-sm bg-white text-gray-900"
+                >
+                  <option value="all" className="text-gray-900">All Destinations</option>
+                  {destinations.map((dest) => (
+                    <option key={dest.id} value={dest.id} className="text-gray-900">
+                      {dest.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
 
             <div className="flex items-center justify-between sm:justify-end space-x-2">
@@ -537,7 +554,7 @@ export default function TouristBookingManagement() {
             <div className="mt-4 p-4 bg-green-50 rounded-lg border border-green-200">
               <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
                 <div className="flex items-center space-x-2">
-                  <CheckSquare className="h-5 w-5 text-green-600" />
+                  <CheckSquare className="h-5 w-5 text-green-600" aria-hidden="true" />
                   <span className="text-sm font-medium text-green-800">
                     {selectedTourists.length} selected
                   </span>
@@ -594,7 +611,7 @@ export default function TouristBookingManagement() {
 
           {filteredTourists.length === 0 ? (
             <div className="text-center py-12">
-              <Users className="mx-auto h-12 w-12 text-gray-400" />
+              <Users className="mx-auto h-12 w-12 text-gray-400" aria-hidden="true" />
               <h3 className="mt-2 text-sm font-medium text-gray-900">
                 No tourists found
               </h3>
@@ -633,6 +650,7 @@ export default function TouristBookingManagement() {
                               );
                             }}
                             className="rounded border-gray-300 text-green-600 focus:ring-green-500"
+                            aria-label="Select all tourists"
                           />
                         </th>
                         <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -676,6 +694,7 @@ export default function TouristBookingManagement() {
                                   }
                                 }}
                                 className="rounded border-gray-300 text-green-600 focus:ring-green-500"
+                                aria-label={`Select ${tourist.name}`}
                               />
                             </td>
                             <td className="px-4 sm:px-6 py-4 whitespace-nowrap">
@@ -723,7 +742,7 @@ export default function TouristBookingManagement() {
                                   tourist.status
                                 )}`}
                               >
-                                <StatusIcon className="h-3 w-3 mr-1" />
+                                <StatusIcon className="h-3 w-3 mr-1" aria-hidden="true" />
                                 {tourist.status.charAt(0).toUpperCase() +
                                   tourist.status.slice(1)}
                               </span>
@@ -736,8 +755,9 @@ export default function TouristBookingManagement() {
                                     setShowDetails(true);
                                   }}
                                   className="text-green-600 hover:text-green-900 p-1"
+                                  aria-label={`View details for ${tourist.name}`}
                                 >
-                                  <Eye className="h-4 w-4" />
+                                  <Eye className="h-4 w-4" aria-hidden="true" />
                                 </button>
 
                                 {tourist.status === "pending" && (
@@ -748,8 +768,9 @@ export default function TouristBookingManagement() {
                                       }
                                       className="text-green-600 hover:text-green-900 p-1"
                                       title="Approve"
+                                      aria-label={`Approve ${tourist.name}`}
                                     >
-                                      <CheckCircle className="h-4 w-4" />
+                                      <CheckCircle className="h-4 w-4" aria-hidden="true" />
                                     </button>
                                     <button
                                       onClick={() =>
@@ -760,8 +781,9 @@ export default function TouristBookingManagement() {
                                       }
                                       className="text-red-600 hover:text-red-900 p-1"
                                       title="Cancel"
+                                      aria-label={`Reject ${tourist.name}`}
                                     >
-                                      <XCircle className="h-4 w-4" />
+                                      <XCircle className="h-4 w-4" aria-hidden="true" />
                                     </button>
                                   </>
                                 )}
@@ -773,8 +795,9 @@ export default function TouristBookingManagement() {
                                     }
                                     className="text-blue-600 hover:text-blue-900 p-1"
                                     title="Check In"
+                                    aria-label={`Check in ${tourist.name}`}
                                   >
-                                    <UserCheck className="h-4 w-4" />
+                                    <UserCheck className="h-4 w-4" aria-hidden="true" />
                                   </button>
                                 )}
 
@@ -788,8 +811,9 @@ export default function TouristBookingManagement() {
                                     }
                                     className="text-gray-600 hover:text-gray-900 p-1"
                                     title="Check Out"
+                                    aria-label={`Check out ${tourist.name}`}
                                   >
-                                    <UserX className="h-4 w-4" />
+                                    <UserX className="h-4 w-4" aria-hidden="true" />
                                   </button>
                                 )}
                               </div>
@@ -807,210 +831,219 @@ export default function TouristBookingManagement() {
 
         {/* Tourist Details Modal */}
         {showDetails && selectedTourist && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 print:hidden">
-            <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto print:max-w-none print:rounded-none print:shadow-none print:max-h-none print:overflow-visible">
-              <div className="p-6 print:p-8">
-                {/* Screen-only content */}
-                <div className="print:hidden">
-                  <div className="flex items-center justify-between mb-6">
-                    <h2 className="text-xl font-bold text-gray-900">
-                      Tourist Details
-                    </h2>
-                    <button
-                      onClick={() => setShowDetails(false)}
-                      className="text-gray-400 hover:text-gray-600"
-                    >
-                      <XCircle className="h-6 w-6" />
-                    </button>
-                  </div>
-
-                  <div className="space-y-6">
-                    <div>
-                      <h3 className="text-lg font-semibold text-gray-900 mb-3">
-                        Personal Information
-                      </h3>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700">
-                            Name
-                          </label>
-                          <p className="mt-1 text-sm text-gray-900">
-                            {selectedTourist.name}
-                          </p>
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700">
-                            Email
-                          </label>
-                          <p className="mt-1 text-sm text-gray-900">
-                            {selectedTourist.email}
-                          </p>
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700">
-                            Phone
-                          </label>
-                          <p className="mt-1 text-sm text-gray-900">
-                            {selectedTourist.phone}
-                          </p>
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700">
-                            ID Proof
-                          </label>
-                          <p className="mt-1 text-sm text-gray-900">
-                            {selectedTourist.idProof}
-                          </p>
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700">
-                            Nationality
-                          </label>
-                          <p className="mt-1 text-sm text-gray-900">
-                            {selectedTourist.nationality}
-                          </p>
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700">
-                            Group Size
-                          </label>
-                          <p className="mt-1 text-sm text-gray-900">
-                            {selectedTourist.groupSize}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div>
-                      <h3 className="text-lg font-semibold text-gray-900 mb-3">
-                        Travel Information
-                      </h3>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700">
-                            Destination
-                          </label>
-                          <p className="mt-1 text-sm text-gray-900">
-                            {getDestinationName(selectedTourist.destination)}
-                          </p>
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700">
-                            Status
-                          </label>
-                          <span
-                            className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(
-                              selectedTourist.status
-                            )}`}
-                          >
-                            {selectedTourist.status.charAt(0).toUpperCase() +
-                              selectedTourist.status.slice(1)}
-                          </span>
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700">
-                            Check-in Date
-                          </label>
-                          <p className="mt-1 text-sm text-gray-900">
-                            {new Date(
-                              selectedTourist.checkInDate
-                            ).toLocaleDateString()}
-                          </p>
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700">
-                            Check-out Date
-                          </label>
-                          <p className="mt-1 text-sm text-gray-900">
-                            {new Date(
-                              selectedTourist.checkOutDate
-                            ).toLocaleDateString()}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div>
-                      <h3 className="text-lg font-semibold text-gray-900 mb-3">
-                        Emergency Contact
-                      </h3>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700">
-                            Contact Name
-                          </label>
-                          <p className="mt-1 text-sm text-gray-900">
-                            {selectedTourist.emergencyContact.name}
-                          </p>
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700">
-                            Contact Phone
-                          </label>
-                          <p className="mt-1 text-sm text-gray-900">
-                            {selectedTourist.emergencyContact.phone}
-                          </p>
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700">
-                            Relationship
-                          </label>
-                          <p className="mt-1 text-sm text-gray-900">
-                            {selectedTourist.emergencyContact.relationship}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="flex flex-col sm:flex-row justify-end gap-3 pt-6 border-t border-gray-200">
-                      <button
-                        onClick={() => setShowDetails(false)}
-                        className="w-full sm:w-auto px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 text-sm font-medium"
-                      >
-                        Close
-                      </button>
-                      <button
-                        onClick={handlePrintReceipt}
-                        className="w-full sm:w-auto px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium"
-                      >
-                        Print Receipt
-                      </button>
-                      {selectedTourist.status === "pending" && (
-                        <>
-                          <button
-                            onClick={() => {
-                              handleStatusUpdate(
-                                selectedTourist.id,
-                                "approved"
-                              );
-                              setShowDetails(false);
-                            }}
-                            className="w-full sm:w-auto px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm font-medium"
-                          >
-                            Approve
-                          </button>
-                          <button
-                            onClick={() => {
-                              handleStatusUpdate(
-                                selectedTourist.id,
-                                "cancelled"
-                              );
-                              setShowDetails(false);
-                            }}
-                            className="w-full sm:w-auto px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 text-sm font-medium"
-                          >
-                            Cancel
-                          </button>
-                        </>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
+          <TouristDetailsModal 
+            selectedTourist={selectedTourist} 
+            onClose={() => setShowDetails(false)} 
+            getDestinationName={getDestinationName}
+            getStatusColor={getStatusColor}
+            handlePrintReceipt={handlePrintReceipt}
+          />
         )}
       </div>
     </Layout>
   );
 }
+
+const TouristDetailsModal = ({ 
+  selectedTourist, 
+  onClose, 
+  getDestinationName,
+  getStatusColor,
+  handlePrintReceipt
+}: { 
+  selectedTourist: Tourist; 
+  onClose: () => void;
+  getDestinationName: (id: string) => string;
+  getStatusColor: (status: Tourist["status"]) => string;
+  handlePrintReceipt: () => void;
+}) => {
+  const modalRef = useRef<HTMLDivElement>(null);
+  useModalAccessibility({ modalRef, isOpen: true, onClose });
+
+  return (
+    <div 
+      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 print:hidden"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="modal-title"
+    >
+      <div 
+        ref={modalRef}
+        className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto print:max-w-none print:rounded-none print:shadow-none print:max-h-none print:overflow-visible"
+      >
+        <div className="p-6 print:p-8">
+          {/* Screen-only content */}
+          <div className="print:hidden">
+            <div className="flex items-center justify-between mb-6">
+              <h2 id="modal-title" className="text-xl font-bold text-gray-900">
+                Tourist Details
+              </h2>
+              <button
+                onClick={onClose}
+                className="text-gray-400 hover:text-gray-600"
+                aria-label="Close details"
+              >
+                <XCircle className="h-6 w-6" aria-hidden="true" />
+              </button>
+            </div>
+            {/* Rest of the content */}
+            <div className="space-y-6">
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-3">
+                  Personal Information
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <span className="block text-sm font-medium text-gray-700">
+                      Name
+                    </span>
+                    <p className="mt-1 text-sm text-gray-900">
+                      {selectedTourist.name}
+                    </p>
+                  </div>
+                  <div>
+                    <span className="block text-sm font-medium text-gray-700">
+                      Email
+                    </span>
+                    <p className="mt-1 text-sm text-gray-900">
+                      {selectedTourist.email}
+                    </p>
+                  </div>
+                  <div>
+                    <span className="block text-sm font-medium text-gray-700">
+                      Phone
+                    </span>
+                    <p className="mt-1 text-sm text-gray-900">
+                      {selectedTourist.phone}
+                    </p>
+                  </div>
+                  <div>
+                    <span className="block text-sm font-medium text-gray-700">
+                      ID Proof
+                    </span>
+                    <p className="mt-1 text-sm text-gray-900">
+                      {selectedTourist.idProof}
+                    </p>
+                  </div>
+                  <div>
+                    <span className="block text-sm font-medium text-gray-700">
+                      Nationality
+                    </span>
+                    <p className="mt-1 text-sm text-gray-900">
+                      {selectedTourist.nationality}
+                    </p>
+                  </div>
+                  <div>
+                    <span className="block text-sm font-medium text-gray-700">
+                      Group Size
+                    </span>
+                    <p className="mt-1 text-sm text-gray-900">
+                      {selectedTourist.groupSize}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-3">
+                  Travel Information
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <span className="block text-sm font-medium text-gray-700">
+                      Destination
+                    </span>
+                    <p className="mt-1 text-sm text-gray-900">
+                      {getDestinationName(selectedTourist.destination)}
+                    </p>
+                  </div>
+                  <div>
+                    <span className="block text-sm font-medium text-gray-700">
+                      Status
+                    </span>
+                    <span
+                      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(
+                        selectedTourist.status
+                      )}`}
+                    >
+                      {selectedTourist.status.charAt(0).toUpperCase() +
+                        selectedTourist.status.slice(1)}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="block text-sm font-medium text-gray-700">
+                      Check-in Date
+                    </span>
+                    <p className="mt-1 text-sm text-gray-900">
+                      {new Date(
+                        selectedTourist.checkInDate
+                      ).toLocaleDateString()}
+                    </p>
+                  </div>
+                  <div>
+                    <span className="block text-sm font-medium text-gray-700">
+                      Check-out Date
+                    </span>
+                    <p className="mt-1 text-sm text-gray-900">
+                      {new Date(
+                        selectedTourist.checkOutDate
+                      ).toLocaleDateString()}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-3">
+                  Emergency Contact
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <span className="block text-sm font-medium text-gray-700">
+                      Contact Name
+                    </span>
+                    <p className="mt-1 text-sm text-gray-900">
+                      {selectedTourist.emergencyContact.name}
+                    </p>
+                  </div>
+                  <div>
+                    <span className="block text-sm font-medium text-gray-700">
+                      Contact Phone
+                    </span>
+                    <p className="mt-1 text-sm text-gray-900">
+                      {selectedTourist.emergencyContact.phone}
+                    </p>
+                  </div>
+                  <div>
+                    <span className="block text-sm font-medium text-gray-700">
+                      Relationship
+                    </span>
+                    <p className="mt-1 text-sm text-gray-900">
+                      {selectedTourist.emergencyContact.relationship}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex flex-col sm:flex-row justify-end gap-3 pt-6 border-t border-gray-200">
+                <button
+                  onClick={onClose}
+                  className="w-full sm:w-auto px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 text-sm font-medium"
+                >
+                  Close
+                </button>
+                <button
+                  onClick={handlePrintReceipt}
+                  className="w-full sm:w-auto px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm font-medium flex items-center justify-center"
+                >
+                  <Download className="h-4 w-4 mr-2" aria-hidden="true" />
+                  Print Receipt
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};

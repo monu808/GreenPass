@@ -1,7 +1,8 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import Layout from "@/components/Layout";
+import { useModalAccessibility } from "@/lib/accessibility";
 import {
   Users,
   MapPin,
@@ -53,6 +54,13 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(true);
   const [editingPolicy, setEditingPolicy] = useState<SensitivityLevel | null>(null);
   const [policyForm, setPolicyForm] = useState<EcologicalPolicy | null>(null);
+  const policyModalRef = useRef<HTMLDivElement>(null);
+
+  useModalAccessibility({
+    modalRef: policyModalRef,
+    isOpen: !!editingPolicy,
+    onClose: () => setEditingPolicy(null)
+  });
   const [impactData, setImpactData] = useState<any[]>([]);
   const [historicalTrends, setHistoricalTrends] = useState<any[]>([]);
 
@@ -372,7 +380,7 @@ export default function AdminDashboard() {
           <div className="flex items-center space-x-3">
             <div className="text-right hidden sm:block">
               <p className="text-xs text-gray-500">Last updated</p>
-              <p className="text-sm font-medium text-gray-700">{formatDateTime(new Date())}</p>
+              <p className="text-sm font-medium text-gray-700" aria-live="polite">{formatDateTime(new Date())}</p>
             </div>
             <ConnectionStatusIndicator 
               connectionState={connectionState} 
@@ -381,16 +389,20 @@ export default function AdminDashboard() {
             <button
               onClick={() => loadDashboardData()}
               className="p-2 text-gray-500 hover:bg-gray-100 rounded-lg transition-colors border border-gray-200"
-              title="Refresh Dashboard"
+              aria-label="Refresh Dashboard"
             >
-              <RefreshCw className={`h-5 w-5 ${loading ? 'animate-spin' : ''}`} />
+              <RefreshCw className={`h-5 w-5 ${loading ? 'animate-spin' : ''}`} aria-hidden="true" />
             </button>
           </div>
         </div>
 
         {/* Navigation Tabs */}
-        <div className="flex space-x-4 border-b border-gray-200">
+        <div role="tablist" aria-label="Dashboard views" className="flex space-x-4 border-b border-gray-200">
           <button
+            role="tab"
+            aria-selected={activeTab === 'overview'}
+            aria-controls="overview-panel"
+            id="overview-tab"
             onClick={() => setActiveTab('overview')}
             className={`pb-4 px-4 text-sm font-medium transition-colors relative ${activeTab === 'overview' ? 'text-blue-600' : 'text-gray-500 hover:text-gray-700'
               }`}
@@ -401,6 +413,10 @@ export default function AdminDashboard() {
             )}
           </button>
           <button
+            role="tab"
+            aria-selected={activeTab === 'policies'}
+            aria-controls="policies-panel"
+            id="policies-tab"
             onClick={() => setActiveTab('policies')}
             className={`pb-4 px-4 text-sm font-medium transition-colors relative ${activeTab === 'policies' ? 'text-blue-600' : 'text-gray-500 hover:text-gray-700'
               }`}
@@ -411,11 +427,15 @@ export default function AdminDashboard() {
             )}
           </button>
           <button
+            role="tab"
+            aria-selected={activeTab === 'ecological'}
+            aria-controls="ecological-panel"
+            id="ecological-tab"
             onClick={() => setActiveTab('ecological')}
             className={`pb-4 px-4 text-sm font-medium transition-colors relative flex items-center ${activeTab === 'ecological' ? 'text-blue-600' : 'text-gray-500 hover:text-gray-700'
               }`}
           >
-            <Leaf className={`h-4 w-4 mr-2 ${activeTab === 'ecological' ? 'text-blue-600' : 'text-gray-400'}`} />
+            <Leaf className={`h-4 w-4 mr-2 ${activeTab === 'ecological' ? 'text-blue-600' : 'text-gray-400'}`} aria-hidden="true" />
             Ecological Impact
             {activeTab === 'ecological' && (
               <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-600" />
@@ -424,7 +444,7 @@ export default function AdminDashboard() {
         </div>
 
         {activeTab === 'overview' ? (
-          <>
+          <div role="tabpanel" id="overview-panel" aria-labelledby="overview-tab">
             {/* Stats Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
               <StatCard
@@ -495,7 +515,7 @@ export default function AdminDashboard() {
             </div>
 
             {/* Content Grid */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 pt-6 border-t border-gray-100">
               {/* Destinations Overview */}
               <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-200">
                 <h2 className="text-lg font-semibold text-gray-900 mb-4">
@@ -597,11 +617,11 @@ export default function AdminDashboard() {
                             'text-blue-500'
                           }`}>
                           {alert.severity === 'high' || alert.severity === 'critical' ? (
-                            <XCircle className="h-5 w-5" />
+                            <XCircle className="h-5 w-5" aria-hidden="true" />
                           ) : alert.severity === 'medium' ? (
-                            <AlertTriangle className="h-5 w-5" />
+                            <AlertTriangle className="h-5 w-5" aria-hidden="true" />
                           ) : (
-                            <CheckCircle className="h-5 w-5" />
+                            <CheckCircle className="h-5 w-5" aria-hidden="true" />
                           )}
                         </div>
                         <div className="flex-1">
@@ -619,24 +639,35 @@ export default function AdminDashboard() {
                 </div>
               </div>
             </div>
-          </>
+          </div>
         ) : activeTab === 'ecological' ? (
-          <EcologicalDashboard />
+          <div role="tabpanel" id="ecological-panel" aria-labelledby="ecological-tab">
+            <EcologicalDashboard />
+          </div>
         ) : (
-          <div className="space-y-6">
+          <div role="tabpanel" id="policies-panel" aria-labelledby="policies-tab" className="space-y-6">
             {/* Policy Editor Modal/Overlay */}
             {editingPolicy && policyForm && (
-              <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-300">
-                <div className="bg-white rounded-xl shadow-2xl max-w-lg w-full p-6 transform animate-in zoom-in-95 duration-300">
+              <div 
+                className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-300"
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="policy-modal-title"
+              >
+                <div 
+                  ref={policyModalRef}
+                  className="bg-white rounded-xl shadow-2xl max-w-lg w-full p-6 transform animate-in zoom-in-95 duration-300"
+                >
                   <div className="flex justify-between items-center mb-6">
-                    <h3 className="text-xl font-bold text-gray-900 capitalize">
+                    <h3 id="policy-modal-title" className="text-xl font-bold text-gray-900 capitalize">
                       Configure {editingPolicy} Policy
                     </h3>
                     <button
                       onClick={() => setEditingPolicy(null)}
-                      className="text-gray-400 hover:text-gray-600"
+                      className="text-gray-400 hover:text-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 rounded-lg p-1"
+                      aria-label="Close modal"
                     >
-                      <X className="h-6 w-6" />
+                      <X className="h-6 w-6" aria-hidden="true" />
                     </button>
                   </div>
 

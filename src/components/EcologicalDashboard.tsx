@@ -351,7 +351,7 @@ export default function EcologicalDashboard() {
 
   if (error) {
     return (
-      <div className="p-6 bg-red-50 rounded-lg border border-red-200 text-center">
+      <div className="p-6 bg-red-50 rounded-lg border border-red-200 text-center" aria-live="assertive">
         <AlertTriangle className="h-12 w-12 text-red-500 mx-auto mb-4" />
         <h3 className="text-lg font-bold text-red-800 mb-2">Error</h3>
         <p className="text-red-600 mb-4">{error}</p>
@@ -366,7 +366,7 @@ export default function EcologicalDashboard() {
   }
 
   return (
-    <div aria-live="polite" className="space-y-6">
+    <div className="space-y-6">
       {/* Header Actions */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
@@ -384,7 +384,7 @@ export default function EcologicalDashboard() {
       </div>
 
       {/* Summary Statistics */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6" aria-live="polite">
         <StatCard
           title="Destinations at Risk"
           value={summaryStats.destinationsAtRisk}
@@ -995,10 +995,10 @@ export default function EcologicalDashboard() {
       <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-200">
         <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
           <AlertTriangle className="h-5 w-5 mr-2 text-red-500" />
-          Active Ecological Alerts
-        </h2>
-        <div className="space-y-4">
-          {alerts.length > 0 ? (
+        Active Ecological Alerts
+      </h2>
+      <div className="space-y-4" aria-live="polite">
+        {alerts.length > 0 ? (
             alerts.map((alert) => (
               <div key={alert.id} className="flex items-start space-x-3 p-3 bg-gray-50 rounded-lg">
                 <div className={`mt-0.5 ${

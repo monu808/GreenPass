@@ -34,15 +34,25 @@ export const useModalAccessibility = ({ isOpen, onClose, modalRef }: UseModalAcc
   }, [onClose, modalRef]);
 
   useEffect(() => {
+    const prevFocus = document.activeElement as HTMLElement;
+
+    const handleOutsideClick = (event: MouseEvent) => {
+      if (modalRef.current && !modalRef.current.contains(event.target as Node)) {
+        onClose();
+      }
+    };
+
     if (isOpen) {
       document.addEventListener('keydown', handleKeyDown);
+      document.addEventListener('mousedown', handleOutsideClick);
       document.body.style.overflow = 'hidden';
       
       // Focus the modal or the first element
       if (modalRef.current) {
         const firstFocusable = modalRef.current.querySelector('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])') as HTMLElement;
         if (firstFocusable) {
-          firstFocusable.focus();
+          // Small delay to ensure focus works in all browsers
+          setTimeout(() => firstFocusable.focus(), 50);
         } else {
           modalRef.current.focus();
         }
@@ -51,7 +61,11 @@ export const useModalAccessibility = ({ isOpen, onClose, modalRef }: UseModalAcc
 
     return () => {
       document.removeEventListener('keydown', handleKeyDown);
+      document.removeEventListener('mousedown', handleOutsideClick);
       document.body.style.overflow = 'unset';
+      if (isOpen && prevFocus && document.body.contains(prevFocus)) {
+        prevFocus.focus();
+      }
     };
-  }, [isOpen, handleKeyDown, modalRef]);
+  }, [isOpen, handleKeyDown, modalRef, onClose]);
 };

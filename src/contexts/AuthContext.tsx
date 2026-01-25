@@ -222,7 +222,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const { error } = await supabase.auth.resend({
         type: 'email' as any,
-        email: email,
+        email,
       });
       
       return { error };

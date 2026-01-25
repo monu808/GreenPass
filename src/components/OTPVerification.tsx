@@ -202,7 +202,6 @@ export default function OTPVerification({
                   } ${
                     error ? 'border-red-300 shake' : ''
                   }`}
-                  aria-label={`Digit ${index + 1}`}
                 />
               ))}
             </div>

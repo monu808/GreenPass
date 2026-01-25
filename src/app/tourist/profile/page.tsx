@@ -833,7 +833,7 @@ export default function MyProfile() {
                       <h4 className="text-sm font-medium text-gray-700 mb-2">Change Password</h4>
                       <div className="space-y-3">
                         <div className="relative">
-                          <label htmlFor="current-password" name="current-password" className="sr-only">Current Password</label>
+                          <label htmlFor="current-password" className="sr-only">Current Password</label>
                           <input
                             id="current-password"
                             type={showPassword ? 'text' : 'password'}
@@ -852,7 +852,7 @@ export default function MyProfile() {
                             )}
                           </button>
                         </div>
-                        <label htmlFor="new-password" name="new-password" className="sr-only">New Password</label>
+                        <label htmlFor="new-password" className="sr-only">New Password</label>
                         <input
                           id="new-password"
                           type="password"
@@ -860,7 +860,7 @@ export default function MyProfile() {
                           placeholder="New password"
                           className="w-full px-3 py-2 border border-gray-300 rounded-lg"
                         />
-                        <label htmlFor="confirm-password" name="confirm-password" className="sr-only">Confirm New Password</label>
+                        <label htmlFor="confirm-password" className="sr-only">Confirm New Password</label>
                         <input
                           id="confirm-password"
                           type="password"

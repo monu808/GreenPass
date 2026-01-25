@@ -127,12 +127,12 @@ export default function TouristSidebar({ isOpen, setIsOpen }: SidebarProps) {
 
   const getWeatherIcon = (weatherMain: string) => {
     switch (weatherMain?.toLowerCase()) {
-      case 'clear': return <Sun className="h-6 w-6 text-yellow-500" aria-hidden="true" title="Clear sky" />;
-      case 'clouds': return <Cloud className="h-6 w-6 text-gray-500" aria-hidden="true" title="Cloudy" />;
-      case 'rain': return <CloudRain className="h-6 w-6 text-blue-500" aria-hidden="true" title="Rainy" />;
-      case 'snow': return <CloudSnow className="h-6 w-6 text-blue-200" aria-hidden="true" title="Snowy" />;
-      case 'thunderstorm': return <CloudLightning className="h-6 w-6 text-purple-500" aria-hidden="true" title="Thunderstorm" />;
-      default: return <Sun className="h-6 w-6 text-yellow-500" aria-hidden="true" title="Clear sky" />;
+      case 'clear': return <Sun className="h-6 w-6 text-yellow-500" aria-hidden="true" />;
+      case 'clouds': return <Cloud className="h-6 w-6 text-gray-500" aria-hidden="true" />;
+      case 'rain': return <CloudRain className="h-6 w-6 text-blue-500" aria-hidden="true" />;
+      case 'snow': return <CloudSnow className="h-6 w-6 text-blue-200" aria-hidden="true" />;
+      case 'thunderstorm': return <CloudLightning className="h-6 w-6 text-purple-500" aria-hidden="true" />;
+      default: return <Sun className="h-6 w-6 text-yellow-500" aria-hidden="true" />;
     }
   };
 

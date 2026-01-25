@@ -5,12 +5,14 @@ import TouristLayout from '@/components/TouristLayout';
 import { useModalAccessibility } from "@/lib/accessibility";
 import { sanitizeSearchTerm, cn } from '@/lib/utils';
 import { validateInput, SearchFilterSchema } from '@/lib/validation';
-import { 
-  Star, 
-  ThumbsUp, 
-  MessageCircle, 
-  Share2, 
-  Flag, 
+import { useLikeReviewMutation, useMarkHelpfulMutation, useSubmitReviewMutation } from '@/hooks/mutations/useReviewMutation';
+import { useToast } from '@/components/providers/ToastProvider';
+import {
+  Star,
+  ThumbsUp,
+  MessageCircle,
+  Share2,
+  Flag,
   Search,
   Calendar,
   MapPin,
@@ -21,7 +23,8 @@ import {
   BarChart3,
   Users,
   Heart,
-  Edit3
+  Edit3,
+  Loader2
 } from 'lucide-react';
 
 interface Review {
@@ -50,7 +53,7 @@ interface RatingBreakdown {
 }
 
 export default function ReviewsRatings() {
-  const [reviews] = useState<Review[]>([
+  const [reviews, setReviews] = useState<Review[]>([
     {
       id: '1',
       userId: '1',
@@ -158,7 +161,7 @@ export default function ReviewsRatings() {
   });
 
   const destinations = Array.from(new Set(reviews.map(review => review.destination)));
-  
+
   const ratingBreakdown: RatingBreakdown[] = [
     { rating: 5, count: 156, percentage: 65 },
     { rating: 4, count: 48, percentage: 20 },
@@ -172,7 +175,7 @@ export default function ReviewsRatings() {
 
   const filteredReviews = reviews.filter(review => {
     const sanitizedSearch = sanitizeSearchTerm(searchTerm);
-    
+
     const filterValidation = validateInput(SearchFilterSchema, {
       searchTerm: sanitizedSearch,
     });
@@ -180,11 +183,11 @@ export default function ReviewsRatings() {
     const validFilters = filterValidation.success ? filterValidation.data : { searchTerm: "" };
 
     const matchesSearch = review.title.toLowerCase().includes(validFilters.searchTerm?.toLowerCase() || "") ||
-                         review.content.toLowerCase().includes(validFilters.searchTerm?.toLowerCase() || "") ||
-                         review.destination.toLowerCase().includes(validFilters.searchTerm?.toLowerCase() || "");
+      review.content.toLowerCase().includes(validFilters.searchTerm?.toLowerCase() || "") ||
+      review.destination.toLowerCase().includes(validFilters.searchTerm?.toLowerCase() || "");
     const matchesDestination = selectedDestination === 'all' || review.destination === selectedDestination;
     const matchesRating = selectedRating === 'all' || review.rating >= parseInt(selectedRating);
-    
+
     return matchesSearch && matchesDestination && matchesRating;
   });
 
@@ -205,6 +208,13 @@ export default function ReviewsRatings() {
     }
   });
 
+  // Mutation hooks for optimistic updates (currently using local state since mock data)
+  // In production, these would sync with React Query cache automatically
+  const likeMutation = useLikeReviewMutation();
+  const helpfulMutation = useMarkHelpfulMutation();
+  const submitReviewMutation = useSubmitReviewMutation();
+  const toast = useToast();
+
   const renderStars = (rating: number, size: 'sm' | 'md' | 'lg' = 'md') => {
     const sizeClass = size === 'sm' ? 'h-3 w-3' : size === 'lg' ? 'h-6 w-6' : 'h-4 w-4';
     return (
@@ -212,9 +222,8 @@ export default function ReviewsRatings() {
         {[1, 2, 3, 4, 5].map((star) => (
           <Star
             key={star}
-            className={`${sizeClass} ${
-              star <= rating ? 'text-yellow-400 fill-current' : 'text-gray-300'
-            }`}
+            className={`${sizeClass} ${star <= rating ? 'text-yellow-400 fill-current' : 'text-gray-300'
+              }`}
             aria-hidden="true"
           />
         ))}
@@ -222,12 +231,30 @@ export default function ReviewsRatings() {
     );
   };
 
-  const toggleLike = (reviewId: string) => {
-    console.log('Toggle like for review:', reviewId);
+  const toggleLike = (reviewId: string, currentlyLiked: boolean) => {
+    // Optimistically update local state for immediate visual feedback
+    setReviews(prev => prev.map(review =>
+      review.id === reviewId
+        ? {
+          ...review,
+          isLiked: !currentlyLiked,
+          likes: currentlyLiked ? review.likes - 1 : review.likes + 1,
+        }
+        : review
+    ));
+    // Call mutation for server sync (will rollback on error)
+    likeMutation.mutate({ reviewId, currentlyLiked });
   };
 
   const markHelpful = (reviewId: string) => {
-    console.log('Mark helpful:', reviewId);
+    // Optimistically update local state for immediate visual feedback
+    setReviews(prev => prev.map(review =>
+      review.id === reviewId
+        ? { ...review, helpful: review.helpful + 1 }
+        : review
+    ));
+    // Call mutation for server sync
+    helpfulMutation.mutate(reviewId);
   };
 
   const handleReviewSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -293,8 +320,8 @@ export default function ReviewsRatings() {
                     <span className="text-sm text-gray-600 w-8">{item.rating}</span>
                     <Star className="h-4 w-4 text-yellow-400 fill-current mr-2" aria-hidden="true" />
                     <div className="flex-1 bg-gray-200 rounded-full h-2 mr-3">
-                      <div 
-                        className="bg-yellow-400 h-2 rounded-full" 
+                      <div
+                        className="bg-yellow-400 h-2 rounded-full"
                         style={{ width: `${item.percentage}%` }}
                       />
                     </div>
@@ -347,7 +374,7 @@ export default function ReviewsRatings() {
                 className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-transparent"
               />
             </div>
-            
+
             <button
               onClick={() => setShowWriteReview(true)}
               className="flex items-center px-4 py-2 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 transition-colors"
@@ -370,7 +397,7 @@ export default function ReviewsRatings() {
                 <option key={dest} value={dest}>{dest}</option>
               ))}
             </select>
-            
+
             <label htmlFor="rating-filter" className="sr-only">Filter by rating</label>
             <select
               id="rating-filter"
@@ -383,7 +410,7 @@ export default function ReviewsRatings() {
               <option value="4">4+ Stars</option>
               <option value="3">3+ Stars</option>
             </select>
-            
+
             <label htmlFor="sort-filter" className="sr-only">Sort reviews</label>
             <select
               id="sort-filter"
@@ -433,7 +460,7 @@ export default function ReviewsRatings() {
                     </div>
                   </div>
                 </div>
-                
+
                 <div className="flex items-center space-x-2">
                   {renderStars(review.rating)}
                   <span className="text-sm font-medium text-gray-700">{review.rating}/5</span>
@@ -484,20 +511,19 @@ export default function ReviewsRatings() {
                     <ThumbsUp className="h-4 w-4" aria-hidden="true" />
                     <span className="text-sm">Helpful ({review.helpful})</span>
                   </button>
-                  
+
                   <button
-                    onClick={() => toggleLike(review.id)}
-                    className={`flex items-center space-x-1 transition-colors ${
-                      review.isLiked ? 'text-red-600' : 'text-gray-600 hover:text-red-600'
-                    }`}
+                    onClick={() => toggleLike(review.id, review.isLiked)}
+                    className={`flex items-center space-x-1 transition-colors ${review.isLiked ? 'text-red-600' : 'text-gray-600 hover:text-red-600'
+                      }`}
                     aria-label={review.isLiked ? "Unlike review" : "Like review"}
                     aria-pressed={review.isLiked}
                   >
                     <Heart className={`h-4 w-4 ${review.isLiked ? 'fill-current' : ''}`} aria-hidden="true" />
                     <span className="text-sm">{review.likes}</span>
                   </button>
-                  
-                  <button 
+
+                  <button
                     className="flex items-center space-x-1 text-gray-600 hover:text-blue-600 transition-colors"
                     aria-label={`Reply to review by ${review.userName}`}
                   >
@@ -505,15 +531,15 @@ export default function ReviewsRatings() {
                     <span className="text-sm">Reply</span>
                   </button>
                 </div>
-                
+
                 <div className="flex items-center space-x-2">
-                  <button 
+                  <button
                     className="p-1 text-gray-600 hover:text-blue-600 transition-colors"
                     aria-label="Share review"
                   >
                     <Share2 className="h-4 w-4" aria-hidden="true" />
                   </button>
-                  <button 
+                  <button
                     className="p-1 text-gray-600 hover:text-red-600 transition-colors"
                     aria-label="Report review"
                   >
@@ -527,13 +553,13 @@ export default function ReviewsRatings() {
 
         {/* Write Review Modal */}
         {showWriteReview && (
-          <div 
-            className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center z-50 p-0 sm:p-4"
+          <div
+            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
             role="dialog"
             aria-modal="true"
             aria-labelledby="write-review-title"
           >
-            <div 
+            <div
               ref={modalRef}
               className="bg-white rounded-t-[2rem] sm:rounded-2xl max-w-2xl w-full h-[90vh] sm:h-auto sm:max-h-[90vh] overflow-hidden flex flex-col animate-in slide-in-from-bottom duration-300"
             >
@@ -562,26 +588,68 @@ export default function ReviewsRatings() {
                     ))}
                   </select>
                 </div>
-                
-                <div>
-                  <p id="rating-label" className="text-sm font-bold text-gray-700 mb-3">Rating</p>
-                  <div className="flex space-x-2" role="radiogroup" aria-labelledby="rating-label">
-                    {[1, 2, 3, 4, 5].map((star) => (
-                      <button 
-                        key={star} 
-                        type="button" 
-                        onClick={() => setNewReviewRating(star)}
-                        role="radio"
-                        aria-checked={newReviewRating === star}
-                        className={cn(
-                          "focus:outline-none focus:ring-2 focus:ring-yellow-500 rounded-lg p-2 transition-all hover:scale-110 active:scale-95 min-h-[44px] min-w-[44px] flex items-center justify-center",
-                          newReviewRating >= star ? "text-yellow-400 bg-yellow-50/50" : "text-gray-200 bg-gray-50"
-                        )}
-                        aria-label={`Rate ${star} out of 5 stars`}
-                      >
-                        <Star className={cn("h-7 w-7", newReviewRating >= star && "fill-current")} aria-hidden="true" />
-                      </button>
-                    ))}
+
+                <form className="space-y-4">
+                  <div>
+                    <label htmlFor="destination-select" className="block text-sm font-medium text-gray-700 mb-1">Destination</label>
+                    <select id="destination-select" className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-transparent">
+                      <option value="">Select destination...</option>
+                      {destinations.map(dest => (
+                        <option key={dest} value={dest}>{dest}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <p id="rating-label" className="text-sm font-medium text-gray-700 mb-1">Rating</p>
+                    <div className="flex space-x-1" role="radiogroup" aria-labelledby="rating-label">
+                      {[1, 2, 3, 4, 5].map((star) => (
+                        <button
+                          key={star}
+                          type="button"
+                          className="text-gray-300 hover:text-yellow-400 focus:outline-none focus:ring-2 focus:ring-yellow-500 rounded-sm p-1 transition-colors"
+                          aria-label={`Rate ${star} out of 5 stars`}
+                        >
+                          <Star className="h-6 w-6" aria-hidden="true" />
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div>
+                    <label htmlFor="review-title" className="block text-sm font-medium text-gray-700 mb-1">Review Title</label>
+                    <input
+                      id="review-title"
+                      type="text"
+                      placeholder="Summarize your experience..."
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-transparent"
+                    />
+                  </div>
+
+                  <div>
+                    <label htmlFor="review-content" className="block text-sm font-medium text-gray-700 mb-1">Your Review</label>
+                    <textarea
+                      id="review-content"
+                      rows={4}
+                      placeholder="Share your experience with other travelers..."
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-transparent"
+                    />
+                  </div>
+
+                  <div className="flex justify-end space-x-3 pt-4">
+                    <button
+                      type="button"
+                      onClick={() => setShowWriteReview(false)}
+                      className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      className="px-4 py-2 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 transition-colors"
+                    >
+                      Submit Review
+                    </button>
                   </div>
                 </div>
                 

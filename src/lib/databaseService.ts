@@ -1,4 +1,5 @@
-import { supabase } from '@/lib/supabase';
+import { supabase, createServerComponentClient } from '@/lib/supabase';
+import { SupabaseClient } from '@supabase/supabase-js';
 import { 
   Tourist, 
   Destination, 
@@ -14,9 +15,17 @@ import {
   CleanupActivity, 
   CleanupRegistration, 
   EcoPointsTransaction, 
-  EcoPointsLeaderboardEntry
+  EcoPointsLeaderboardEntry,
+  EcologicalDamageIndicators
 } from '@/types';
 import { Database } from '@/types/database';
+import { isWithinInterval, format } from 'date-fns';
+import { 
+  weatherCache, 
+  ecologicalIndicatorCache, 
+  destinationCache, 
+  withCache 
+} from './cache';
 import { getPolicyEngine } from './ecologicalPolicyEngine';
 import * as mockData from '@/data/mockData';
 
@@ -62,12 +71,7 @@ export interface ComplianceReportInput {
   };
   carbonFootprint: number;
   ecologicalImpactIndex: number;
-  ecologicalDamageIndicators?: {
-    soilCompaction: number;
-    vegetationDisturbance: number;
-    wildlifeDisturbance: number;
-    waterSourceImpact: number;
-  };
+  ecologicalDamageIndicators?: EcologicalDamageIndicators;
   previousPeriodScore?: number;
   policyViolationsCount: number;
   totalFines: number;
@@ -2092,10 +2096,10 @@ class DatabaseService {
         carbon_footprint: report.carbonFootprint,
         ecological_impact_index: report.ecologicalImpactIndex,
         ecological_damage_indicators: report.ecologicalDamageIndicators ? {
-          soil_compaction: report.ecologicalDamageIndicators.soilCompaction,
-          vegetation_disturbance: report.ecologicalDamageIndicators.vegetationDisturbance,
-          wildlife_disturbance: report.ecologicalDamageIndicators.wildlifeDisturbance,
-          water_source_impact: report.ecologicalDamageIndicators.waterSourceImpact,
+          soil_compaction: report.ecologicalDamageIndicators.soilCompaction ?? report.ecologicalDamageIndicators.soil_compaction ?? 0,
+          vegetation_disturbance: report.ecologicalDamageIndicators.vegetationDisturbance ?? report.ecologicalDamageIndicators.vegetation_disturbance ?? 0,
+          wildlife_disturbance: report.ecologicalDamageIndicators.wildlifeDisturbance ?? report.ecologicalDamageIndicators.wildlife_disturbance ?? 0,
+          water_source_impact: report.ecologicalDamageIndicators.waterSourceImpact ?? report.ecologicalDamageIndicators.water_source_impact ?? 0,
         } : undefined,
         previous_period_score: report.previousPeriodScore,
         policy_violations_count: report.policyViolationsCount,

@@ -203,7 +203,7 @@ function BookDestinationForm() {
         ]);
 
         const weatherConditions: WeatherConditions | undefined = weather ? {
-          alert_level: weather.alert_level || 'none',
+          weatherAlertLevel: weather.alert_level || 'none',
           temperature: weather.temperature,
           humidity: weather.humidity
         } : undefined;

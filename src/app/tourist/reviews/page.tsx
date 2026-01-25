@@ -53,7 +53,7 @@ interface RatingBreakdown {
 }
 
 export default function ReviewsRatings() {
-  const [reviews] = useState<Review[]>([
+  const [reviews, setReviews] = useState<Review[]>([
     {
       id: '1',
       userId: '1',
@@ -207,7 +207,8 @@ export default function ReviewsRatings() {
     }
   });
 
-  // Mutation hooks for optimistic updates
+  // Mutation hooks for optimistic updates (currently using local state since mock data)
+  // In production, these would sync with React Query cache automatically
   const likeMutation = useLikeReviewMutation();
   const helpfulMutation = useMarkHelpfulMutation();
   const submitReviewMutation = useSubmitReviewMutation();
@@ -230,12 +231,28 @@ export default function ReviewsRatings() {
   };
 
   const toggleLike = (reviewId: string, currentlyLiked: boolean) => {
-    // Use the mutation - optimistic update handled by the hook
+    // Optimistically update local state for immediate visual feedback
+    setReviews(prev => prev.map(review =>
+      review.id === reviewId
+        ? {
+          ...review,
+          isLiked: !currentlyLiked,
+          likes: currentlyLiked ? review.likes - 1 : review.likes + 1,
+        }
+        : review
+    ));
+    // Call mutation for server sync (will rollback on error)
     likeMutation.mutate({ reviewId, currentlyLiked });
   };
 
   const markHelpful = (reviewId: string) => {
-    // Use the mutation - optimistic update handled by the hook
+    // Optimistically update local state for immediate visual feedback
+    setReviews(prev => prev.map(review =>
+      review.id === reviewId
+        ? { ...review, helpful: review.helpful + 1 }
+        : review
+    ));
+    // Call mutation for server sync
     helpfulMutation.mutate(reviewId);
   };
 

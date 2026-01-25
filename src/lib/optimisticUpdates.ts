@@ -85,9 +85,9 @@ export function withDelay<T>(promise: Promise<T>, delayMs: number = 0): Promise<
     if (delayMs <= 0 || process.env.NODE_ENV === 'production') {
         return promise;
     }
-    return new Promise((resolve) => {
-        setTimeout(async () => {
-            resolve(await promise);
+    return new Promise((resolve, reject) => {
+        setTimeout(() => {
+            promise.then(resolve, reject);
         }, delayMs);
     });
 }

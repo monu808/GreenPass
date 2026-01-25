@@ -51,10 +51,14 @@ export function useBookingMutation(options?: UseBookingMutationOptions) {
     const queryClient = useQueryClient();
     const toast = useToast();
 
-    return useMutation<TouristRow | null, Error, TouristInsert, BookingMutationContext>({
-        mutationFn: async (bookingData: TouristInsert): Promise<TouristRow | null> => {
+    return useMutation<TouristRow, Error, TouristInsert, BookingMutationContext>({
+        mutationFn: async (bookingData: TouristInsert): Promise<TouristRow> => {
             const dbService = getDbService();
-            return await dbService.addTourist(bookingData);
+            const result = await dbService.addTourist(bookingData);
+            if (!result) {
+                throw new Error('Booking rejected by server');
+            }
+            return result;
         },
 
         onMutate: async (variables: TouristInsert): Promise<BookingMutationContext> => {
@@ -104,15 +108,10 @@ export function useBookingMutation(options?: UseBookingMutationOptions) {
             options?.onError?.(error);
         },
 
-        onSuccess: (data: TouristRow | null, _variables: TouristInsert, context: BookingMutationContext): void => {
+        onSuccess: (data: TouristRow, _variables: TouristInsert, context: BookingMutationContext): void => {
             // Dismiss pending toast
             if (context?.pendingToastId) {
                 toast.dismissToast(context.pendingToastId);
-            }
-
-            if (!data) {
-                toast.error('Booking failed', 'The server could not process your booking.');
-                return;
             }
 
             // Show success toast

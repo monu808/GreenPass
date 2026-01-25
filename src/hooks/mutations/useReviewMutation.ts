@@ -161,6 +161,7 @@ export function useSubmitReviewMutation() {
  */
 export function useLikeReviewMutation() {
     const queryClient = useQueryClient();
+    const toast = useToast();
 
     return useMutation<void, Error, LikeReviewVariables, LikeMutationContext>({
         mutationFn: async (_variables: LikeReviewVariables): Promise<void> => {
@@ -189,6 +190,7 @@ export function useLikeReviewMutation() {
         },
 
         onError: (_error: Error, _variables: LikeReviewVariables, context: LikeMutationContext | undefined): void => {
+            toast.error('Failed to update like', 'Please try again.');
             if (context?.previousReviews) {
                 queryClient.setQueryData(queryKeys.reviews, context.previousReviews);
             }

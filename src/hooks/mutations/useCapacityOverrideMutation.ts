@@ -4,15 +4,10 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { getPolicyEngine } from '@/lib/ecologicalPolicyEngine';
 import { queryKeys } from '@/lib/queryClient';
 import { useToast } from '@/components/providers/ToastProvider';
-import { DynamicCapacityResult, Destination } from '@/types';
+import { DynamicCapacityResult, Destination, CapacityOverride } from '@/types';
 
-interface CapacityOverride {
-    destinationId: string;
-    multiplier: number;
-    reason: string;
-    expiresAt: Date;
-    active: boolean;
-}
+// Input type for setting overrides - requires expiresAt
+type SetCapacityOverrideInput = Omit<CapacityOverride, 'expiresAt'> & { expiresAt: Date };
 
 interface SetOverrideContext {
     previousResults: Record<string, DynamicCapacityResult> | undefined;
@@ -36,13 +31,13 @@ export function useSetCapacityOverrideMutation(options?: UseCapacityOverrideMuta
     const queryClient = useQueryClient();
     const toast = useToast();
 
-    return useMutation<void, Error, CapacityOverride, SetOverrideContext>({
-        mutationFn: async (override: CapacityOverride): Promise<void> => {
+    return useMutation<void, Error, SetCapacityOverrideInput, SetOverrideContext>({
+        mutationFn: async (override: SetCapacityOverrideInput): Promise<void> => {
             const policyEngine = getPolicyEngine();
             policyEngine.setCapacityOverride(override);
         },
 
-        onMutate: async (variables: CapacityOverride): Promise<SetOverrideContext> => {
+        onMutate: async (variables: SetCapacityOverrideInput): Promise<SetOverrideContext> => {
             const pendingToastId = toast.pending('Applying override...', `Setting capacity to ${Math.round(variables.multiplier * 100)}%`);
 
             await queryClient.cancelQueries({ queryKey: queryKeys.capacityResults });
@@ -80,7 +75,7 @@ export function useSetCapacityOverrideMutation(options?: UseCapacityOverrideMuta
             return { previousResults, pendingToastId };
         },
 
-        onError: (error: Error, _variables: CapacityOverride, context: SetOverrideContext | undefined): void => {
+        onError: (error: Error, _variables: SetCapacityOverrideInput, context: SetOverrideContext | undefined): void => {
             if (context?.pendingToastId) {
                 toast.dismissToast(context.pendingToastId);
             }
@@ -93,7 +88,7 @@ export function useSetCapacityOverrideMutation(options?: UseCapacityOverrideMuta
             options?.onError?.(error);
         },
 
-        onSuccess: (_data: void, _variables: CapacityOverride, context: SetOverrideContext): void => {
+        onSuccess: (_data: void, _variables: SetCapacityOverrideInput, context: SetOverrideContext): void => {
             if (context?.pendingToastId) {
                 toast.dismissToast(context.pendingToastId);
             }

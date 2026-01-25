@@ -315,12 +315,17 @@ function BookDestinationForm() {
 
   // Booking mutation hook with optimistic updates
   const bookingMutation = useBookingMutation({
-    onSuccess: async (data) => {
+    onSuccess: async () => {
       // Update user eco-points if they are logged in
       if (user?.id && carbonFootprint) {
-        const dbService = getDbService();
-        const pointsToAdd = carbonFootprint.ecoPointsReward;
-        await dbService.updateUserEcoPoints(user.id, pointsToAdd, 0);
+        try {
+          const dbService = getDbService();
+          const pointsToAdd = carbonFootprint.ecoPointsReward;
+          await dbService.updateUserEcoPoints(user.id, pointsToAdd, 0);
+        } catch (error) {
+          console.error('Failed to update eco-points:', error);
+          // Non-critical: booking succeeded, just log the error
+        }
       }
 
       setShowSuccess(true);

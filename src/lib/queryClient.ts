@@ -9,10 +9,9 @@ export const queryClient = new QueryClient({
       refetchOnWindowFocus: false,
     },
     mutations: {
-      // Retry failed mutations once (network glitches)
-      retry: 1,
-      // Wait 1 second before retrying
-      retryDelay: 1000,
+      // Disable retries by default for non-idempotent operations (bookings, reviews)
+      // Enable retries per-mutation only when server-side idempotency is guaranteed
+      retry: 0,
       // Network mode: always attempt mutation even offline (for optimistic updates)
       networkMode: 'always',
     },

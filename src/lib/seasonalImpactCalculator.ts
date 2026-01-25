@@ -49,7 +49,7 @@ const LEVEL_RULES: { level: ImpactLevel; max: number; label: string; recommendat
 const clamp = (value: number, min: number, max: number) => Math.min(Math.max(value, min), max);
 
 const getSeasonFactor = (date: Date): { score: number; reason: string } => {
-  const month = date.getUTCMonth();
+  const month = date.getMonth();
   if ([5, 6, 7].includes(month)) {
     return { score: 25, reason: 'Monsoon erosion risk & trail closures' };
   }
@@ -150,8 +150,14 @@ export const calculateSeasonalImpact = (
     day: 'numeric'
   });
 
+  // Format date as local YYYY-MM-DD instead of UTC
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  const dateString = `${year}-${month}-${day}`;
+
   return {
-    date: date.toISOString().split('T')[0],
+    date: dateString,
     label,
     level: levelMeta.level,
     levelLabel: levelMeta.label,
@@ -175,6 +181,12 @@ export const generateImpactWindow = (
   });
 };
 
+// Helper to parse date strings in local time (avoiding UTC midnight issues)
+const parseLocalDate = (value: string): Date => {
+  const [year, month, day] = value.split('-').map(Number);
+  return new Date(year, month - 1, day);
+};
+
 export const recommendAlternativeDates = (
   selectedDate: string,
   entries: SeasonalImpactEntry[],
@@ -193,11 +205,11 @@ export const recommendAlternativeDates = (
     return candidates.slice(0, count);
   }
 
-  const selectedDateObj = new Date(selectedDate);
+  const selectedDateObj = parseLocalDate(selectedDate);
   const prioritized = candidates
     .map((entry) => ({
       entry,
-      diff: Math.abs(new Date(entry.date).getTime() - selectedDateObj.getTime())
+      diff: Math.abs(parseLocalDate(entry.date).getTime() - selectedDateObj.getTime())
     }))
     .sort((a, b) => a.diff - b.diff || a.entry.score - b.entry.score)
     .map((item) => item.entry);

@@ -45,6 +45,12 @@ import {
 const WEEKDAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const IMPACT_ORDER: ImpactLevel[] = ['green', 'yellow', 'orange', 'red'];
 
+// Helper to parse date strings in local time (avoiding UTC midnight issues)
+const parseLocalDate = (value: string): Date => {
+  const [year, month, day] = value.split('-').map(Number);
+  return new Date(year, month - 1, day);
+};
+
 const LEVEL_TILE_CLASSES: Record<ImpactLevel, string> = {
   green: 'bg-emerald-50 border-emerald-200 text-emerald-900',
   yellow: 'bg-amber-50 border-amber-200 text-amber-900',
@@ -136,7 +142,7 @@ function BookDestinationForm() {
 
   const paddedImpactEntries = useMemo<(SeasonalImpactEntry | null)[]>(() => {
     if (!impactWindow.length) return [];
-    const firstDate = new Date(impactWindow[0].date);
+    const firstDate = parseLocalDate(impactWindow[0].date);
     const prefix = Array.from({ length: firstDate.getDay() }, () => null);
     const merged = [...prefix, ...impactWindow];
     const remainder = merged.length % 7;
@@ -240,8 +246,8 @@ function BookDestinationForm() {
     // Calculate actual stay nights from dates
     let stayNights = 2; // Default fallback
     if (formData.checkInDate && formData.checkOutDate) {
-      const start = new Date(formData.checkInDate);
-      const end = new Date(formData.checkOutDate);
+      const start = parseLocalDate(formData.checkInDate);
+      const end = parseLocalDate(formData.checkOutDate);
       
       if (!isNaN(start.getTime()) && !isNaN(end.getTime())) {
         const diffTime = end.getTime() - start.getTime();
@@ -358,7 +364,7 @@ function BookDestinationForm() {
 
   const handleCalendarSelect = (date: string) => {
     setFormData(prev => {
-      const shouldResetCheckout = prev.checkOutDate && new Date(prev.checkOutDate) <= new Date(date);
+      const shouldResetCheckout = prev.checkOutDate && parseLocalDate(prev.checkOutDate) <= parseLocalDate(date);
       return {
         ...prev,
         checkInDate: date,
@@ -740,7 +746,7 @@ function BookDestinationForm() {
                     }
                     const isSelected = selectedImpactEntry?.date === entry.date;
                     const tooltipId = `impact-tooltip-${entry.date}`;
-                    const dayNumber = new Date(entry.date).getDate();
+                    const dayNumber = parseLocalDate(entry.date).getDate();
                     return (
                       <div key={entry.date} className="relative group">
                         <button

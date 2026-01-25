@@ -143,7 +143,11 @@ function BookDestinationForm() {
         } : undefined;
 
         // 2. Use single dynamic capacity call with pre-fetched data
-        const dynResult = await policyEngine.getDynamicCapacity(found, weatherConditions, indicators);
+        const dynResult = await policyEngine.getDynamicCapacity(
+          found, 
+          weatherConditions, 
+          indicators || undefined
+        );
         
         setAvailableSpots(dynResult.availableSpots);
         setAdjustedCapacity(dynResult.adjustedCapacity);

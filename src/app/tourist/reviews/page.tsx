@@ -148,6 +148,7 @@ export default function ReviewsRatings() {
   const [selectedRating, setSelectedRating] = useState<string>('all');
   const [sortBy, setSortBy] = useState<string>('newest');
   const [showWriteReview, setShowWriteReview] = useState(false);
+  const [newReviewRating, setNewReviewRating] = useState<number>(0);
 
   const modalRef = useRef<HTMLDivElement>(null);
   useModalAccessibility({
@@ -227,6 +228,38 @@ export default function ReviewsRatings() {
 
   const markHelpful = (reviewId: string) => {
     console.log('Mark helpful:', reviewId);
+  };
+
+  const handleReviewSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const formData = new FormData(e.currentTarget);
+    
+    const reviewData = {
+      destination: formData.get('destination') as string,
+      rating: newReviewRating,
+      title: formData.get('title') as string,
+      content: formData.get('content') as string,
+    };
+
+    if (!reviewData.destination || reviewData.rating === 0 || !reviewData.title || !reviewData.content) {
+      alert('Please fill in all fields and provide a rating.');
+      return;
+    }
+
+    console.log('Submitting review:', reviewData);
+    
+    // Simulate API call
+    try {
+      // In a real app, this would be an API call:
+      // await fetch('/api/reviews', { method: 'POST', body: JSON.stringify(reviewData) });
+      
+      alert('Review posted successfully!');
+      setShowWriteReview(false);
+      setNewReviewRating(0); // Reset rating after success
+    } catch (error) {
+      console.error('Error posting review:', error);
+      alert('Failed to post review. Please try again.');
+    }
   };
 
   return (
@@ -515,10 +548,14 @@ export default function ReviewsRatings() {
                 </button>
               </div>
               
-              <form className="p-6 space-y-6 overflow-y-auto no-scrollbar flex-1">
+              <form onSubmit={handleReviewSubmit} className="p-6 space-y-6 overflow-y-auto no-scrollbar flex-1">
                 <div>
                   <label htmlFor="destination-select" className="block text-sm font-bold text-gray-700 mb-2">Destination</label>
-                  <select id="destination-select" className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-yellow-500 focus:border-transparent transition-all outline-none bg-gray-50/50">
+                  <select 
+                    id="destination-select" 
+                    name="destination"
+                    className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-yellow-500 focus:border-transparent transition-all outline-none bg-gray-50/50"
+                  >
                     <option value="">Select destination...</option>
                     {destinations.map(dest => (
                       <option key={dest} value={dest}>{dest}</option>
@@ -533,10 +570,16 @@ export default function ReviewsRatings() {
                       <button 
                         key={star} 
                         type="button" 
-                        className="text-gray-200 hover:text-yellow-400 focus:outline-none focus:ring-2 focus:ring-yellow-500 rounded-lg p-2 transition-all hover:scale-110 active:scale-95 min-h-[44px] min-w-[44px] flex items-center justify-center bg-gray-50"
+                        onClick={() => setNewReviewRating(star)}
+                        role="radio"
+                        aria-checked={newReviewRating === star}
+                        className={cn(
+                          "focus:outline-none focus:ring-2 focus:ring-yellow-500 rounded-lg p-2 transition-all hover:scale-110 active:scale-95 min-h-[44px] min-w-[44px] flex items-center justify-center",
+                          newReviewRating >= star ? "text-yellow-400 bg-yellow-50/50" : "text-gray-200 bg-gray-50"
+                        )}
                         aria-label={`Rate ${star} out of 5 stars`}
                       >
-                        <Star className="h-7 w-7" aria-hidden="true" />
+                        <Star className={cn("h-7 w-7", newReviewRating >= star && "fill-current")} aria-hidden="true" />
                       </button>
                     ))}
                   </div>
@@ -546,6 +589,7 @@ export default function ReviewsRatings() {
                   <label htmlFor="review-title" className="block text-sm font-bold text-gray-700 mb-2">Review Title</label>
                   <input
                     id="review-title"
+                    name="title"
                     type="text"
                     placeholder="Sum up your experience"
                     className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-yellow-500 focus:border-transparent transition-all outline-none bg-gray-50/50"
@@ -556,6 +600,7 @@ export default function ReviewsRatings() {
                   <label htmlFor="review-content" className="block text-sm font-bold text-gray-700 mb-2">Review Content</label>
                   <textarea
                     id="review-content"
+                    name="content"
                     rows={4}
                     placeholder="What did you like or dislike?"
                     className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-yellow-500 focus:border-transparent transition-all outline-none bg-gray-50/50 resize-none"

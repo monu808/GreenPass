@@ -61,8 +61,8 @@ export default function TouristSidebar({ isOpen, setIsOpen }: SidebarProps) {
   const [weather, setWeather] = useState<SidebarWeatherData | null>(null);
   const [loadingWeather, setLoadingWeather] = useState(true);
   const sidebarRef = useRef<HTMLDivElement>(null);
-  const touchStartX = useRef<number>(0);
-  const touchEndX = useRef<number>(0);
+  const touchStartX = useRef<number | null>(null);
+  const touchEndX = useRef<number | null>(null);
 
   // Focus trap and escape key for mobile drawer
   useFocusTrap(sidebarRef, !!isOpen);
@@ -71,6 +71,7 @@ export default function TouristSidebar({ isOpen, setIsOpen }: SidebarProps) {
   // Handle swipe to close
   const handleTouchStart = (e: React.TouchEvent) => {
     touchStartX.current = e.targetTouches[0].clientX;
+    touchEndX.current = e.targetTouches[0].clientX; // Initialize to avoid tap being treated as swipe
   };
 
   const handleTouchMove = (e: React.TouchEvent) => {
@@ -78,9 +79,16 @@ export default function TouristSidebar({ isOpen, setIsOpen }: SidebarProps) {
   };
 
   const handleTouchEnd = () => {
-    if (touchStartX.current - touchEndX.current > 70) {
-      // Swiped left
-      setIsOpen?.(false);
+    if (touchStartX.current !== null && touchEndX.current !== null) {
+      const distance = touchStartX.current - touchEndX.current;
+      const isLeftSwipe = distance > 70;
+      
+      if (isLeftSwipe) {
+        setIsOpen?.(false);
+        // Reset refs after closing to avoid stale values
+        touchStartX.current = null;
+        touchEndX.current = null;
+      }
     }
   };
 

@@ -42,6 +42,13 @@ export default function TouristBookings() {
   // Track which invoice is downloading
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
 
+  // Calculate carbon footprint percentages for selected booking
+  const breakdown = selectedBooking?.breakdown || { travel: 0, accommodation: 0, activities: 0 };
+  const totalImpact = selectedBooking?.carbonFootprint || (breakdown.travel + breakdown.accommodation + breakdown.activities) || 1;
+  const travelPct = (breakdown.travel / totalImpact) * 100;
+  const accommodationPct = (breakdown.accommodation / totalImpact) * 100;
+  const activitiesPct = (breakdown.activities / totalImpact) * 100;
+
   const modalRef = useRef<HTMLDivElement>(null);
   useModalAccessibility({ 
     modalRef, 
@@ -441,11 +448,11 @@ export default function TouristBookings() {
                   </div>
                   
                   {/* IMPACT VISUALIZATION */}
-                  <div className="space-y-3" role="img" aria-label={`Carbon footprint breakdown: Travel ${selectedBooking.breakdown?.travel}kg, Accommodation ${selectedBooking.breakdown?.accommodation}kg, Activities ${selectedBooking.breakdown?.activities}kg`}>
+                  <div className="space-y-3" role="img" aria-label={`Carbon footprint breakdown: Travel ${travelPct.toFixed(0)}%, Stay ${accommodationPct.toFixed(0)}%, Activities ${activitiesPct.toFixed(0)}%`}>
                     <div className="h-1.5 sm:h-2 w-full bg-gray-100 rounded-full overflow-hidden flex">
-                      <div className="h-full bg-emerald-500" style={{ width: '40%' }}></div>
-                      <div className="h-full bg-amber-400" style={{ width: '30%' }}></div>
-                      <div className="h-full bg-blue-400" style={{ width: '30%' }}></div>
+                      <div className="h-full bg-emerald-500" style={{ width: `${travelPct}%` }}></div>
+                      <div className="h-full bg-amber-400" style={{ width: `${accommodationPct}%` }}></div>
+                      <div className="h-full bg-blue-400" style={{ width: `${activitiesPct}%` }}></div>
                     </div>
                     <div className="flex justify-between text-[8px] sm:text-[9px] font-bold text-gray-400 uppercase tracking-tighter" aria-hidden="true">
                       <span className="flex items-center gap-1"><div className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-emerald-500"></div> Travel</span>

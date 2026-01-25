@@ -64,6 +64,7 @@ export default function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
   // Handle swipe to close
   const handleTouchStart = (e: React.TouchEvent) => {
     touchStartX.current = e.targetTouches[0].clientX;
+    touchEndX.current = e.targetTouches[0].clientX; // Initialize to zero delta for taps
   };
 
   const handleTouchMove = (e: React.TouchEvent) => {
@@ -71,8 +72,9 @@ export default function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
   };
 
   const handleTouchEnd = () => {
-    if (touchStartX.current - touchEndX.current > 70) {
-      // Swiped left
+    const delta = touchStartX.current - touchEndX.current;
+    if (delta > 70) {
+      // Swiped left significantly
       setIsOpen?.(false);
     }
   };

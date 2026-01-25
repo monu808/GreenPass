@@ -3,7 +3,7 @@
 import React, { useState, useRef } from 'react';
 import TouristLayout from '@/components/TouristLayout';
 import { useModalAccessibility } from "@/lib/accessibility";
-import { sanitizeSearchTerm } from '@/lib/utils';
+import { sanitizeSearchTerm, cn } from '@/lib/utils';
 import { validateInput, SearchFilterSchema } from '@/lib/validation';
 import { 
   Star, 

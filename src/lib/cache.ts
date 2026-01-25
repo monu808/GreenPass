@@ -29,7 +29,7 @@ export const ecologicalIndicatorCache = new LRUCache<string, Record<string, unkn
 /**
  * Cache-aware wrapper for fetching data
  */
-export async function withCache<T extends {}>(
+export async function withCache<T extends object>(
   cache: LRUCache<string, T>,
   key: string,
   fetchFn: () => Promise<T | null>

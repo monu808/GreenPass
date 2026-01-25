@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, Suspense, useCallback } from 'react';
+import React, { useState, useEffect, Suspense, useCallback, useMemo } from 'react';
 import Image from 'next/image';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { Calendar, Users, MapPin, Star, AlertTriangle, CheckCircle, Leaf, ShieldAlert, XCircle, RefreshCw, Globe, TreePine, Zap, Info } from 'lucide-react';
@@ -26,6 +26,12 @@ import {
   calculateSustainabilityScore,
   findLowImpactAlternatives
 } from '@/lib/sustainabilityScoring';
+import {
+  generateImpactWindow,
+  recommendAlternativeDates,
+  SeasonalImpactEntry,
+  ImpactLevel
+} from '@/lib/seasonalImpactCalculator';
 import { ORIGIN_LOCATIONS } from '@/data/originLocations';
 import { useAuth } from '@/contexts/AuthContext';
 import { 
@@ -35,6 +41,57 @@ import {
   CarbonFootprintResult, 
   SustainabilityFeatures
 } from '@/types';
+
+const WEEKDAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const IMPACT_ORDER: ImpactLevel[] = ['green', 'yellow', 'orange', 'red'];
+
+// Helper to parse date strings in local time (avoiding UTC midnight issues)
+const parseLocalDate = (value: string): Date => {
+  const [year, month, day] = value.split('-').map(Number);
+  return new Date(year, month - 1, day);
+};
+
+const LEVEL_TILE_CLASSES: Record<ImpactLevel, string> = {
+  green: 'bg-emerald-50 border-emerald-200 text-emerald-900',
+  yellow: 'bg-amber-50 border-amber-200 text-amber-900',
+  orange: 'bg-orange-50 border-orange-200 text-orange-900',
+  red: 'bg-rose-50 border-rose-200 text-rose-900'
+};
+
+const LEVEL_RING_CLASSES: Record<ImpactLevel, string> = {
+  green: 'ring-emerald-400 focus-visible:ring-emerald-500',
+  yellow: 'ring-amber-400 focus-visible:ring-amber-500',
+  orange: 'ring-orange-400 focus-visible:ring-orange-500',
+  red: 'ring-rose-400 focus-visible:ring-rose-500'
+};
+
+const LEVEL_SUMMARY_CLASSES: Record<ImpactLevel, string> = {
+  green: 'border-emerald-200 bg-emerald-50 text-emerald-900',
+  yellow: 'border-amber-200 bg-amber-50 text-amber-900',
+  orange: 'border-orange-200 bg-orange-50 text-orange-900',
+  red: 'border-rose-200 bg-rose-50 text-rose-900'
+};
+
+const LEVEL_DOT_CLASSES: Record<ImpactLevel, string> = {
+  green: 'bg-emerald-500',
+  yellow: 'bg-amber-400',
+  orange: 'bg-orange-500',
+  red: 'bg-rose-500'
+};
+
+const LEVEL_BADGE_CLASSES: Record<ImpactLevel, string> = {
+  green: 'bg-emerald-100 text-emerald-700',
+  yellow: 'bg-amber-100 text-amber-700',
+  orange: 'bg-orange-100 text-orange-700',
+  red: 'bg-rose-100 text-rose-700'
+};
+
+const LEGEND_LABELS: Record<ImpactLevel, string> = {
+  green: 'Low Impact',
+  yellow: 'Moderate Impact',
+  orange: 'High Impact',
+  red: 'Restricted'
+};
 
 function BookDestinationForm() {
   const { user } = useAuth();
@@ -80,6 +137,23 @@ function BookDestinationForm() {
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [carbonFootprint, setCarbonFootprint] = useState<CarbonFootprintResult | null>(null);
+  const [weatherSnapshot, setWeatherSnapshot] = useState<WeatherConditions | undefined>(undefined);
+  const [impactWindow, setImpactWindow] = useState<SeasonalImpactEntry[]>([]);
+  const [selectedImpactEntry, setSelectedImpactEntry] = useState<SeasonalImpactEntry | null>(null);
+  const [alternativeImpactDates, setAlternativeImpactDates] = useState<SeasonalImpactEntry[]>([]);
+
+  const paddedImpactEntries = useMemo<(SeasonalImpactEntry | null)[]>(() => {
+    if (!impactWindow.length) return [];
+    const firstDate = parseLocalDate(impactWindow[0].date);
+    const prefix = Array.from({ length: firstDate.getDay() }, () => null);
+    const merged = [...prefix, ...impactWindow];
+    const remainder = merged.length % 7;
+    if (remainder === 0) {
+      return merged;
+    }
+    const suffix = Array.from({ length: 7 - remainder }, () => null);
+    return [...merged, ...suffix];
+  }, [impactWindow]);
 
   const loadDestination = useCallback(async () => {
     try {
@@ -137,10 +211,11 @@ function BookDestinationForm() {
         ]);
 
         const weatherConditions: WeatherConditions | undefined = weather ? {
-          alert_level: weather.alert_level || 'none',
+          weatherAlertLevel: weather.alert_level || 'none',
           temperature: weather.temperature,
           humidity: weather.humidity
         } : undefined;
+        setWeatherSnapshot(weatherConditions);
 
         // 2. Use single dynamic capacity call with pre-fetched data
         const dynResult = await policyEngine.getDynamicCapacity(
@@ -177,8 +252,8 @@ function BookDestinationForm() {
     // Calculate actual stay nights from dates
     let stayNights = 2; // Default fallback
     if (formData.checkInDate && formData.checkOutDate) {
-      const start = new Date(formData.checkInDate);
-      const end = new Date(formData.checkOutDate);
+      const start = parseLocalDate(formData.checkInDate);
+      const end = parseLocalDate(formData.checkOutDate);
       
       if (!isNaN(start.getTime()) && !isNaN(end.getTime())) {
         const diffTime = end.getTime() - start.getTime();
@@ -224,6 +299,46 @@ function BookDestinationForm() {
     }
   }, [destination, formData.originLocation, formData.groupSize, formData.transportType, formData.checkInDate, formData.checkOutDate, calculateCarbonFootprint]);
 
+  useEffect(() => {
+    if (!destination) {
+      setImpactWindow([]);
+      return;
+    }
+
+    const entries = generateImpactWindow({
+      destination,
+      weather: weatherSnapshot,
+      capacityResult: capacityResult || undefined,
+    });
+    setImpactWindow(entries);
+  }, [destination, weatherSnapshot, capacityResult]);
+
+  useEffect(() => {
+    if (!formData.checkInDate) {
+      setSelectedImpactEntry(null);
+      setAlternativeImpactDates([]);
+      return;
+    }
+
+    const entry = impactWindow.find(item => item.date === formData.checkInDate) || null;
+    setSelectedImpactEntry(entry);
+
+    if (entry && (entry.level === 'orange' || entry.level === 'red')) {
+      setAlternativeImpactDates(recommendAlternativeDates(entry.date, impactWindow));
+    } else {
+      setAlternativeImpactDates([]);
+    }
+  }, [formData.checkInDate, impactWindow]);
+
+  const clearFieldError = (field: string) => {
+    setErrors(prev => {
+      if (!prev[field]) return prev;
+      const next = { ...prev };
+      delete next[field];
+      return next;
+    });
+  };
+
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target;
     const checked = (e.target as HTMLInputElement).checked;
@@ -250,13 +365,19 @@ function BookDestinationForm() {
       }));
     }
     // Clear error for the field being edited
-    if (errors[name]) {
-      setErrors(prev => {
-        const newErrors = { ...prev };
-        delete newErrors[name];
-        return newErrors;
-      });
-    }
+    clearFieldError(name);
+  };
+
+  const handleCalendarSelect = (date: string) => {
+    setFormData(prev => {
+      const shouldResetCheckout = prev.checkOutDate && parseLocalDate(prev.checkOutDate) <= parseLocalDate(date);
+      return {
+        ...prev,
+        checkInDate: date,
+        checkOutDate: shouldResetCheckout ? '' : prev.checkOutDate,
+      };
+    });
+    clearFieldError('checkInDate');
   };
 
   const sanitizeFormData = (data: typeof formData) => {
@@ -601,10 +722,126 @@ function BookDestinationForm() {
                 <span className="text-xs font-bold capitalize">{destination.ecologicalSensitivity} Sensitivity</span>
               </div>
             </div>
+
           </div>
         </div>
 
-        {/* Policy Section */}
+        {impactWindow.length > 0 && (
+          <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 space-y-6">
+            <div className="flex flex-wrap items-center justify-between gap-4">
+              <div>
+                <p className="text-xs font-bold uppercase tracking-[0.2em] text-gray-500">Seasonal Impact Guide</p>
+                <p className="text-sm text-gray-600">Color-coded calendar blends seasonality, weather alerts, and live capacity.</p>
+              </div>
+              <div className="flex flex-wrap items-center gap-3 text-xs font-semibold text-gray-600">
+                {IMPACT_ORDER.map(level => (
+                  <div key={level} className="flex items-center gap-1">
+                    <span className={`h-3 w-3 rounded-full ${LEVEL_DOT_CLASSES[level]}`} aria-hidden="true" />
+                    <span>{LEGEND_LABELS[level]}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="-mx-4 overflow-x-auto md:mx-0">
+              <div className="min-w-[640px] space-y-3 px-4 md:px-0">
+                <div className="grid grid-cols-7 gap-2 text-[11px] font-black uppercase tracking-widest text-gray-400">
+                  {WEEKDAY_LABELS.map(day => (
+                    <div key={day} className="text-center">{day}</div>
+                  ))}
+                </div>
+                <div className="grid grid-cols-7 gap-2">
+                  {paddedImpactEntries.map((entry, idx) => {
+                    if (!entry) {
+                      return (
+                        <div key={`pad-${idx}`} className="h-[96px] rounded-2xl border border-transparent" aria-hidden="true" />
+                      );
+                    }
+                    const isSelected = selectedImpactEntry?.date === entry.date;
+                    const tooltipId = `impact-tooltip-${entry.date}`;
+                    const dayNumber = parseLocalDate(entry.date).getDate();
+                    return (
+                      <div key={entry.date} className="relative group">
+                        <button
+                          type="button"
+                          onClick={() => handleCalendarSelect(entry.date)}
+                          className={`w-full rounded-2xl border px-3 py-3 text-left text-xs font-bold min-h-[96px] transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 ${LEVEL_TILE_CLASSES[entry.level]} ${isSelected ? `${LEVEL_RING_CLASSES[entry.level]} ring-2 ring-offset-2` : 'hover:-translate-y-0.5'}`}
+                          aria-describedby={tooltipId}
+                          title={`${entry.levelLabel}: ${entry.reasons.join(', ')}`}
+                        >
+                          <div className="flex items-center justify-between">
+                            <span className="text-lg font-black">{dayNumber}</span>
+                            <span className="text-[10px] uppercase tracking-wide">{entry.levelLabel}</span>
+                          </div>
+                          <p className="mt-2 text-[10px] font-semibold leading-snug opacity-80 line-clamp-2">{entry.reasons[0]}</p>
+                        </button>
+                        <div
+                          id={tooltipId}
+                          role="tooltip"
+                          className="pointer-events-none absolute left-1/2 top-full z-20 hidden w-56 -translate-x-1/2 rounded-2xl border border-gray-200 bg-white p-3 text-[11px] text-gray-800 shadow-2xl group-hover:block group-focus-within:block"
+                        >
+                          <p className="text-xs font-black uppercase tracking-[0.2em] text-gray-400">{entry.levelLabel}</p>
+                          <p className="text-sm font-bold text-gray-900">{entry.label}</p>
+                          <p className="mt-1 text-[11px] leading-relaxed text-gray-600">{entry.reasons.join(' • ')}</p>
+                          <p className="mt-2 text-[11px] font-semibold text-gray-900">{entry.recommendation}</p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+
+            {selectedImpactEntry && (
+              <div className={`flex flex-col gap-2 rounded-2xl border p-4 text-sm shadow-sm ${LEVEL_SUMMARY_CLASSES[selectedImpactEntry.level]}`}>
+                <div className="flex items-center gap-3">
+                  {selectedImpactEntry.level === 'green' && <Leaf className="h-6 w-6" aria-hidden="true" />}
+                  {selectedImpactEntry.level === 'yellow' && <Info className="h-6 w-6" aria-hidden="true" />}
+                  {selectedImpactEntry.level === 'orange' && <AlertTriangle className="h-6 w-6" aria-hidden="true" />}
+                  {selectedImpactEntry.level === 'red' && <ShieldAlert className="h-6 w-6" aria-hidden="true" />}
+                  <div>
+                    <p className="text-[10px] font-black uppercase tracking-[0.3em]">{selectedImpactEntry.levelLabel}</p>
+                    <p className="text-lg font-bold">{selectedImpactEntry.label}</p>
+                  </div>
+                </div>
+                <p className="text-sm font-semibold opacity-80">{selectedImpactEntry.recommendation}</p>
+                <ul className="list-disc space-y-1 pl-5 text-xs opacity-80">
+                  {selectedImpactEntry.reasons.map((reason, idx) => (
+                    <li key={idx}>{reason}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {alternativeImpactDates.length > 0 && (
+              <div className="rounded-2xl border border-amber-200 bg-amber-50/80 p-4">
+                <div className="flex items-center gap-2 text-amber-900">
+                  <AlertTriangle className="h-5 w-5 flex-shrink-0" aria-hidden="true" />
+                  <p className="text-sm font-bold">Selected date has higher ecological impact. Consider these alternatives:</p>
+                </div>
+                <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
+                  {alternativeImpactDates.map(entry => (
+                    <button
+                      key={entry.date}
+                      type="button"
+                      onClick={() => handleCalendarSelect(entry.date)}
+                      className="rounded-2xl border border-white/40 bg-white p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+                    >
+                      <div className="flex items-center justify-between text-sm font-bold text-gray-900">
+                        <span>{entry.label}</span>
+                        <span className={`rounded-full px-2 py-0.5 text-[10px] font-black uppercase ${LEVEL_BADGE_CLASSES[entry.level]}`}>
+                          {entry.levelLabel}
+                        </span>
+                      </div>
+                      <p className="mt-2 text-[11px] text-gray-600 line-clamp-2">{entry.recommendation}</p>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
         {destination && (destination.ecologicalSensitivity !== 'low' || policy?.bookingRestrictionMessage) && (
           <div className={`${
             destination.ecologicalSensitivity === 'critical' ? 'bg-red-50 border-red-400' :
@@ -640,8 +877,8 @@ function BookDestinationForm() {
                     {policy?.bookingRestrictionMessage || `This is a ${destination.ecologicalSensitivity}-sensitivity area. Please follow the guidelines.`}
                   </p>
                 </div>
-                
-                <div className="flex flex-wrap gap-2">
+
+                <div className="flex flex-wrap gap-3">
                   {policy?.requiresPermit && (
                     <div className={`px-3 py-1.5 border rounded-full text-[10px] font-black uppercase shadow-sm ${
                       destination.ecologicalSensitivity === 'critical' ? 'bg-red-100 text-red-900 border-red-200' :

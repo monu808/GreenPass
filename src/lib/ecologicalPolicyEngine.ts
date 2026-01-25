@@ -62,7 +62,7 @@ export const DEFAULT_POLICIES: Record<SensitivityLevel, EcologicalPolicy> = {
 };
 
 export interface WeatherConditions {
-  alert_level: 'none' | 'low' | 'medium' | 'high' | 'critical';
+  weatherAlertLevel: 'none' | 'low' | 'medium' | 'high' | 'critical';
   temperature?: number;
   humidity?: number;
 }
@@ -241,7 +241,7 @@ export class EcologicalPolicyEngine {
   }
 
   async getWeatherFactor(destinationId: string, weatherData?: WeatherConditions): Promise<number> {
-    if (weatherData && weatherData.alert_level) {
+    if (weatherData && weatherData.weatherAlertLevel) {
       const multipliers: Record<string, number> = {
         none: 1.0,
         low: 0.90,
@@ -249,25 +249,26 @@ export class EcologicalPolicyEngine {
         high: 0.80,
         critical: 0.75
       };
-      return multipliers[weatherData.alert_level] || 1.0;
+      return multipliers[weatherData.weatherAlertLevel] || 1.0;
     }
 
     const dbService = getDbService();
     const weather = await dbService.getLatestWeatherData(destinationId);
     
-    if (!weather || !weather.alert_level || weather.alert_level === 'none') {
+    // Handle the case where the weather data comes from the database with alert_level
+    const alertLevel = weather?.alert_level || 'none';
+    if (alertLevel === 'none') {
       return 1.0;
     }
 
     const multipliers: Record<string, number> = {
-      none: 1.0,
       low: 0.90,
       medium: 0.85,
       high: 0.80,
       critical: 0.75
     };
 
-    return multipliers[weather.alert_level] || 1.0;
+    return multipliers[alertLevel] || 1.0;
   }
 
   getSeasonFactor(date: Date = new Date()): number {
@@ -432,7 +433,7 @@ export class EcologicalPolicyEngine {
       const indicators = indicatorsMap.get(dest.id);
       
       const weatherConditions: WeatherConditions | undefined = weather ? {
-        alert_level: weather.alert_level || 'none',
+        weatherAlertLevel: weather.alert_level || 'none',
         temperature: weather.temperature,
         humidity: weather.humidity
       } : undefined;

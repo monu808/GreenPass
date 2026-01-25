@@ -395,32 +395,32 @@ export default function BookingsPage() {
                           {new Date(booking.registrationDate).toLocaleDateString()}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm">
-                          <div className="flex space-x-3">
+                          <div className="flex space-x-2">
                             <button
                               onClick={() => handleViewBooking(booking.id)}
-                              className="text-green-600 hover:text-green-700 transition-colors"
+                              className="text-green-600 hover:text-green-700 transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center rounded-lg hover:bg-green-50"
                               title="View Details"
                               aria-label="View booking"
                             >
-                              <Eye className="h-4 w-4" />
+                              <Eye className="h-5 w-5" />
                             </button>
                             {booking.status === "pending" && (
                               <>
                                 <button
                                   onClick={() => handleApproveBooking(booking.id)}
-                                  className="text-blue-600 hover:text-blue-700 transition-colors"
+                                  className="text-blue-600 hover:text-blue-700 transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center rounded-lg hover:bg-blue-50"
                                   title="Approve Booking"
                                   aria-label="Approve booking"
                                 >
-                                  <CheckCircle className="h-4 w-4" />
+                                  <CheckCircle className="h-5 w-5" />
                                 </button>
                                 <button
                                   onClick={() => handleCancelBooking(booking.id)}
-                                  className="text-red-600 hover:text-red-700 transition-colors"
+                                  className="text-red-600 hover:text-red-700 transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center rounded-lg hover:bg-red-50"
                                   title="Cancel Booking"
                                   aria-label="Cancel booking"
                                 >
-                                  <XCircle className="h-4 w-4" />
+                                  <XCircle className="h-5 w-5" />
                                 </button>
                               </>
                             )}
@@ -435,52 +435,52 @@ export default function BookingsPage() {
               {/* Mobile View Cards */}
               <div className="lg:hidden divide-y divide-gray-100">
                 {filteredBookings.map((booking) => (
-                  <div key={booking.id} className="p-4 space-y-3">
+                  <div key={booking.id} className="p-4 space-y-4">
                     <div className="flex justify-between items-start">
                       <div>
-                        <h3 className="text-sm font-semibold text-gray-900">{booking.name}</h3>
-                        <p className="text-xs text-gray-500">{booking.email}</p>
+                        <h3 className="text-base font-bold text-gray-900">{booking.name}</h3>
+                        <p className="text-sm text-gray-500 mt-0.5">{booking.email}</p>
                       </div>
                       <StatusBadge status={booking.status} />
                     </div>
                     
-                    <div className="grid grid-cols-2 gap-y-2 text-xs">
+                    <div className="grid grid-cols-2 gap-3 text-sm">
                       <div className="flex items-center text-gray-600">
-                        <MapPin className="h-3.5 w-3.5 mr-1.5 text-gray-400" aria-hidden="true" />
-                        {getDestinationName(booking.destination)}
+                        <MapPin className="h-4 w-4 mr-2 text-gray-400" aria-hidden="true" />
+                        <span className="truncate">{getDestinationName(booking.destination)}</span>
                       </div>
                       <div className="flex items-center text-gray-600">
-                        <Users className="h-3.5 w-3.5 mr-1.5 text-gray-400" aria-hidden="true" />
+                        <Users className="h-4 w-4 mr-2 text-gray-400" aria-hidden="true" />
                         {booking.groupSize} members
                       </div>
                       <div className="col-span-2 flex items-center text-gray-600">
-                        <Calendar className="h-3.5 w-3.5 mr-1.5 text-gray-400" aria-hidden="true" />
+                        <Calendar className="h-4 w-4 mr-2 text-gray-400" aria-hidden="true" />
                         {formatDateRange(booking.checkInDate, booking.checkOutDate)}
                       </div>
                     </div>
 
-                    <div className="flex justify-end items-center pt-2 space-x-3 border-t border-gray-50">
+                    <div className="flex flex-wrap gap-2 pt-2">
                       <button
                         onClick={() => handleViewBooking(booking.id)}
-                        className="flex items-center text-xs font-medium text-green-600 bg-green-50 px-3 py-1.5 rounded-lg"
+                        className="flex-1 flex items-center justify-center min-h-[44px] text-sm font-semibold text-green-700 bg-green-50 border border-green-100 px-4 py-2 rounded-xl active:bg-green-100 transition-colors"
                       >
-                        <Eye className="h-3.5 w-3.5 mr-1.5" />
+                        <Eye className="h-4 w-4 mr-2" />
                         Details
                       </button>
                       {booking.status === "pending" && (
                         <>
                           <button
                             onClick={() => handleApproveBooking(booking.id)}
-                            className="flex items-center text-xs font-medium text-blue-600 bg-blue-50 px-3 py-1.5 rounded-lg"
+                            className="flex-1 flex items-center justify-center min-h-[44px] text-sm font-semibold text-blue-700 bg-blue-50 border border-blue-100 px-4 py-2 rounded-xl active:bg-blue-100 transition-colors"
                           >
-                            <CheckCircle className="h-3.5 w-3.5 mr-1.5" />
+                            <CheckCircle className="h-4 w-4 mr-2" />
                             Approve
                           </button>
                           <button
                             onClick={() => handleCancelBooking(booking.id)}
-                            className="flex items-center text-xs font-medium text-red-600 bg-red-50 px-3 py-1.5 rounded-lg"
+                            className="flex-1 flex items-center justify-center min-h-[44px] text-sm font-semibold text-red-700 bg-red-50 border border-red-100 px-4 py-2 rounded-xl active:bg-red-100 transition-colors"
                           >
-                            <XCircle className="h-3.5 w-3.5 mr-1.5" />
+                            <XCircle className="h-4 w-4 mr-2" />
                             Cancel
                           </button>
                         </>

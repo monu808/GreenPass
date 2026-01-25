@@ -495,91 +495,82 @@ export default function ReviewsRatings() {
         {/* Write Review Modal */}
         {showWriteReview && (
           <div 
-            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center z-50 p-0 sm:p-4"
             role="dialog"
             aria-modal="true"
             aria-labelledby="write-review-title"
           >
             <div 
               ref={modalRef}
-              className="bg-white rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto"
+              className="bg-white rounded-t-[2rem] sm:rounded-2xl max-w-2xl w-full h-[90vh] sm:h-auto sm:max-h-[90vh] overflow-hidden flex flex-col animate-in slide-in-from-bottom duration-300"
             >
-              <div className="p-6">
-                <div className="flex items-center justify-between mb-6">
-                  <h2 id="write-review-title" className="text-xl font-bold text-gray-900">Write a Review</h2>
-                  <button
-                    onClick={() => setShowWriteReview(false)}
-                    className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-yellow-500"
-                    aria-label="Close modal"
-                  >
-                    <span aria-hidden="true" className="text-2xl leading-none">×</span>
-                  </button>
+              <div className="p-6 border-b border-gray-100 flex items-center justify-between sticky top-0 bg-white z-10">
+                <h2 id="write-review-title" className="text-xl font-bold text-gray-900">Write a Review</h2>
+                <button
+                  onClick={() => setShowWriteReview(false)}
+                  className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-yellow-500 min-h-[44px] min-w-[44px] flex items-center justify-center"
+                  aria-label="Close modal"
+                >
+                  <span aria-hidden="true" className="text-2xl leading-none">×</span>
+                </button>
+              </div>
+              
+              <form className="p-6 space-y-6 overflow-y-auto no-scrollbar flex-1">
+                <div>
+                  <label htmlFor="destination-select" className="block text-sm font-bold text-gray-700 mb-2">Destination</label>
+                  <select id="destination-select" className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-yellow-500 focus:border-transparent transition-all outline-none bg-gray-50/50">
+                    <option value="">Select destination...</option>
+                    {destinations.map(dest => (
+                      <option key={dest} value={dest}>{dest}</option>
+                    ))}
+                  </select>
                 </div>
                 
-                <form className="space-y-4">
-                  <div>
-                    <label htmlFor="destination-select" className="block text-sm font-medium text-gray-700 mb-1">Destination</label>
-                    <select id="destination-select" className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-transparent">
-                      <option value="">Select destination...</option>
-                      {destinations.map(dest => (
-                        <option key={dest} value={dest}>{dest}</option>
-                      ))}
-                    </select>
+                <div>
+                  <p id="rating-label" className="text-sm font-bold text-gray-700 mb-3">Rating</p>
+                  <div className="flex space-x-2" role="radiogroup" aria-labelledby="rating-label">
+                    {[1, 2, 3, 4, 5].map((star) => (
+                      <button 
+                        key={star} 
+                        type="button" 
+                        className="text-gray-200 hover:text-yellow-400 focus:outline-none focus:ring-2 focus:ring-yellow-500 rounded-lg p-2 transition-all hover:scale-110 active:scale-95 min-h-[44px] min-w-[44px] flex items-center justify-center bg-gray-50"
+                        aria-label={`Rate ${star} out of 5 stars`}
+                      >
+                        <Star className="h-7 w-7" aria-hidden="true" />
+                      </button>
+                    ))}
                   </div>
-                  
-                  <div>
-                    <p id="rating-label" className="text-sm font-medium text-gray-700 mb-1">Rating</p>
-                    <div className="flex space-x-1" role="radiogroup" aria-labelledby="rating-label">
-                      {[1, 2, 3, 4, 5].map((star) => (
-                        <button 
-                          key={star} 
-                          type="button" 
-                          className="text-gray-300 hover:text-yellow-400 focus:outline-none focus:ring-2 focus:ring-yellow-500 rounded-sm p-1 transition-colors"
-                          aria-label={`Rate ${star} out of 5 stars`}
-                        >
-                          <Star className="h-6 w-6" aria-hidden="true" />
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                  
-                  <div>
-                    <label htmlFor="review-title" className="block text-sm font-medium text-gray-700 mb-1">Review Title</label>
-                    <input
-                      id="review-title"
-                      type="text"
-                      placeholder="Summarize your experience..."
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-transparent"
-                    />
-                  </div>
-                  
-                  <div>
-                    <label htmlFor="review-content" className="block text-sm font-medium text-gray-700 mb-1">Your Review</label>
-                    <textarea
-                      id="review-content"
-                      rows={4}
-                      placeholder="Share your experience with other travelers..."
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-transparent"
-                    />
-                  </div>
-                  
-                  <div className="flex justify-end space-x-3 pt-4">
-                    <button
-                      type="button"
-                      onClick={() => setShowWriteReview(false)}
-                      className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      type="submit"
-                      className="px-4 py-2 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 transition-colors"
-                    >
-                      Submit Review
-                    </button>
-                  </div>
-                </form>
-              </div>
+                </div>
+                
+                <div>
+                  <label htmlFor="review-title" className="block text-sm font-bold text-gray-700 mb-2">Review Title</label>
+                  <input
+                    id="review-title"
+                    type="text"
+                    placeholder="Sum up your experience"
+                    className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-yellow-500 focus:border-transparent transition-all outline-none bg-gray-50/50"
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor="review-content" className="block text-sm font-bold text-gray-700 mb-2">Review Content</label>
+                  <textarea
+                    id="review-content"
+                    rows={4}
+                    placeholder="What did you like or dislike?"
+                    className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-yellow-500 focus:border-transparent transition-all outline-none bg-gray-50/50 resize-none"
+                  />
+                </div>
+
+                <div className="pt-2">
+                  <button 
+                    type="submit"
+                    className="w-full py-4 bg-yellow-500 text-white rounded-xl font-bold text-lg hover:bg-yellow-600 transition-all shadow-lg shadow-yellow-500/20 active:scale-[0.98]"
+                  >
+                    Post Review
+                  </button>
+                </div>
+              </form>
             </div>
           </div>
         )}

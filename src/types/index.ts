@@ -123,6 +123,13 @@ export interface DashboardStats {
   recyclingRate: number;
 }
 
+export interface EcologicalDamageIndicators {
+  soilCompaction: number;
+  vegetationDisturbance: number;
+  wildlifeDisturbance: number;
+  waterSourceImpact: number;
+}
+
 export interface ComplianceReport {
   id: string;
   reportPeriod: string;
@@ -137,12 +144,7 @@ export interface ComplianceReport {
   };
   carbonFootprint: number;
   ecologicalImpactIndex: number;
-  ecologicalDamageIndicators?: {
-    soilCompaction: number;
-    vegetationDisturbance: number;
-    wildlifeDisturbance: number;
-    waterSourceImpact: number;
-  };
+  ecologicalDamageIndicators?: EcologicalDamageIndicators;
   previousPeriodScore?: number;
   policyViolationsCount: number;
   totalFines: number;

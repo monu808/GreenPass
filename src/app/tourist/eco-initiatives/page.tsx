@@ -353,8 +353,8 @@ export default function EcoInitiativesPage() {
         {registrations.length > 0 && (
           <section className="space-y-8">
             <h2 className="text-3xl font-black text-slate-900 tracking-tight">My Registered Activities</h2>
-            <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
-              <div className="overflow-x-auto">
+            <div className="bg-white rounded-[2rem] border border-slate-200 shadow-sm overflow-hidden">
+              <div className="hidden lg:block overflow-x-auto">
                 <table className="w-full">
                   <thead>
                     <tr className="bg-slate-50 border-b border-slate-200">
@@ -398,7 +398,7 @@ export default function EcoInitiativesPage() {
                             <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-black uppercase tracking-widest ${
                               reg.status === 'registered' ? 'bg-blue-50 text-blue-600' :
                               reg.status === 'attended' ? 'bg-emerald-50 text-emerald-600' :
-                              'bg-slate-100 text-slate-400'
+                              'bg-slate-50 text-slate-600'
                             }`}>
                               {reg.status}
                             </span>
@@ -407,9 +407,10 @@ export default function EcoInitiativesPage() {
                             {reg.status === 'registered' && (
                               <button 
                                 onClick={() => handleCancelClick(reg)}
-                                className="text-slate-400 hover:text-red-600 font-bold transition-colors"
+                                className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all"
+                                aria-label="Cancel registration"
                               >
-                                Cancel
+                                <Trash2 className="h-5 w-5" />
                               </button>
                             )}
                           </td>
@@ -418,6 +419,67 @@ export default function EcoInitiativesPage() {
                     })}
                   </tbody>
                 </table>
+              </div>
+
+              {/* Mobile Card View for Registrations */}
+              <div className="lg:hidden divide-y divide-slate-100">
+                {registrations.map(reg => {
+                  const activity = getActivityForRegistration(reg.activityId);
+                  return (
+                    <div key={reg.id} className="p-6 space-y-6 active:bg-slate-50 transition-colors">
+                      <div className="flex justify-between items-start">
+                        <div className="flex items-center gap-4">
+                          <div className="w-14 h-14 rounded-2xl bg-slate-100 shimmer overflow-hidden flex-shrink-0 relative">
+                            <Image 
+                              src={`https://source.unsplash.com/featured/?nature,cleanup&sig=${reg.id}`} 
+                              className="w-full h-full object-cover" 
+                              alt={activity?.title || 'Cleanup activity'}
+                              fill
+                              sizes="56px"
+                            />
+                          </div>
+                          <div>
+                            <h3 className="font-black text-slate-900 tracking-tight">{activity?.title || 'Unknown Activity'}</h3>
+                            <div className="flex items-center gap-1.5 text-slate-400 text-xs font-black uppercase tracking-widest mt-0.5">
+                              <MapPin className="h-3 w-3" />
+                              {activity?.location}
+                            </div>
+                          </div>
+                        </div>
+                        <span className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest ${
+                          reg.status === 'registered' ? 'bg-blue-50 text-blue-600' :
+                          reg.status === 'attended' ? 'bg-emerald-50 text-emerald-600' :
+                          'bg-slate-50 text-slate-600'
+                        }`}>
+                          {reg.status}
+                        </span>
+                      </div>
+
+                      <div className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                        <div className="flex items-center gap-3">
+                          <div className="p-2 bg-white rounded-lg shadow-sm">
+                            <Calendar className="h-4 w-4 text-emerald-500" />
+                          </div>
+                          <div>
+                            <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest leading-none mb-1">Date & Time</p>
+                            <p className="text-sm font-bold text-slate-700">
+                              {activity ? format(new Date(activity.startTime), 'MMM d, h:mm a') : 'N/A'}
+                            </p>
+                          </div>
+                        </div>
+                        {reg.status === 'registered' && (
+                          <button 
+                            onClick={() => handleCancelClick(reg)}
+                            className="h-12 w-12 flex items-center justify-center bg-white text-slate-400 hover:text-red-500 rounded-xl shadow-sm border border-slate-100 active:scale-95 transition-all"
+                            aria-label="Cancel registration"
+                          >
+                            <Trash2 className="h-5 w-5" />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             </div>
           </section>

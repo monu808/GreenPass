@@ -1,5 +1,4 @@
-import { supabase, createServerComponentClient } from '@/lib/supabase';
-import { SupabaseClient } from '@supabase/supabase-js';
+import { supabase } from '@/lib/supabase';
 import { 
   Tourist, 
   Destination, 
@@ -19,9 +18,7 @@ import {
 } from '@/types';
 import { Database } from '@/types/database';
 import { getPolicyEngine } from './ecologicalPolicyEngine';
-import { format, isWithinInterval } from 'date-fns';
 import * as mockData from '@/data/mockData';
-import { weatherCache, withCache, ecologicalIndicatorCache } from './cache';
 
 // Type aliases for database types
 export type DbTourist = Database['public']['Tables']['tourists']['Row'];
@@ -1548,7 +1545,7 @@ class DatabaseService {
     }
   }
 
-  async getLatestEcologicalIndicators(destinationId: string): Promise<{ soil_compaction: number; vegetation_disturbance: number; wildlife_disturbance: number; water_source_impact: number } | null> {
+  async getLatestEcologicalIndicators(_destinationId: string): Promise<{ soil_compaction: number; vegetation_disturbance: number; wildlife_disturbance: number; water_source_impact: number } | null> {
     try {
       if (this.isPlaceholderMode() || !db) return null;
 

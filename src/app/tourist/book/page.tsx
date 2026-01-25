@@ -8,31 +8,33 @@ import TouristLayout from '@/components/TouristLayout';
 import { getDbService } from '@/lib/databaseService';
 import { getPolicyEngine, WeatherConditions } from '@/lib/ecologicalPolicyEngine';
 import { getCarbonCalculator } from '@/lib/carbonFootprintCalculator';
-import { 
-  sanitizeForDatabase, 
+import {
+  sanitizeForDatabase,
   sanitizeObject,
-  sanitizeSearchTerm 
+  sanitizeSearchTerm
 } from '@/lib/utils';
-import { 
-  validateInput, 
+import {
+  validateInput,
   BookingDataSchema,
-  TransportTypeEnum 
+  TransportTypeEnum
 } from '@/lib/validation';
-import { 
-  isValidEcologicalSensitivity, 
-  isValidWasteManagementLevel 
+import {
+  isValidEcologicalSensitivity,
+  isValidWasteManagementLevel
 } from '@/lib/typeGuards';
-import { 
+import {
   calculateSustainabilityScore,
   findLowImpactAlternatives
 } from '@/lib/sustainabilityScoring';
 import { ORIGIN_LOCATIONS } from '@/data/originLocations';
 import { useAuth } from '@/contexts/AuthContext';
-import { 
-  Destination, 
-  Alert, 
-  DynamicCapacityResult, 
-  CarbonFootprintResult, 
+import { useBookingMutation } from '@/hooks/mutations/useBookingMutation';
+import { useToast } from '@/components/providers/ToastProvider';
+import {
+  Destination,
+  Alert,
+  DynamicCapacityResult,
+  CarbonFootprintResult,
   SustainabilityFeatures
 } from '@/types';
 
@@ -41,18 +43,18 @@ function BookDestinationForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const destinationId = searchParams.get('destination');
-  
+  const toast = useToast();
+
   const [destination, setDestination] = useState<Destination | null>(null);
   const [allDestinationsState, setAllDestinationsState] = useState<Destination[]>([]);
   const [loading, setLoading] = useState(true);
-  const [submitting, setSubmitting] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [eligibility, setEligibility] = useState<{ allowed: boolean; reason: string | null }>({ allowed: true, reason: null });
   const [ecoAlert, setEcoAlert] = useState<Partial<Alert> | null>(null);
   const [availableSpots, setAvailableSpots] = useState<number>(0);
   const [adjustedCapacity, setAdjustedCapacity] = useState<number>(0);
   const [capacityResult, setCapacityResult] = useState<DynamicCapacityResult | null>(null);
-  
+
   const policyEngine = getPolicyEngine();
   const policy = destination ? policyEngine.getPolicy(destination.ecologicalSensitivity) : null;
 
@@ -83,16 +85,16 @@ function BookDestinationForm() {
     try {
       const dbService = getDbService();
       const fetchedDestinations = await dbService.getDestinations();
-      
+
       const mappedDestinations: Destination[] = fetchedDestinations.map(d => {
         // Validate ecological sensitivity
-        const ecologicalSensitivity = isValidEcologicalSensitivity(d.ecological_sensitivity) 
-          ? d.ecological_sensitivity 
+        const ecologicalSensitivity = isValidEcologicalSensitivity(d.ecological_sensitivity)
+          ? d.ecological_sensitivity
           : 'medium';
 
         // Normalize sustainability features or use typed object from database
         let sustainabilityFeatures: SustainabilityFeatures | undefined = undefined;
-        
+
         if (d.sustainability_features) {
           // Use type guard for inner enum validation if needed, otherwise trust typed DB row
           const sf = d.sustainability_features;
@@ -124,10 +126,10 @@ function BookDestinationForm() {
 
       setAllDestinationsState(mappedDestinations);
       const found = mappedDestinations.find(d => d.id === destinationId);
-      
+
       if (found) {
         setDestination(found);
-        
+
         // 1. Fetch weather and indicators once
         const [weather, indicators] = await Promise.all([
           dbService.getLatestWeatherData(found.id),
@@ -142,11 +144,11 @@ function BookDestinationForm() {
 
         // 2. Use single dynamic capacity call with pre-fetched data
         const dynResult = await policyEngine.getDynamicCapacity(found, weatherConditions, indicators);
-        
+
         setAvailableSpots(dynResult.availableSpots);
         setAdjustedCapacity(dynResult.adjustedCapacity);
         setCapacityResult(dynResult);
-        
+
         // Generate ecological alert if applicable
         const alert = policyEngine.generateEcologicalAlerts(found);
         setEcoAlert(alert);
@@ -167,22 +169,22 @@ function BookDestinationForm() {
 
   const computeBookingFootprint = useCallback((): CarbonFootprintResult | null => {
     if (!destination || !formData.originLocation) return null;
-    
+
     // Calculate actual stay nights from dates
     let stayNights = 2; // Default fallback
     if (formData.checkInDate && formData.checkOutDate) {
       const start = new Date(formData.checkInDate);
       const end = new Date(formData.checkOutDate);
-      
+
       if (!isNaN(start.getTime()) && !isNaN(end.getTime())) {
         const diffTime = end.getTime() - start.getTime();
         const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-        
+
         // Ensure at least 0 nights if dates are in reverse or same day
         stayNights = Math.max(0, diffDays);
       }
     }
-    
+
     const calculator = getCarbonCalculator();
     return calculator.calculateBookingFootprint(
       formData.originLocation,
@@ -221,7 +223,7 @@ function BookDestinationForm() {
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target;
     const checked = (e.target as HTMLInputElement).checked;
-    
+
     if (name === 'groupSize') {
       const numValue = parseInt(value, 10);
       setFormData(prev => ({
@@ -281,7 +283,7 @@ function BookDestinationForm() {
       if (bookingResult.errors['emergencyContact.name']) newErrors['emergencyContact.name'] = bookingResult.errors['emergencyContact.name'];
       if (bookingResult.errors['emergencyContact.phone']) newErrors['emergencyContact.phone'] = bookingResult.errors['emergencyContact.phone'];
       if (bookingResult.errors['emergencyContact.relationship']) newErrors['emergencyContact.relationship'] = bookingResult.errors['emergencyContact.relationship'];
-      
+
       // Map other booking errors
       if (bookingResult.errors.groupSize) newErrors.groupSize = bookingResult.errors.groupSize;
       if (bookingResult.errors.checkInDate) newErrors.checkInDate = bookingResult.errors.checkInDate;
@@ -291,7 +293,7 @@ function BookDestinationForm() {
     if (!sanitizedData.name.trim()) newErrors.name = 'Name is required';
     if (!sanitizedData.email.trim()) newErrors.email = 'Email is required';
     if (!sanitizedData.phone.trim()) newErrors.phone = 'Phone number is required';
-    
+
     // Ecological Permit Validation
     if (destination && (destination.ecologicalSensitivity === 'high' || destination.ecologicalSensitivity === 'critical')) {
       if (policy?.requiresPermit) {
@@ -306,100 +308,95 @@ function BookDestinationForm() {
         newErrors['acknowledged'] = 'You must acknowledge the ecological briefing.';
       }
     }
-    
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!validateForm() || !destination) {
-      alert('Please fill in all required fields');
-      return;
-    }
-
-    if (!eligibility.allowed) {
-      alert(eligibility.reason || 'Booking is not allowed due to ecological policies.');
-      return;
-    }
-    
-    setSubmitting(true);
-    
-    try {
-      const dbService = getDbService();
-      const sanitizedData = sanitizeFormData(formData);
-      
-      // Calculate up-to-date footprint for persistence
-      const currentFootprint = computeBookingFootprint();
-      
-      // Validate and convert group size
-      const groupSize = parseInt(String(sanitizedData.groupSize), 10);
-      if (isNaN(groupSize) || groupSize <= 0) {
-        throw new Error("Invalid group size provided");
-      }
-      
-      const bookingData = {
-        name: sanitizedData.name,
-        email: sanitizedData.email,
-        phone: sanitizedData.phone,
-        id_proof: sanitizedData.idProof,
-        nationality: sanitizedData.nationality,
-        group_size: groupSize,
-        destination_id: destination.id,
-        check_in_date: sanitizedData.checkInDate,
-        check_out_date: sanitizedData.checkOutDate,
-        status: "pending" as const,
-        emergency_contact_name: sanitizedData.emergencyContact.name,
-        emergency_contact_phone: sanitizedData.emergencyContact.phone,
-        emergency_contact_relationship: sanitizedData.emergencyContact.relationship,
-        user_id: user?.id || null,
-        registration_date: new Date().toISOString(),
-        // Environmental fields
-        origin_location_id: sanitizedData.originLocation,
-        transport_type: sanitizedData.transportType,
-        carbon_footprint: currentFootprint?.totalEmissions || 0,
-        // Add missing required fields with defaults
-        age: 0,
-        gender: "prefer-not-to-say" as const,
-        address: "",
-        pin_code: "",
-        id_proof_type: "aadhaar" as const,
-      };
-      
-      console.log('Submitting booking data:', bookingData);
-      
-      const result = await dbService.addTourist(bookingData);
-      
-      if (!result) {
-        throw new Error("Failed to create booking - no result returned");
-      }
-
+  // Booking mutation hook with optimistic updates
+  const bookingMutation = useBookingMutation({
+    onSuccess: async (data) => {
       // Update user eco-points if they are logged in
-      if (user?.id && currentFootprint) {
-        const pointsToAdd = currentFootprint.ecoPointsReward;
+      if (user?.id && carbonFootprint) {
+        const dbService = getDbService();
+        const pointsToAdd = carbonFootprint.ecoPointsReward;
         await dbService.updateUserEcoPoints(user.id, pointsToAdd, 0);
       }
-      
+
       setShowSuccess(true);
       setTimeout(() => {
         router.push("/tourist/bookings");
       }, 3000);
-      
-    } catch (error) {
-      console.error("Error submitting booking:", error);
-      alert("Failed to submit booking. Please try again.");
-    } finally {
-      setSubmitting(false);
+    },
+    onError: (error) => {
+      // Toast already shown by mutation hook, just log for debugging
+      console.error("Booking error:", error);
+    },
+  });
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!validateForm() || !destination) {
+      toast.error('Validation Error', 'Please fill in all required fields');
+      return;
     }
+
+    if (!eligibility.allowed) {
+      toast.error('Booking Not Allowed', eligibility.reason || 'Booking is not allowed due to ecological policies.');
+      return;
+    }
+
+    const sanitizedData = sanitizeFormData(formData);
+
+    // Calculate up-to-date footprint for persistence
+    const currentFootprint = computeBookingFootprint();
+
+    // Validate and convert group size
+    const groupSize = parseInt(String(sanitizedData.groupSize), 10);
+    if (isNaN(groupSize) || groupSize <= 0) {
+      toast.error('Invalid Group Size', 'Please enter a valid group size.');
+      return;
+    }
+
+    const bookingData = {
+      name: sanitizedData.name,
+      email: sanitizedData.email,
+      phone: sanitizedData.phone,
+      id_proof: sanitizedData.idProof,
+      nationality: sanitizedData.nationality,
+      group_size: groupSize,
+      destination_id: destination.id,
+      check_in_date: sanitizedData.checkInDate,
+      check_out_date: sanitizedData.checkOutDate,
+      status: "pending" as const,
+      emergency_contact_name: sanitizedData.emergencyContact.name,
+      emergency_contact_phone: sanitizedData.emergencyContact.phone,
+      emergency_contact_relationship: sanitizedData.emergencyContact.relationship,
+      user_id: user?.id || null,
+      registration_date: new Date().toISOString(),
+      // Environmental fields
+      origin_location_id: sanitizedData.originLocation,
+      transport_type: sanitizedData.transportType,
+      carbon_footprint: currentFootprint?.totalEmissions || 0,
+      // Add missing required fields with defaults
+      age: 0,
+      gender: "prefer-not-to-say" as const,
+      address: "",
+      pin_code: "",
+      id_proof_type: "aadhaar" as const,
+    };
+
+    // Use the mutation - optimistic updates and toasts are handled by the hook
+    bookingMutation.mutate(bookingData);
   };
 
   const getAvailabilityStatus = () => {
     if (!destination) return { text: '', color: '' };
-    
+
     const available = availableSpots;
     const maxPossibleAvailable = destination.maxCapacity;
-    
+
     if (available > maxPossibleAvailable * 0.3) {
       return { text: 'Great Availability', color: 'text-green-600' };
     } else if (available > 0) {
@@ -424,7 +421,7 @@ function BookDestinationForm() {
       <TouristLayout>
         <div className="text-center py-12">
           <h2 className="text-2xl font-bold text-gray-900 mb-4">Destination Not Found</h2>
-          <button 
+          <button
             onClick={() => router.push('/tourist/destinations')}
             className="bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700"
           >
@@ -445,17 +442,17 @@ function BookDestinationForm() {
               +{carbonFootprint ? carbonFootprint.ecoPointsReward : 0} PTS
             </div>
           </div>
-          
+
           <h2 className="text-3xl font-bold text-gray-900 mb-4">
             Booking Submitted Successfully!
           </h2>
-          
+
           <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm mb-8 text-left space-y-4">
             <p className="text-gray-600">
               Your booking request for <strong className="text-gray-900">{destination.name}</strong> has
               been submitted and is pending approval.
             </p>
-            
+
             {carbonFootprint && (
               <div className="pt-4 border-t border-gray-50 flex items-center justify-between">
                 <div>
@@ -471,7 +468,7 @@ function BookDestinationForm() {
               </div>
             )}
           </div>
-          
+
           <p className="text-gray-500">Redirecting to your bookings page...</p>
         </div>
       </TouristLayout>
@@ -485,7 +482,7 @@ function BookDestinationForm() {
       <div className="max-w-4xl mx-auto space-y-6 pb-12">
         {/* Eligibility Warning */}
         {!eligibility.allowed && (
-          <div 
+          <div
             className="p-4 bg-red-100 border border-red-300 text-red-900 rounded-xl flex items-start space-x-3 animate-in slide-in-from-top duration-300"
             role="alert"
           >
@@ -499,7 +496,7 @@ function BookDestinationForm() {
 
         {/* Ecological Alert (Fix for #81) */}
         {ecoAlert && (
-          <div 
+          <div
             className="p-4 bg-yellow-50 border border-yellow-200 text-yellow-800 rounded-xl flex items-start space-x-3 animate-in slide-in-from-top duration-300"
             role="alert"
           >
@@ -516,7 +513,7 @@ function BookDestinationForm() {
           <div className="flex justify-between items-start">
             <div className="space-y-4">
               <h1 className="text-3xl font-bold text-gray-900">Book Your Visit</h1>
-              
+
               <div className="space-y-1">
                 <div className="flex items-center text-gray-500 font-medium">
                   <MapPin className="h-5 w-5 mr-2 text-gray-400" aria-hidden="true" />
@@ -531,7 +528,7 @@ function BookDestinationForm() {
                     {availableSpots} / {adjustedCapacity} spots free (adjusted)
                   </span>
                 </div>
-                
+
                 {capacityResult?.activeFactorFlags.weather && (
                   <div className="flex items-center px-3 py-1 bg-sky-50 text-sky-700 rounded-lg border border-sky-100 text-xs font-bold">
                     <AlertTriangle className="h-3 w-3 mr-1" aria-hidden="true" />
@@ -571,19 +568,17 @@ function BookDestinationForm() {
                   <Star className="h-5 w-5 text-yellow-400 fill-current" aria-hidden="true" />
                   <span className="text-lg font-bold text-gray-300">4.3</span>
                 </div>
-                <span className={`text-sm font-bold mt-1 ${
-                  availability.text === 'Fully Booked' ? 'text-red-500' : 'text-green-500'
-                }`}>
+                <span className={`text-sm font-bold mt-1 ${availability.text === 'Fully Booked' ? 'text-red-500' : 'text-green-500'
+                  }`}>
                   {capacityResult?.displayMessage || availability.text}
                 </span>
               </div>
 
-              <div className={`flex items-center px-4 py-2 rounded-full border shadow-sm ${
-                destination.ecologicalSensitivity === 'critical' ? 'bg-red-50 border-red-100 text-red-600' :
+              <div className={`flex items-center px-4 py-2 rounded-full border shadow-sm ${destination.ecologicalSensitivity === 'critical' ? 'bg-red-50 border-red-100 text-red-600' :
                 destination.ecologicalSensitivity === 'high' ? 'bg-orange-50 border-orange-100 text-orange-600' :
-                destination.ecologicalSensitivity === 'medium' ? 'bg-yellow-50 border-yellow-100 text-yellow-600' :
-                'bg-green-50 border-green-100 text-green-600'
-              }`}>
+                  destination.ecologicalSensitivity === 'medium' ? 'bg-yellow-50 border-yellow-100 text-yellow-600' :
+                    'bg-green-50 border-green-100 text-green-600'
+                }`}>
                 <RefreshCw className="h-4 w-4 mr-2" aria-hidden="true" />
                 <span className="text-sm font-bold capitalize">{destination.ecologicalSensitivity} Sensitivity</span>
               </div>
@@ -593,57 +588,50 @@ function BookDestinationForm() {
 
         {/* Policy Section */}
         {destination && (destination.ecologicalSensitivity !== 'low' || policy?.bookingRestrictionMessage) && (
-          <div className={`${
-            destination.ecologicalSensitivity === 'critical' ? 'bg-red-50 border-red-400' :
+          <div className={`${destination.ecologicalSensitivity === 'critical' ? 'bg-red-50 border-red-400' :
             destination.ecologicalSensitivity === 'high' ? 'bg-orange-50 border-orange-400' :
-            'bg-yellow-50 border-yellow-400'
-          } border-2 rounded-2xl p-8 relative overflow-hidden`}>
+              'bg-yellow-50 border-yellow-400'
+            } border-2 rounded-2xl p-8 relative overflow-hidden`}>
             <div className="flex items-start space-x-4">
-              <div className={`${
-                destination.ecologicalSensitivity === 'critical' ? 'bg-red-100' :
+              <div className={`${destination.ecologicalSensitivity === 'critical' ? 'bg-red-100' :
                 destination.ecologicalSensitivity === 'high' ? 'bg-orange-100' :
-                'bg-yellow-100'
-              } p-3 rounded-xl border`}>
-                <ShieldAlert className={`${
-                  destination.ecologicalSensitivity === 'critical' ? 'text-red-700' :
+                  'bg-yellow-100'
+                } p-3 rounded-xl border`}>
+                <ShieldAlert className={`${destination.ecologicalSensitivity === 'critical' ? 'text-red-700' :
                   destination.ecologicalSensitivity === 'high' ? 'text-orange-700' :
-                  'text-yellow-700'
-                } h-8 w-8`} aria-hidden="true" />
+                    'text-yellow-700'
+                  } h-8 w-8`} aria-hidden="true" />
               </div>
               <div className="space-y-4">
                 <div>
-                  <h3 className={`${
-                    destination.ecologicalSensitivity === 'critical' ? 'text-red-900' :
+                  <h3 className={`${destination.ecologicalSensitivity === 'critical' ? 'text-red-900' :
                     destination.ecologicalSensitivity === 'high' ? 'text-orange-900' :
-                    'text-yellow-900'
-                  } text-xl font-black uppercase tracking-tight`}>
+                      'text-yellow-900'
+                    } text-xl font-black uppercase tracking-tight`}>
                     {destination.ecologicalSensitivity} Sensitivity Policy
                   </h3>
-                  <p className={`${
-                    destination.ecologicalSensitivity === 'critical' ? 'text-red-800' :
+                  <p className={`${destination.ecologicalSensitivity === 'critical' ? 'text-red-800' :
                     destination.ecologicalSensitivity === 'high' ? 'text-orange-800' :
-                    'text-yellow-800'
-                  } font-bold mt-1`}>
+                      'text-yellow-800'
+                    } font-bold mt-1`}>
                     {policy?.bookingRestrictionMessage || `This is a ${destination.ecologicalSensitivity}-sensitivity area. Please follow the guidelines.`}
                   </p>
                 </div>
-                
+
                 <div className="flex flex-wrap gap-3">
                   {policy?.requiresPermit && (
-                    <div className={`px-4 py-2 border rounded-full text-xs font-black uppercase shadow-sm ${
-                      destination.ecologicalSensitivity === 'critical' ? 'bg-red-100 text-red-900 border-red-200' :
+                    <div className={`px-4 py-2 border rounded-full text-xs font-black uppercase shadow-sm ${destination.ecologicalSensitivity === 'critical' ? 'bg-red-100 text-red-900 border-red-200' :
                       destination.ecologicalSensitivity === 'high' ? 'bg-orange-100 text-orange-900 border-orange-200' :
-                      'bg-yellow-100 text-yellow-900 border-yellow-200'
-                    }`}>
+                        'bg-yellow-100 text-yellow-900 border-yellow-200'
+                      }`}>
                       Permit Required
                     </div>
                   )}
                   {policy?.requiresEcoBriefing && (
-                    <div className={`px-4 py-2 border rounded-full text-xs font-black uppercase shadow-sm ${
-                      destination.ecologicalSensitivity === 'critical' ? 'bg-red-100 text-red-900 border-red-200' :
+                    <div className={`px-4 py-2 border rounded-full text-xs font-black uppercase shadow-sm ${destination.ecologicalSensitivity === 'critical' ? 'bg-red-100 text-red-900 border-red-200' :
                       destination.ecologicalSensitivity === 'high' ? 'bg-orange-100 text-orange-900 border-orange-200' :
-                      'bg-yellow-100 text-yellow-900 border-yellow-200'
-                    }`}>
+                        'bg-yellow-100 text-yellow-900 border-yellow-200'
+                      }`}>
                       Eco-Briefing Mandatory
                     </div>
                   )}
@@ -657,7 +645,7 @@ function BookDestinationForm() {
           {/* Personal Information */}
           <div className="bg-white rounded-2xl p-8 shadow-sm border border-gray-100">
             <h3 className="text-2xl font-bold text-gray-900 mb-8">Personal Information</h3>
-            
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
               <div className="space-y-2">
                 <label htmlFor="book-name" className="text-sm font-bold text-gray-600">Full Name *</label>
@@ -674,7 +662,7 @@ function BookDestinationForm() {
                 />
                 {errors.name && <p id="name-error" className="text-xs text-red-500 font-bold mt-1" role="alert">{errors.name}</p>}
               </div>
-              
+
               <div className="space-y-2">
                 <label htmlFor="book-email" className="text-sm font-bold text-gray-600">Email Address *</label>
                 <input
@@ -691,7 +679,7 @@ function BookDestinationForm() {
                 />
                 {errors.email && <p id="email-error" className="text-xs text-red-500 font-bold mt-1" role="alert">{errors.email}</p>}
               </div>
-              
+
               <div className="space-y-2">
                 <label htmlFor="book-phone" className="text-sm font-bold text-gray-600">Phone Number *</label>
                 <input
@@ -708,7 +696,7 @@ function BookDestinationForm() {
                 />
                 {errors.phone && <p id="phone-error" className="text-xs text-red-500 font-bold mt-1" role="alert">{errors.phone}</p>}
               </div>
-              
+
               <div className="space-y-2">
                 <label htmlFor="book-nationality" className="text-sm font-bold text-gray-600">Nationality *</label>
                 <input
@@ -724,7 +712,7 @@ function BookDestinationForm() {
                 />
                 {errors.nationality && <p id="nationality-error" className="text-xs text-red-500 font-bold mt-1" role="alert">{errors.nationality}</p>}
               </div>
-              
+
               <div className="space-y-2">
                 <label htmlFor="book-idProof" className="text-sm font-bold text-gray-600">ID Proof Number *</label>
                 <input
@@ -812,7 +800,7 @@ function BookDestinationForm() {
                   )}
                 </div>
               )}
-              
+
               <div className="space-y-2">
                 <label htmlFor="book-groupSize" className="text-sm font-bold text-gray-600">Group Size *</label>
                 <select
@@ -836,7 +824,7 @@ function BookDestinationForm() {
           {/* Travel Dates */}
           <div className="bg-white rounded-2xl p-8 shadow-sm border border-gray-100">
             <h3 className="text-2xl font-bold text-gray-900 mb-8">Travel Dates</h3>
-            
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
               <div className="space-y-2">
                 <label htmlFor="book-checkInDate" className="text-sm font-bold text-gray-600">Check-in Date *</label>
@@ -856,7 +844,7 @@ function BookDestinationForm() {
                   {errors.checkInDate && <p id="checkInDate-error" className="text-xs text-red-500 font-bold mt-1" role="alert">{errors.checkInDate}</p>}
                 </div>
               </div>
-              
+
               <div className="space-y-2">
                 <label htmlFor="book-checkOutDate" className="text-sm font-bold text-gray-600">Check-out Date *</label>
                 <div className="relative">
@@ -881,7 +869,7 @@ function BookDestinationForm() {
           {/* Emergency Contact */}
           <div className="bg-white rounded-2xl p-8 shadow-sm border border-gray-100">
             <h3 className="text-2xl font-bold text-gray-900 mb-8">Emergency Contact</h3>
-            
+
             <div className="grid grid-cols-1 md:grid-cols-3 gap-x-6 gap-y-6">
               <div className="space-y-2">
                 <label htmlFor="emergency-contact-name" className="text-sm font-bold text-gray-600">Contact Name *</label>
@@ -898,7 +886,7 @@ function BookDestinationForm() {
                 />
                 {errors['emergencyContact.name'] && <p id="emergency-contact-name-error" className="text-xs text-red-500 font-bold mt-1" role="alert">{errors['emergencyContact.name']}</p>}
               </div>
-              
+
               <div className="space-y-2">
                 <label htmlFor="emergency-contact-phone" className="text-sm font-bold text-gray-600">Contact Phone *</label>
                 <input
@@ -915,7 +903,7 @@ function BookDestinationForm() {
                 />
                 {errors['emergencyContact.phone'] && <p id="emergency-contact-phone-error" className="text-xs text-red-500 font-bold mt-1" role="alert">{errors['emergencyContact.phone']}</p>}
               </div>
-              
+
               <div className="space-y-2">
                 <label htmlFor="emergency-contact-relationship" className="text-sm font-bold text-gray-600">Relationship *</label>
                 <select
@@ -947,11 +935,10 @@ function BookDestinationForm() {
               <div className="bg-white rounded-2xl p-8 shadow-sm border border-gray-100" aria-live="polite">
                 <div className="flex items-center justify-between mb-8">
                   <h3 className="text-2xl font-bold text-gray-900">Environmental Impact</h3>
-                  <div className={`px-4 py-1 rounded-full text-xs font-bold uppercase tracking-wider ${
-                    carbonFootprint.impactLevel === 'low' ? 'bg-green-100 text-green-700' :
+                  <div className={`px-4 py-1 rounded-full text-xs font-bold uppercase tracking-wider ${carbonFootprint.impactLevel === 'low' ? 'bg-green-100 text-green-700' :
                     carbonFootprint.impactLevel === 'medium' ? 'bg-yellow-100 text-yellow-700' :
-                    'bg-red-100 text-red-700'
-                  }`}>
+                      'bg-red-100 text-red-700'
+                    }`}>
                     {carbonFootprint.impactLevel} Impact
                   </div>
                 </div>
@@ -998,7 +985,7 @@ function BookDestinationForm() {
                   </div>
                   <h3 className="text-xl font-bold">Sustainability Tips for {destination.name}</h3>
                 </div>
-                
+
                 <div className="space-y-4">
                   {getCarbonCalculator().getSustainabilityTips(destination.ecologicalSensitivity).map((tip, idx) => (
                     <div key={idx} className="flex items-start space-x-3">
@@ -1046,7 +1033,7 @@ function BookDestinationForm() {
                           </span>
                         </div>
                         <p className="text-[10px] text-gray-500 line-clamp-1">{alt.description}</p>
-                        <button 
+                        <button
                           type="button"
                           onClick={() => {
                             router.push(`/tourist/book?destination=${alt.id}`);
@@ -1067,7 +1054,7 @@ function BookDestinationForm() {
           {/* Additional Information & Acknowledgement */}
           <div className="bg-white rounded-2xl p-8 shadow-sm border border-gray-100">
             <h3 className="text-2xl font-bold text-gray-900 mb-8">Additional Information</h3>
-            
+
             {destination && (destination.ecologicalSensitivity === 'high' || destination.ecologicalSensitivity === 'critical') && policy?.requiresEcoBriefing && (
               <div className="bg-green-50/50 border border-green-200 rounded-xl p-6 mb-6">
                 <label htmlFor="acknowledged" className="flex items-start space-x-4 cursor-pointer">
@@ -1112,23 +1099,23 @@ function BookDestinationForm() {
               Cancel
             </button>
             <button
-  type="submit"
-  disabled={submitting || !eligibility.allowed}
-  className={`w-full py-4 rounded-xl font-bold text-lg transition-all shadow-lg hover:shadow-xl
-    ${submitting || !eligibility.allowed
-      ? 'bg-gray-400 cursor-not-allowed' 
-      : 'bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white'
-    }`}
->
-  {submitting ? (
-    <span className="flex items-center justify-center gap-2">
-      <RefreshCw className="h-5 w-5 animate-spin" />
-      Processing...
-    </span>
-  ) : (
-    'Confirm Booking'
-  )}
-</button>
+              type="submit"
+              disabled={bookingMutation.isPending || !eligibility.allowed}
+              className={`w-full py-4 rounded-xl font-bold text-lg transition-all shadow-lg hover:shadow-xl
+    ${bookingMutation.isPending || !eligibility.allowed
+                  ? 'bg-gray-400 cursor-not-allowed'
+                  : 'bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white'
+                }`}
+            >
+              {bookingMutation.isPending ? (
+                <span className="flex items-center justify-center gap-2">
+                  <RefreshCw className="h-5 w-5 animate-spin" />
+                  Processing...
+                </span>
+              ) : (
+                'Confirm Booking'
+              )}
+            </button>
           </div>
         </form>
       </div>

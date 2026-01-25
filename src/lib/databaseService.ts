@@ -1,20 +1,20 @@
 import { supabase, createServerComponentClient } from '@/lib/supabase';
 import { SupabaseClient } from '@supabase/supabase-js';
-import { 
-  Tourist, 
-  Destination, 
-  Alert, 
-  DashboardStats, 
-  ComplianceReport, 
-  PolicyViolation, 
-  HistoricalOccupancy, 
-  EcologicalMetrics, 
-  AdjustmentLog, 
-  WasteData, 
-  WasteMetricsSummary, 
-  CleanupActivity, 
-  CleanupRegistration, 
-  EcoPointsTransaction, 
+import {
+  Tourist,
+  Destination,
+  Alert,
+  DashboardStats,
+  ComplianceReport,
+  PolicyViolation,
+  HistoricalOccupancy,
+  EcologicalMetrics,
+  AdjustmentLog,
+  WasteData,
+  WasteMetricsSummary,
+  CleanupActivity,
+  CleanupRegistration,
+  EcoPointsTransaction,
   EcoPointsLeaderboardEntry
 } from '@/types';
 import { Database } from '@/types/database';
@@ -96,11 +96,11 @@ class DatabaseService {
   // Tourist operations
   private validateTouristInsert(tourist: Record<string, unknown>): tourist is Database['public']['Tables']['tourists']['Insert'] {
     const required = [
-      'name', 'email', 'phone', 'id_proof', 'nationality', 
-      'group_size', 'destination_id', 'check_in_date', 'check_out_date', 
+      'name', 'email', 'phone', 'id_proof', 'nationality',
+      'group_size', 'destination_id', 'check_in_date', 'check_out_date',
       'emergency_contact_name', 'emergency_contact_phone', 'emergency_contact_relationship'
     ];
-    
+
     for (const field of required) {
       const val = tourist[field];
       if (val === undefined || val === null || val === '') {
@@ -184,7 +184,7 @@ class DatabaseService {
     try {
       if (this.isPlaceholderMode() || !db) {
         console.log('Using mock addTourist');
-        
+
         // Check ecological eligibility before adding (consistent with real DB path)
         const eligibility = await this.checkBookingEligibility(tourist.destination_id, tourist.group_size);
         if (!eligibility.allowed) {
@@ -220,7 +220,7 @@ class DatabaseService {
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
         };
-        
+
         // Add to mock data array
         mockData.addTourist(this.transformDbTouristToTourist(newTourist));
         return newTourist;
@@ -233,7 +233,7 @@ class DatabaseService {
       }
 
       console.log('Attempting to insert tourist:', tourist);
-      
+
       if (!db) {
         console.error('Database client not initialized');
         return null;
@@ -431,7 +431,7 @@ class DatabaseService {
       if (this.isPlaceholderMode() || !db) return;
 
       const occupancy = await this.getCurrentOccupancy(destinationId);
-      
+
       const { error } = await db
         .from('destinations')
         .update({ current_occupancy: occupancy })
@@ -587,13 +587,13 @@ class DatabaseService {
 
       // Use real-time occupancy for eligibility check to avoid race conditions
       const realTimeOccupancy = await this.getCurrentOccupancy(destinationId);
-      
+
       // Update the destination object with real-time occupancy before passing to policy engine
       const destinationWithRealTimeOccupancy = {
         ...destination,
         currentOccupancy: realTimeOccupancy
       };
-      
+
       return await getPolicyEngine().isBookingAllowed(destinationWithRealTimeOccupancy, groupSize);
     } catch (error) {
       console.error('Error in checkBookingEligibility:', error);
@@ -631,7 +631,7 @@ class DatabaseService {
 
       // Add ecological alerts from policy engine
       const destinations = await this.getDestinations();
-      const destinationsToProcess = destinationId 
+      const destinationsToProcess = destinationId
         ? destinations.filter(d => d.id === destinationId)
         : destinations;
 
@@ -754,7 +754,7 @@ class DatabaseService {
   async getWasteDataByDateRange(startDate: Date, endDate: Date, destinationId?: string): Promise<WasteData[]> {
     try {
       if (this.isPlaceholderMode() || !db) {
-        let data = mockData.wasteData.filter(w => 
+        let data = mockData.wasteData.filter(w =>
           isWithinInterval(new Date(w.collectedAt), { start: startDate, end: endDate })
         );
         if (destinationId) {
@@ -884,11 +884,11 @@ class DatabaseService {
       } else {
         data = await this.getWasteDataByDateRange(startDate, endDate, destinationId);
       }
-      
+
       const byType: Record<string, number> = {};
       let total = 0;
       let recycled = 0;
-      
+
       data.forEach(w => {
         byType[w.wasteType] = (byType[w.wasteType] || 0) + w.quantity;
         total += w.quantity;
@@ -932,7 +932,7 @@ class DatabaseService {
       if (this.isPlaceholderMode()) {
         const index = mockData.cleanupRegistrations.findIndex(r => r.id === registrationId);
         if (index === -1) return false;
-        
+
         mockData.cleanupRegistrations[index] = {
           ...mockData.cleanupRegistrations[index],
           ...updates,
@@ -947,17 +947,17 @@ class DatabaseService {
         if (updates.userId !== undefined) dbUpdates.user_id = updates.userId;
         if (updates.status !== undefined) dbUpdates.status = updates.status;
         if (updates.registeredAt !== undefined) {
-          dbUpdates.registered_at = updates.registeredAt instanceof Date 
-            ? updates.registeredAt.toISOString() 
+          dbUpdates.registered_at = updates.registeredAt instanceof Date
+            ? updates.registeredAt.toISOString()
             : updates.registeredAt;
         }
         if (updates.attended !== undefined) dbUpdates.attended = updates.attended;
-        
+
         const { error } = await db
           .from('cleanup_registrations')
           .update(dbUpdates)
           .eq('id', registrationId);
-          
+
         if (error) throw error;
         return true;
       }
@@ -994,7 +994,7 @@ class DatabaseService {
   async getUpcomingCleanupActivities(): Promise<CleanupActivity[]> {
     try {
       if (this.isPlaceholderMode() || !db) {
-        return mockData.cleanupActivities.filter(a => 
+        return mockData.cleanupActivities.filter(a =>
           new Date(a.startTime) > new Date() && a.status === 'upcoming'
         );
       }
@@ -1075,12 +1075,12 @@ class DatabaseService {
       if (this.isPlaceholderMode() || !db) {
         const index = mockData.cleanupActivities.findIndex(a => a.id === id);
         if (index === -1) return null;
-        
+
         // Transform the snake_case updates to camelCase before merging
         const transformedUpdates = this.transformUpdateCleanupToCleanup(updates);
-        mockData.cleanupActivities[index] = { 
-          ...mockData.cleanupActivities[index], 
-          ...transformedUpdates 
+        mockData.cleanupActivities[index] = {
+          ...mockData.cleanupActivities[index],
+          ...transformedUpdates
         };
         return mockData.cleanupActivities[index];
       }
@@ -1127,7 +1127,7 @@ class DatabaseService {
       if (this.isPlaceholderMode() || !db) {
         const activity = await this.getCleanupActivityById(activityId);
         if (!activity || activity.status !== 'upcoming') return false;
-        
+
         // Duplicate check in mock mode
         const existingReg = mockData.cleanupRegistrations.find(
           r => r.activityId === activityId && r.userId === userId
@@ -1137,7 +1137,7 @@ class DatabaseService {
         // Atomic check and increment in mock mode
         const actIndex = mockData.cleanupActivities.findIndex(a => a.id === activityId);
         if (actIndex === -1) return false;
-        
+
         const targetActivity = mockData.cleanupActivities[actIndex];
         if (targetActivity.currentParticipants >= targetActivity.maxParticipants) {
           return false;
@@ -1151,10 +1151,10 @@ class DatabaseService {
           attended: false,
           registered_at: new Date().toISOString()
         };
-        
+
         mockData.cleanupRegistrations.push(this.transformDbCleanupRegistrationToCleanupRegistration(newReg));
         targetActivity.currentParticipants += 1;
-        
+
         return true;
       }
 
@@ -1247,7 +1247,7 @@ class DatabaseService {
 
         const index = mockData.cleanupRegistrations.findIndex(r => r.id === registrationId);
         mockData.cleanupRegistrations.splice(index, 1);
-        
+
         const actIndex = mockData.cleanupActivities.findIndex(a => a.id === reg.activityId);
         if (actIndex !== -1) {
           mockData.cleanupActivities[actIndex].currentParticipants -= 1;
@@ -1295,7 +1295,7 @@ class DatabaseService {
         console.error('RPC Error in cancelCleanupRegistration:', error);
         throw error;
       }
-      
+
       return !!data;
     } catch (error) {
       console.error('Error in cancelCleanupRegistration:', error);
@@ -1309,13 +1309,13 @@ class DatabaseService {
       if (this.isPlaceholderMode() || !db) {
         const index = mockData.cleanupRegistrations.findIndex(r => r.id === registrationId);
         if (index === -1) return false;
-        
+
         // Only award if not already attended
         if (mockData.cleanupRegistrations[index].attended) return true;
 
         mockData.cleanupRegistrations[index].attended = true;
         mockData.cleanupRegistrations[index].status = 'attended';
-        
+
         // Convert mock back to DbCleanupRegistration for consistent processing
         const mock = mockData.cleanupRegistrations[index];
         reg = {
@@ -1335,7 +1335,7 @@ class DatabaseService {
           .eq('attended', false)
           .select()
           .single();
-        
+
         // If error or no row returned, check if it's already attended
         if (error || !data) {
           // If the record exists but was already attended, just return true
@@ -1344,12 +1344,12 @@ class DatabaseService {
             .select('attended')
             .eq('id', registrationId)
             .single();
-            
+
           if (existing?.attended) return true;
           if (error) throw error;
           return false;
         }
-        
+
         reg = data;
       }
 
@@ -1631,7 +1631,7 @@ class DatabaseService {
       // The query is ordered by recorded_at desc, so first occurrence is the latest
       if (data) {
         const processedIds = new Set<string>();
-        
+
         for (const record of data) {
           const destId = record.destination_id;
           if (!processedIds.has(destId)) {
@@ -1674,12 +1674,12 @@ class DatabaseService {
       // Batch fetch latest compliance reports for missing IDs
       // Note: This is tricky because we need the latest report PER destination
       // A common pattern is to fetch reports for these destinations created recently
-      
+
       // Since supabase-js .select() with distinct on specific columns isn't straightforward for "latest per group"
       // without a stored procedure or complex query, we'll fetch recent reports and filter in memory
       // for the sake of this implementation, assuming reasonable data volume.
       // A better approach for production would be a Postgres function or view.
-      
+
       const { data, error } = await db
         .from('compliance_reports')
         .select('destination_id, ecological_damage_indicators, created_at')
@@ -1694,12 +1694,12 @@ class DatabaseService {
 
       if (data) {
         const processedIds = new Set<string>();
-        
+
         for (const record of data) {
           if (!processedIds.has(record.destination_id) && record.ecological_damage_indicators) {
             processedIds.add(record.destination_id);
             const indicators = record.ecological_damage_indicators;
-            
+
             // Cache it
             ecologicalIndicatorCache.set(record.destination_id, indicators);
             result.set(record.destination_id, indicators);
@@ -1718,14 +1718,14 @@ class DatabaseService {
     try {
       const destinations = await this.getDestinations();
       if (!destinations.length) return [];
-      
+
       const destinationIds = destinations.map(d => d.id);
       const weatherMap = await this.getWeatherDataForDestinations(destinationIds);
-      
+
       return destinations.map(dbDest => {
         const dest = this.transformDbDestinationToDestination(dbDest);
         const weather = weatherMap.get(dbDest.id);
-        
+
         if (weather) {
           dest.weather = {
             temperature: weather.temperature,
@@ -1737,7 +1737,7 @@ class DatabaseService {
             recordedAt: weather.recorded_at
           };
         }
-        
+
         return dest;
       });
     } catch (error) {
@@ -1761,10 +1761,10 @@ class DatabaseService {
       ]);
 
       const physicalMaxCapacity = destinations.reduce((sum, dest) => sum + (dest.max_capacity || 0), 0);
-      
+
       const policyEngine = getPolicyEngine();
       const destinationIds = destinations.map(d => d.id);
-      
+
       // Batch-fetch weather and indicators for capacity calculations
       const [weatherBatch, indicatorsBatch] = await Promise.all([
         this.getWeatherDataForDestinations(destinationIds),
@@ -1778,19 +1778,19 @@ class DatabaseService {
       );
 
       const adjustedMaxCapacity = Array.from(batchCapacitiesMap.values()).reduce((sum, cap) => sum + cap, 0);
-      
+
       // Calculate current occupancy from tourist records for accuracy
       const currentOccupancy = tourists
         .filter(t => t.status === 'checked-in' || t.status === 'approved')
         .reduce((sum, t) => sum + (Number(t.groupSize) || 0), 0);
 
       const pendingApprovals = tourists.filter(t => t.status === 'pending').length;
-      
+
       const today = new Date().toDateString();
-      const todayCheckIns = tourists.filter(t => 
+      const todayCheckIns = tourists.filter(t =>
         t.status === 'checked-in' && t.checkInDate && new Date(t.checkInDate).toDateString() === today
       ).length;
-      const todayCheckOuts = tourists.filter(t => 
+      const todayCheckOuts = tourists.filter(t =>
         t.status === 'checked-out' && t.checkOutDate && new Date(t.checkOutDate).toDateString() === today
       ).length;
 
@@ -1844,7 +1844,7 @@ class DatabaseService {
         localStorage.setItem(historyKey, JSON.stringify(history));
         return;
       }
-      
+
       // Fallback to compliance_reports or a dedicated table if available
       // For now, using localStorage even in "Supabase" mode if table doesn't exist
       // is a safe bet for this specific requirement unless we have the schema.
@@ -1861,8 +1861,8 @@ class DatabaseService {
     try {
       const historyKey = 'greenpass_capacity_history';
       const rawHistory = JSON.parse(localStorage.getItem(historyKey) || '[]');
-      
-      let history = rawHistory.map((item: { timestamp: string; [key: string]: unknown }) => ({
+
+      let history = rawHistory.map((item: { timestamp: string;[key: string]: unknown }) => ({
         ...item,
         timestamp: new Date(item.timestamp)
       } as AdjustmentLog));
@@ -1910,14 +1910,14 @@ class DatabaseService {
         return true;
       }
       console.log('Saving weather data for destination:', data.destination_id, data);
-      
+
       // Use service role client to bypass RLS policies for system operations
       const client = createServerComponentClient() as SupabaseClient<any> | null;
       if (!client) {
         console.warn('⚠️ SUPABASE_SERVICE_ROLE_KEY is missing. Skipping database operation.');
         return false;
       }
-      
+
       const { error } = await client
         .from('weather_data')
         .insert([data]);
@@ -2006,8 +2006,8 @@ class DatabaseService {
       type WeatherAlertRecord = DbWeatherData & { destinations: { name: string; location: string } };
       const latestAlerts = new Map<string, WeatherAlertRecord>();
       (weatherData as unknown as WeatherAlertRecord[]).forEach((record) => {
-        if (!latestAlerts.has(record.destination_id) || 
-            new Date(record.recorded_at) > new Date(latestAlerts.get(record.destination_id)!.recorded_at)) {
+        if (!latestAlerts.has(record.destination_id) ||
+          new Date(record.recorded_at) > new Date(latestAlerts.get(record.destination_id)!.recorded_at)) {
           latestAlerts.set(record.destination_id, record);
         }
       });
@@ -2171,8 +2171,8 @@ class DatabaseService {
         .order('created_at', { ascending: false });
 
       if (error || !data) return [];
-      type ViolationWithDestination = Database['public']['Tables']['policy_violations']['Row'] & { 
-        destinations: { name: string } | null 
+      type ViolationWithDestination = Database['public']['Tables']['policy_violations']['Row'] & {
+        destinations: { name: string } | null
       };
       return (data as unknown as ViolationWithDestination[]).map(v => ({
         ...this.transformDbViolationToViolation(v),
@@ -2221,7 +2221,7 @@ class DatabaseService {
       const date = new Date(t.checkInDate);
       const tMonth = date.getMonth();
       const tYear = date.getFullYear();
-      
+
       if (type === 'monthly') {
         const [year, month] = period.split('-').map(Number);
         return tYear === year && (tMonth + 1) === month;
@@ -2239,7 +2239,7 @@ class DatabaseService {
       const date = new Date(v.reportedAt);
       const vMonth = date.getMonth();
       const vYear = date.getFullYear();
-      
+
       if (type === 'monthly') {
         const [year, month] = period.split('-').map(Number);
         return vYear === year && (vMonth + 1) === month;
@@ -2254,24 +2254,24 @@ class DatabaseService {
 
     const totalTourists = filteredTourists.reduce((sum, t) => sum + t.groupSize, 0);
     const sustainableCapacity = destinations.reduce((sum, d) => sum + d.max_capacity, 0);
-    
+
     // Mock metrics calculation
     const wastePerTourist = 1.5; // kg
     const totalWaste = totalTourists * wastePerTourist;
     const recycledWaste = totalWaste * 0.4;
-    
+
     const carbonPerTourist = 12.5; // kg CO2
     const carbonFootprint = totalTourists * carbonPerTourist;
-    
+
     const totalFines = filteredViolations.reduce((sum, v) => sum + v.fineAmount, 0);
-    
+
     // Get previous period report for comparison
     const reports = await this.getComplianceReports();
-    const prevPeriod = type === 'monthly' 
+    const prevPeriod = type === 'monthly'
       ? format(new Date(new Date(period).setMonth(new Date(period).getMonth() - 1)), "yyyy-MM")
       : period; // Simple MoM for now
     const previousReport = reports.find(r => r.reportPeriod === prevPeriod);
-    
+
     // Compliance score (0-100)
     const capacityViolationFactor = sustainableCapacity > 0 ? Math.max(0, (totalTourists / sustainableCapacity) - 1) * 100 : 0;
     const violationFactor = filteredViolations.length * 5;
@@ -2305,15 +2305,15 @@ class DatabaseService {
   async getEcologicalImpactData(): Promise<EcologicalMetrics[]> {
     const destinations = await this.getDestinations();
     const policyEngine = getPolicyEngine();
-    
+
     return Promise.all(destinations.map(async (d) => {
       const destinationObj = this.transformDbDestinationToDestination(d);
       const adjustedCapacity = await policyEngine.getAdjustedCapacity(destinationObj);
       const utilization = adjustedCapacity > 0 ? (d.current_occupancy / adjustedCapacity) * 100 : 0;
-      
+
       // Carbon footprint estimate: 12.5kg CO2 per tourist (mock)
       const carbonFootprint = d.current_occupancy * 12.5;
-      
+
       return {
         id: d.id,
         name: d.name,
@@ -2324,33 +2324,33 @@ class DatabaseService {
         carbonFootprint,
         sensitivity: d.ecological_sensitivity as 'low' | 'medium' | 'high' | 'critical',
         // Risk zone: Green <50%, Yellow 50-70%, Orange 70-85%, Red >85%
-        riskLevel: utilization > 85 ? 'critical' : 
-                   utilization > 70 ? 'high' : 
-                   utilization > 50 ? 'medium' : 'low'
+        riskLevel: utilization > 85 ? 'critical' :
+          utilization > 70 ? 'high' :
+            utilization > 50 ? 'medium' : 'low'
       } as EcologicalMetrics;
     }));
   }
 
-  async getHistoricalOccupancyTrends(destinationId?: string, days: number = 7): Promise<{date: string, occupancy: number}[]> {
+  async getHistoricalOccupancyTrends(destinationId?: string, days: number = 7): Promise<{ date: string, occupancy: number }[]> {
     if (this.isPlaceholderMode()) {
       // Generate mock historical data
-      const trends: {date: string, occupancy: number}[] = [];
+      const trends: { date: string, occupancy: number }[] = [];
       const now = new Date();
-      
+
       for (let i = days - 1; i >= 0; i--) {
         const date = new Date(now);
         date.setDate(date.getDate() - i);
         const dateStr = date.toISOString().split('T')[0];
-        
+
         // Random occupancy between 40% and 90%
         const occupancy = 40 + Math.random() * 50;
-        
+
         trends.push({
           date: dateStr,
           occupancy: Math.round(occupancy)
         });
       }
-      
+
       return trends;
     }
 
@@ -2373,18 +2373,18 @@ class DatabaseService {
       // Mock data fallback for demonstration
       const trends: HistoricalOccupancy[] = [];
       const now = new Date();
-      
+
       for (let i = days - 1; i >= 0; i--) {
         const date = new Date(now);
         date.setDate(date.getDate() - i);
         const dateStr = format(date, 'MMM dd');
         const isoDate = date.toISOString();
-        
+
         // Base capacity for mock
         const adjustedCapacity = 100;
         // Random occupancy between 30 and 95
         const occupancy = Math.floor(Math.random() * 65) + 30;
-        
+
         trends.push({
           date: dateStr,
           isoDate,
@@ -2392,7 +2392,7 @@ class DatabaseService {
           adjustedCapacity
         });
       }
-      
+
       return trends;
     }
 
@@ -2408,7 +2408,7 @@ class DatabaseService {
         .select('max_capacity')
         .eq('id', destinationId)
         .single();
-      
+
       const maxCapacity = dest?.max_capacity || 100;
 
       for (let i = days - 1; i >= 0; i--) {
@@ -2611,7 +2611,7 @@ class DatabaseService {
     };
   }
 
-  private transformDbTouristToTourist(dbTourist: DbTourist): Tourist {
+  public transformDbTouristToTourist(dbTourist: DbTourist): Tourist {
     return {
       id: dbTourist.id,
       name: dbTourist.name,
@@ -2750,7 +2750,7 @@ class DatabaseService {
 // Create singleton instance with HMR support
 export const getDbService = (): DatabaseService => {
   if (typeof globalThis === 'undefined') return new DatabaseService();
-  
+
   if (!globalThis.__dbService) {
     globalThis.__dbService = new DatabaseService();
   }

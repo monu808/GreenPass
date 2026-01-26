@@ -5,7 +5,6 @@
 [![Next.js](https://img.shields.io/badge/Next.js-15.5.9-black?style=flat&logo=next.js)](https://nextjs.org/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.0-blue?style=flat&logo=typescript)](https://www.typescriptlang.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
-![Test Suite](https://github.com/monu808/GreenPass/actions/workflows/test.yml/badge.svg)
 
 > A digital platform to manage tourist flow in ecologically sensitive areas of Jammu & Kashmir and Himachal Pradesh, preventing overcrowding and promoting sustainable tourism.
 
@@ -23,45 +22,6 @@
 - [License](#-license)
 - [Support](#-support)
 
-
-## 🧪 Testing & Quality Assurance
-
-To ensure reliability and maintain high standards, we have integrated a comprehensive testing suite:
-
-- **Unit & Integration**: Powered by Jest and React Testing Library.
-- **End-to-End (E2E)**: Powered by Playwright.
-- **CI/CD**: GitHub Actions runs the full test suite on every push and PR.
-- **Pre-commit Hooks**: Husky ensures code quality before every commit.
-
-### Coverage Requirements
-
-We enforce strict coverage thresholds to maintain code quality:
-
-| Component | Target Coverage |
-|-----------|-----------------|
-| Global Minimum | 70% |
-| `src/lib/utils.ts` | 100% |
-| Validation Schemas | 100% |
-| Calculators | 80% |
-| Policy Engine | 80% |
-
-### Running Tests
-
-```bash
-# Run unit tests
-npm test
-
-# Run tests with coverage
-npm run test:coverage
-
-# Run E2E tests
-npm run test:e2e
-
-# Run E2E tests in UI mode
-npm run test:e2e:ui
-```
-
----
 
 ## 🤝 Contributing
 

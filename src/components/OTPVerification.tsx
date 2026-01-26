@@ -68,6 +68,9 @@ export default function OTPVerification({
 
   const handleKeyDown = (index: number, e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Backspace' && !otp[index] && index > 0) {
+      const newOtp = [...otp];
+      newOtp[index - 1] = '';
+      setOtp(newOtp);
       inputRefs.current[index - 1]?.focus();
     }
   };

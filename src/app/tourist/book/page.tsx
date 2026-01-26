@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, Suspense, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, Suspense, useCallback } from 'react';
 import Image from 'next/image';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { Calendar, Users, MapPin, Star, AlertTriangle, CheckCircle, Leaf, ShieldAlert, XCircle, RefreshCw, Globe, TreePine, Zap, Info } from 'lucide-react';
@@ -8,110 +8,53 @@ import TouristLayout from '@/components/TouristLayout';
 import { getDbService } from '@/lib/databaseService';
 import { getPolicyEngine, WeatherConditions } from '@/lib/ecologicalPolicyEngine';
 import { getCarbonCalculator } from '@/lib/carbonFootprintCalculator';
-import {
-  sanitizeForDatabase,
+import { 
+  sanitizeForDatabase, 
   sanitizeObject,
-  sanitizeSearchTerm
+  sanitizeSearchTerm 
 } from '@/lib/utils';
-import {
-  validateInput,
+import { 
+  validateInput, 
   BookingDataSchema,
-  TransportTypeEnum
+  TransportTypeEnum 
 } from '@/lib/validation';
-import {
-  isValidEcologicalSensitivity,
-  isValidWasteManagementLevel
+import { 
+  isValidEcologicalSensitivity, 
+  isValidWasteManagementLevel 
 } from '@/lib/typeGuards';
-import {
+import { 
   calculateSustainabilityScore,
   findLowImpactAlternatives
 } from '@/lib/sustainabilityScoring';
-import {
-  generateImpactWindow,
-  recommendAlternativeDates,
-  SeasonalImpactEntry,
-  ImpactLevel
-} from '@/lib/seasonalImpactCalculator';
 import { ORIGIN_LOCATIONS } from '@/data/originLocations';
 import { useAuth } from '@/contexts/AuthContext';
-import { useBookingMutation } from '@/hooks/mutations/useBookingMutation';
-import { useToast } from '@/components/providers/ToastProvider';
-import {
-  Destination,
-  Alert,
-  DynamicCapacityResult,
-  CarbonFootprintResult,
+import { 
+  Destination, 
+  Alert, 
+  DynamicCapacityResult, 
+  CarbonFootprintResult, 
   SustainabilityFeatures
 } from '@/types';
-
-const WEEKDAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-const IMPACT_ORDER: ImpactLevel[] = ['green', 'yellow', 'orange', 'red'];
-
-// Helper to parse date strings in local time (avoiding UTC midnight issues)
-const parseLocalDate = (value: string): Date => {
-  const [year, month, day] = value.split('-').map(Number);
-  return new Date(year, month - 1, day);
-};
-
-const LEVEL_TILE_CLASSES: Record<ImpactLevel, string> = {
-  green: 'bg-emerald-50 border-emerald-200 text-emerald-900',
-  yellow: 'bg-amber-50 border-amber-200 text-amber-900',
-  orange: 'bg-orange-50 border-orange-200 text-orange-900',
-  red: 'bg-rose-50 border-rose-200 text-rose-900'
-};
-
-const LEVEL_RING_CLASSES: Record<ImpactLevel, string> = {
-  green: 'ring-emerald-400 focus-visible:ring-emerald-500',
-  yellow: 'ring-amber-400 focus-visible:ring-amber-500',
-  orange: 'ring-orange-400 focus-visible:ring-orange-500',
-  red: 'ring-rose-400 focus-visible:ring-rose-500'
-};
-
-const LEVEL_SUMMARY_CLASSES: Record<ImpactLevel, string> = {
-  green: 'border-emerald-200 bg-emerald-50 text-emerald-900',
-  yellow: 'border-amber-200 bg-amber-50 text-amber-900',
-  orange: 'border-orange-200 bg-orange-50 text-orange-900',
-  red: 'border-rose-200 bg-rose-50 text-rose-900'
-};
-
-const LEVEL_DOT_CLASSES: Record<ImpactLevel, string> = {
-  green: 'bg-emerald-500',
-  yellow: 'bg-amber-400',
-  orange: 'bg-orange-500',
-  red: 'bg-rose-500'
-};
-
-const LEVEL_BADGE_CLASSES: Record<ImpactLevel, string> = {
-  green: 'bg-emerald-100 text-emerald-700',
-  yellow: 'bg-amber-100 text-amber-700',
-  orange: 'bg-orange-100 text-orange-700',
-  red: 'bg-rose-100 text-rose-700'
-};
-
-const LEGEND_LABELS: Record<ImpactLevel, string> = {
-  green: 'Low Impact',
-  yellow: 'Moderate Impact',
-  orange: 'High Impact',
-  red: 'Restricted'
-};
 
 function BookDestinationForm() {
   const { user } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
   const destinationId = searchParams.get('destination');
-  const toast = useToast();
-
+  
   const [destination, setDestination] = useState<Destination | null>(null);
   const [allDestinationsState, setAllDestinationsState] = useState<Destination[]>([]);
   const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [eligibility, setEligibility] = useState<{ allowed: boolean; reason: string | null }>({ allowed: true, reason: null });
   const [ecoAlert, setEcoAlert] = useState<Partial<Alert> | null>(null);
   const [availableSpots, setAvailableSpots] = useState<number>(0);
   const [adjustedCapacity, setAdjustedCapacity] = useState<number>(0);
   const [capacityResult, setCapacityResult] = useState<DynamicCapacityResult | null>(null);
-
+  const [currentStep, setCurrentStep] = useState(1);
+  const totalSteps = (destination && (destination.ecologicalSensitivity === 'high' || destination.ecologicalSensitivity === 'critical')) ? 4 : 3;
+  
   const policyEngine = getPolicyEngine();
   const policy = destination ? policyEngine.getPolicy(destination.ecologicalSensitivity) : null;
 
@@ -137,38 +80,21 @@ function BookDestinationForm() {
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [carbonFootprint, setCarbonFootprint] = useState<CarbonFootprintResult | null>(null);
-  const [weatherSnapshot, setWeatherSnapshot] = useState<WeatherConditions | undefined>(undefined);
-  const [impactWindow, setImpactWindow] = useState<SeasonalImpactEntry[]>([]);
-  const [selectedImpactEntry, setSelectedImpactEntry] = useState<SeasonalImpactEntry | null>(null);
-  const [alternativeImpactDates, setAlternativeImpactDates] = useState<SeasonalImpactEntry[]>([]);
-
-  const paddedImpactEntries = useMemo<(SeasonalImpactEntry | null)[]>(() => {
-    if (!impactWindow.length) return [];
-    const firstDate = parseLocalDate(impactWindow[0].date);
-    const prefix = Array.from({ length: firstDate.getDay() }, () => null);
-    const merged = [...prefix, ...impactWindow];
-    const remainder = merged.length % 7;
-    if (remainder === 0) {
-      return merged;
-    }
-    const suffix = Array.from({ length: 7 - remainder }, () => null);
-    return [...merged, ...suffix];
-  }, [impactWindow]);
 
   const loadDestination = useCallback(async () => {
     try {
       const dbService = getDbService();
       const fetchedDestinations = await dbService.getDestinations();
-
+      
       const mappedDestinations: Destination[] = fetchedDestinations.map(d => {
         // Validate ecological sensitivity
-        const ecologicalSensitivity = isValidEcologicalSensitivity(d.ecological_sensitivity)
-          ? d.ecological_sensitivity
+        const ecologicalSensitivity = isValidEcologicalSensitivity(d.ecological_sensitivity) 
+          ? d.ecological_sensitivity 
           : 'medium';
 
         // Normalize sustainability features or use typed object from database
         let sustainabilityFeatures: SustainabilityFeatures | undefined = undefined;
-
+        
         if (d.sustainability_features) {
           // Use type guard for inner enum validation if needed, otherwise trust typed DB row
           const sf = d.sustainability_features;
@@ -200,10 +126,10 @@ function BookDestinationForm() {
 
       setAllDestinationsState(mappedDestinations);
       const found = mappedDestinations.find(d => d.id === destinationId);
-
+      
       if (found) {
         setDestination(found);
-
+        
         // 1. Fetch weather and indicators once
         const [weather, indicators] = await Promise.all([
           dbService.getLatestWeatherData(found.id),
@@ -211,19 +137,22 @@ function BookDestinationForm() {
         ]);
 
         const weatherConditions: WeatherConditions | undefined = weather ? {
-          weatherAlertLevel: weather.alert_level || 'none',
+          alert_level: weather.alert_level || 'none',
           temperature: weather.temperature,
           humidity: weather.humidity
         } : undefined;
-        setWeatherSnapshot(weatherConditions);
 
         // 2. Use single dynamic capacity call with pre-fetched data
-        const dynResult = await policyEngine.getDynamicCapacity(found, weatherConditions, indicators);
-
+        const dynResult = await policyEngine.getDynamicCapacity(
+          found, 
+          weatherConditions, 
+          indicators || undefined
+        );
+        
         setAvailableSpots(dynResult.availableSpots);
         setAdjustedCapacity(dynResult.adjustedCapacity);
         setCapacityResult(dynResult);
-
+        
         // Generate ecological alert if applicable
         const alert = policyEngine.generateEcologicalAlerts(found);
         setEcoAlert(alert);
@@ -244,22 +173,22 @@ function BookDestinationForm() {
 
   const computeBookingFootprint = useCallback((): CarbonFootprintResult | null => {
     if (!destination || !formData.originLocation) return null;
-
+    
     // Calculate actual stay nights from dates
     let stayNights = 2; // Default fallback
     if (formData.checkInDate && formData.checkOutDate) {
-      const start = parseLocalDate(formData.checkInDate);
-      const end = parseLocalDate(formData.checkOutDate);
+      const start = new Date(formData.checkInDate);
+      const end = new Date(formData.checkOutDate);
       
       if (!isNaN(start.getTime()) && !isNaN(end.getTime())) {
         const diffTime = end.getTime() - start.getTime();
         const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-
+        
         // Ensure at least 0 nights if dates are in reverse or same day
         stayNights = Math.max(0, diffDays);
       }
     }
-
+    
     const calculator = getCarbonCalculator();
     return calculator.calculateBookingFootprint(
       formData.originLocation,
@@ -295,50 +224,10 @@ function BookDestinationForm() {
     }
   }, [destination, formData.originLocation, formData.groupSize, formData.transportType, formData.checkInDate, formData.checkOutDate, calculateCarbonFootprint]);
 
-  useEffect(() => {
-    if (!destination) {
-      setImpactWindow([]);
-      return;
-    }
-
-    const entries = generateImpactWindow({
-      destination,
-      weather: weatherSnapshot,
-      capacityResult: capacityResult || undefined,
-    });
-    setImpactWindow(entries);
-  }, [destination, weatherSnapshot, capacityResult]);
-
-  useEffect(() => {
-    if (!formData.checkInDate) {
-      setSelectedImpactEntry(null);
-      setAlternativeImpactDates([]);
-      return;
-    }
-
-    const entry = impactWindow.find(item => item.date === formData.checkInDate) || null;
-    setSelectedImpactEntry(entry);
-
-    if (entry && (entry.level === 'orange' || entry.level === 'red')) {
-      setAlternativeImpactDates(recommendAlternativeDates(entry.date, impactWindow));
-    } else {
-      setAlternativeImpactDates([]);
-    }
-  }, [formData.checkInDate, impactWindow]);
-
-  const clearFieldError = (field: string) => {
-    setErrors(prev => {
-      if (!prev[field]) return prev;
-      const next = { ...prev };
-      delete next[field];
-      return next;
-    });
-  };
-
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target;
     const checked = (e.target as HTMLInputElement).checked;
-
+    
     if (name === 'groupSize') {
       const numValue = parseInt(value, 10);
       setFormData(prev => ({
@@ -361,19 +250,13 @@ function BookDestinationForm() {
       }));
     }
     // Clear error for the field being edited
-    clearFieldError(name);
-  };
-
-  const handleCalendarSelect = (date: string) => {
-    setFormData(prev => {
-      const shouldResetCheckout = prev.checkOutDate && parseLocalDate(prev.checkOutDate) <= parseLocalDate(date);
-      return {
-        ...prev,
-        checkInDate: date,
-        checkOutDate: shouldResetCheckout ? '' : prev.checkOutDate,
-      };
-    });
-    clearFieldError('checkInDate');
+    if (errors[name]) {
+      setErrors(prev => {
+        const newErrors = { ...prev };
+        delete newErrors[name];
+        return newErrors;
+      });
+    }
   };
 
   const sanitizeFormData = (data: typeof formData) => {
@@ -389,31 +272,30 @@ function BookDestinationForm() {
     const sanitizedData = sanitizeFormData(formData);
     const newErrors: Record<string, string> = {};
 
-    if (!bookingResult.success) {
-      // Map nested emergency contact errors
-      if (bookingResult.errors['emergencyContact.name']) newErrors['emergencyContact.name'] = bookingResult.errors['emergencyContact.name'];
-      if (bookingResult.errors['emergencyContact.phone']) newErrors['emergencyContact.phone'] = bookingResult.errors['emergencyContact.phone'];
-      if (bookingResult.errors['emergencyContact.relationship']) newErrors['emergencyContact.relationship'] = bookingResult.errors['emergencyContact.relationship'];
+    if (step === 1) {
+      if (!sanitizedData.name.trim()) newErrors.name = 'Name is required';
+      if (!sanitizedData.email.trim()) newErrors.email = 'Email is required';
+      if (!sanitizedData.phone.trim()) newErrors.phone = 'Phone number is required';
+      if (!sanitizedData.nationality.trim()) newErrors.nationality = 'Nationality is required';
+      if (!sanitizedData.idProof.trim()) newErrors.idProof = 'ID Proof is required';
+    } else if (step === 2) {
+      if (!sanitizedData.originLocation) newErrors.originLocation = 'Origin location is required';
+      if (!sanitizedData.checkInDate) newErrors.checkInDate = 'Check-in date is required';
+      if (!sanitizedData.checkOutDate) newErrors.checkOutDate = 'Check-out date is required';
+      
+      const bookingResult = validateInput(BookingDataSchema, {
+        groupSize: sanitizedData.groupSize,
+        checkInDate: sanitizedData.checkInDate,
+        checkOutDate: sanitizedData.checkOutDate,
+        emergencyContact: sanitizedData.emergencyContact,
+        transportType: sanitizedData.transportType.split('_')[0].toLowerCase() as any,
+        originLocationId: sanitizedData.originLocation,
+      });
 
-      // Map other booking errors
-      if (bookingResult.errors.groupSize) newErrors.groupSize = bookingResult.errors.groupSize;
-      if (bookingResult.errors.checkInDate) newErrors.checkInDate = bookingResult.errors.checkInDate;
-      if (bookingResult.errors.checkOutDate) newErrors.checkOutDate = bookingResult.errors.checkOutDate;
-    }
-
-    if (!sanitizedData.name.trim()) newErrors.name = 'Name is required';
-    if (!sanitizedData.email.trim()) newErrors.email = 'Email is required';
-    if (!sanitizedData.phone.trim()) newErrors.phone = 'Phone number is required';
-
-    // Ecological Permit Validation
-    if (destination && (destination.ecologicalSensitivity === 'high' || destination.ecologicalSensitivity === 'critical')) {
-      if (policy?.requiresPermit) {
-        if (!sanitizedData.ecoPermitNumber) {
-          newErrors['ecoPermitNumber'] = `An ecological permit is required for ${destination.ecologicalSensitivity} sensitivity areas.`;
-        } else if (!/^ECO-\d{4}-\d{6}$/.test(sanitizedData.ecoPermitNumber)) {
-          // Example pattern validation for permit number
-          newErrors['ecoPermitNumber'] = 'Invalid permit format. Expected ECO-YYYY-XXXXXX';
-        }
+      if (!bookingResult.success) {
+        if (bookingResult.errors.groupSize) newErrors.groupSize = bookingResult.errors.groupSize;
+        if (bookingResult.errors.checkInDate) newErrors.checkInDate = bookingResult.errors.checkInDate;
+        if (bookingResult.errors.checkOutDate) newErrors.checkOutDate = bookingResult.errors.checkOutDate;
       }
     } else if (step === 3) {
       if (!sanitizedData.emergencyContact.name.trim()) newErrors['emergencyContact.name'] = 'Emergency contact name is required';
@@ -438,95 +320,117 @@ function BookDestinationForm() {
     return Object.keys(newErrors).length === 0;
   };
 
-  // Booking mutation hook with optimistic updates
-  const bookingMutation = useBookingMutation({
-    onSuccess: async () => {
-      // Update user eco-points if they are logged in
-      if (user?.id && carbonFootprint) {
-        try {
-          const dbService = getDbService();
-          const pointsToAdd = carbonFootprint.ecoPointsReward;
-          await dbService.updateUserEcoPoints(user.id, pointsToAdd, 0);
-        } catch (error) {
-          console.error('Failed to update eco-points:', error);
-          // Non-critical: booking succeeded, just log the error
-        }
-      }
+  const nextStep = () => {
+    if (validateStep(currentStep)) {
+      setCurrentStep(prev => Math.min(prev + 1, totalSteps));
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  };
 
-      setShowSuccess(true);
-      setTimeout(() => {
-        router.push("/tourist/bookings");
-      }, 3000);
-    },
-    onError: (error) => {
-      // Toast already shown by mutation hook, just log for debugging
-      console.error("Booking error:", error);
-    },
-  });
+  const prevStep = () => {
+    setCurrentStep(prev => Math.max(prev - 1, 1));
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const validateForm = (): boolean => {
+    for (let i = 1; i <= totalSteps; i++) {
+      if (!validateStep(i)) {
+        setCurrentStep(i);
+        return false;
+      }
+    }
+    return true;
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
+    
     if (!validateForm() || !destination) {
-      toast.error('Validation Error', 'Please fill in all required fields');
+      alert('Please fill in all required fields');
       return;
     }
 
     if (!eligibility.allowed) {
-      toast.error('Booking Not Allowed', eligibility.reason || 'Booking is not allowed due to ecological policies.');
+      alert(eligibility.reason || 'Booking is not allowed due to ecological policies.');
       return;
     }
+    
+    setSubmitting(true);
+    
+    try {
+      const dbService = getDbService();
+      const sanitizedData = sanitizeFormData(formData);
+      
+      // Calculate up-to-date footprint for persistence
+      const currentFootprint = computeBookingFootprint();
+      
+      // Validate and convert group size
+      const groupSize = parseInt(String(sanitizedData.groupSize), 10);
+      if (isNaN(groupSize) || groupSize <= 0) {
+        throw new Error("Invalid group size provided");
+      }
+      
+      const bookingData = {
+        name: sanitizedData.name,
+        email: sanitizedData.email,
+        phone: sanitizedData.phone,
+        id_proof: sanitizedData.idProof,
+        nationality: sanitizedData.nationality,
+        group_size: groupSize,
+        destination_id: destination.id,
+        check_in_date: sanitizedData.checkInDate,
+        check_out_date: sanitizedData.checkOutDate,
+        status: "pending" as const,
+        emergency_contact_name: sanitizedData.emergencyContact.name,
+        emergency_contact_phone: sanitizedData.emergencyContact.phone,
+        emergency_contact_relationship: sanitizedData.emergencyContact.relationship,
+        user_id: user?.id || null,
+        registration_date: new Date().toISOString(),
+        // Environmental fields
+        origin_location_id: sanitizedData.originLocation,
+        transport_type: sanitizedData.transportType,
+        carbon_footprint: currentFootprint?.totalEmissions || 0,
+        // Add missing required fields with defaults
+        age: 0,
+        gender: "prefer-not-to-say" as const,
+        address: "",
+        pin_code: "",
+        id_proof_type: "aadhaar" as const,
+      };
+      
+      console.log('Submitting booking data:', bookingData);
+      
+      const result = await dbService.addTourist(bookingData);
+      
+      if (!result) {
+        throw new Error("Failed to create booking - no result returned");
+      }
 
-    const sanitizedData = sanitizeFormData(formData);
-
-    // Calculate up-to-date footprint for persistence
-    const currentFootprint = computeBookingFootprint();
-
-    // Validate and convert group size
-    const groupSize = parseInt(String(sanitizedData.groupSize), 10);
-    if (isNaN(groupSize) || groupSize <= 0) {
-      toast.error('Invalid Group Size', 'Please enter a valid group size.');
-      return;
+      // Update user eco-points if they are logged in
+      if (user?.id && currentFootprint) {
+        const pointsToAdd = currentFootprint.ecoPointsReward;
+        await dbService.updateUserEcoPoints(user.id, pointsToAdd, 0);
+      }
+      
+      setShowSuccess(true);
+      setTimeout(() => {
+        router.push("/tourist/bookings");
+      }, 3000);
+      
+    } catch (error) {
+      console.error("Error submitting booking:", error);
+      alert("Failed to submit booking. Please try again.");
+    } finally {
+      setSubmitting(false);
     }
-
-    const bookingData = {
-      name: sanitizedData.name,
-      email: sanitizedData.email,
-      phone: sanitizedData.phone,
-      id_proof: sanitizedData.idProof,
-      nationality: sanitizedData.nationality,
-      group_size: groupSize,
-      destination_id: destination.id,
-      check_in_date: sanitizedData.checkInDate,
-      check_out_date: sanitizedData.checkOutDate,
-      status: "pending" as const,
-      emergency_contact_name: sanitizedData.emergencyContact.name,
-      emergency_contact_phone: sanitizedData.emergencyContact.phone,
-      emergency_contact_relationship: sanitizedData.emergencyContact.relationship,
-      user_id: user?.id || null,
-      registration_date: new Date().toISOString(),
-      // Environmental fields
-      origin_location_id: sanitizedData.originLocation,
-      transport_type: sanitizedData.transportType,
-      carbon_footprint: currentFootprint?.totalEmissions || 0,
-      // Add missing required fields with defaults
-      age: 0,
-      gender: "prefer-not-to-say" as const,
-      address: "",
-      pin_code: "",
-      id_proof_type: "aadhaar" as const,
-    };
-
-    // Use the mutation - optimistic updates and toasts are handled by the hook
-    bookingMutation.mutate(bookingData);
   };
 
   const getAvailabilityStatus = () => {
     if (!destination) return { text: '', color: '' };
-
+    
     const available = availableSpots;
     const maxPossibleAvailable = destination.maxCapacity;
-
+    
     if (available > maxPossibleAvailable * 0.3) {
       return { text: 'Great Availability', color: 'text-green-600' };
     } else if (available > 0) {
@@ -551,7 +455,7 @@ function BookDestinationForm() {
       <TouristLayout>
         <div className="text-center py-12">
           <h2 className="text-2xl font-bold text-gray-900 mb-4">Destination Not Found</h2>
-          <button
+          <button 
             onClick={() => router.push('/tourist/destinations')}
             className="bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700"
           >
@@ -572,17 +476,17 @@ function BookDestinationForm() {
               +{carbonFootprint ? carbonFootprint.ecoPointsReward : 0} PTS
             </div>
           </div>
-
+          
           <h2 className="text-3xl font-bold text-gray-900 mb-4">
             Booking Submitted Successfully!
           </h2>
-
+          
           <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm mb-8 text-left space-y-4">
             <p className="text-gray-600">
               Your booking request for <strong className="text-gray-900">{destination.name}</strong> has
               been submitted and is pending approval.
             </p>
-
+            
             {carbonFootprint && (
               <div className="pt-4 border-t border-gray-50 flex items-center justify-between">
                 <div>
@@ -598,7 +502,7 @@ function BookDestinationForm() {
               </div>
             )}
           </div>
-
+          
           <p className="text-gray-500">Redirecting to your bookings page...</p>
         </div>
       </TouristLayout>
@@ -612,7 +516,7 @@ function BookDestinationForm() {
       <div className="max-w-4xl mx-auto space-y-6 pb-12">
         {/* Eligibility Warning */}
         {!eligibility.allowed && (
-          <div
+          <div 
             className="p-4 bg-red-100 border border-red-300 text-red-900 rounded-xl flex items-start space-x-3 animate-in slide-in-from-top duration-300"
             role="alert"
           >
@@ -626,7 +530,7 @@ function BookDestinationForm() {
 
         {/* Ecological Alert (Fix for #81) */}
         {ecoAlert && (
-          <div
+          <div 
             className="p-4 bg-yellow-50 border border-yellow-200 text-yellow-800 rounded-xl flex items-start space-x-3 animate-in slide-in-from-top duration-300"
             role="alert"
           >
@@ -639,11 +543,11 @@ function BookDestinationForm() {
         )}
 
         {/* Header Card */}
-        <div className="bg-white rounded-2xl p-8 shadow-sm border border-gray-100 relative overflow-hidden">
-          <div className="flex justify-between items-start">
-            <div className="space-y-4">
-              <h1 className="text-3xl font-bold text-gray-900">Book Your Visit</h1>
-
+        <div className="bg-white rounded-2xl p-6 sm:p-8 shadow-sm border border-gray-100 relative overflow-hidden">
+          <div className="flex flex-col sm:flex-row justify-between items-start gap-6">
+            <div className="space-y-4 w-full sm:w-auto">
+              <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Book Your Visit</h1>
+              
               <div className="space-y-1">
                 <div className="flex items-center text-gray-500 font-medium">
                   <MapPin className="h-5 w-5 mr-2 text-gray-400" aria-hidden="true" />
@@ -658,7 +562,7 @@ function BookDestinationForm() {
                     {availableSpots} / {adjustedCapacity} spots
                   </span>
                 </div>
-
+                
                 {capacityResult?.activeFactorFlags.weather && (
                   <div className="flex items-center px-3 py-1.5 bg-sky-50 text-sky-700 rounded-lg border border-sky-100 text-[10px] font-bold">
                     <AlertTriangle className="h-3 w-3 mr-1" aria-hidden="true" />
@@ -680,186 +584,79 @@ function BookDestinationForm() {
                   <Star className="h-5 w-5 text-yellow-400 fill-current" aria-hidden="true" />
                   <span className="text-lg font-bold text-gray-900">4.3</span>
                 </div>
-                <span className={`text-sm font-bold mt-1 ${availability.text === 'Fully Booked' ? 'text-red-500' : 'text-green-500'
-                  }`}>
+                <span className={`text-xs font-bold mt-1 ${
+                  availability.text === 'Fully Booked' ? 'text-red-500' : 'text-green-500'
+                }`}>
                   {capacityResult?.displayMessage || availability.text}
                 </span>
               </div>
 
-              <div className={`flex items-center px-4 py-2 rounded-full border shadow-sm ${destination.ecologicalSensitivity === 'critical' ? 'bg-red-50 border-red-100 text-red-600' :
+              <div className={`flex items-center px-4 py-2 rounded-full border shadow-sm mt-0 sm:mt-4 ${
+                destination.ecologicalSensitivity === 'critical' ? 'bg-red-50 border-red-100 text-red-600' :
                 destination.ecologicalSensitivity === 'high' ? 'bg-orange-50 border-orange-100 text-orange-600' :
-                  destination.ecologicalSensitivity === 'medium' ? 'bg-yellow-50 border-yellow-100 text-yellow-600' :
-                    'bg-green-50 border-green-100 text-green-600'
-                }`}>
+                destination.ecologicalSensitivity === 'medium' ? 'bg-yellow-50 border-yellow-100 text-yellow-600' :
+                'bg-green-50 border-green-100 text-green-600'
+              }`}>
                 <RefreshCw className="h-4 w-4 mr-2" aria-hidden="true" />
                 <span className="text-xs font-bold capitalize">{destination.ecologicalSensitivity} Sensitivity</span>
               </div>
             </div>
-
           </div>
         </div>
 
-        {impactWindow.length > 0 && (
-          <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 space-y-6">
-            <div className="flex flex-wrap items-center justify-between gap-4">
-              <div>
-                <p className="text-xs font-bold uppercase tracking-[0.2em] text-gray-500">Seasonal Impact Guide</p>
-                <p className="text-sm text-gray-600">Color-coded calendar blends seasonality, weather alerts, and live capacity.</p>
-              </div>
-              <div className="flex flex-wrap items-center gap-3 text-xs font-semibold text-gray-600">
-                {IMPACT_ORDER.map(level => (
-                  <div key={level} className="flex items-center gap-1">
-                    <span className={`h-3 w-3 rounded-full ${LEVEL_DOT_CLASSES[level]}`} aria-hidden="true" />
-                    <span>{LEGEND_LABELS[level]}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="-mx-4 overflow-x-auto md:mx-0">
-              <div className="min-w-[640px] space-y-3 px-4 md:px-0">
-                <div className="grid grid-cols-7 gap-2 text-[11px] font-black uppercase tracking-widest text-gray-400">
-                  {WEEKDAY_LABELS.map(day => (
-                    <div key={day} className="text-center">{day}</div>
-                  ))}
-                </div>
-                <div className="grid grid-cols-7 gap-2">
-                  {paddedImpactEntries.map((entry, idx) => {
-                    if (!entry) {
-                      return (
-                        <div key={`pad-${idx}`} className="h-[96px] rounded-2xl border border-transparent" aria-hidden="true" />
-                      );
-                    }
-                    const isSelected = selectedImpactEntry?.date === entry.date;
-                    const tooltipId = `impact-tooltip-${entry.date}`;
-                    const dayNumber = parseLocalDate(entry.date).getDate();
-                    return (
-                      <div key={entry.date} className="relative group">
-                        <button
-                          type="button"
-                          onClick={() => handleCalendarSelect(entry.date)}
-                          className={`w-full rounded-2xl border px-3 py-3 text-left text-xs font-bold min-h-[96px] transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 ${LEVEL_TILE_CLASSES[entry.level]} ${isSelected ? `${LEVEL_RING_CLASSES[entry.level]} ring-2 ring-offset-2` : 'hover:-translate-y-0.5'}`}
-                          aria-describedby={tooltipId}
-                          title={`${entry.levelLabel}: ${entry.reasons.join(', ')}`}
-                        >
-                          <div className="flex items-center justify-between">
-                            <span className="text-lg font-black">{dayNumber}</span>
-                            <span className="text-[10px] uppercase tracking-wide">{entry.levelLabel}</span>
-                          </div>
-                          <p className="mt-2 text-[10px] font-semibold leading-snug opacity-80 line-clamp-2">{entry.reasons[0]}</p>
-                        </button>
-                        <div
-                          id={tooltipId}
-                          role="tooltip"
-                          className="pointer-events-none absolute left-1/2 top-full z-20 hidden w-56 -translate-x-1/2 rounded-2xl border border-gray-200 bg-white p-3 text-[11px] text-gray-800 shadow-2xl group-hover:block group-focus-within:block"
-                        >
-                          <p className="text-xs font-black uppercase tracking-[0.2em] text-gray-400">{entry.levelLabel}</p>
-                          <p className="text-sm font-bold text-gray-900">{entry.label}</p>
-                          <p className="mt-1 text-[11px] leading-relaxed text-gray-600">{entry.reasons.join(' • ')}</p>
-                          <p className="mt-2 text-[11px] font-semibold text-gray-900">{entry.recommendation}</p>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            </div>
-
-            {selectedImpactEntry && (
-              <div className={`flex flex-col gap-2 rounded-2xl border p-4 text-sm shadow-sm ${LEVEL_SUMMARY_CLASSES[selectedImpactEntry.level]}`}>
-                <div className="flex items-center gap-3">
-                  {selectedImpactEntry.level === 'green' && <Leaf className="h-6 w-6" aria-hidden="true" />}
-                  {selectedImpactEntry.level === 'yellow' && <Info className="h-6 w-6" aria-hidden="true" />}
-                  {selectedImpactEntry.level === 'orange' && <AlertTriangle className="h-6 w-6" aria-hidden="true" />}
-                  {selectedImpactEntry.level === 'red' && <ShieldAlert className="h-6 w-6" aria-hidden="true" />}
-                  <div>
-                    <p className="text-[10px] font-black uppercase tracking-[0.3em]">{selectedImpactEntry.levelLabel}</p>
-                    <p className="text-lg font-bold">{selectedImpactEntry.label}</p>
-                  </div>
-                </div>
-                <p className="text-sm font-semibold opacity-80">{selectedImpactEntry.recommendation}</p>
-                <ul className="list-disc space-y-1 pl-5 text-xs opacity-80">
-                  {selectedImpactEntry.reasons.map((reason, idx) => (
-                    <li key={idx}>{reason}</li>
-                  ))}
-                </ul>
-              </div>
-            )}
-
-            {alternativeImpactDates.length > 0 && (
-              <div className="rounded-2xl border border-amber-200 bg-amber-50/80 p-4">
-                <div className="flex items-center gap-2 text-amber-900">
-                  <AlertTriangle className="h-5 w-5 flex-shrink-0" aria-hidden="true" />
-                  <p className="text-sm font-bold">Selected date has higher ecological impact. Consider these alternatives:</p>
-                </div>
-                <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
-                  {alternativeImpactDates.map(entry => (
-                    <button
-                      key={entry.date}
-                      type="button"
-                      onClick={() => handleCalendarSelect(entry.date)}
-                      className="rounded-2xl border border-white/40 bg-white p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
-                    >
-                      <div className="flex items-center justify-between text-sm font-bold text-gray-900">
-                        <span>{entry.label}</span>
-                        <span className={`rounded-full px-2 py-0.5 text-[10px] font-black uppercase ${LEVEL_BADGE_CLASSES[entry.level]}`}>
-                          {entry.levelLabel}
-                        </span>
-                      </div>
-                      <p className="mt-2 text-[11px] text-gray-600 line-clamp-2">{entry.recommendation}</p>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-
+        {/* Policy Section */}
         {destination && (destination.ecologicalSensitivity !== 'low' || policy?.bookingRestrictionMessage) && (
-          <div className={`${destination.ecologicalSensitivity === 'critical' ? 'bg-red-50 border-red-400' :
+          <div className={`${
+            destination.ecologicalSensitivity === 'critical' ? 'bg-red-50 border-red-400' :
             destination.ecologicalSensitivity === 'high' ? 'bg-orange-50 border-orange-400' :
-              'bg-yellow-50 border-yellow-400'
-            } border-2 rounded-2xl p-8 relative overflow-hidden`}>
+            'bg-yellow-50 border-yellow-400'
+          } border-2 rounded-2xl p-6 sm:p-8 relative overflow-hidden`}>
             <div className="flex items-start space-x-4">
-              <div className={`${destination.ecologicalSensitivity === 'critical' ? 'bg-red-100' :
+              <div className={`${
+                destination.ecologicalSensitivity === 'critical' ? 'bg-red-100' :
                 destination.ecologicalSensitivity === 'high' ? 'bg-orange-100' :
-                  'bg-yellow-100'
-                } p-3 rounded-xl border`}>
-                <ShieldAlert className={`${destination.ecologicalSensitivity === 'critical' ? 'text-red-700' :
+                'bg-yellow-100'
+              } p-2 sm:p-3 rounded-xl border flex-shrink-0`}>
+                <ShieldAlert className={`${
+                  destination.ecologicalSensitivity === 'critical' ? 'text-red-700' :
                   destination.ecologicalSensitivity === 'high' ? 'text-orange-700' :
-                    'text-yellow-700'
-                  } h-8 w-8`} aria-hidden="true" />
+                  'text-yellow-700'
+                } h-6 w-6 sm:h-8 sm:w-8`} aria-hidden="true" />
               </div>
               <div className="space-y-4">
                 <div>
-                  <h3 className={`${destination.ecologicalSensitivity === 'critical' ? 'text-red-900' :
+                  <h3 className={`${
+                    destination.ecologicalSensitivity === 'critical' ? 'text-red-900' :
                     destination.ecologicalSensitivity === 'high' ? 'text-orange-900' :
-                      'text-yellow-900'
-                    } text-xl font-black uppercase tracking-tight`}>
+                    'text-yellow-900'
+                  } text-lg sm:text-xl font-black uppercase tracking-tight`}>
                     {destination.ecologicalSensitivity} Sensitivity Policy
                   </h3>
-                  <p className={`${destination.ecologicalSensitivity === 'critical' ? 'text-red-800' :
+                  <p className={`${
+                    destination.ecologicalSensitivity === 'critical' ? 'text-red-800' :
                     destination.ecologicalSensitivity === 'high' ? 'text-orange-800' :
-                      'text-yellow-800'
-                    } font-bold mt-1`}>
+                    'text-yellow-800'
+                  } font-bold mt-1 text-sm sm:text-base`}>
                     {policy?.bookingRestrictionMessage || `This is a ${destination.ecologicalSensitivity}-sensitivity area. Please follow the guidelines.`}
                   </p>
                 </div>
-
-                <div className="flex flex-wrap gap-3">
+                
+                <div className="flex flex-wrap gap-2">
                   {policy?.requiresPermit && (
-                    <div className={`px-4 py-2 border rounded-full text-xs font-black uppercase shadow-sm ${destination.ecologicalSensitivity === 'critical' ? 'bg-red-100 text-red-900 border-red-200' :
+                    <div className={`px-3 py-1.5 border rounded-full text-[10px] font-black uppercase shadow-sm ${
+                      destination.ecologicalSensitivity === 'critical' ? 'bg-red-100 text-red-900 border-red-200' :
                       destination.ecologicalSensitivity === 'high' ? 'bg-orange-100 text-orange-900 border-orange-200' :
-                        'bg-yellow-100 text-yellow-900 border-yellow-200'
-                      }`}>
+                      'bg-yellow-100 text-yellow-900 border-yellow-200'
+                    }`}>
                       Permit Required
                     </div>
                   )}
                   {policy?.requiresEcoBriefing && (
-                    <div className={`px-4 py-2 border rounded-full text-xs font-black uppercase shadow-sm ${destination.ecologicalSensitivity === 'critical' ? 'bg-red-100 text-red-900 border-red-200' :
+                    <div className={`px-3 py-1.5 border rounded-full text-[10px] font-black uppercase shadow-sm ${
+                      destination.ecologicalSensitivity === 'critical' ? 'bg-red-100 text-red-900 border-red-200' :
                       destination.ecologicalSensitivity === 'high' ? 'bg-orange-100 text-orange-900 border-orange-200' :
-                        'bg-yellow-100 text-yellow-900 border-yellow-200'
-                      }`}>
+                      'bg-yellow-100 text-yellow-900 border-yellow-200'
+                    }`}>
                       Eco-Briefing Mandatory
                     </div>
                   )}
@@ -869,141 +666,26 @@ function BookDestinationForm() {
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-8">
-          {/* Personal Information */}
-          <div className="bg-white rounded-2xl p-8 shadow-sm border border-gray-100">
-            <h3 className="text-2xl font-bold text-gray-900 mb-8">Personal Information</h3>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
-              <div className="space-y-2">
-                <label htmlFor="book-name" className="text-sm font-bold text-gray-600">Full Name *</label>
-                <input
-                  id="book-name"
-                  type="text"
-                  name="name"
-                  value={formData.name}
-                  onChange={handleInputChange}
-                  required
-                  className={`w-full px-4 py-4 bg-white border ${errors.name ? 'border-red-500' : 'border-gray-200'} rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all outline-none text-gray-900`}
-                  aria-invalid={!!errors.name}
-                  aria-describedby={errors.name ? "name-error" : undefined}
-                />
-                {errors.name && <p id="name-error" className="text-xs text-red-500 font-bold mt-1" role="alert">{errors.name}</p>}
-              </div>
-
-              <div className="space-y-2">
-                <label htmlFor="book-email" className="text-sm font-bold text-gray-600">Email Address *</label>
-                <input
-                  id="book-email"
-                  type="email"
-                  name="email"
-                  autoComplete="email"
-                  value={formData.email}
-                  onChange={handleInputChange}
-                  required
-                  className={`w-full px-4 py-4 bg-white border ${errors.email ? 'border-red-500' : 'border-gray-200'} rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all outline-none text-gray-900`}
-                  aria-invalid={!!errors.email}
-                  aria-describedby={errors.email ? "email-error" : undefined}
-                />
-                {errors.email && <p id="email-error" className="text-xs text-red-500 font-bold mt-1" role="alert">{errors.email}</p>}
-              </div>
-
-              <div className="space-y-2">
-                <label htmlFor="book-phone" className="text-sm font-bold text-gray-600">Phone Number *</label>
-                <input
-                  id="book-phone"
-                  type="tel"
-                  autoComplete="tel"
-                  name="phone"
-                  value={formData.phone}
-                  onChange={handleInputChange}
-                  required
-                  className={`w-full px-4 py-4 bg-white border ${errors.phone ? 'border-red-500' : 'border-gray-200'} rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all outline-none text-gray-900`}
-                  aria-invalid={!!errors.phone}
-                  aria-describedby={errors.phone ? "phone-error" : undefined}
-                />
-                {errors.phone && <p id="phone-error" className="text-xs text-red-500 font-bold mt-1" role="alert">{errors.phone}</p>}
-              </div>
-
-              <div className="space-y-2">
-                <label htmlFor="book-nationality" className="text-sm font-bold text-gray-600">Nationality *</label>
-                <input
-                  id="book-nationality"
-                  type="text"
-                  name="nationality"
-                  value={formData.nationality}
-                  onChange={handleInputChange}
-                  required
-                  className={`w-full px-4 py-4 bg-white border ${errors.nationality ? 'border-red-500' : 'border-gray-200'} rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all outline-none text-gray-900`}
-                  aria-invalid={!!errors.nationality}
-                  aria-describedby={errors.nationality ? "nationality-error" : undefined}
-                />
-                {errors.nationality && <p id="nationality-error" className="text-xs text-red-500 font-bold mt-1" role="alert">{errors.nationality}</p>}
-              </div>
-
-              <div className="space-y-2">
-                <label htmlFor="book-idProof" className="text-sm font-bold text-gray-600">ID Proof Number *</label>
-                <input
-                  id="book-idProof"
-                  type="text"
-                  name="idProof"
-                  value={formData.idProof}
-                  onChange={handleInputChange}
-                  required
-                  placeholder="Passport/Aadhar/Driving License"
-                  className={`w-full px-4 py-4 bg-white border ${errors.idProof ? 'border-red-500' : 'border-gray-200'} rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all outline-none placeholder:text-gray-300 text-gray-900`}
-                  aria-invalid={!!errors.idProof}
-                  aria-describedby={errors.idProof ? "idProof-error" : undefined}
-                />
-                {errors.idProof && <p id="idProof-error" className="text-xs text-red-500 font-bold mt-1" role="alert">{errors.idProof}</p>}
-              </div>
-
-              <div className="space-y-2">
-                <label htmlFor="book-originLocation" className="text-sm font-bold text-gray-600">Origin Location *</label>
-                <select
-                  id="book-originLocation"
-                  name="originLocation"
-                  value={formData.originLocation}
-                  onChange={handleInputChange}
-                  required
-                  className={`w-full px-4 py-4 bg-white border ${errors.originLocation ? 'border-red-500' : 'border-gray-200'} rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all outline-none text-gray-900`}
-                  aria-invalid={!!errors.originLocation}
-                  aria-describedby={errors.originLocation ? "originLocation-error" : "originLocation-info"}
-                >
-                  <option value="">Select your origin state/region</option>
-                  {ORIGIN_LOCATIONS.map(location => (
-                    <option key={location.id} value={location.id}>
-                      {location.name}
-                    </option>
-                  ))}
-                </select>
-                {errors.originLocation && <p id="originLocation-error" className="text-xs text-red-500 font-bold mt-1" role="alert">{errors.originLocation}</p>}
-                <p id="originLocation-info" className="text-xs text-gray-500 mt-1 flex items-center">
-                  <Info className="h-3 w-3 mr-1" aria-hidden="true" />
-                  Used to calculate your travel carbon footprint
-                </p>
-              </div>
-
-              <div className="space-y-2">
-                <label htmlFor="book-transportType" className="text-sm font-bold text-gray-600">Transport Type *</label>
-                <select
-                  id="book-transportType"
-                  name="transportType"
-                  value={formData.transportType}
-                  onChange={handleInputChange}
-                  required
-                  className="w-full px-4 py-4 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all outline-none appearance-none text-gray-900"
-                  aria-describedby="transportType-info"
-                >
-                  <option value="TRAIN_PER_KM">Train (Eco-Friendly)</option>
-                  <option value="BUS_PER_KM">Public Bus (Eco-Friendly)</option>
-                  <option value="CAR_PER_KM">Car / Private Vehicle</option>
-                  <option value="FLIGHT_PER_KM">Flight</option>
-                </select>
-                <p id="transportType-info" className="text-xs text-gray-500 mt-1 flex items-center">
-                  <Leaf className="h-3 w-3 mr-1 text-green-600" aria-hidden="true" />
-                  Public transport significantly reduces your footprint!
-                </p>
+        {/* Step Indicator */}
+        <div className="mb-6 px-2 sm:px-0">
+          <div className="flex items-center justify-between mb-4 relative">
+            {/* Absolute background line */}
+            <div className="absolute top-5 left-[10%] right-[10%] h-[2px] bg-gray-100 -z-0" />
+            
+            {[...Array(totalSteps)].map((_, i) => (
+              <div key={i} className="flex flex-col items-center flex-1 relative z-10">
+                <div className={`w-10 h-10 rounded-full flex items-center justify-center border-2 transition-all duration-500 ${
+                  currentStep > i + 1 ? 'bg-green-600 border-green-600 text-white shadow-lg' :
+                  currentStep === i + 1 ? 'border-green-600 bg-white text-green-600 font-black shadow-md ring-4 ring-green-50' :
+                  'border-gray-200 bg-white text-gray-400'
+                }`}>
+                  {currentStep > i + 1 ? <CheckCircle className="h-6 w-6" /> : i + 1}
+                </div>
+                <span className={`text-[10px] mt-2 font-black uppercase tracking-tighter transition-all duration-300 ${
+                  currentStep >= i + 1 ? 'text-green-700' : 'text-gray-400'
+                } ${currentStep === i + 1 ? 'scale-110 opacity-100' : 'opacity-60'}`}>
+                  {i === 0 ? 'Personal' : i === 1 ? 'Trip' : i === 2 ? 'Details' : 'Eco'}
+                </span>
               </div>
             ))}
           </div>
@@ -1029,36 +711,9 @@ function BookDestinationForm() {
                   />
                   {errors.name && <p className="text-[10px] text-red-500 font-bold mt-1 uppercase">{errors.name}</p>}
                 </div>
-              )}
-
-              <div className="space-y-2">
-                <label htmlFor="book-groupSize" className="text-sm font-bold text-gray-600">Group Size *</label>
-                <select
-                  id="book-groupSize"
-                  name="groupSize"
-                  value={formData.groupSize}
-                  onChange={handleInputChange}
-                  required
-                  className="w-full px-4 py-4 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all outline-none appearance-none text-gray-900"
-                >
-                  {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((size) => (
-                    <option key={size} value={size}>
-                      {size} {size === 1 ? "Person" : "People"}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-          </div>
-
-          {/* Travel Dates */}
-          <div className="bg-white rounded-2xl p-8 shadow-sm border border-gray-100">
-            <h3 className="text-2xl font-bold text-gray-900 mb-8">Travel Dates</h3>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
-              <div className="space-y-2">
-                <label htmlFor="book-checkInDate" className="text-sm font-bold text-gray-600">Check-in Date *</label>
-                <div className="relative">
+                
+                <div className="space-y-1.5">
+                  <label htmlFor="book-email" className="text-xs font-black text-gray-400 uppercase tracking-wider">Email Address *</label>
                   <input
                     id="book-email"
                     type="email"
@@ -1071,11 +726,24 @@ function BookDestinationForm() {
                   />
                   {errors.email && <p className="text-[10px] text-red-500 font-bold mt-1 uppercase">{errors.email}</p>}
                 </div>
-              </div>
-
-              <div className="space-y-2">
-                <label htmlFor="book-checkOutDate" className="text-sm font-bold text-gray-600">Check-out Date *</label>
-                <div className="relative">
+                
+                <div className="space-y-1.5">
+                  <label htmlFor="book-phone" className="text-xs font-black text-gray-400 uppercase tracking-wider">Phone Number *</label>
+                  <input
+                    id="book-phone"
+                    type="tel"
+                    autoComplete="tel"
+                    name="phone"
+                    value={formData.phone}
+                    onChange={handleInputChange}
+                    required
+                    className={`w-full px-4 py-3 min-h-[52px] bg-white border ${errors.phone ? 'border-red-500 ring-1 ring-red-100' : 'border-gray-200'} rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all outline-none text-gray-900 font-medium`}
+                  />
+                  {errors.phone && <p className="text-[10px] text-red-500 font-bold mt-1 uppercase">{errors.phone}</p>}
+                </div>
+                
+                <div className="space-y-1.5">
+                  <label htmlFor="book-nationality" className="text-xs font-black text-gray-400 uppercase tracking-wider">Nationality *</label>
                   <input
                     id="book-nationality"
                     type="text"
@@ -1131,80 +799,39 @@ function BookDestinationForm() {
                     {errors.originLocation && <p className="text-[10px] text-red-500 font-bold mt-1 uppercase">{errors.originLocation}</p>}
                   </div>
 
-          {/* Emergency Contact */}
-          <div className="bg-white rounded-2xl p-8 shadow-sm border border-gray-100">
-            <h3 className="text-2xl font-bold text-gray-900 mb-8">Emergency Contact</h3>
+                  <div className="space-y-1.5">
+                    <label htmlFor="book-transportType" className="text-xs font-black text-gray-400 uppercase tracking-wider">Transport Type *</label>
+                    <select
+                      id="book-transportType"
+                      name="transportType"
+                      value={formData.transportType}
+                      onChange={handleInputChange}
+                      required
+                      className="w-full px-4 py-3 min-h-[52px] bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all outline-none appearance-none text-gray-900 font-medium"
+                    >
+                      <option value="TRAIN_PER_KM">Train (Eco-Friendly)</option>
+                      <option value="BUS_PER_KM">Public Bus (Eco-Friendly)</option>
+                      <option value="CAR_PER_KM">Car / Private Vehicle</option>
+                      <option value="FLIGHT_PER_KM">Flight</option>
+                    </select>
+                  </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-x-6 gap-y-6">
-              <div className="space-y-2">
-                <label htmlFor="emergency-contact-name" className="text-sm font-bold text-gray-600">Contact Name *</label>
-                <input
-                  id="emergency-contact-name"
-                  type="text"
-                  name="emergencyContact.name"
-                  value={formData.emergencyContact.name}
-                  onChange={handleInputChange}
-                  required
-                  className={`w-full px-4 py-4 bg-white border ${errors['emergencyContact.name'] ? 'border-red-500' : 'border-gray-200'} rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all outline-none text-gray-900`}
-                  aria-invalid={!!errors['emergencyContact.name']}
-                  aria-describedby={errors['emergencyContact.name'] ? "emergency-contact-name-error" : undefined}
-                />
-                {errors['emergencyContact.name'] && <p id="emergency-contact-name-error" className="text-xs text-red-500 font-bold mt-1" role="alert">{errors['emergencyContact.name']}</p>}
-              </div>
-
-              <div className="space-y-2">
-                <label htmlFor="emergency-contact-phone" className="text-sm font-bold text-gray-600">Contact Phone *</label>
-                <input
-                  id="emergency-contact-phone"
-                  type="tel"
-                  autoComplete="tel"
-                  name="emergencyContact.phone"
-                  value={formData.emergencyContact.phone}
-                  onChange={handleInputChange}
-                  required
-                  className={`w-full px-4 py-4 bg-white border ${errors['emergencyContact.phone'] ? 'border-red-500' : 'border-gray-200'} rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all outline-none text-gray-900`}
-                  aria-invalid={!!errors['emergencyContact.phone']}
-                  aria-describedby={errors['emergencyContact.phone'] ? "emergency-contact-phone-error" : undefined}
-                />
-                {errors['emergencyContact.phone'] && <p id="emergency-contact-phone-error" className="text-xs text-red-500 font-bold mt-1" role="alert">{errors['emergencyContact.phone']}</p>}
-              </div>
-
-              <div className="space-y-2">
-                <label htmlFor="emergency-contact-relationship" className="text-sm font-bold text-gray-600">Relationship *</label>
-                <select
-                  id="emergency-contact-relationship"
-                  name="emergencyContact.relationship"
-                  value={formData.emergencyContact.relationship}
-                  onChange={handleInputChange}
-                  required
-                  className={`w-full px-4 py-4 bg-white border ${errors['emergencyContact.relationship'] ? 'border-red-500' : 'border-gray-200'} rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all outline-none appearance-none text-gray-900`}
-                  aria-invalid={!!errors['emergencyContact.relationship']}
-                  aria-describedby={errors['emergencyContact.relationship'] ? "emergency-contact-relationship-error" : undefined}
-                >
-                  <option value="">Select Relationship</option>
-                  <option value="parent">Parent</option>
-                  <option value="spouse">Spouse</option>
-                  <option value="sibling">Sibling</option>
-                  <option value="friend">Friend</option>
-                  <option value="other">Other</option>
-                </select>
-                {errors['emergencyContact.relationship'] && <p id="emergency-contact-relationship-error" className="text-xs text-red-500 font-bold mt-1" role="alert">{errors['emergencyContact.relationship']}</p>}
-              </div>
-            </div>
-          </div>
-
-          {/* Environmental Impact & Sustainability */}
-          {carbonFootprint && (
-            <div className="space-y-6" role="region" aria-label="Environmental Impact Analysis">
-              {/* Carbon Footprint Display */}
-              <div className="bg-white rounded-2xl p-8 shadow-sm border border-gray-100" aria-live="polite">
-                <div className="flex items-center justify-between mb-8">
-                  <h3 className="text-2xl font-bold text-gray-900">Environmental Impact</h3>
-                  <div className={`px-4 py-1 rounded-full text-xs font-bold uppercase tracking-wider ${carbonFootprint.impactLevel === 'low' ? 'bg-green-100 text-green-700' :
-                    carbonFootprint.impactLevel === 'medium' ? 'bg-yellow-100 text-yellow-700' :
-                      'bg-red-100 text-red-700'
-                    }`}>
-                    {carbonFootprint.impactLevel} Impact
+                  <div className="space-y-1.5">
+                    <label htmlFor="book-groupSize" className="text-xs font-black text-gray-400 uppercase tracking-wider">Group Size *</label>
+                    <select
+                      id="book-groupSize"
+                      name="groupSize"
+                      value={formData.groupSize}
+                      onChange={handleInputChange}
+                      required
+                      className="w-full px-4 py-3 min-h-[52px] bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all outline-none appearance-none text-gray-900 font-medium"
+                    >
+                      {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((size) => (
+                        <option key={size} value={size}>
+                          {size} {size === 1 ? "Person" : "People"}
+                        </option>
+                      ))}
+                    </select>
                   </div>
                 </div>
 
@@ -1300,14 +927,25 @@ function BookDestinationForm() {
                   />
                   {errors['emergencyContact.phone'] && <p className="text-[10px] text-red-500 font-bold mt-1 uppercase">{errors['emergencyContact.phone']}</p>}
                 </div>
-
-                <div className="space-y-4">
-                  {getCarbonCalculator().getSustainabilityTips(destination.ecologicalSensitivity).map((tip, idx) => (
-                    <div key={idx} className="flex items-start space-x-3">
-                      <div className="mt-1.5 h-1.5 w-1.5 rounded-full bg-emerald-400 flex-shrink-0" />
-                      <p className="text-emerald-50 text-sm leading-relaxed">{tip}</p>
-                    </div>
-                  ))}
+                
+                <div className="space-y-1.5">
+                  <label htmlFor="emergency-contact-relationship" className="text-xs font-black text-gray-400 uppercase tracking-wider">Relationship *</label>
+                  <select
+                    id="emergency-contact-relationship"
+                    name="emergencyContact.relationship"
+                    value={formData.emergencyContact.relationship}
+                    onChange={handleInputChange}
+                    required
+                    className={`w-full px-4 py-3 min-h-[52px] bg-white border ${errors['emergencyContact.relationship'] ? 'border-red-500 ring-1 ring-red-100' : 'border-gray-200'} rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all outline-none text-gray-900 font-medium`}
+                  >
+                    <option value="">Select Relationship</option>
+                    <option value="parent">Parent</option>
+                    <option value="spouse">Spouse</option>
+                    <option value="sibling">Sibling</option>
+                    <option value="friend">Friend</option>
+                    <option value="other">Other</option>
+                  </select>
+                  {errors['emergencyContact.relationship'] && <p className="text-[10px] text-red-500 font-bold mt-1 uppercase">{errors['emergencyContact.relationship']}</p>}
                 </div>
               </div>
             </div>
@@ -1350,34 +988,20 @@ function BookDestinationForm() {
                             className="h-6 w-6 text-green-600 border-gray-300 rounded focus:ring-green-500 transition-all cursor-pointer"
                           />
                         </div>
-                        <p className="text-[10px] text-gray-500 line-clamp-1">{alt.description}</p>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            router.push(`/tourist/book?destination=${alt.id}`);
-                            window.location.reload(); // Force reload to update destination state
-                          }}
-                          className="text-[9px] font-black text-emerald-600 uppercase tracking-widest mt-1 hover:underline"
-                        >
-                          Switch to this destination
-                        </button>
-                      </div>
+                        <span className="text-sm font-bold text-green-800 leading-relaxed">
+                          I acknowledge that this is a {destination.ecologicalSensitivity} sensitivity area and I agree to undergo the mandatory ecological briefing. *
+                        </span>
+                      </label>
+                      {errors.acknowledged && <p className="text-[10px] text-red-500 font-bold mt-1 uppercase">{errors.acknowledged}</p>}
                     </div>
                   )}
 
-          {/* Additional Information & Acknowledgement */}
-          <div className="bg-white rounded-2xl p-8 shadow-sm border border-gray-100">
-            <h3 className="text-2xl font-bold text-gray-900 mb-8">Additional Information</h3>
-
-            {destination && (destination.ecologicalSensitivity === 'high' || destination.ecologicalSensitivity === 'critical') && policy?.requiresEcoBriefing && (
-              <div className="bg-green-50/50 border border-green-200 rounded-xl p-6 mb-6">
-                <label htmlFor="acknowledged" className="flex items-start space-x-4 cursor-pointer">
-                  <div className="mt-1">
-                    <input
-                      id="acknowledged"
-                      type="checkbox"
-                      name="acknowledged"
-                      checked={formData.acknowledged}
+                  <div className="space-y-1.5">
+                    <label htmlFor="special-requests" className="text-xs font-black text-gray-400 uppercase tracking-wider">Special Requests (Optional)</label>
+                    <textarea
+                      id="special-requests"
+                      name="specialRequests"
+                      value={formData.specialRequests}
                       onChange={handleInputChange}
                       rows={4}
                       className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all outline-none resize-none text-gray-900 font-medium"
@@ -1404,32 +1028,45 @@ function BookDestinationForm() {
             </div>
           )}
 
-          <div className="flex items-center justify-between">
-            <button
-              type="button"
-              onClick={() => router.back()}
-              className="px-8 py-4 text-gray-600 font-bold hover:text-gray-900 transition-colors"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={bookingMutation.isPending || !eligibility.allowed}
-              className={`w-full py-4 rounded-xl font-bold text-lg transition-all shadow-lg hover:shadow-xl
-    ${bookingMutation.isPending || !eligibility.allowed
-                  ? 'bg-gray-400 cursor-not-allowed'
-                  : 'bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white'
-                }`}
-            >
-              {bookingMutation.isPending ? (
-                <span className="flex items-center justify-center gap-2">
-                  <RefreshCw className="h-5 w-5 animate-spin" />
-                  Processing...
-                </span>
-              ) : (
-                'Confirm Booking'
-              )}
-            </button>
+          <div className="flex flex-col sm:flex-row items-center gap-4 pt-4">
+            {currentStep > 1 && (
+              <button
+                type="button"
+                onClick={prevStep}
+                className="w-full sm:w-auto px-8 py-4 bg-white border border-gray-200 text-gray-700 font-bold rounded-xl hover:bg-gray-50 transition-all flex items-center justify-center gap-2"
+              >
+                Back
+              </button>
+            )}
+            
+            {currentStep < totalSteps ? (
+              <button
+                type="button"
+                onClick={nextStep}
+                className="w-full sm:flex-1 py-4 bg-green-600 text-white font-bold rounded-xl hover:bg-green-700 transition-all shadow-lg hover:shadow-xl"
+              >
+                Continue
+              </button>
+            ) : (
+              <button
+                type="submit"
+                disabled={submitting || !eligibility.allowed}
+                className={`w-full sm:flex-1 py-4 rounded-xl font-bold text-lg transition-all shadow-lg hover:shadow-xl
+                  ${submitting || !eligibility.allowed
+                    ? 'bg-gray-400 cursor-not-allowed' 
+                    : 'bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white'
+                  }`}
+              >
+                {submitting ? (
+                  <span className="flex items-center justify-center gap-2">
+                    <RefreshCw className="h-5 w-5 animate-spin" />
+                    Processing...
+                  </span>
+                ) : (
+                  'Confirm Booking'
+                )}
+              </button>
+            )}
           </div>
         </form>
       </div>

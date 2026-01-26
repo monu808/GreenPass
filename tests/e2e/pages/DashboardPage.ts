@@ -24,7 +24,7 @@ export class DashboardPage {
 
   async expectFeaturedDestinations() {
     const cards = this.page.locator('.bg-white');
-    await expect(cards).toHaveCount({ min: 1 });
+    await expect(cards.first()).toBeVisible();
   }
 
   async logout() {

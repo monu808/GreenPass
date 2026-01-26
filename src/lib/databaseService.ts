@@ -2612,7 +2612,7 @@ class DatabaseService {
     };
   }
 
-  private transformDbTouristToTourist(dbTourist: DbTourist): Tourist {
+  public transformDbTouristToTourist(dbTourist: DbTourist): Tourist {
     return {
       id: dbTourist.id,
       name: dbTourist.name,

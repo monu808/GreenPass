@@ -1,5 +1,5 @@
 import { Page, expect } from '@playwright/test';
-import { TEST_USER } from '../fixtures/testData';
+import { TEST_USER, ADMIN_USER } from '../fixtures/testData';
 
 export class LoginPage {
   constructor(private page: Page) {}
@@ -41,11 +41,7 @@ export class LoginPage {
   }
 
   async fillAdminCredentials() {
-    // There is no explicit button for this in the UI based on the code read, 
-    // but the component has a helper function fillAdminCredentials.
-    // However, for E2E we should fill it manually or find the button if it exists.
-    // Let's assume we fill it manually for reliability.
-    await this.fillEmail('admin@tms-india.gov.in');
-    await this.fillPassword('TMS_Admin_2025!');
+    await this.fillEmail(ADMIN_USER.email);
+    await this.fillPassword(ADMIN_USER.password);
   }
 }

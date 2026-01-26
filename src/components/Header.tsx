@@ -54,7 +54,7 @@ export default function Header({ onMenuClick }: HeaderProps) {
           <button
             onClick={onMenuClick}
             aria-label="Open navigation menu"
-            className="p-2 mr-4 text-gray-600 lg:hidden hover:bg-gray-100 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-green-500"
+            className="p-3 mr-2 text-gray-600 lg:hidden hover:bg-gray-100 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-green-500 min-h-[44px] min-w-[44px] flex items-center justify-center"
           >
             <Menu className="h-6 w-6" aria-hidden="true" />
           </button>

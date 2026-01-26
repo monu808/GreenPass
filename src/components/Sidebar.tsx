@@ -42,17 +42,49 @@ interface SidebarProps {
 export default function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
   const pathname = usePathname();
   const sidebarRef = useRef<HTMLDivElement>(null);
+  const touchStartX = useRef<number>(0);
+  const touchEndX = useRef<number>(0);
 
   // Focus trap and escape key for mobile drawer
   useFocusTrap(sidebarRef, !!isOpen);
   useEscapeKey(() => setIsOpen?.(false), !!isOpen);
+
+  // Prevent scrolling when sidebar is open on mobile
+  React.useEffect(() => {
+    if (isOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
+  }, [isOpen]);
+
+  // Handle swipe to close
+  const handleTouchStart = (e: React.TouchEvent) => {
+    touchStartX.current = e.targetTouches[0].clientX;
+    touchEndX.current = e.targetTouches[0].clientX; // Initialize to zero delta for taps
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    touchEndX.current = e.targetTouches[0].clientX;
+  };
+
+  const handleTouchEnd = () => {
+    const delta = touchStartX.current - touchEndX.current;
+    if (delta > 70) {
+      // Swiped left significantly
+      setIsOpen?.(false);
+    }
+  };
 
   return (
     <>
       {/* Mobile Overlay */}
       {isOpen && (
         <div 
-          className="fixed inset-0 bg-black/50 z-40 lg:hidden backdrop-blur-sm"
+          className="fixed inset-0 bg-black/60 z-40 lg:hidden backdrop-blur-sm transition-opacity duration-300 animate-in fade-in"
           onClick={() => setIsOpen?.(false)}
           aria-hidden="true"
         />
@@ -61,8 +93,11 @@ export default function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
       <aside 
         ref={sidebarRef}
         aria-label="Sidebar navigation"
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
         className={cn(
-        "h-full bg-white border-r border-gray-200 w-64 fixed left-0 top-0 z-50 transition-transform duration-300 lg:translate-x-0 shadow-xl lg:shadow-none",
+        "h-full bg-white border-r border-gray-200 w-64 fixed left-0 top-0 z-50 transition-transform duration-300 ease-in-out lg:translate-x-0 shadow-2xl lg:shadow-none",
         isOpen ? "translate-x-0" : "-translate-x-full"
       )}>
         <div className="flex flex-col h-full">
@@ -82,17 +117,17 @@ export default function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
             </div>
             {/* Close button for mobile */}
             <button 
-              className="lg:hidden p-2 text-gray-500 hover:bg-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+              className="lg:hidden p-3 text-gray-500 hover:bg-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 min-h-[44px] min-w-[44px] flex items-center justify-center"
               onClick={() => setIsOpen?.(false)}
               aria-label="Close navigation menu"
             >
-              <X className="h-5 w-5" aria-hidden="true" />
+              <X className="h-6 w-6" aria-hidden="true" />
             </button>
           </div>
 
           {/* Navigation */}
           <nav aria-label="Admin navigation" className="flex-1 p-4 overflow-y-auto">
-            <ul className="space-y-2" role="list">
+            <ul className="space-y-1" role="list">
               {navigationItems.map((item) => {
                 const Icon = item.icon;
                 const isActive = pathname === item.href;
@@ -104,7 +139,7 @@ export default function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
                       onClick={() => setIsOpen?.(false)}
                       aria-current={isActive ? 'page' : undefined}
                       className={cn(
-                        'flex items-center space-x-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-inset',
+                        'flex items-center space-x-3 px-3 py-3 rounded-lg text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-inset min-h-[44px]',
                         isActive
                           ? 'bg-green-50 text-green-700 border border-green-200'
                           : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'

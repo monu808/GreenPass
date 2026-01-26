@@ -586,7 +586,7 @@ export default function EcologicalDashboard() {
           </div>
         </div>
 
-        <div className="overflow-x-auto">
+        <div className="hidden sm:block overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
@@ -636,6 +636,53 @@ export default function EcologicalDashboard() {
               })}
             </tbody>
           </table>
+        </div>
+
+        {/* Mobile Card View for Impact Estimations */}
+        <div className="sm:hidden space-y-4">
+          {destinations.map((item) => {
+            const carbon = estimateCarbonFootprint(item.currentOccupancy, item.sensitivity);
+            const waste = estimateWasteGeneration(item.currentOccupancy, item.sensitivity);
+            return (
+              <div key={item.id} className="bg-gray-50 rounded-2xl p-5 border border-gray-100 shadow-sm active:scale-[0.98] transition-transform">
+                <div className="flex justify-between items-start mb-4">
+                  <h3 className="font-black text-gray-900 uppercase tracking-tight text-sm">{item.name}</h3>
+                  <div className="flex items-center text-green-600 bg-green-50 px-2 py-1 rounded-lg">
+                    <TrendingUp className="h-3 w-3 mr-1 transform rotate-180" />
+                    <span className="text-[10px] font-black">-2.4%</span>
+                  </div>
+                </div>
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="bg-white p-3 rounded-xl border border-gray-100">
+                    <p className="text-[10px] font-black text-blue-600 uppercase tracking-widest mb-1">Daily CO2e</p>
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-black text-gray-900">{carbon.toLocaleString()} kg</span>
+                      <div className="w-8 bg-gray-100 h-1 rounded-full overflow-hidden">
+                        <div 
+                          className="bg-blue-500 h-full" 
+                          style={{ width: `${Math.min(100, (carbon / 500) * 100)}%` }}
+                        ></div>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="bg-white p-3 rounded-xl border border-gray-100">
+                    <p className="text-[10px] font-black text-emerald-600 uppercase tracking-widest mb-1">Daily Waste</p>
+                    <div className="flex items-center justify-between">
+                      <span className={`text-xs font-black ${getWasteRiskColor(waste)}`}>{waste.toLocaleString()} kg</span>
+                      <div className="w-8 bg-gray-100 h-1 rounded-full overflow-hidden">
+                        <div 
+                          className={`h-full ${waste > 120 ? 'bg-red-500' : 'bg-green-500'}`}
+                          style={{ width: `${Math.min(100, (waste / 150) * 100)}%` }}
+                        ></div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
         </div>
         
         <div className="mt-6 pt-6 border-t border-gray-100 text-[10px] text-gray-400 leading-relaxed">
@@ -835,7 +882,7 @@ export default function EcologicalDashboard() {
           </div>
         </div>
 
-        <div className="overflow-x-auto">
+        <div className="hidden sm:block overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
@@ -875,6 +922,40 @@ export default function EcologicalDashboard() {
               ))}
             </tbody>
           </table>
+        </div>
+
+        {/* Mobile Card View for Waste Distribution */}
+        <div className="sm:hidden space-y-4">
+          {destinationsWaste.map((item) => (
+            <div key={item.id} className="bg-gray-50 rounded-2xl p-5 border border-gray-100 shadow-sm active:scale-[0.98] transition-transform">
+              <div className="flex justify-between items-start mb-4">
+                <h3 className="font-black text-gray-900 uppercase tracking-tight text-sm">{item.name}</h3>
+                <div className="flex items-center">
+                  <div className="flex text-emerald-500 mr-1">
+                    <Leaf className="h-3 w-3 fill-current" />
+                  </div>
+                  <span className="text-[10px] font-black text-gray-500 uppercase tracking-widest">Good Score</span>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between mb-4">
+                <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Total Collected</span>
+                <span className="text-sm font-black text-emerald-600">{item.totalWaste.toLocaleString()} kg</span>
+              </div>
+
+              <div className="space-y-2">
+                <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Waste Types</span>
+                <div className="flex flex-wrap gap-2">
+                  {Object.entries(item.byType || {}).map(([type, qty]: [string, number]) => (
+                    <div key={type} className="bg-white px-3 py-1.5 rounded-xl border border-gray-100 flex items-center gap-2">
+                      <span className="text-[10px] font-black text-gray-900 capitalize">{type}</span>
+                      <span className="text-[10px] font-black text-blue-600">{qty}kg</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          ))}
         </div>
       </div>
 
@@ -940,7 +1021,7 @@ export default function EcologicalDashboard() {
           <ShieldAlert className="h-5 w-5 mr-2 text-orange-500" />
           Destination Risk & Impact Analysis
         </h2>
-        <div className="overflow-x-auto">
+        <div className="hidden sm:block overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
@@ -988,6 +1069,65 @@ export default function EcologicalDashboard() {
               ))}
             </tbody>
           </table>
+        </div>
+
+        {/* Mobile Card View for Risk & Impact Analysis */}
+        <div className="sm:hidden space-y-4">
+          {destinations.map((item) => (
+            <div key={item.id} className="bg-gray-50 rounded-2xl p-5 border border-gray-100 shadow-sm active:scale-[0.98] transition-transform">
+              <div className="flex justify-between items-start mb-4">
+                <div>
+                  <h3 className="font-black text-gray-900 uppercase tracking-tight text-sm">{item.name}</h3>
+                  <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest mt-1 block">
+                    {item.sensitivity} Sensitivity
+                  </span>
+                </div>
+                <span className={`inline-flex items-center px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider ${
+                  item.riskLevel === 'critical' ? 'bg-red-100 text-red-700' :
+                  item.riskLevel === 'high' ? 'bg-orange-100 text-orange-700' :
+                  item.riskLevel === 'medium' ? 'bg-yellow-100 text-yellow-700' :
+                  'bg-green-100 text-green-700'
+                }`}>
+                  {item.riskLevel}
+                </span>
+              </div>
+
+              <div className="space-y-4">
+                <div className="bg-white p-4 rounded-xl border border-gray-100">
+                  <div className="flex justify-between items-center mb-2">
+                    <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Ecological Utilization</span>
+                    <span className="text-sm font-black text-gray-900">{Math.round(item.utilization)}%</span>
+                  </div>
+                  <div className="w-full bg-gray-100 rounded-full h-2">
+                    <div 
+                      className={`h-2 rounded-full transition-all duration-500 ${
+                        item.utilization > 85 ? 'bg-red-500' : 
+                        item.utilization > 70 ? 'bg-orange-500' : 
+                        item.utilization > 50 ? 'bg-yellow-500' : 'bg-green-500'
+                      }`}
+                      style={{ width: `${Math.min(100, item.utilization)}%` }}
+                    ></div>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between px-1">
+                  <div className="flex flex-col">
+                    <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Carbon Footprint</span>
+                    <div className="flex items-center gap-2">
+                      <TrendingUp className="h-4 w-4 text-blue-500" />
+                      <span className="text-sm font-black text-gray-900">{item.carbonFootprint} kg CO2e</span>
+                    </div>
+                  </div>
+                  <button 
+                    aria-label={`View details for ${item.name}`}
+                    className="h-10 w-10 flex items-center justify-center bg-white rounded-xl border border-gray-200 text-gray-400 active:bg-gray-50 active:text-green-600 transition-colors"
+                  >
+                    <Activity className="h-5 w-5" />
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))}
         </div>
       </div>
 

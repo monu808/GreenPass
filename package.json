@@ -6,10 +6,7 @@
     "dev": "next dev --turbopack",
     "build": "next build --turbopack",
     "start": "next start",
-    "lint": "eslint",
-    "seed-tourists": "node scripts/seed-tourists.js",
-    "reseed-distributed": "node scripts/reseed-tourists-distributed.js",
-    "seed-jan25": "node scripts/seed-tourists-jan25.js"
+    "lint": "eslint"
   },
   "dependencies": {
     "@next-auth/supabase-adapter": "^0.2.1",

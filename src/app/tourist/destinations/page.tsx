@@ -531,43 +531,43 @@ export default function TouristDestinations() {
 
         {/* COMPARISON MODAL */}
         {isComparisonOpen && (
-          <div className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-xl flex items-center justify-center p-6" role="dialog" aria-modal="true" aria-labelledby="comparison-title">
+          <div className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-xl flex items-end sm:items-center justify-center p-0 sm:p-6" role="dialog" aria-modal="true" aria-labelledby="comparison-title">
             <div 
               ref={comparisonModalRef}
-              className="bg-white w-full max-w-6xl rounded-[4rem] overflow-hidden shadow-2xl flex flex-col max-h-[90vh]"
+              className="bg-white w-full max-w-6xl rounded-t-[2.5rem] sm:rounded-[3rem] overflow-hidden shadow-2xl flex flex-col h-[95vh] sm:max-h-[90vh] animate-in slide-in-from-bottom duration-300"
             >
-              <div className="p-10 border-b border-gray-100 flex justify-between items-center">
-                <div className="flex items-center gap-4">
-                  <div className="p-4 bg-emerald-50 rounded-2xl text-emerald-600">
-                    <Scale className="h-6 w-6" aria-hidden="true" />
+              <div className="p-6 sm:p-10 border-b border-gray-100 flex justify-between items-center bg-white sticky top-0 z-20">
+                <div className="flex items-center gap-3 sm:gap-4">
+                  <div className="p-2 sm:p-4 bg-emerald-50 rounded-xl sm:rounded-2xl text-emerald-600">
+                    <Scale className="h-5 w-5 sm:h-6 sm:w-6" aria-hidden="true" />
                   </div>
                   <div>
-                    <h2 id="comparison-title" className="text-3xl font-black text-gray-900 tracking-tighter leading-none">Sustainability Comparison</h2>
-                    <p className="text-gray-400 font-bold text-xs mt-2 uppercase tracking-widest">Side-by-side impact analysis</p>
+                    <h2 id="comparison-title" className="text-xl sm:text-3xl font-black text-gray-900 tracking-tighter leading-none">Sustainability Comparison</h2>
+                    <p className="text-gray-400 font-bold text-[10px] sm:text-xs mt-1 sm:mt-2 uppercase tracking-widest">Side-by-side impact analysis</p>
                   </div>
                 </div>
-                <div className="flex gap-4">
+                <div className="flex gap-2 sm:gap-4">
                   <button 
                     onClick={() => setComparisonList([])}
-                    className="px-6 py-3 rounded-2xl bg-gray-50 text-gray-400 font-black text-[10px] uppercase tracking-widest hover:bg-gray-100 transition-all flex items-center gap-2 focus:outline-none focus:ring-2 focus:ring-gray-300"
+                    className="px-3 sm:px-6 py-2 sm:py-3 rounded-xl sm:rounded-2xl bg-gray-50 text-gray-400 font-black text-[9px] sm:text-[10px] uppercase tracking-widest hover:bg-gray-100 transition-all flex items-center gap-2 focus:outline-none focus:ring-2 focus:ring-gray-300 min-h-[44px]"
                     aria-label="Clear all compared destinations"
                   >
-                    <Trash2 className="h-4 w-4" aria-hidden="true" /> Clear All
+                    <Trash2 className="h-3 w-3 sm:h-4 sm:w-4" aria-hidden="true" /> <span className="hidden sm:inline">Clear All</span>
                   </button>
                   <button 
                     onClick={() => setIsComparisonOpen(false)}
-                    className="p-3 rounded-2xl bg-gray-900 text-white hover:bg-gray-800 transition-all focus:outline-none focus:ring-4 focus:ring-emerald-500/20"
+                    className="p-3 rounded-xl sm:rounded-2xl bg-gray-900 text-white hover:bg-gray-800 transition-all focus:outline-none focus:ring-4 focus:ring-emerald-500/20 min-h-[44px] min-w-[44px] flex items-center justify-center"
                     aria-label="Close comparison modal"
                   >
-                    <X className="h-6 w-6" aria-hidden="true" />
+                    <X className="h-5 w-5 sm:h-6 sm:w-6" aria-hidden="true" />
                   </button>
                 </div>
               </div>
 
-              <div className="flex-1 overflow-x-auto p-10">
-                <div className="grid grid-cols-4 gap-8 min-w-[1000px]">
+              <div className="flex-1 overflow-auto p-6 sm:p-10 no-scrollbar">
+                <div className="grid grid-cols-4 gap-4 sm:gap-8 min-w-[800px] lg:min-w-0">
                   {/* Labels Column */}
-                  <div className="space-y-12 pt-40">
+                  <div className="space-y-12 pt-40 hidden sm:block">
                     <div className="h-10 flex items-center text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Sustainability Score</div>
                     <div className="h-10 flex items-center text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Carbon Footprint</div>
                     <div className="h-10 flex items-center text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Eco Certifications</div>
@@ -582,9 +582,9 @@ export default function TouristDestinations() {
                     const community = getCommunityBenefitMetrics(dest);
                     
                     return (
-                      <div key={dest.id} className="space-y-12">
+                      <div key={dest.id} className="space-y-8 sm:space-y-12 col-span-4 sm:col-span-1 border sm:border-none p-6 sm:p-0 rounded-3xl bg-gray-50/50 sm:bg-transparent">
                         <div className="space-y-4">
-                          <div className="h-32 rounded-[2rem] bg-slate-100 shimmer overflow-hidden relative">
+                          <div className="h-32 sm:h-40 rounded-[1.5rem] sm:rounded-[2rem] bg-slate-100 shimmer overflow-hidden relative">
                             <Image 
                               src="https://images.unsplash.com/photo-1596394516093-501ba68a0ba6?w=400" 
                               className="w-full h-full object-cover" 
@@ -597,47 +597,64 @@ export default function TouristDestinations() {
                           <p className="text-xs text-gray-400 font-bold uppercase tracking-widest">{dest.location}</p>
                         </div>
 
-                        <div className="h-10 flex items-center">
-                          <div className={`px-4 py-2 rounded-xl font-black text-sm border-2 ${getScoreColor(score.overallScore)}`}>
-                            {score.overallScore}/100
+                        <div className="space-y-6 sm:space-y-12">
+                          <div className="flex sm:block justify-between items-center">
+                            <span className="sm:hidden text-[9px] font-black text-gray-400 uppercase tracking-widest">Sustainability Score</span>
+                            <div className="h-10 flex items-center">
+                              <div className={`px-4 py-2 rounded-xl font-black text-sm border-2 ${getScoreColor(score.overallScore)}`}>
+                                {score.overallScore}/100
+                              </div>
+                            </div>
                           </div>
-                        </div>
 
-                        <div className="h-10 flex items-center gap-3">
-                          <div className="p-2 bg-amber-50 rounded-lg text-amber-600">
-                            <Zap className="h-4 w-4" />
+                          <div className="flex sm:block justify-between items-center">
+                            <span className="sm:hidden text-[9px] font-black text-gray-400 uppercase tracking-widest">Carbon Footprint</span>
+                            <div className="h-10 flex items-center gap-3">
+                              <div className="p-2 bg-amber-50 rounded-lg text-amber-600">
+                                <Zap className="h-4 w-4" />
+                              </div>
+                              <span className="font-black text-gray-900 text-sm">{carbon.estimatedCO2}kg CO₂e</span>
+                            </div>
                           </div>
-                          <span className="font-black text-gray-900 text-sm">{carbon.estimatedCO2}kg CO₂e</span>
-                        </div>
 
-                        <div className="h-10 flex items-center gap-3">
-                          <div className="p-2 bg-emerald-50 rounded-lg text-emerald-600">
-                            <Award className="h-4 w-4" />
+                          <div className="flex sm:block justify-between items-center">
+                            <span className="sm:hidden text-[9px] font-black text-gray-400 uppercase tracking-widest">Eco Certifications</span>
+                            <div className="h-10 flex items-center gap-3">
+                              <div className="p-2 bg-emerald-50 rounded-lg text-emerald-600">
+                                <Award className="h-4 w-4" />
+                              </div>
+                              <span className="font-bold text-gray-600 text-sm">
+                                {dest.sustainabilityFeatures?.wasteManagementLevel === 'certified' ? 'ISO 14001' : 'Eco-Verified'}
+                              </span>
+                            </div>
                           </div>
-                          <span className="font-bold text-gray-600 text-sm">
-                            {dest.sustainabilityFeatures?.wasteManagementLevel === 'certified' ? 'ISO 14001' : 'Eco-Verified'}
-                          </span>
-                        </div>
 
-                        <div className="h-10 flex items-center gap-3">
-                          <div className="p-2 bg-blue-50 rounded-lg text-blue-600">
-                            <Users className="h-4 w-4" />
+                          <div className="flex sm:block justify-between items-center">
+                            <span className="sm:hidden text-[9px] font-black text-gray-400 uppercase tracking-widest">Community Benefit</span>
+                            <div className="h-10 flex items-center gap-3">
+                              <div className="p-2 bg-blue-50 rounded-lg text-blue-600">
+                                <Users className="h-4 w-4" />
+                              </div>
+                              <span className="font-black text-gray-900 text-sm">{community.localEmploymentRate}% Employment</span>
+                            </div>
                           </div>
-                          <span className="font-black text-gray-900 text-sm">{community.localEmploymentRate}% Employment</span>
-                        </div>
 
-                        <div className="h-10 flex items-center gap-3">
-                          <div className="p-2 bg-rose-50 rounded-lg text-rose-600">
-                            <Heart className="h-4 w-4" />
+                          <div className="flex sm:block justify-between items-center">
+                            <span className="sm:hidden text-[9px] font-black text-gray-400 uppercase tracking-widest">Wildlife Safety</span>
+                            <div className="h-10 flex items-center gap-3">
+                              <div className="p-2 bg-rose-50 rounded-lg text-rose-600">
+                                <Heart className="h-4 w-4" />
+                              </div>
+                              <span className="font-bold text-gray-600 text-sm">
+                                {dest.sustainabilityFeatures?.wildlifeProtectionProgram ? 'Advanced' : 'Standard'}
+                              </span>
+                            </div>
                           </div>
-                          <span className="font-bold text-gray-600 text-sm">
-                            {dest.sustainabilityFeatures?.wildlifeProtectionProgram ? 'Advanced' : 'Standard'}
-                          </span>
                         </div>
 
                         <button 
                           onClick={() => handleAction('book', dest.id)}
-                          className="w-full py-4 bg-emerald-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-emerald-700 transition-all"
+                          className="w-full py-5 bg-emerald-600 text-white rounded-2xl font-black text-[11px] uppercase tracking-widest hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-600/20 min-h-[56px]"
                         >
                           Book this path
                         </button>
@@ -646,8 +663,8 @@ export default function TouristDestinations() {
                   })}
 
                   {/* Empty Slots */}
-                  {Array.from({ length: 3 - comparisonList.length }).map((_, i) => (
-                    <div key={`empty-${i}`} className="border-2 border-dashed border-gray-100 rounded-[3rem] flex flex-col items-center justify-center p-10 text-center space-y-4 opacity-50">
+                  {comparisonList.length < 3 && Array.from({ length: 3 - comparisonList.length }).map((_, i) => (
+                    <div key={`empty-${i}`} className="hidden sm:flex border-2 border-dashed border-gray-100 rounded-[3rem] flex-col items-center justify-center p-10 text-center space-y-4 opacity-50">
                       <div className="p-6 bg-gray-50 rounded-full text-gray-300">
                         <Scale className="h-10 w-10" />
                       </div>

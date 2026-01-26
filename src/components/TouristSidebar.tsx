@@ -61,10 +61,36 @@ export default function TouristSidebar({ isOpen, setIsOpen }: SidebarProps) {
   const [weather, setWeather] = useState<SidebarWeatherData | null>(null);
   const [loadingWeather, setLoadingWeather] = useState(true);
   const sidebarRef = useRef<HTMLDivElement>(null);
+  const touchStartX = useRef<number | null>(null);
+  const touchEndX = useRef<number | null>(null);
 
   // Focus trap and escape key for mobile drawer
   useFocusTrap(sidebarRef, !!isOpen);
   useEscapeKey(() => setIsOpen?.(false), !!isOpen);
+
+  // Handle swipe to close
+  const handleTouchStart = (e: React.TouchEvent) => {
+    touchStartX.current = e.targetTouches[0].clientX;
+    touchEndX.current = e.targetTouches[0].clientX; // Initialize to avoid tap being treated as swipe
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    touchEndX.current = e.targetTouches[0].clientX;
+  };
+
+  const handleTouchEnd = () => {
+    if (touchStartX.current !== null && touchEndX.current !== null) {
+      const distance = touchStartX.current - touchEndX.current;
+      const isLeftSwipe = distance > 70;
+      
+      if (isLeftSwipe) {
+        setIsOpen?.(false);
+        // Reset refs after closing to avoid stale values
+        touchStartX.current = null;
+        touchEndX.current = null;
+      }
+    }
+  };
 
   useEffect(() => {
     const fetchDefaultWeather = async () => {
@@ -141,7 +167,7 @@ export default function TouristSidebar({ isOpen, setIsOpen }: SidebarProps) {
       {/* Mobile Overlay */}
       {isOpen && (
         <div 
-          className="fixed inset-0 bg-black/50 z-40 lg:hidden backdrop-blur-sm border-none"
+          className="fixed inset-0 bg-black/60 z-40 lg:hidden backdrop-blur-sm transition-opacity duration-300 animate-in fade-in"
           onClick={() => setIsOpen?.(false)}
           aria-hidden="true"
         />
@@ -150,8 +176,11 @@ export default function TouristSidebar({ isOpen, setIsOpen }: SidebarProps) {
       <aside 
         ref={sidebarRef}
         aria-label="Sidebar navigation"
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
         className={cn(
-        "fixed inset-y-0 left-0 z-50 w-64 bg-white border-r border-gray-200 shadow-xl lg:shadow-sm transition-transform duration-300 lg:translate-x-0",
+        "fixed inset-y-0 left-0 z-50 w-64 bg-white border-r border-gray-200 shadow-2xl lg:shadow-sm transition-transform duration-300 ease-in-out lg:translate-x-0",
         isOpen ? "translate-x-0" : "-translate-x-full"
       )}>
         <div className="flex flex-col h-full">
@@ -172,11 +201,11 @@ export default function TouristSidebar({ isOpen, setIsOpen }: SidebarProps) {
             {/* Close button for mobile */}
             <button 
               id="close-sidebar-button"
-              className="lg:hidden p-2 text-white/50 hover:text-white hover:bg-white/10 rounded-lg focus:outline-none focus:ring-2 focus:ring-white"
+              className="lg:hidden p-3 text-white/50 hover:text-white hover:bg-white/10 rounded-lg focus:outline-none focus:ring-2 focus:ring-white min-h-[44px] min-w-[44px] flex items-center justify-center"
               onClick={() => setIsOpen?.(false)}
               aria-label="Close sidebar navigation menu"
             >
-              <X className="h-5 w-5" aria-hidden="true" />
+              <X className="h-6 w-6" aria-hidden="true" />
             </button>
           </header>
 
@@ -194,7 +223,7 @@ export default function TouristSidebar({ isOpen, setIsOpen }: SidebarProps) {
                       onClick={() => setIsOpen?.(false)}
                       aria-current={isActive ? 'page' : undefined}
                       className={cn(
-                        "group flex items-center space-x-3 px-4 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-inset",
+                        "group flex items-center space-x-3 px-4 py-3 text-sm font-medium rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-inset min-h-[44px]",
                         isActive
                           ? 'bg-green-50 text-green-700 border-r-2 border-green-600'
                           : 'text-gray-700 hover:text-green-600 hover:bg-gray-50'

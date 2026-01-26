@@ -65,7 +65,7 @@ const WeatherCard: React.FC<WeatherCardProps> = ({
         // Calculate adjusted capacity based on weather data
         const alertCheck = weatherService.shouldGenerateAlert(data);
         const result = await getPolicyEngine().getDynamicCapacity(destination, {
-          weatherAlertLevel: alertCheck.shouldAlert ? "medium" : "none"
+          alert_level: alertCheck.shouldAlert ? "medium" : "none"
         });
         setAdjustedCapacity(result.adjustedCapacity);
         

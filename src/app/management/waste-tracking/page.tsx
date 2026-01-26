@@ -485,28 +485,91 @@ function WasteCollectionTab({ destinations, records, onRefresh }: {
         </button>
       </div>
 
-      <div className="overflow-x-auto">
-        <table className="w-full text-left">
-          <thead className="bg-gray-50 text-gray-500 text-xs uppercase font-semibold">
-            <tr>
-              <th className="px-6 py-4">Destination</th>
-              <th className="px-6 py-4">Waste Type</th>
-              <th className="px-6 py-4">Quantity</th>
-              <th className="px-6 py-4">Collected At</th>
-              <th className="px-6 py-4 text-right">Actions</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-100">
-            {filteredRecords.map((record) => (
-              <tr key={record.id} className="hover:bg-gray-50 transition-colors">
-                <td className="px-6 py-4">
-                  <span className="font-medium text-gray-900">
-                    {destinations.find(d => d.id === record.destinationId)?.name || 'Unknown'}
-                  </span>
-                </td>
-                <td className="px-6 py-4 capitalize">
+      <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+        {/* Desktop View Table */}
+        <div className="hidden lg:block overflow-x-auto">
+          <table className="w-full text-left">
+            <thead className="bg-gray-50 text-gray-500 text-xs uppercase font-semibold">
+              <tr>
+                <th className="px-6 py-4">Destination</th>
+                <th className="px-6 py-4">Waste Type</th>
+                <th className="px-6 py-4">Quantity</th>
+                <th className="px-6 py-4">Collected At</th>
+                <th className="px-6 py-4 text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              {filteredRecords.map((record) => (
+                <tr key={record.id} className="hover:bg-gray-50 transition-colors">
+                  <td className="px-6 py-4">
+                    <span className="font-medium text-gray-900">
+                      {destinations.find(d => d.id === record.destinationId)?.name || 'Unknown'}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 capitalize">
+                    <span className={cn(
+                      "px-2 py-1 rounded-full text-xs font-medium",
+                      record.wasteType === 'plastic' ? "bg-blue-50 text-blue-700" :
+                      record.wasteType === 'organic' ? "bg-green-50 text-green-700" :
+                      record.wasteType === 'glass' ? "bg-purple-50 text-purple-700" :
+                      "bg-gray-100 text-gray-700"
+                    )}>
+                      {record.wasteType}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 font-medium text-gray-900">
+                    {record.quantity} {record.unit}
+                  </td>
+                  <td className="px-6 py-4 text-gray-500">
+                    {format(new Date(record.collectedAt), "MMM dd, yyyy HH:mm")}
+                  </td>
+                  <td className="px-6 py-4 text-right">
+                    <div className="flex justify-end gap-2">
+                      <button 
+                        aria-label={`Edit record for ${destinations.find(d => d.id === record.destinationId)?.name || 'Unknown'}`}
+                        className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                      >
+                        <Edit2 className="h-4 w-4" aria-hidden="true" />
+                      </button>
+                      <button 
+                        aria-label={`Delete record for ${destinations.find(d => d.id === record.destinationId)?.name || 'Unknown'}`}
+                        onClick={async () => {
+                          if (confirm("Are you sure you want to delete this record?")) {
+                            await getDbService().deleteWasteData(record.id);
+                            onRefresh();
+                          }
+                        }}
+                        className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                      >
+                        <Trash className="h-4 w-4" aria-hidden="true" />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Mobile View Cards */}
+        <div className="lg:hidden divide-y divide-gray-100">
+          {filteredRecords.length === 0 ? (
+            <div className="p-8 text-center text-gray-500">No waste records found.</div>
+          ) : (
+            filteredRecords.map((record) => (
+              <div key={record.id} className="p-4 space-y-4">
+                <div className="flex justify-between items-start">
+                  <div>
+                    <h3 className="font-bold text-gray-900">
+                      {destinations.find(d => d.id === record.destinationId)?.name || 'Unknown'}
+                    </h3>
+                    <div className="flex items-center gap-2 mt-1 text-sm text-gray-500">
+                      <Clock className="h-3.5 w-3.5" />
+                      {format(new Date(record.collectedAt), "MMM dd, yyyy HH:mm")}
+                    </div>
+                  </div>
                   <span className={cn(
-                    "px-2 py-1 rounded-full text-xs font-medium",
+                    "px-2.5 py-1 rounded-full text-xs font-bold uppercase tracking-wider",
                     record.wasteType === 'plastic' ? "bg-blue-50 text-blue-700" :
                     record.wasteType === 'organic' ? "bg-green-50 text-green-700" :
                     record.wasteType === 'glass' ? "bg-purple-50 text-purple-700" :
@@ -514,39 +577,39 @@ function WasteCollectionTab({ destinations, records, onRefresh }: {
                   )}>
                     {record.wasteType}
                   </span>
-                </td>
-                <td className="px-6 py-4 font-medium text-gray-900">
-                  {record.quantity} {record.unit}
-                </td>
-                <td className="px-6 py-4 text-gray-500">
-                  {format(new Date(record.collectedAt), "MMM dd, yyyy HH:mm")}
-                </td>
-                <td className="px-6 py-4 text-right">
-                  <div className="flex justify-end gap-2">
-                    <button 
-                      aria-label={`Edit record for ${destinations.find(d => d.id === record.destinationId)?.name || 'Unknown'}`}
-                      className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                    >
-                      <Edit2 className="h-4 w-4" aria-hidden="true" />
-                    </button>
-                    <button 
-                      aria-label={`Delete record for ${destinations.find(d => d.id === record.destinationId)?.name || 'Unknown'}`}
-                      onClick={async () => {
-                        if (confirm("Are you sure you want to delete this record?")) {
-                          await getDbService().deleteWasteData(record.id);
-                          onRefresh();
-                        }
-                      }}
-                      className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                    >
-                      <Trash className="h-4 w-4" aria-hidden="true" />
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+                </div>
+                
+                <div className="flex items-center justify-between py-2 border-y border-gray-50">
+                  <span className="text-sm text-gray-500">Quantity Collected</span>
+                  <span className="font-bold text-gray-900">{record.quantity} {record.unit}</span>
+                </div>
+
+                <div className="flex gap-2 pt-1">
+                  <button 
+                    aria-label={`Edit record for ${destinations.find(d => d.id === record.destinationId)?.name || 'Unknown'}`}
+                    className="flex-1 flex items-center justify-center min-h-[44px] gap-2 bg-gray-50 hover:bg-gray-100 text-gray-700 font-semibold rounded-xl border border-gray-200 transition-colors"
+                  >
+                    <Edit2 className="h-4 w-4" aria-hidden="true" />
+                    Edit
+                  </button>
+                  <button 
+                    aria-label={`Delete record for ${destinations.find(d => d.id === record.destinationId)?.name || 'Unknown'}`}
+                    onClick={async () => {
+                      if (confirm("Are you sure you want to delete this record?")) {
+                        await getDbService().deleteWasteData(record.id);
+                        onRefresh();
+                      }
+                    }}
+                    className="flex-1 flex items-center justify-center min-h-[44px] gap-2 bg-red-50 hover:bg-red-100 text-red-700 font-semibold rounded-xl border border-red-100 transition-colors"
+                  >
+                    <Trash className="h-4 w-4" aria-hidden="true" />
+                    Delete
+                  </button>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
       </div>
 
       {showAddModal && (

@@ -11,11 +11,12 @@ export const queryClient = new QueryClient({
   },
 });
 
-// Centralized React Query keys to keep cache usage consistent across hooks
 export const queryKeys = {
   tourists: ['tourists'] as const,
   destinations: ['destinations'] as const,
-  favorites: (userId: string) => ['favorites', userId] as const,
   capacityResults: ['capacityResults'] as const,
   reviews: ['reviews'] as const,
+  weather: (destinationId: string | null) => ['weather', destinationId] as const,
+  weatherBatch: (destinationIds: string[]) => ['weather', 'batch', destinationIds] as const,
+  favorites: (userId: string) => ['favorites', userId] as const,
 };

@@ -67,13 +67,13 @@ const getWeatherFactor = (weather?: WeatherConditions): { score: number; reason?
   const reasons: string[] = [];
   let score = 0;
 
-  if (weather.weatherAlertLevel === 'critical') {
+  if (weather.alert_level === 'critical') {
     score += 50;
     reasons.push('Critical weather alert in effect');
-  } else if (weather.weatherAlertLevel === 'high') {
+  } else if (weather.alert_level === 'high') {
     score += 35;
     reasons.push('Severe weather alert in effect');
-  } else if (weather.weatherAlertLevel === 'medium') {
+  } else if (weather.alert_level === 'medium') {
     score += 15;
     reasons.push('Medium weather advisory');
   }

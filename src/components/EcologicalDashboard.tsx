@@ -28,6 +28,7 @@ import {
   Cell,
   Legend
 } from "recharts";
+import { ChartErrorBoundary } from './errors';
 import { getDbService } from "@/lib/databaseService";
 import { Alert, Destination, HistoricalOccupancy, EcologicalMetrics, WasteMetricsSummary, CleanupActivity } from "@/types";
 import { getPolicyEngine } from "@/lib/ecologicalPolicyEngine";
@@ -485,53 +486,55 @@ export default function EcologicalDashboard() {
             </div>
           </div>
           <div className="h-80 w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={historicalTrends}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                <XAxis 
-                  dataKey="isoDate" 
-                  tick={{ fontSize: 12 }} 
-                  tickFormatter={(str: string) => {
-                    const date = new Date(str);
-                    return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
-                  }}
-                />
-                <YAxis tick={{ fontSize: 12 }} />
-                <Tooltip 
-                  contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
-                  labelFormatter={(str: string) => new Date(str).toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
-                />
-                <Legend verticalAlign="top" height={36} iconType="circle" />
-                <Line 
-                  type="monotone" 
-                  dataKey="occupancy" 
-                  name="Actual Occupancy"
-                  stroke="#2563eb" 
-                  strokeWidth={3} 
-                  dot={{ r: 4, fill: '#2563eb', strokeWidth: 2, stroke: '#fff' }}
-                  activeDot={{ r: 6, strokeWidth: 0 }}
-                />
-                <Line 
-                  type="monotone" 
-                  dataKey="adjustedCapacity" 
-                  name="Ecological Limit"
-                  stroke="#ef4444" 
-                  strokeDasharray="5 5"
-                  strokeWidth={2} 
-                  dot={false}
-                />
-                {/* 70% Threshold Line */}
-                <Line 
-                  type="monotone"
-                  dataKey={(d: HistoricalOccupancy) => d.adjustedCapacity * 0.7}
-                  name="Caution (70%)"
-                  stroke="#eab308"
-                  strokeDasharray="3 3"
-                  strokeWidth={1}
-                  dot={false}
-                />
-              </LineChart>
-            </ResponsiveContainer>
+            <ChartErrorBoundary chartTitle="Historical Occupancy Trends">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={historicalTrends}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                  <XAxis 
+                    dataKey="isoDate" 
+                    tick={{ fontSize: 12 }} 
+                    tickFormatter={(str: string) => {
+                      const date = new Date(str);
+                      return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+                    }}
+                  />
+                  <YAxis tick={{ fontSize: 12 }} />
+                  <Tooltip 
+                    contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
+                    labelFormatter={(str: string) => new Date(str).toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+                  />
+                  <Legend verticalAlign="top" height={36} iconType="circle" />
+                  <Line 
+                    type="monotone" 
+                    dataKey="occupancy" 
+                    name="Actual Occupancy"
+                    stroke="#2563eb" 
+                    strokeWidth={3} 
+                    dot={{ r: 4, fill: '#2563eb', strokeWidth: 2, stroke: '#fff' }}
+                    activeDot={{ r: 6, strokeWidth: 0 }}
+                  />
+                  <Line 
+                    type="monotone" 
+                    dataKey="adjustedCapacity" 
+                    name="Ecological Limit"
+                    stroke="#ef4444" 
+                    strokeDasharray="5 5"
+                    strokeWidth={2} 
+                    dot={false}
+                  />
+                  {/* 70% Threshold Line */}
+                  <Line 
+                    type="monotone"
+                    dataKey={(d: HistoricalOccupancy) => d.adjustedCapacity * 0.7}
+                    name="Caution (70%)"
+                    stroke="#eab308"
+                    strokeDasharray="3 3"
+                    strokeWidth={1}
+                    dot={false}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            </ChartErrorBoundary>
           </div>
         </div>
       </div>
@@ -803,43 +806,45 @@ export default function EcologicalDashboard() {
               </div>
             </div>
             <div className="h-64 w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={wasteTrendData}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                  <XAxis 
-                    dataKey="date" 
-                    tick={{ fontSize: 10, fill: "#64748b" }} 
-                    axisLine={false}
-                    tickLine={false}
-                    tickFormatter={(str: string) => {
-                      const date = new Date(str);
-                      return date.toLocaleDateString(undefined, { month: "short", day: "numeric" });
-                    }}
-                  />
-                  <YAxis 
-                    tick={{ fontSize: 10, fill: "#64748b" }}
-                    axisLine={false}
-                    tickLine={false}
-                  />
-                  <Tooltip 
-                    contentStyle={{ 
-                      borderRadius: "12px", 
-                      border: "none", 
-                      boxShadow: "0 10px 15px -3px rgb(0 0 0 / 0.1)",
-                      fontSize: "12px"
-                    }}
-                  />
-                  <Line 
-                    type="monotone" 
-                    dataKey="quantity" 
-                    name="Waste (kg)"
-                    stroke="#10b981" 
-                    strokeWidth={2} 
-                    dot={{ r: 3, fill: "#10b981", strokeWidth: 2, stroke: "#fff" }}
-                    activeDot={{ r: 5, strokeWidth: 0 }}
-                  />
-                </LineChart>
-              </ResponsiveContainer>
+              <ChartErrorBoundary chartTitle="Waste Collection Trend">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={wasteTrendData}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                    <XAxis 
+                      dataKey="date" 
+                      tick={{ fontSize: 10, fill: "#64748b" }} 
+                      axisLine={false}
+                      tickLine={false}
+                      tickFormatter={(str: string) => {
+                        const date = new Date(str);
+                        return date.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+                      }}
+                    />
+                    <YAxis 
+                      tick={{ fontSize: 10, fill: "#64748b" }}
+                      axisLine={false}
+                      tickLine={false}
+                    />
+                    <Tooltip 
+                      contentStyle={{ 
+                        borderRadius: "12px", 
+                        border: "none", 
+                        boxShadow: "0 10px 15px -3px rgb(0 0 0 / 0.1)",
+                        fontSize: "12px"
+                      }}
+                    />
+                    <Line 
+                      type="monotone" 
+                      dataKey="quantity" 
+                      name="Waste (kg)"
+                      stroke="#10b981" 
+                      strokeWidth={2} 
+                      dot={{ r: 3, fill: "#10b981", strokeWidth: 2, stroke: "#fff" }}
+                      activeDot={{ r: 5, strokeWidth: 0 }}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              </ChartErrorBoundary>
             </div>
           </div>
 
@@ -850,34 +855,36 @@ export default function EcologicalDashboard() {
               Waste Type Distribution
             </h3>
             <div className="h-64 w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={wasteDistributionData} layout="vertical">
-                  <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#f1f5f9" />
-                  <XAxis type="number" hide />
-                  <YAxis 
-                    dataKey="name" 
-                    type="category" 
-                    tick={{ fontSize: 10, fill: "#64748b" }} 
-                    axisLine={false}
-                    tickLine={false}
-                    width={80}
-                  />
-                  <Tooltip 
-                    cursor={{ fill: '#f8fafc' }}
-                    contentStyle={{ 
-                      borderRadius: "12px", 
-                      border: "none", 
-                      boxShadow: "0 10px 15px -3px rgb(0 0 0 / 0.1)",
-                      fontSize: "12px"
-                    }}
-                  />
-                  <Bar dataKey="value" name="Quantity (kg)" radius={[0, 4, 4, 0]}>
-                    {wasteDistributionData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={['#10b981', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6'][index % 5]} />
-                    ))}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
+              <ChartErrorBoundary chartTitle="Waste Type Distribution">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={wasteDistributionData} layout="vertical">
+                    <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#f1f5f9" />
+                    <XAxis type="number" hide />
+                    <YAxis 
+                      dataKey="name" 
+                      type="category" 
+                      tick={{ fontSize: 10, fill: "#64748b" }} 
+                      axisLine={false}
+                      tickLine={false}
+                      width={80}
+                    />
+                    <Tooltip 
+                      cursor={{ fill: '#f8fafc' }}
+                      contentStyle={{ 
+                        borderRadius: "12px", 
+                        border: "none", 
+                        boxShadow: "0 10px 15px -3px rgb(0 0 0 / 0.1)",
+                        fontSize: "12px"
+                      }}
+                    />
+                    <Bar dataKey="value" name="Quantity (kg)" radius={[0, 4, 4, 0]}>
+                      {wasteDistributionData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={['#10b981', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6'][index % 5]} />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </ChartErrorBoundary>
             </div>
           </div>
         </div>

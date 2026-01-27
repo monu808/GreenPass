@@ -152,8 +152,22 @@ function BookDestinationForm() {
         setEcoAlert(alert);
       }
     } catch (error) {
-      console.error("Error loading destination:", error);
-    } finally {
+  let msg = 'An unexpected error occurred while loading destination data. Please try again.';
+  if (error instanceof Error) {
+    if (error.message.includes('network')) {
+      msg = 'connection error: verify your internet and retry.';
+    } else if (error.message.includes('database') || error.message.includes('Database')) {
+      msg = 'server error: unable to fetch destination details. please try later.';
+    } else if (error.message.includes('timeout')) {
+      msg = 'Request timeout: try reloading the page.';
+    } else if (error.message.includes('unauthorized')) {
+      msg = 'Access denied: please log in again.';
+    } else {
+      msg = `Error: ${error.message}`;
+    }
+  }
+  alert(msg);
+} finally {
       setLoading(false);
     }
   }, [destinationId]);
@@ -387,8 +401,25 @@ function BookDestinationForm() {
       }, 3000);
       
     } catch (error) {
-      console.error("Error submitting booking:", error);
-      alert("Failed to submit booking. Please try again.");
+    let msg = 'An unexpected error occurred while submitting your booking. Please try again.';
+  if (error instanceof Error) {
+    if (error.message.includes('capacity')) {
+      msg = 'Booking failed: insufficient available spots for the selected dates.';
+    } else if (error.message.includes('validation')) {
+      msg = 'invalid data: please check all required fields.';
+    } else if (error.message.includes('payment')) {
+      msg = 'Payment error: your transaction could not be processed.';
+    } else if (error.message.includes('network')) {
+      msg = 'connection error: please check your internet and try again.';
+    } else if (error.message.includes('timeout')) {
+      msg = 'Operation timed out. Please try again.';
+    } else if (error.message.includes('duplicate')) {
+      msg = 'You already have a booking for this date.';
+    } else {
+      msg = `Reserve failed: ${error.message}`;
+    }
+    alert(msg);
+  }
     } finally {
       setSubmitting(false);
     }

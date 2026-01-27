@@ -99,9 +99,28 @@ export default function EcoInitiativesPage() {
       // Re-fetch to be sure
       fetchData();
     } catch (error) {
-      console.error('Registration failed:', error);
-      alert('Failed to register for activity. Please try again.');
-    } finally {
+    let msg = 'Failed to register for the activity. Please try again.';
+    if (error instanceof Error) {
+      if (error.message.includes('validation')) {
+        msg = 'Invalid data: please check the activity details.';
+      } else if (error.message.includes('capacity') || error.message.includes('full')) {
+        msg = 'Activity is full. Choose another date.';
+      } else if (error.message.includes('duplicate') || error.message.includes('already')) {
+        msg = 'You are already registered for this activity.';
+      } else if (error.message.includes('network')) {
+        msg = 'Network error: please check your internet connection.';
+      } else if (error.message.includes('unauthorized')) {
+        msg = 'Access denied: please log in again.';
+      } else if (error.message.includes('database')) {
+        msg = 'Server error: please try again later.';
+      } else if (error.message.includes('timeout')) {
+        msg = 'Operation timed out: please try again.';
+      } else {
+        msg = `Error: ${error.message}`;
+      }
+    }
+    alert(msg);
+} finally {
       setIsRegistering(false);
     }
   };
@@ -123,8 +142,23 @@ export default function EcoInitiativesPage() {
       
       fetchData();
     } catch (error) {
-      console.error('Cancellation failed:', error);
-      alert('Failed to cancel registration. Please try again.');
+      let msg = 'failed to cancel the registration. Please try again.';
+      if (error instanceof Error) {
+        if (error.message.includes('not found')) {
+          msg = 'Registration not found.';
+        } else if (error.message.includes('network')) {
+          msg = 'Network error: check your connection and try again.';
+        } else if (error.message.includes('permission')) {
+          msg = 'You do not have permission to cancel this registration.';
+        } else if (error.message.includes('database')) {
+          msg = 'Server error: please try again later.';
+        } else if (error.message.includes('timeout')) {
+          msg = 'Operation timed out: please try again.';
+        } else {
+          msg = `Error: ${error.message}`;
+        }
+      }
+      alert(msg);
     }
   };
 

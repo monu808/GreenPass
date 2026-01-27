@@ -126,9 +126,26 @@ export default function CapacityRulesPage() {
         expiresAt: format(new Date(Date.now() + 24 * 60 * 60 * 1000), "yyyy-MM-dd'T'HH:mm"),
       });
     } catch (error) {
-      console.error("Error setting capacity override:", error);
-      setOverrideError(error instanceof Error ? error.message : "Failed to set capacity override. Please try again.");
-    } finally {
+  let msg = 'An unexpected error occurred. Please try again.';
+  if (error instanceof Error) {
+    if (error.message.includes('validation')) {
+      msg = 'Validation failed: please check your input values.';
+    } else if (error.message.includes('destination')) {
+      msg = 'Invalid destination selected.';
+    } else if (error.message.includes('expired')) {
+      msg = 'Invalid expiration date: use a future date.';
+    } else if (error.message.includes('network')) {
+      msg = 'Connection error: check your internet.';
+    } else if (error.message.includes('permission')) {
+      msg = 'Permission denied: you do not have access to this action.';
+    } else if (error.message.includes('database')) {
+      msg = 'Server error: please try again later.';
+    } else {
+      msg = `Error: ${error.message}`;
+    }
+  }
+  setOverrideError(msg);
+} finally {
       setIsSavingOverride(false);
     }
   };
@@ -140,9 +157,22 @@ export default function CapacityRulesPage() {
       policyEngine.clearCapacityOverride(destinationId);
       await loadData();
     } catch (error) {
-      console.error("Error clearing capacity override:", error);
-      alert("Failed to clear override. Please try again.");
-    } finally {
+  let msg = 'An unexpected error occurred. Please try again.';
+  if (error instanceof Error) {
+    if (error.message.includes('not found')) {
+      msg = 'Override not found: it may have already been removed.';
+    } else if (error.message.includes('network')) {
+      msg = 'Connection error: try again later.';
+    } else if (error.message.includes('permission')) {
+      msg = 'Permission denied: you do not have access to this action.';
+    } else if (error.message.includes('database')) {
+      msg = 'Server error: please try again later.';
+    } else {
+      msg = `Error: ${error.message}`;
+    }
+  }
+  alert(msg);
+} finally {
       setIsSavingOverride(false);
     }
   };

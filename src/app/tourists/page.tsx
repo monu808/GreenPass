@@ -50,9 +50,24 @@ export default function TouristManagement() {
       await dbService.updateTouristStatus(touristId, newStatus);
       await loadTourists(); // Reload data
     } catch (error) {
-      console.error('Error updating tourist status:', error);
-      alert('Failed to update status. Please try again.');
+  let msg = 'tourist management failed.';
+  if (error instanceof Error) {
+    if (error.message.includes('validation')) {
+      msg = 'invalid data: please check the inputs.';
+    } else if (error.message.includes('network')) {
+      msg = 'network issue: please check your connection.';
+    } else if (error.message.includes('database')) {
+      msg = 'server error: tourists could not be loaded.';
+    } else if (error.message.includes('permission')) {
+      msg = 'permission denied: you do not have access to this resource.';
+    } else if (error.message.includes('timeout')) {
+      msg = 'Request timeout: please try again.';
+    } else {
+      msg = `Error: ${error.message}`;
     }
+  }
+  alert(msg);
+}
   };
 
   const filteredTourists = tourists.filter(tourist => {

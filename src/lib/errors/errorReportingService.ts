@@ -4,8 +4,8 @@ import { ErrorInfo } from './types';
  * Interface for error reporting services.
  */
 export interface ErrorReporter {
-  captureError(error: unknown, errorInfo?: Partial<ErrorInfo>): void;
-  captureMessage(message: string, level?: 'info' | 'warning' | 'error'): void;
+  captureError(error: unknown, errorInfo?: Partial<ErrorInfo>): Promise<void>;
+  captureMessage(message: string, level?: 'info' | 'warning' | 'error'): Promise<void>;
   setUser(userId: string | null, userInfo?: Record<string, any>): void;
 }
 
@@ -13,7 +13,7 @@ export interface ErrorReporter {
  * Development reporter that logs to the console.
  */
 class ConsoleErrorReporter implements ErrorReporter {
-  captureError(error: unknown, errorInfo?: Partial<ErrorInfo>): void {
+  async captureError(error: unknown, errorInfo?: Partial<ErrorInfo>): Promise<void> {
     console.group('🔴 Error Captured');
     console.error('Error:', error);
     if (errorInfo) {
@@ -22,7 +22,7 @@ class ConsoleErrorReporter implements ErrorReporter {
     console.groupEnd();
   }
 
-  captureMessage(message: string, level: 'info' | 'warning' | 'error' = 'error'): void {
+  async captureMessage(message: string, level: 'info' | 'warning' | 'error' = 'error'): Promise<void> {
     const icon = level === 'info' ? 'ℹ️' : level === 'warning' ? '⚠️' : '❌';
     console.log(`${icon} [${level.toUpperCase()}]: ${message}`);
   }
@@ -40,8 +40,12 @@ class ProductionErrorReporter implements ErrorReporter {
   private apiKey: string | undefined;
 
   constructor() {
-    this.loggingEndpoint = process.env.NEXT_PUBLIC_LOGGING_ENDPOINT;
-    this.apiKey = process.env.NEXT_PUBLIC_LOGGING_API_KEY;
+    this.loggingEndpoint = typeof window !== 'undefined' 
+      ? '/api/report-error' 
+      : process.env.LOGGING_ENDPOINT;
+    
+    // On the server, we use the private API key; on the client, the proxy handles it.
+    this.apiKey = typeof window === 'undefined' ? process.env.LOGGING_API_KEY : undefined;
   }
 
   async captureError(error: unknown, errorInfo?: Partial<ErrorInfo>): Promise<void> {

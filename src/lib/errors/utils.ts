@@ -20,7 +20,7 @@ export function classifyError(error: unknown): ErrorType {
     if (message.includes('chart') || message.includes('recharts') || message.includes('canvas') || message.includes('rendering')) {
       return ErrorType.CHART;
     }
-    if (message.includes('fetch') || message.includes('loading') || message.includes('get') || message.includes('post')) {
+    if (message.includes('loading') || message.match(/\b(GET|POST|PUT|DELETE|PATCH)\b/i)) {
       return ErrorType.DATA_FETCH;
     }
   }

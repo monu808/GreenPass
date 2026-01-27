@@ -8,6 +8,7 @@ import ProtectedRoute from '@/components/ProtectedRoute';
 import { useModalAccessibility } from '@/lib/accessibility';
 import { getDbService } from '@/lib/databaseService';
 import { useAuth } from '@/contexts/AuthContext';
+import { DataFetchErrorBoundary } from '@/components/errors';
 import { sanitizeSearchTerm } from '@/lib/utils';
 import { validateInput, SearchFilterSchema } from '@/lib/validation';
 
@@ -173,7 +174,8 @@ export default function TouristBookings() {
 
   return (
     <TouristLayout>
-      <div className="max-w-7xl mx-auto space-y-6 sm:space-y-10 pb-20 px-4 sm:px-6">
+      <DataFetchErrorBoundary onRetry={() => window.location.reload()} maxRetries={0}>
+        <div className="max-w-7xl mx-auto space-y-6 sm:space-y-10 pb-20 px-4 sm:px-6">
         
         {/* PREMIUM HEADER */}
         <div className="pt-6 sm:pt-10 flex flex-col md:flex-row justify-between items-start md:items-end gap-6 border-b border-gray-100 pb-6 sm:pb-10">
@@ -492,7 +494,8 @@ export default function TouristBookings() {
           </div>
         )}
 
-      </div>
+        </div>
+      </DataFetchErrorBoundary>
     </TouristLayout>
   );
 }

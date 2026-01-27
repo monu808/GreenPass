@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Layout from '@/components/Layout';
 import { User, CheckCircle } from 'lucide-react';
 import { getDbService } from '@/lib/databaseService';
+import { FormErrorBoundary } from '@/components/errors';
 import { 
   sanitizeForDatabase, 
   sanitizeObject 
@@ -348,7 +349,27 @@ const handleSubmit = async (e: React.FormEvent) => {
           </div>
         </div>
 
-        <form ref={formRef} onSubmit={handleSubmit} className="space-y-6" noValidate aria-label="Tourist registration form">
+        <FormErrorBoundary formName="Tourist Registration" onReset={() => setFormData({
+          name: '',
+          email: '',
+          phone: '',
+          age: '',
+          gender: '',
+          address: '',
+          pinCode: '',
+          idProofType: '',
+          group_name: '',
+          idProof: '',
+          nationality: 'Indian',
+          groupSize: 1,
+          destination: '',
+          checkInDate: '',
+          checkOutDate: '',
+          emergencyContactName: '',
+          emergencyContactPhone: '',
+          emergencyContactRelationship: ''
+        })}>
+          <form ref={formRef} onSubmit={handleSubmit} className="space-y-6" noValidate aria-label="Tourist registration form">
           {currentStep === 1 && (
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 animate-in slide-in-from-right duration-300">
               <h2 className="text-lg font-semibold text-gray-900 mb-4">Personal Information</h2>
@@ -932,6 +953,7 @@ const handleSubmit = async (e: React.FormEvent) => {
             )}
           </div>
         </form>
+        </FormErrorBoundary>
       </div>
     </Layout>
   );

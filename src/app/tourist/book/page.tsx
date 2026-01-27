@@ -8,6 +8,7 @@ import TouristLayout from '@/components/TouristLayout';
 import { getDbService } from '@/lib/databaseService';
 import { getPolicyEngine, WeatherConditions } from '@/lib/ecologicalPolicyEngine';
 import { getCarbonCalculator } from '@/lib/carbonFootprintCalculator';
+import { FormErrorBoundary, DataFetchErrorBoundary } from '@/components/errors';
 import { 
   sanitizeForDatabase, 
   sanitizeObject,
@@ -513,7 +514,8 @@ function BookDestinationForm() {
 
   return (
     <TouristLayout>
-      <div className="max-w-4xl mx-auto space-y-6 pb-12">
+      <DataFetchErrorBoundary onRetry={loadDestination}>
+        <div className="max-w-4xl mx-auto space-y-6 pb-12">
         {/* Eligibility Warning */}
         {!eligibility.allowed && (
           <div 
@@ -691,7 +693,29 @@ function BookDestinationForm() {
           </div>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-6 sm:space-y-8">
+        <FormErrorBoundary 
+          formName="Destination Booking" 
+          onReset={() => setFormData({
+            ...formData,
+            phone: '',
+            nationality: '',
+            idProof: '',
+            originLocation: '',
+            transportType: 'CAR_PER_KM',
+            ecoPermitNumber: '',
+            groupSize: 1,
+            checkInDate: "",
+            checkOutDate: "",
+            emergencyContact: {
+              name: "",
+              phone: "",
+              relationship: "",
+            },
+            specialRequests: '',
+            acknowledged: false
+          })}
+        >
+          <form onSubmit={handleSubmit} className="space-y-6 sm:space-y-8">
           {/* Step 1: Personal Information */}
           {currentStep === 1 && (
             <div className="bg-white rounded-2xl p-6 sm:p-8 shadow-sm border border-gray-100 animate-in fade-in slide-in-from-right-4 duration-300">
@@ -1069,7 +1093,9 @@ function BookDestinationForm() {
             )}
           </div>
         </form>
+        </FormErrorBoundary>
       </div>
+      </DataFetchErrorBoundary>
     </TouristLayout>
   );
 }

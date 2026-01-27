@@ -31,6 +31,7 @@ import {
   validateInput, 
   SearchFilterSchema 
 } from "@/lib/validation";
+import { DataFetchErrorBoundary } from "@/components/errors";
 
 type DbDestination = Database["public"]["Tables"]["destinations"]["Row"];
 
@@ -394,8 +395,9 @@ export default function TouristBookingManagement() {
 
   return (
     <Layout>
-      <div className="space-y-6">
-        {/* Header */}
+      <DataFetchErrorBoundary onRetry={loadData}>
+        <div className="space-y-6">
+          {/* Stats Grid */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6">
           <div>
             <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">
@@ -840,6 +842,7 @@ export default function TouristBookingManagement() {
           />
         )}
       </div>
+      </DataFetchErrorBoundary>
     </Layout>
   );
 }

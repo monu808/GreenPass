@@ -25,6 +25,7 @@ import { formatDateTime } from "@/lib/utils";
 import { Destination, AdjustmentLog, DynamicCapacityResult } from "@/types";
 import { format } from "date-fns";
 import { Database } from "@/types/database";
+import { FormErrorBoundary } from "@/components/errors";
 import { sanitizeSearchTerm, sanitizeObject, sanitizeForDatabase } from "@/lib/utils";
 import { validateInput, SearchFilterSchema } from "@/lib/validation";
 
@@ -670,91 +671,101 @@ export default function CapacityRulesPage() {
 
               {/* Modal Body */}
               <div className="flex-1 overflow-y-auto p-6 space-y-6">
-                <form id="override-form" onSubmit={handleSetOverride} className="space-y-5">
-                  {overrideError && (
-                    <div className="p-4 bg-red-50 border border-red-100 rounded-xl text-red-600 text-sm flex items-start gap-3 animate-in fade-in slide-in-from-top-2">
-                      <AlertTriangle className="h-5 w-5 flex-shrink-0 mt-0.5" />
-                      <p className="font-medium">{overrideError}</p>
-                    </div>
-                  )}
+                <FormErrorBoundary 
+                  formName="Capacity Rule Override" 
+                  onReset={() => setOverrideForm({
+                    destinationId: "",
+                    multiplier: 0.8,
+                    reason: "",
+                    expiresAt: format(new Date(Date.now() + 24 * 60 * 60 * 1000), "yyyy-MM-dd'T'HH:mm"),
+                  })}
+                >
+                  <form id="override-form" onSubmit={handleSetOverride} className="space-y-5">
+                    {overrideError && (
+                      <div className="p-4 bg-red-50 border border-red-100 rounded-xl text-red-600 text-sm flex items-start gap-3 animate-in fade-in slide-in-from-top-2">
+                        <AlertTriangle className="h-5 w-5 flex-shrink-0 mt-0.5" />
+                        <p className="font-medium">{overrideError}</p>
+                      </div>
+                    )}
 
-                  <div className="space-y-2">
-                    <label htmlFor="destination" className="block text-sm font-bold text-gray-700">
-                      Target Destination
-                    </label>
-                    <select
-                      id="destination"
-                      value={overrideForm.destinationId}
-                      onChange={(e) => setOverrideForm({ ...overrideForm, destinationId: e.target.value })}
-                      required
-                      className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent text-base min-h-[44px] bg-white shadow-sm"
-                    >
-                      <option value="">Select a destination...</option>
-                      {destinations.map((dest) => (
-                        <option key={dest.id} value={dest.id}>
-                          {dest.name} ({dest.maxCapacity} base)
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div className="space-y-2">
-                    <div className="flex justify-between items-center">
-                      <label htmlFor="multiplier" className="block text-sm font-bold text-gray-700">
-                        Capacity Multiplier
+                    <div className="space-y-2">
+                      <label htmlFor="destination" className="block text-sm font-bold text-gray-700">
+                        Target Destination
                       </label>
-                      <span className="text-lg font-black text-green-600">
-                        {Math.round(overrideForm.multiplier * 100)}%
-                      </span>
-                    </div>
-                    <input
-                      id="multiplier"
-                      type="range"
-                      min="0.1"
-                      max="1.5"
-                      step="0.05"
-                      value={overrideForm.multiplier}
-                      onChange={(e) => setOverrideForm({ ...overrideForm, multiplier: parseFloat(e.target.value) })}
-                      className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-green-600"
-                    />
-                    <div className="flex justify-between text-[10px] text-gray-400 font-bold uppercase tracking-wider">
-                      <span>Extreme Limit (10%)</span>
-                      <span>Increase (150%)</span>
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <label htmlFor="reason" className="block text-sm font-bold text-gray-700">
-                      Reason for Override
-                    </label>
-                    <textarea
-                      id="reason"
-                      rows={3}
-                      value={overrideForm.reason}
-                      onChange={(e) => setOverrideForm({ ...overrideForm, reason: e.target.value })}
-                      placeholder="e.g., Special event, maintenance, emergency restriction..."
-                      required
-                      className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent text-base shadow-sm"
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <label htmlFor="expiresAt" className="block text-sm font-bold text-gray-700">
-                      Expiry Date & Time
-                    </label>
-                    <div className="relative">
-                      <Clock className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
-                      <input
-                        id="expiresAt"
-                        type="datetime-local"
-                        value={overrideForm.expiresAt}
-                        onChange={(e) => setOverrideForm({ ...overrideForm, expiresAt: e.target.value })}
+                      <select
+                        id="destination"
+                        value={overrideForm.destinationId}
+                        onChange={(e) => setOverrideForm({ ...overrideForm, destinationId: e.target.value })}
                         required
-                        className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent text-base min-h-[44px] shadow-sm"
+                        className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent text-base min-h-[44px] bg-white shadow-sm"
+                      >
+                        <option value="">Select a destination...</option>
+                        {destinations.map((dest) => (
+                          <option key={dest.id} value={dest.id}>
+                            {dest.name} ({dest.maxCapacity} base)
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <div className="flex justify-between items-center">
+                        <label htmlFor="multiplier" className="block text-sm font-bold text-gray-700">
+                          Capacity Multiplier
+                        </label>
+                        <span className="text-lg font-black text-green-600">
+                          {Math.round(overrideForm.multiplier * 100)}%
+                        </span>
+                      </div>
+                      <input
+                        id="multiplier"
+                        type="range"
+                        min="0.1"
+                        max="1.5"
+                        step="0.05"
+                        value={overrideForm.multiplier}
+                        onChange={(e) => setOverrideForm({ ...overrideForm, multiplier: parseFloat(e.target.value) })}
+                        className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-green-600"
+                      />
+                      <div className="flex justify-between text-[10px] text-gray-400 font-bold uppercase tracking-wider">
+                        <span>Extreme Limit (10%)</span>
+                        <span>Increase (150%)</span>
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <label htmlFor="reason" className="block text-sm font-bold text-gray-700">
+                        Reason for Override
+                      </label>
+                      <textarea
+                        id="reason"
+                        rows={3}
+                        value={overrideForm.reason}
+                        onChange={(e) => setOverrideForm({ ...overrideForm, reason: e.target.value })}
+                        placeholder="e.g., Special event, maintenance, emergency restriction..."
+                        required
+                        className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent text-base shadow-sm"
                       />
                     </div>
-                  </div>
-                </form>
+
+                    <div className="space-y-2">
+                      <label htmlFor="expiresAt" className="block text-sm font-bold text-gray-700">
+                        Expiry Date & Time
+                      </label>
+                      <div className="relative">
+                        <Clock className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+                        <input
+                          id="expiresAt"
+                          type="datetime-local"
+                          value={overrideForm.expiresAt}
+                          onChange={(e) => setOverrideForm({ ...overrideForm, expiresAt: e.target.value })}
+                          required
+                          className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent text-base min-h-[44px] shadow-sm"
+                        />
+                      </div>
+                    </div>
+                  </form>
+                </FormErrorBoundary>
               </div>
 
               {/* Modal Footer */}

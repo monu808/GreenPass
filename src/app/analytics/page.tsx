@@ -14,6 +14,7 @@ import {
 import { getDbService } from '@/lib/databaseService';
 import { useTourists } from '@/hooks/useTourists';
 import { useDestinations } from '@/hooks/useDestinations';
+import { DataFetchErrorBoundary, ChartErrorBoundary } from '@/components/errors';
 
 interface AnalyticsData {
   totalTourists: number;
@@ -191,8 +192,9 @@ export default function AnalyticsPage() {
 
   return (
     <Layout>
-      <div className="space-y-6">
-        {/* Header */}
+      <DataFetchErrorBoundary onRetry={() => window.location.reload()} maxRetries={0}>
+        <div className="space-y-6">
+          {/* Header */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
             <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Analytics Dashboard</h1>
@@ -247,149 +249,158 @@ export default function AnalyticsPage() {
         {/* Charts and Data Visualization */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Popular Destinations */}
-          <div className="bg-white rounded-2xl p-4 sm:p-6 shadow-sm border border-gray-100">
-            <h3 className="text-lg font-bold text-gray-900 mb-6 flex items-center gap-2">
-              <div className="p-2 bg-green-50 rounded-lg">
-                <Target className="h-5 w-5 text-green-600" />
-              </div>
-              Popular Destinations
-            </h3>
-            <div className="space-y-5">
-              {analytics.popularDestinations.map((dest, index) => (
-                <div key={dest.name} className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <span className="flex items-center justify-center w-6 h-6 rounded-full bg-gray-50 text-[10px] font-black text-gray-400 border border-gray-100">
-                        {index + 1}
-                      </span>
-                      <span className="text-sm font-bold text-gray-800 truncate max-w-[150px] sm:max-w-none">{dest.name}</span>
-                    </div>
-                    <span className="text-sm font-black text-gray-900 ml-2">{dest.count}</span>
-                  </div>
-                  <div className="w-full bg-gray-100 rounded-full h-2 overflow-hidden">
-                    <div
-                      className="bg-green-500 h-full rounded-full transition-all duration-1000 ease-out"
-                      style={{ 
-                        width: `${(dest.count / Math.max(...analytics.popularDestinations.map(d => d.count))) * 100}%` 
-                      }}
-                    ></div>
-                  </div>
+          <ChartErrorBoundary chartTitle="Popular Destinations">
+            <div className="bg-white rounded-2xl p-4 sm:p-6 shadow-sm border border-gray-100 h-full">
+              <h3 className="text-lg font-bold text-gray-900 mb-6 flex items-center gap-2">
+                <div className="p-2 bg-green-50 rounded-lg">
+                  <Target className="h-5 w-5 text-green-600" />
                 </div>
+                Popular Destinations
+              </h3>
+              <div className="space-y-5">
+                {analytics.popularDestinations.map((dest, index) => (
+                  <div key={dest.name} className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <span className="flex items-center justify-center w-6 h-6 rounded-full bg-gray-50 text-[10px] font-black text-gray-400 border border-gray-100">
+                          {index + 1}
+                        </span>
+                        <span className="text-sm font-bold text-gray-800 truncate max-w-[150px] sm:max-w-none">{dest.name}</span>
+                      </div>
+                      <span className="text-sm font-black text-gray-900 ml-2">{dest.count}</span>
+                    </div>
+                    <div className="w-full bg-gray-100 rounded-full h-2 overflow-hidden">
+                      <div
+                        className="bg-green-500 h-full rounded-full transition-all duration-1000 ease-out"
+                        style={{ 
+                          width: `${(dest.count / Math.max(...analytics.popularDestinations.map(d => d.count))) * 100}%` 
+                        }}
+                      ></div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </ChartErrorBoundary>
+
+          {/* Status Distribution */}
+          <ChartErrorBoundary chartTitle="Booking Status Distribution">
+            <div className="bg-white rounded-2xl p-4 sm:p-6 shadow-sm border border-gray-100 h-full">
+              <h3 className="text-lg font-bold text-gray-900 mb-6 flex items-center gap-2">
+                <div className="p-2 bg-blue-50 rounded-lg">
+                  <BarChart3 className="h-5 w-5 text-blue-600" />
+                </div>
+                Booking Status Distribution
+              </h3>
+              <div className="grid grid-cols-2 gap-3 sm:gap-4">
+                {analytics.statusDistribution.map((status) => {
+                  const colors: { [key: string]: string } = {
+                    pending: 'bg-yellow-500',
+                    approved: 'bg-blue-500',
+                    'checked-in': 'bg-green-500',
+                    'checked-out': 'bg-gray-500',
+                    cancelled: 'bg-red-500'
+                  };
+                  
+                  const bgColors: { [key: string]: string } = {
+                    pending: 'bg-yellow-50',
+                    approved: 'bg-blue-50',
+                    'checked-in': 'bg-green-50',
+                    'checked-out': 'bg-gray-50',
+                    cancelled: 'bg-red-50'
+                  };
+
+                  const textColors: { [key: string]: string } = {
+                    pending: 'text-yellow-700',
+                    approved: 'text-blue-700',
+                    'checked-in': 'text-green-700',
+                    'checked-out': 'text-gray-700',
+                    cancelled: 'text-red-700'
+                  };
+                  
+                  return (
+                    <div key={status.status} className={`${bgColors[status.status] || 'bg-gray-50'} p-3 sm:p-4 rounded-xl border border-white/50 shadow-sm flex flex-col justify-between min-h-[90px] sm:min-h-[100px]`}>
+                      <div className="flex items-center justify-between">
+                        <div className={`w-2 h-2 rounded-full ${colors[status.status] || 'bg-gray-400'}`}></div>
+                        <span className="text-[9px] sm:text-[10px] font-black uppercase tracking-widest opacity-60">Status</span>
+                      </div>
+                      <div>
+                        <div className="text-[10px] sm:text-xs font-bold text-gray-500 capitalize mb-1 truncate">{status.status.replace('-', ' ')}</div>
+                        <div className="flex items-end justify-between">
+                          <span className={`text-lg sm:text-xl font-black ${textColors[status.status] || 'text-gray-900'}`}>{status.count}</span>
+                          <span className="text-[9px] sm:text-[10px] font-bold opacity-70 mb-1">{status.percentage.toFixed(0)}%</span>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </ChartErrorBoundary>
+        </div>
+
+        {/* Capacity Utilization */}
+        <ChartErrorBoundary chartTitle="Destination Capacity Utilization">
+          <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+            <h3 className="text-lg font-bold text-gray-900 mb-6 flex items-center gap-2">
+              <div className="p-2 bg-purple-50 rounded-lg">
+                <Activity className="h-5 w-5 text-purple-600" />
+              </div>
+              Destination Capacity Utilization
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {analytics.capacityUtilization.map((dest) => (
+                <ProgressBar
+                  key={dest.destination}
+                  label={dest.destination}
+                  value={dest.current}
+                  max={dest.max}
+                  color={
+                    dest.utilization > 80 ? 'bg-red-500' :
+                    dest.utilization > 60 ? 'bg-yellow-500' :
+                    'bg-green-500'
+                  }
+                />
               ))}
             </div>
           </div>
+        </ChartErrorBoundary>
 
-          {/* Status Distribution */}
-          <div className="bg-white rounded-2xl p-4 sm:p-6 shadow-sm border border-gray-100">
-            <h3 className="text-lg font-bold text-gray-900 mb-6 flex items-center gap-2">
-              <div className="p-2 bg-blue-50 rounded-lg">
-                <BarChart3 className="h-5 w-5 text-blue-600" />
+        {/* Monthly Trends (Simple Chart) */}
+        <ChartErrorBoundary chartTitle="Monthly Tourism Trends">
+          <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+            <h3 className="text-lg font-bold text-gray-900 mb-8 flex items-center gap-2">
+              <div className="p-2 bg-green-50 rounded-lg">
+                <TrendingUp className="h-5 w-5 text-green-600" />
               </div>
-              Booking Status Distribution
+              Monthly Tourism Trends
             </h3>
-            <div className="grid grid-cols-2 gap-3 sm:gap-4">
-              {analytics.statusDistribution.map((status) => {
-                const colors: { [key: string]: string } = {
-                  pending: 'bg-yellow-500',
-                  approved: 'bg-blue-500',
-                  'checked-in': 'bg-green-500',
-                  'checked-out': 'bg-gray-500',
-                  cancelled: 'bg-red-500'
-                };
-                
-                const bgColors: { [key: string]: string } = {
-                  pending: 'bg-yellow-50',
-                  approved: 'bg-blue-50',
-                  'checked-in': 'bg-green-50',
-                  'checked-out': 'bg-gray-50',
-                  cancelled: 'bg-red-50'
-                };
-
-                const textColors: { [key: string]: string } = {
-                  pending: 'text-yellow-700',
-                  approved: 'text-blue-700',
-                  'checked-in': 'text-green-700',
-                  'checked-out': 'text-gray-700',
-                  cancelled: 'text-red-700'
-                };
+            <div className="flex items-end justify-between min-h-[12rem] sm:h-48 px-2 sm:px-6 gap-1.5 sm:gap-4 overflow-x-auto pb-2">
+              {analytics.monthlyTrends.map((trend) => {
+                const maxVal = Math.max(...analytics.monthlyTrends.map(t => t.tourists));
+                const heightPercentage = (trend.tourists / maxVal) * 100;
                 
                 return (
-                  <div key={status.status} className={`${bgColors[status.status] || 'bg-gray-50'} p-3 sm:p-4 rounded-xl border border-white/50 shadow-sm flex flex-col justify-between min-h-[90px] sm:min-h-[100px]`}>
-                    <div className="flex items-center justify-between">
-                      <div className={`w-2 h-2 rounded-full ${colors[status.status] || 'bg-gray-400'}`}></div>
-                      <span className="text-[9px] sm:text-[10px] font-black uppercase tracking-widest opacity-60">Status</span>
-                    </div>
-                    <div>
-                      <div className="text-[10px] sm:text-xs font-bold text-gray-500 capitalize mb-1 truncate">{status.status.replace('-', ' ')}</div>
-                      <div className="flex items-end justify-between">
-                        <span className={`text-lg sm:text-xl font-black ${textColors[status.status] || 'text-gray-900'}`}>{status.count}</span>
-                        <span className="text-[9px] sm:text-[10px] font-bold opacity-70 mb-1">{status.percentage.toFixed(0)}%</span>
+                  <div key={trend.month} className="flex flex-col items-center flex-1 min-w-[40px] group">
+                    <div className="relative w-full flex justify-center h-full items-end">
+                      <div
+                        className="w-full max-w-[32px] sm:max-w-[40px] bg-gradient-to-t from-green-600 to-green-400 rounded-t-lg transition-all duration-1000 ease-out flex items-start justify-center pt-2 group-hover:from-green-500 group-hover:to-green-300 shadow-sm"
+                        style={{ 
+                          height: `${Math.max(heightPercentage, 15)}%`,
+                        }}
+                      >
+                        <span className="text-[9px] sm:text-xs font-black text-white drop-shadow-sm">{trend.tourists}</span>
                       </div>
                     </div>
+                    <span className="text-[9px] sm:text-xs font-bold text-gray-400 mt-3 uppercase tracking-tighter">{trend.month}</span>
                   </div>
                 );
               })}
             </div>
           </div>
-        </div>
-
-        {/* Capacity Utilization */}
-        <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
-          <h3 className="text-lg font-bold text-gray-900 mb-6 flex items-center gap-2">
-            <div className="p-2 bg-purple-50 rounded-lg">
-              <Activity className="h-5 w-5 text-purple-600" />
-            </div>
-            Destination Capacity Utilization
-          </h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {analytics.capacityUtilization.map((dest) => (
-              <ProgressBar
-                key={dest.destination}
-                label={dest.destination}
-                value={dest.current}
-                max={dest.max}
-                color={
-                  dest.utilization > 80 ? 'bg-red-500' :
-                  dest.utilization > 60 ? 'bg-yellow-500' :
-                  'bg-green-500'
-                }
-              />
-            ))}
-          </div>
-        </div>
-
-        {/* Monthly Trends (Simple Chart) */}
-        <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
-          <h3 className="text-lg font-bold text-gray-900 mb-8 flex items-center gap-2">
-            <div className="p-2 bg-green-50 rounded-lg">
-              <TrendingUp className="h-5 w-5 text-green-600" />
-            </div>
-            Monthly Tourism Trends
-          </h3>
-          <div className="flex items-end justify-between min-h-[12rem] sm:h-48 px-2 sm:px-6 gap-1.5 sm:gap-4 overflow-x-auto pb-2">
-            {analytics.monthlyTrends.map((trend) => {
-              const maxVal = Math.max(...analytics.monthlyTrends.map(t => t.tourists));
-              const heightPercentage = (trend.tourists / maxVal) * 100;
-              
-              return (
-                <div key={trend.month} className="flex flex-col items-center flex-1 min-w-[40px] group">
-                  <div className="relative w-full flex justify-center h-full items-end">
-                    <div
-                      className="w-full max-w-[32px] sm:max-w-[40px] bg-gradient-to-t from-green-600 to-green-400 rounded-t-lg transition-all duration-1000 ease-out flex items-start justify-center pt-2 group-hover:from-green-500 group-hover:to-green-300 shadow-sm"
-                      style={{ 
-                        height: `${Math.max(heightPercentage, 15)}%`,
-                      }}
-                    >
-                      <span className="text-[9px] sm:text-xs font-black text-white drop-shadow-sm">{trend.tourists}</span>
-                    </div>
-                  </div>
-                  <span className="text-[9px] sm:text-xs font-bold text-gray-400 mt-3 uppercase tracking-tighter">{trend.month}</span>
-                </div>
-              );
-            })}
-          </div>
-        </div>
+        </ChartErrorBoundary>
       </div>
+      </DataFetchErrorBoundary>
     </Layout>
   );
 }

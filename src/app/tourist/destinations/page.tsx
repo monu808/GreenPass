@@ -26,6 +26,7 @@ import {
   isValidEcologicalSensitivity, 
 } from '@/lib/typeGuards';
 import { Destination, DynamicCapacityResult } from '@/types';
+import { DataFetchErrorBoundary } from '@/components/errors';
 import { sanitizeSearchTerm, cn } from '@/lib/utils';
 import { validateInput, SearchFilterSchema } from '@/lib/validation';
 import { useSSE } from '@/contexts/ConnectionContext';
@@ -194,7 +195,8 @@ export default function TouristDestinations() {
 
   return (
     <TouristLayout>
-      <div className="max-w-7xl mx-auto space-y-12 pb-20 px-6">
+      <DataFetchErrorBoundary onRetry={loadData}>
+        <div className="max-w-7xl mx-auto space-y-12 pb-20 px-6">
         
         {/* HEADER */}
         <div className="pt-10 flex flex-col md:flex-row justify-between items-end gap-6 border-b border-gray-100 pb-12">
@@ -676,7 +678,8 @@ export default function TouristDestinations() {
             </div>
           </div>
         )}
-      </div>
+        </div>
+      </DataFetchErrorBoundary>
     </TouristLayout>
   );
 }

@@ -19,6 +19,7 @@ import { Tourist, Destination } from "@/types";
 import type { Database } from "@/types/database";
 import { sanitizeSearchTerm } from "@/lib/utils";
 import { validateInput, SearchFilterSchema } from "@/lib/validation";
+import { DataFetchErrorBoundary } from "@/components/errors";
 
 type DbDestination = Database['public']['Tables']['destinations']['Row'];
 
@@ -177,8 +178,9 @@ export default function BookingsPage() {
 
   return (
     <Layout>
-      <div className="space-y-6">
-        {/* Header */}
+      <DataFetchErrorBoundary onRetry={loadData}>
+        <div className="space-y-6">
+          {/* Header */}
         <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
           <div>
             <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">
@@ -493,6 +495,7 @@ export default function BookingsPage() {
           )}
         </div>
       </div>
+      </DataFetchErrorBoundary>
     </Layout>
   );
 }

@@ -174,7 +174,7 @@ export default function TouristBookings() {
 
   return (
     <TouristLayout>
-      <DataFetchErrorBoundary onRetry={() => window.location.reload()}>
+      <DataFetchErrorBoundary onRetry={() => window.location.reload()} maxRetries={0}>
         <div className="max-w-7xl mx-auto space-y-6 sm:space-y-10 pb-20 px-4 sm:px-6">
         
         {/* PREMIUM HEADER */}

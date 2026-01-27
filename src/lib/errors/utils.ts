@@ -65,16 +65,36 @@ export function formatErrorMessage(error: unknown, type: ErrorType): string {
  * Determines if an error is retryable based on its type and properties.
  */
 export function isRetryableError(error: unknown, type: ErrorType): boolean {
-  // Network and data fetch errors are generally retryable
-  if (type === ErrorType.NETWORK || type === ErrorType.DATA_FETCH) {
+  // 1. First, inspect HTTP status if available
+  if (typeof error === 'object' && error !== null) {
+    const err = error as any;
+    const status = err.status || err.response?.status;
+
+    if (typeof status === 'number') {
+      // Retryable HTTP status codes: 
+      // 408 (Timeout), 429 (Too Many Requests), 
+      // 500 (Internal Server Error), 502 (Bad Gateway), 503 (Service Unavailable), 504 (Gateway Timeout)
+      if ([408, 429, 500, 502, 503, 504].includes(status)) {
+        return true;
+      }
+
+      // Non-retryable: All other 4xx errors (400-499) are usually client errors (bad request, auth, etc.)
+      if (status >= 400 && status < 500) {
+        return false;
+      }
+    }
+  }
+
+  // 2. Fallback to ErrorType if no status is present
+  // Network errors without a status (e.g., DNS failure, connection refused) are generally retryable
+  if (type === ErrorType.NETWORK) {
     return true;
   }
   
-  if (typeof error === 'object' && error !== null) {
-    const err = error as any;
-    // Common retryable HTTP status codes: 408 (Timeout), 429 (Too Many Requests), 
-    // 500 (Internal Server Error), 502 (Bad Gateway), 503 (Service Unavailable), 504 (Gateway Timeout)
-    if ([408, 429, 500, 502, 503, 504].includes(err.status)) return true;
+  // Data fetch errors without a status are treated as non-retryable by default 
+  // to avoid infinite loops on logical errors
+  if (type === ErrorType.DATA_FETCH) {
+    return false;
   }
   
   return false;

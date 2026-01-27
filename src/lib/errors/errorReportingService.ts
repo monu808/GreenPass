@@ -33,18 +33,83 @@ class ConsoleErrorReporter implements ErrorReporter {
 }
 
 /**
- * Production placeholder (No-Operation reporter).
+ * Production reporter that forwards errors to an external provider or a fallback endpoint.
  */
-class NoOpErrorReporter implements ErrorReporter {
-  captureError(): void {}
-  captureMessage(): void {}
-  setUser(): void {}
-}
+class ProductionErrorReporter implements ErrorReporter {
+  private loggingEndpoint: string | undefined;
+  private apiKey: string | undefined;
 
-/**
- * Sentry implementation placeholder (can be expanded later)
- */
-// class SentryErrorReporter implements ErrorReporter { ... }
+  constructor() {
+    this.loggingEndpoint = process.env.NEXT_PUBLIC_LOGGING_ENDPOINT;
+    this.apiKey = process.env.NEXT_PUBLIC_LOGGING_API_KEY;
+  }
+
+  async captureError(error: unknown, errorInfo?: Partial<ErrorInfo>): Promise<void> {
+    const payload = {
+      type: 'error',
+      error: error instanceof Error ? {
+        name: error.name,
+        message: error.message,
+        stack: error.stack,
+      } : error,
+      context: {
+        ...errorInfo,
+        url: typeof window !== 'undefined' ? window.location.href : 'server-side',
+        userAgent: typeof window !== 'undefined' ? navigator.userAgent : 'server-side',
+        timestamp: Date.now(),
+      }
+    };
+
+    // If a logging endpoint is configured, send the error via HTTP POST
+    if (this.loggingEndpoint) {
+      try {
+        await fetch(this.loggingEndpoint, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(this.apiKey ? { 'X-API-Key': this.apiKey } : {}),
+          },
+          body: JSON.stringify(payload),
+        });
+      } catch (fetchError) {
+        // Fallback to console in production only if the reporting service itself fails
+        console.error('Failed to report error to production endpoint:', fetchError);
+        console.error('Original Error:', error);
+      }
+    } else {
+      // If no endpoint is configured, we still want to see errors in the console in prod
+      // until a proper provider is wired up, but with less detail than Dev
+      console.error('[Production Error]:', error, errorInfo);
+    }
+  }
+
+  async captureMessage(message: string, level: 'info' | 'warning' | 'error' = 'error'): Promise<void> {
+    if (!this.loggingEndpoint) {
+      console.log(`[Production ${level.toUpperCase()}]: ${message}`);
+      return;
+    }
+
+    try {
+      await fetch(this.loggingEndpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(this.apiKey ? { 'X-API-Key': this.apiKey } : {}),
+        },
+        body: JSON.stringify({ type: 'message', message, level, timestamp: Date.now() }),
+      });
+    } catch (err) {
+      console.error('Failed to report message:', err);
+    }
+  }
+
+  setUser(userId: string | null, userInfo?: Record<string, any>): void {
+    // This could be used to set user context in Sentry/LogRocket
+    if (!this.loggingEndpoint) {
+      console.info('[Production User Context]:', userId, userInfo);
+    }
+  }
+}
 
 let reporterInstance: ErrorReporter | null = null;
 
@@ -59,9 +124,9 @@ export function getErrorReporter(): ErrorReporter {
   if (isDev) {
     reporterInstance = new ConsoleErrorReporter();
   } else {
-    // In production, we could initialize Sentry/LogRocket here
-    // For now, use NoOp or a basic production logger
-    reporterInstance = new NoOpErrorReporter();
+    // In production, we use the ProductionErrorReporter which supports
+    // both external providers (future expansion) and a fallback HTTP endpoint.
+    reporterInstance = new ProductionErrorReporter();
   }
 
   return reporterInstance;

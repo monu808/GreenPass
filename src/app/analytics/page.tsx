@@ -192,7 +192,7 @@ export default function AnalyticsPage() {
 
   return (
     <Layout>
-      <DataFetchErrorBoundary onRetry={() => window.location.reload()}>
+      <DataFetchErrorBoundary onRetry={() => window.location.reload()} maxRetries={0}>
         <div className="space-y-6">
           {/* Header */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">

@@ -495,6 +495,7 @@ export default function BookingsPage() {
           )}
         </div>
       </div>
+      </DataFetchErrorBoundary>
     </Layout>
   );
 }

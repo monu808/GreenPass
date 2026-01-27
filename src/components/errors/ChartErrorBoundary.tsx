@@ -34,11 +34,14 @@ export class ChartErrorBoundary extends Component<ChartErrorBoundaryProps, Chart
   }
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
+    // Report error asynchronously without blocking the UI
     errorReporter.captureError(error, {
       type: ErrorType.CHART,
       message: `Chart Error in "${this.props.chartTitle}": ${error.message}`,
       componentStack: errorInfo.componentStack || undefined,
       timestamp: Date.now(),
+    }).catch(err => {
+      console.error('Failed to report chart error:', err);
     });
   }
 

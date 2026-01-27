@@ -46,11 +46,14 @@ export class DataFetchErrorBoundary extends Component<DataFetchErrorBoundaryProp
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     const errorType = classifyError(error);
     
+    // Report error asynchronously without blocking the UI
     errorReporter.captureError(error, {
       type: errorType,
       message: `Data Fetch Error: ${error.message}`,
       componentStack: errorInfo.componentStack || undefined,
       timestamp: Date.now(),
+    }).catch(err => {
+      console.error('Failed to report data fetch error:', err);
     });
 
     const maxRetries = this.props.maxRetries ?? 3;

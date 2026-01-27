@@ -33,11 +33,14 @@ export class FormErrorBoundary extends Component<FormErrorBoundaryProps, FormErr
   }
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
+    // Report error asynchronously without blocking the UI
     errorReporter.captureError(error, {
       type: ErrorType.FORM,
       message: `Form Error in ${this.props.formName}: ${error.message}`,
       componentStack: errorInfo.componentStack || undefined,
       timestamp: Date.now(),
+    }).catch(err => {
+      console.error('Failed to report form error:', err);
     });
   }
 

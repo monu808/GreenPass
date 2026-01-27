@@ -291,7 +291,8 @@ export default function WasteTrackingPage() {
                 />
               )}
             </div>
-          </DataFetchErrorBoundary>
+          </div>
+        </DataFetchErrorBoundary>
         </div>
       </Layout>
     </ProtectedRoute>

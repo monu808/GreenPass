@@ -127,37 +127,35 @@ export async function POST(request: NextRequest) {
       timestamp: new Date().toISOString()
     });
   } catch (error) {
-  let errorMsg = 'realtime weather monitoring failed.';
-  let statusCode = 500;
+    let errorMsg = 'Realtime weather monitoring failed.';
+    let statusCode = 500;
   
-  if (error instanceof Error) {
-    if (error.message.includes('validation')) {
-      errorMsg = 'Invalid monitoring parameters.';
-      statusCode = 400;
-    } else if (error.message.includes('destination')) {
-      errorMsg = 'Destination not found for monitoring.';
-      statusCode = 404;
-    } else if (error.message.includes('weather service')) {
-      errorMsg = 'Weather service temporarily unavailable.';
-      statusCode = 503;
-    } else if (error.message.includes('database')) {
-      errorMsg = 'Error accessing the database.';
-      statusCode = 500;
-    } else if (error.message.includes('timeout')) {
-      errorMsg = 'Monitoring request timed out.';
-      statusCode = 504;
-    } else {
-      errorMsg = `Error monitoring weather: ${error.message}`;
+    if (error instanceof Error) {
+      if (error.message.includes('validation')) {
+        errorMsg = 'Invalid monitoring parameters.';
+        statusCode = 400;
+      } else if (error.message.includes('destination')) {
+        errorMsg = 'Destination not found for monitoring.';
+        statusCode = 404;
+      } else if (error.message.includes('weather service')) {
+        errorMsg = 'Weather service temporarily unavailable.';
+        statusCode = 503;
+      } else if (error.message.includes('database')) {
+        errorMsg = 'Error accessing the database.';
+        statusCode = 500;
+      } else if (error.message.includes('timeout')) {
+        errorMsg = 'Monitoring request timed out.';
+        statusCode = 504;
+      } else {
+        errorMsg = `Error monitoring weather: ${error.message}`;
+      }
     }
-  }
   
   return NextResponse.json(
     { error: errorMsg, destinations: [] },
     { status: statusCode }
   );
 }
-}
-
 export async function GET(_request: NextRequest) {
   const responseStream = new TransformStream();
   const writer = responseStream.writable.getWriter();

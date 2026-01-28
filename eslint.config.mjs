@@ -25,6 +25,7 @@ const eslintConfig = [
       "react-hooks/exhaustive-deps": "warn",
       "react/no-unescaped-entities": "warn",
       "@next/next/no-img-element": "warn",
+      "react/jsx-no-duplicate-props": "warn",
     },
   },
 ];

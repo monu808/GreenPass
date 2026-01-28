@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { validateInput, WeatherCheckSchema } from '@/lib/validation';
-import { z } from 'zod';
 
 interface WeatherData {
   temperature: number;
@@ -399,7 +398,7 @@ export async function POST(request: NextRequest) {
       if (request.headers.get('content-type')?.includes('application/json')) {
         body = await request.json();
       }
-    } catch (e) {
+    } catch {
       // Body might be empty, which is fine for this trigger
     }
 
@@ -569,7 +568,7 @@ export async function POST(request: NextRequest) {
   }
 }
 
-export async function GET(_request: NextRequest) {
+export async function GET() {
   return NextResponse.json({
     message: 'Weather monitoring API endpoint',
     timestamp: new Date().toISOString(),

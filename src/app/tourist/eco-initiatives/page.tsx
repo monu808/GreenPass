@@ -1,8 +1,9 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import Image from 'next/image';
 import TouristLayout from '@/components/TouristLayout';
+import { useModalAccessibility } from "@/lib/accessibility";
 import { 
   Leaf, 
   Award, 
@@ -39,11 +40,13 @@ export default function EcoInitiativesPage() {
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [selectedRegistration, setSelectedRegistration] = useState<CleanupRegistration | null>(null);
 
-  useEffect(() => {
-    fetchData();
-  }, [user]);
+  const registrationModalRef = useRef<HTMLDivElement>(null);
+  const cancelModalRef = useRef<HTMLDivElement>(null);
 
-  const fetchData = async () => {
+  useModalAccessibility({ modalRef: registrationModalRef, isOpen: showConfirmModal, onClose: () => setShowConfirmModal(false) });
+  useModalAccessibility({ modalRef: cancelModalRef, isOpen: showCancelModal, onClose: () => setShowCancelModal(false) });
+
+  const fetchData = useCallback(async () => {
     if (!user?.id) return;
     setIsLoading(true);
     try {
@@ -70,7 +73,11 @@ export default function EcoInitiativesPage() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [user]);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
 
   const handleRegisterClick = (activity: CleanupActivity) => {
     setSelectedActivity(activity);
@@ -367,7 +374,7 @@ export default function EcoInitiativesPage() {
                 />
                 <div className="absolute inset-0 flex items-center justify-center">
                   <div className="p-6 bg-white/10 backdrop-blur-md rounded-2xl border border-white/20 text-center max-w-xs">
-                    <p className="text-white text-xl font-black mb-2">"Small acts, when multiplied by millions, can transform the world."</p>
+                    <p className="text-white text-xl font-black mb-2">&quot;Small acts, when multiplied by millions, can transform the world.&quot;</p>
                     <p className="text-emerald-300 text-sm font-bold uppercase tracking-widest">— Howard Zinn</p>
                   </div>
                 </div>
@@ -380,8 +387,8 @@ export default function EcoInitiativesPage() {
         {registrations.length > 0 && (
           <section className="space-y-8">
             <h2 className="text-3xl font-black text-slate-900 tracking-tight">My Registered Activities</h2>
-            <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
-              <div className="overflow-x-auto">
+            <div className="bg-white rounded-[2rem] border border-slate-200 shadow-sm overflow-hidden">
+              <div className="hidden lg:block overflow-x-auto">
                 <table className="w-full">
                   <thead>
                     <tr className="bg-slate-50 border-b border-slate-200">
@@ -425,7 +432,7 @@ export default function EcoInitiativesPage() {
                             <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-black uppercase tracking-widest ${
                               reg.status === 'registered' ? 'bg-blue-50 text-blue-600' :
                               reg.status === 'attended' ? 'bg-emerald-50 text-emerald-600' :
-                              'bg-slate-100 text-slate-400'
+                              'bg-slate-50 text-slate-600'
                             }`}>
                               {reg.status}
                             </span>
@@ -434,9 +441,10 @@ export default function EcoInitiativesPage() {
                             {reg.status === 'registered' && (
                               <button 
                                 onClick={() => handleCancelClick(reg)}
-                                className="text-slate-400 hover:text-red-600 font-bold transition-colors"
+                                className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all"
+                                aria-label="Cancel registration"
                               >
-                                Cancel
+                                <Trash2 className="h-5 w-5" />
                               </button>
                             )}
                           </td>
@@ -446,6 +454,67 @@ export default function EcoInitiativesPage() {
                   </tbody>
                 </table>
               </div>
+
+              {/* Mobile Card View for Registrations */}
+              <div className="lg:hidden divide-y divide-slate-100">
+                {registrations.map(reg => {
+                  const activity = getActivityForRegistration(reg.activityId);
+                  return (
+                    <div key={reg.id} className="p-6 space-y-6 active:bg-slate-50 transition-colors">
+                      <div className="flex justify-between items-start">
+                        <div className="flex items-center gap-4">
+                          <div className="w-14 h-14 rounded-2xl bg-slate-100 shimmer overflow-hidden flex-shrink-0 relative">
+                            <Image 
+                              src={`https://source.unsplash.com/featured/?nature,cleanup&sig=${reg.id}`} 
+                              className="w-full h-full object-cover" 
+                              alt={activity?.title || 'Cleanup activity'}
+                              fill
+                              sizes="56px"
+                            />
+                          </div>
+                          <div>
+                            <h3 className="font-black text-slate-900 tracking-tight">{activity?.title || 'Unknown Activity'}</h3>
+                            <div className="flex items-center gap-1.5 text-slate-400 text-xs font-black uppercase tracking-widest mt-0.5">
+                              <MapPin className="h-3 w-3" />
+                              {activity?.location}
+                            </div>
+                          </div>
+                        </div>
+                        <span className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest ${
+                          reg.status === 'registered' ? 'bg-blue-50 text-blue-600' :
+                          reg.status === 'attended' ? 'bg-emerald-50 text-emerald-600' :
+                          'bg-slate-50 text-slate-600'
+                        }`}>
+                          {reg.status}
+                        </span>
+                      </div>
+
+                      <div className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                        <div className="flex items-center gap-3">
+                          <div className="p-2 bg-white rounded-lg shadow-sm">
+                            <Calendar className="h-4 w-4 text-emerald-500" />
+                          </div>
+                          <div>
+                            <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest leading-none mb-1">Date & Time</p>
+                            <p className="text-sm font-bold text-slate-700">
+                              {activity ? format(new Date(activity.startTime), 'MMM d, h:mm a') : 'N/A'}
+                            </p>
+                          </div>
+                        </div>
+                        {reg.status === 'registered' && (
+                          <button 
+                            onClick={() => handleCancelClick(reg)}
+                            className="h-12 w-12 flex items-center justify-center bg-white text-slate-400 hover:text-red-500 rounded-xl shadow-sm border border-slate-100 active:scale-95 transition-all"
+                            aria-label="Cancel registration"
+                          >
+                            <Trash2 className="h-5 w-5" />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           </section>
         )}
@@ -453,15 +522,23 @@ export default function EcoInitiativesPage() {
 
       {/* Registration Modal */}
       {showConfirmModal && selectedActivity && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-300">
-          <div className="bg-white rounded-[2.5rem] p-8 lg:p-12 w-full max-w-xl shadow-2xl animate-in zoom-in-95 duration-300">
+        <div 
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-300"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="registration-modal-title"
+        >
+          <div 
+            ref={registrationModalRef}
+            className="bg-white rounded-[2.5rem] p-8 lg:p-12 w-full max-w-xl shadow-2xl animate-in zoom-in-95 duration-300"
+          >
             <div className="flex flex-col items-center text-center">
               <div className="w-20 h-20 bg-emerald-100 rounded-[2rem] flex items-center justify-center mb-8">
-                <Leaf className="h-10 w-10 text-emerald-600" />
+                <Leaf className="h-10 w-10 text-emerald-600" aria-hidden="true" />
               </div>
-              <h3 className="text-3xl font-black text-slate-900 mb-4">Join this initiative?</h3>
+              <h3 id="registration-modal-title" className="text-3xl font-black text-slate-900 mb-4">Join this initiative?</h3>
               <p className="text-slate-500 font-medium mb-8">
-                You're about to join <span className="text-emerald-600 font-bold">{selectedActivity.title}</span> in {selectedActivity.location}. 
+                You&apos;re about to join <span className="text-emerald-600 font-bold">{selectedActivity.title}</span> in {selectedActivity.location}. 
                 Earn <span className="text-emerald-600 font-bold">{selectedActivity.ecoPointsReward} Eco-Points</span> upon successful participation.
               </p>
               
@@ -469,18 +546,18 @@ export default function EcoInitiativesPage() {
                 <button 
                   onClick={confirmRegistration}
                   disabled={isRegistering}
-                  className="w-full py-5 bg-emerald-600 text-white font-black rounded-3xl hover:bg-emerald-700 transition-all shadow-xl shadow-emerald-200 flex items-center justify-center gap-3 disabled:opacity-50"
+                  className="w-full py-5 bg-emerald-600 text-white font-black rounded-3xl hover:bg-emerald-700 transition-all shadow-xl shadow-emerald-200 flex items-center justify-center gap-3 disabled:opacity-50 focus:outline-none focus:ring-4 focus:ring-emerald-500/20"
                 >
                   {isRegistering ? 'Processing...' : (
                     <>
                       Confirm Registration
-                      <ArrowRight className="h-5 w-5" />
+                      <ArrowRight className="h-5 w-5" aria-hidden="true" />
                     </>
                   )}
                 </button>
                 <button 
                   onClick={() => setShowConfirmModal(false)}
-                  className="w-full py-5 bg-slate-100 text-slate-600 font-black rounded-3xl hover:bg-slate-200 transition-all"
+                  className="w-full py-5 bg-slate-100 text-slate-600 font-black rounded-3xl hover:bg-slate-200 transition-all focus:outline-none focus:ring-4 focus:ring-slate-500/10"
                 >
                   Go Back
                 </button>
@@ -492,13 +569,21 @@ export default function EcoInitiativesPage() {
 
       {/* Cancellation Modal */}
       {showCancelModal && selectedRegistration && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-300">
-          <div className="bg-white rounded-[2.5rem] p-8 lg:p-12 w-full max-w-xl shadow-2xl animate-in zoom-in-95 duration-300">
+        <div 
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-300"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="cancel-modal-title"
+        >
+          <div 
+            ref={cancelModalRef}
+            className="bg-white rounded-[2.5rem] p-8 lg:p-12 w-full max-w-xl shadow-2xl animate-in zoom-in-95 duration-300"
+          >
             <div className="flex flex-col items-center text-center">
               <div className="w-20 h-20 bg-red-50 rounded-[2rem] flex items-center justify-center mb-8">
-                <AlertCircle className="h-10 w-10 text-red-500" />
+                <AlertCircle className="h-10 w-10 text-red-500" aria-hidden="true" />
               </div>
-              <h3 className="text-3xl font-black text-slate-900 mb-4">Cancel Registration?</h3>
+              <h3 id="cancel-modal-title" className="text-3xl font-black text-slate-900 mb-4">Cancel Registration?</h3>
               <p className="text-slate-500 font-medium mb-8">
                 Are you sure you want to cancel your registration for this event? This action will free up your spot for other volunteers.
               </p>
@@ -506,15 +591,15 @@ export default function EcoInitiativesPage() {
               <div className="w-full space-y-4">
                 <button 
                   onClick={confirmCancellation}
-                  className="w-full py-5 bg-red-500 text-white font-black rounded-3xl hover:bg-red-600 transition-all shadow-xl shadow-red-100"
+                  className="w-full py-5 bg-red-500 text-white font-black rounded-3xl hover:bg-red-600 transition-all shadow-xl shadow-red-100 focus:outline-none focus:ring-4 focus:ring-red-500/20"
                 >
                   Yes, Cancel Registration
                 </button>
                 <button 
                   onClick={() => setShowCancelModal(false)}
-                  className="w-full py-5 bg-slate-100 text-slate-600 font-black rounded-3xl hover:bg-slate-200 transition-all"
+                  className="w-full py-5 bg-slate-100 text-slate-600 font-black rounded-3xl hover:bg-slate-200 transition-all focus:outline-none focus:ring-4 focus:ring-slate-500/10"
                 >
-                  No, Keep It
+                  Keep Registration
                 </button>
               </div>
             </div>

@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono, Playfair_Display, Inter } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/contexts/AuthContext";
@@ -26,6 +26,14 @@ const inter = Inter({
   subsets: ["latin"],
   weight: ["300", "400", "500", "600", "700"],
 });
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 5,
+  userScalable: true,
+  themeColor: "#059669", // emerald-600
+};
 
 export const metadata: Metadata = {
   title: "Tourist Management System - Jammu & Himachal Pradesh",

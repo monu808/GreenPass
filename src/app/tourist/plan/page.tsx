@@ -7,8 +7,7 @@ import {
   Info, Sparkles, ChevronDown, ChevronUp 
 } from 'lucide-react';
 import TouristLayout from '@/components/TouristLayout';
-import { sanitizeForDatabase, sanitizeObject } from '@/lib/utils';
-import { validateInput, TouristRegistrationSchema } from '@/lib/validation';
+import { sanitizeForDatabase } from '@/lib/utils';
 
 // Build Fix: Strict interface for the state structure to satisfy TS compiler
 interface DayPlan {
@@ -76,10 +75,6 @@ export default function PlanYourTripPage() {
 
   const handleSavePlan = (): void => {
     const sanitizedDestination = sanitizeForDatabase(destination);
-    const sanitizedDays = days.map(day => ({
-      ...sanitizeObject(day),
-      activities: day.activities.map(a => sanitizeForDatabase(a))
-    }));
 
     if (!sanitizedDestination) {
       alert("Please specify a destination before saving your expedition.");
@@ -109,9 +104,9 @@ export default function PlanYourTripPage() {
           <button 
             type="button" 
             onClick={addDay} 
-            className="bg-gray-900 text-white px-10 py-5 rounded-[2rem] font-black text-xs uppercase tracking-widest hover:bg-emerald-600 flex items-center gap-3 active:scale-95 transition-all shadow-2xl"
+            className="bg-gray-900 text-white px-10 py-5 rounded-[2rem] font-black text-xs uppercase tracking-widest hover:bg-emerald-600 flex items-center gap-3 active:scale-95 transition-all shadow-2xl focus:outline-none focus:ring-4 focus:ring-emerald-500/20"
           >
-            <Plus className="h-4 w-4" /> Add Expedition Day
+            <Plus className="h-4 w-4" aria-hidden="true" /> Add Expedition Day
           </button>
         </div>
 
@@ -125,12 +120,12 @@ export default function PlanYourTripPage() {
                <div className="space-y-3">
                   <label htmlFor="dest-input" className="text-[10px] font-black uppercase text-gray-400 ml-2">Primary Destination</label>
                   <div className="relative">
-                    <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-emerald-500" />
+                    <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-emerald-500" aria-hidden="true" />
                     <input 
                       id="dest-input"
                       type="text"
                       placeholder="e.g. Spiti Valley, Ladakh"
-                      className="w-full pl-12 pr-4 py-4 bg-gray-50 border-none rounded-2xl font-bold text-gray-700 outline-none focus:ring-2 focus:ring-emerald-500/20"
+                      className="w-full pl-12 pr-4 py-4 bg-gray-50 border-none rounded-2xl font-bold text-gray-700 outline-none focus:ring-4 focus:ring-emerald-500/20"
                       value={destination}
                       onChange={(e: ChangeEvent<HTMLInputElement>) => setDestination(e.target.value)}
                     />
@@ -140,7 +135,7 @@ export default function PlanYourTripPage() {
                   <label htmlFor="budget-select" className="text-[10px] font-black uppercase text-gray-400 ml-2">Budget Preference</label>
                   <select 
                     id="budget-select"
-                    className="w-full px-6 py-4 bg-gray-50 border-none rounded-2xl font-bold text-gray-700 outline-none focus:ring-2 focus:ring-emerald-500/20"
+                    className="w-full px-6 py-4 bg-gray-50 border-none rounded-2xl font-bold text-gray-700 outline-none focus:ring-4 focus:ring-emerald-500/20"
                     value={budget}
                     onChange={(e: ChangeEvent<HTMLSelectElement>) => setBudget(e.target.value)}
                   >
@@ -152,10 +147,10 @@ export default function PlanYourTripPage() {
             </div>
 
             {/* DAY CARDS */}
-            <div className="space-y-6">
+            <div className="space-y-6" role="region" aria-label="Expedition Days" aria-live="polite">
               {days.map((day, index) => (
                 <div key={day.id} className="relative pl-14">
-                  <div className="absolute left-0 top-0 w-12 h-12 bg-white border-4 border-emerald-500 rounded-2xl flex items-center justify-center font-black text-emerald-700 text-sm shadow-sm z-10">
+                  <div className="absolute left-0 top-0 w-12 h-12 bg-white border-4 border-emerald-500 rounded-2xl flex items-center justify-center font-black text-emerald-700 text-sm shadow-sm z-10" aria-hidden="true">
                     {index + 1}
                   </div>
                   
@@ -169,19 +164,21 @@ export default function PlanYourTripPage() {
                       />
                       <div className="flex items-center gap-2">
                         <button 
-  type="button" 
-  onClick={() => removeDay(day.id)} 
-  className="p-2 text-gray-300 hover:text-rose-500 transition-all opacity-0 group-hover:opacity-100 focus-visible:opacity-100 group-focus-within:opacity-100"
-  aria-label={`Remove day ${index + 1}`}
->
-  <Trash2 className="h-5 w-5"/>
-</button>
+                          type="button" 
+                          onClick={() => removeDay(day.id)} 
+                          className="p-2 text-gray-300 hover:text-rose-500 transition-all opacity-0 group-hover:opacity-100 focus-visible:opacity-100 group-focus-within:opacity-100 focus:outline-none focus:ring-2 focus:ring-rose-500 rounded-lg"
+                          aria-label={`Remove day ${index + 1}`}
+                        >
+                          <Trash2 className="h-5 w-5" aria-hidden="true" />
+                        </button>
                         <button 
                           type="button" 
                           onClick={() => toggleDay(day.id)} 
-                          className="p-2 text-gray-400 hover:bg-gray-50 rounded-lg"
+                          className="p-2 text-gray-400 hover:bg-gray-50 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                          aria-label={day.isExpanded ? `Collapse day ${index + 1}` : `Expand day ${index + 1}`}
+                          aria-expanded={day.isExpanded}
                         >
-                          {day.isExpanded ? <ChevronUp className="h-5 w-5"/> : <ChevronDown className="h-5 w-5"/>}
+                          {day.isExpanded ? <ChevronUp className="h-5 w-5" aria-hidden="true" /> : <ChevronDown className="h-5 w-5" aria-hidden="true" />}
                         </button>
                       </div>
                     </div>
@@ -190,7 +187,7 @@ export default function PlanYourTripPage() {
                       <div className="p-8 space-y-4 bg-gray-50/30 animate-in fade-in slide-in-from-top-2 duration-300">
                         {day.activities.map((act, i) => (
                           <div key={i} className="flex items-center gap-4 bg-white p-5 rounded-2xl border border-gray-100 hover:border-emerald-200 transition-all group/item shadow-sm">
-                            <Tent className="h-5 w-5 text-emerald-600" />
+                            <Tent className="h-5 w-5 text-emerald-600" aria-hidden="true" />
                             <input 
                               aria-label={`Activity ${i + 1} on day ${index + 1}`}
                               className="bg-transparent border-none focus:ring-0 p-0 w-full text-sm font-bold text-gray-700" 
@@ -200,17 +197,18 @@ export default function PlanYourTripPage() {
                             <button 
                               type="button" 
                               onClick={() => setDays(days.map(d => d.id === day.id ? { ...d, activities: d.activities.filter((_, idx) => idx !== i) } : d))}
-                              className="opacity-0 group-hover/item:opacity-100 group-focus-within:opacity-100 focus-visible:opacity-100 p-2 text-gray-300 hover:text-rose-500 transition-all"
+                              className="opacity-0 group-hover/item:opacity-100 group-focus-within:opacity-100 focus-visible:opacity-100 p-2 text-gray-300 hover:text-rose-500 transition-all focus:outline-none focus:ring-2 focus:ring-rose-500 rounded-lg"
                               aria-label="Remove activity"
                             >
-                              <X className="h-4 w-4" />
+                              <X className="h-4 w-4" aria-hidden="true" />
                             </button>
                           </div>
                         ))}
                         <button 
                           type="button" 
                           onClick={() => setDays(days.map(d => d.id === day.id ? { ...d, activities: [...d.activities, 'New Adventure Activity'] } : d))} 
-                          className="w-full py-5 border border-dashed border-gray-200 rounded-2xl text-[10px] font-black uppercase tracking-widest text-gray-400 hover:text-emerald-600 hover:border-emerald-100 transition-all bg-white/50"
+                          className="w-full py-5 border border-dashed border-gray-200 rounded-2xl text-[10px] font-black uppercase tracking-widest text-gray-400 hover:text-emerald-600 hover:border-emerald-100 transition-all bg-white/50 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                          aria-label={`Add new activity for day ${index + 1}`}
                         >
                           + Add New Expedition Activity
                         </button>
@@ -226,7 +224,12 @@ export default function PlanYourTripPage() {
           <div className="lg:col-span-4 space-y-8">
              <div className="sticky top-10 space-y-8">
                 {/* ECO-STATS CARD */}
-                <div className="bg-gray-900 rounded-[3rem] p-10 text-white shadow-2xl relative overflow-hidden">
+                <div 
+                  className="bg-gray-900 rounded-[3rem] p-10 text-white shadow-2xl relative overflow-hidden"
+                  role="region"
+                  aria-label="Trip plan summary"
+                  aria-live="polite"
+                >
                    <Leaf className="absolute -top-10 -right-10 h-48 w-48 text-emerald-500/10 rotate-12" />
                    <h4 className="text-2xl font-black mb-8 flex justify-between items-center tracking-tighter">
                       Plan Summary <Zap className="h-6 w-6 text-emerald-400" />

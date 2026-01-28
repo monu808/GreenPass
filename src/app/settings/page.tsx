@@ -174,7 +174,7 @@ export default function SettingsPage() {
     type = 'text',
     placeholder,
     required = false,
-    autoComplete, // <--- 1. ADD THIS (In the props list)
+    autoComplete,
   }: {
     label: string;
     value: T;
@@ -182,21 +182,25 @@ export default function SettingsPage() {
     type?: 'text' | 'email' | 'number' | 'password';
     placeholder?: string;
     required?: boolean;
-    autoComplete?: string; // <--- 2. ADD THIS (In the type definition)
-  }) => (
-    <div>
-      <label className="block text-sm font-medium text-gray-700 mb-2">{label}</label>
-      <input
-        type={type}
-        autoComplete={autoComplete} // <--- 3. ADD THIS (Pass it to the actual input)
-        value={value}
-        onChange={(e) => onChange(e.target.value as T)}
-        placeholder={placeholder}
-        required={required}
-        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-      />
-    </div>
-  );
+    autoComplete?: string;
+  }) => {
+    const fieldId = `input-${label.toLowerCase().replace(/\s+/g, '-')}`;
+    return (
+      <div>
+        <label htmlFor={fieldId} className="block text-sm font-medium text-gray-700 mb-2">{label}</label>
+        <input
+          id={fieldId}
+          type={type}
+          autoComplete={autoComplete}
+          value={value}
+          onChange={(e) => onChange(e.target.value as T)}
+          placeholder={placeholder}
+          required={required}
+          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+        />
+      </div>
+    );
+  };
 
   const SelectField = ({ 
     label, 
@@ -208,20 +212,24 @@ export default function SettingsPage() {
     value: string;
     onChange: (value: string) => void;
     options: { value: string; label: string }[];
-  }) => (
-    <div>
-      <label className="block text-sm font-medium text-gray-700 mb-2">{label}</label>
-      <select
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-      >
-        {options.map(option => (
-          <option key={option.value} value={option.value}>{option.label}</option>
-        ))}
-      </select>
-    </div>
-  );
+  }) => {
+    const fieldId = `select-${label.toLowerCase().replace(/\s+/g, '-')}`;
+    return (
+      <div>
+        <label htmlFor={fieldId} className="block text-sm font-medium text-gray-700 mb-2">{label}</label>
+        <select
+          id={fieldId}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+        >
+          {options.map(option => (
+            <option key={option.value} value={option.value}>{option.label}</option>
+          ))}
+        </select>
+      </div>
+    );
+  };
 
   const CheckboxField = ({ 
     label, 
@@ -231,17 +239,21 @@ export default function SettingsPage() {
     label: string;
     checked: boolean;
     onChange: (checked: boolean) => void;
-  }) => (
-    <div className="flex items-center">
-      <input
-        type="checkbox"
-        checked={checked}
-        onChange={(e) => onChange(e.target.checked)}
-        className="rounded border-gray-300 text-green-600 focus:ring-green-500"
-      />
-      <label className="ml-2 text-sm text-gray-700">{label}</label>
-    </div>
-  );
+  }) => {
+    const fieldId = `checkbox-${label.toLowerCase().replace(/\s+/g, '-')}`;
+    return (
+      <div className="flex items-center">
+        <input
+          id={fieldId}
+          type="checkbox"
+          checked={checked}
+          onChange={(e) => onChange(e.target.checked)}
+          className="rounded border-gray-300 text-green-600 focus:ring-green-500"
+        />
+        <label htmlFor={fieldId} className="ml-2 text-sm text-gray-700">{label}</label>
+      </div>
+    );
+  };
 
   const renderTabContent = () => {
     switch (activeTab) {

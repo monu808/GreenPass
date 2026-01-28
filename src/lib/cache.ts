@@ -6,22 +6,22 @@ const DESTINATION_TTL = 1000 * 60 * 60; // 1 hour
 const POLICY_CONFIG_TTL = 1000 * 60 * 60 * 24; // 24 hours
 
 // Typed Cache Instances
-export const weatherCache = new LRUCache<string, any>({
+export const weatherCache = new LRUCache<string, Record<string, unknown>>({
   max: 500,
   ttl: WEATHER_TTL,
 });
 
-export const destinationCache = new LRUCache<string, any>({
+export const destinationCache = new LRUCache<string, Record<string, unknown>>({
   max: 100,
   ttl: DESTINATION_TTL,
 });
 
-export const policyConfigCache = new LRUCache<string, any>({
+export const policyConfigCache = new LRUCache<string, Record<string, unknown>>({
   max: 50,
   ttl: POLICY_CONFIG_TTL,
 });
 
-export const ecologicalIndicatorCache = new LRUCache<string, any>({
+export const ecologicalIndicatorCache = new LRUCache<string, { soil_compaction: number; vegetation_disturbance: number; wildlife_disturbance: number; water_source_impact: number }>({
   max: 500,
   ttl: WEATHER_TTL, // Same TTL as weather for now
 });
@@ -29,18 +29,20 @@ export const ecologicalIndicatorCache = new LRUCache<string, any>({
 /**
  * Cache-aware wrapper for fetching data
  */
-export async function withCache<T>(
-  cache: LRUCache<string, any>,
+export async function withCache<T extends object>(
+  cache: LRUCache<string, T>,
   key: string,
-  fetchFn: () => Promise<T>
-): Promise<T> {
+  fetchFn: () => Promise<T | null>
+): Promise<T | null> {
   const cached = cache.get(key);
   if (cached !== undefined) {
     return cached;
   }
 
   const fresh = await fetchFn();
-  cache.set(key, fresh);
+  if (fresh !== null) {
+    cache.set(key, fresh);
+  }
   return fresh;
 }
 

@@ -167,7 +167,7 @@ export default function TouristSidebar({ isOpen, setIsOpen }: SidebarProps) {
       {/* Mobile Overlay */}
       {isOpen && (
         <div 
-          className="fixed inset-0 bg-black/60 z-40 lg:hidden backdrop-blur-sm transition-opacity duration-300 animate-in fade-in"
+          className="fixed inset-0 bg-black/60 dark:bg-black/75 z-40 lg:hidden backdrop-blur-sm transition-opacity duration-300 animate-in fade-in"
           onClick={() => setIsOpen?.(false)}
           aria-hidden="true"
         />
@@ -180,13 +180,13 @@ export default function TouristSidebar({ isOpen, setIsOpen }: SidebarProps) {
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
         className={cn(
-        "fixed inset-y-0 left-0 z-50 w-64 bg-white border-r border-gray-200 shadow-2xl lg:shadow-sm transition-transform duration-300 ease-in-out lg:translate-x-0",
+        "fixed inset-y-0 left-0 z-50 w-64 bg-white dark:bg-slate-900 border-r border-gray-200 dark:border-slate-700 shadow-2xl lg:shadow-sm transition-transform duration-300 ease-in-out lg:translate-x-0",
         isOpen ? "translate-x-0" : "-translate-x-full"
       )}>
         <div className="flex flex-col h-full">
           {/* Logo Section */}
           <header 
-            className="flex items-center justify-between h-20 px-6 bg-gradient-to-br from-green-600 via-blue-600 to-green-600"
+            className="flex items-center justify-between h-20 px-6 bg-gradient-to-br from-green-600 via-blue-600 to-green-600 dark:from-green-700 dark:via-blue-700 dark:to-green-700"
             aria-labelledby="sidebar-logo-title"
           >
             <div className="flex items-center space-x-3">
@@ -225,15 +225,15 @@ export default function TouristSidebar({ isOpen, setIsOpen }: SidebarProps) {
                       className={cn(
                         "group flex items-center space-x-3 px-4 py-3 text-sm font-medium rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-inset min-h-[44px]",
                         isActive
-                          ? 'bg-green-50 text-green-700 border-r-2 border-green-600'
-                          : 'text-gray-700 hover:text-green-600 hover:bg-gray-50'
+                          ? 'bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 border-r-2 border-green-600 dark:border-green-500'
+                          : 'text-gray-700 dark:text-gray-300 hover:text-green-600 dark:hover:text-green-400 hover:bg-gray-50 dark:hover:bg-slate-800'
                       )}
                     >
                       <item.icon className={cn(
                         "h-5 w-5 transition-colors duration-200",
                         isActive 
-                          ? 'text-green-600' 
-                          : 'text-gray-500 group-hover:text-green-600'
+                          ? 'text-green-600 dark:text-green-400' 
+                          : 'text-gray-500 dark:text-gray-400 group-hover:text-green-600 dark:group-hover:text-green-400'
                       )} aria-hidden="true" />
                       <span>{item.name}</span>
                     </Link>
@@ -245,7 +245,7 @@ export default function TouristSidebar({ isOpen, setIsOpen }: SidebarProps) {
 
           {/* Weather Widget */}
           <div 
-            className="p-4 m-4 bg-gradient-to-br from-blue-50 to-green-50 rounded-lg border border-gray-200"
+            className="p-4 m-4 bg-gradient-to-br from-blue-50 to-green-50 dark:from-blue-900/20 dark:to-green-900/20 rounded-lg border border-gray-200 dark:border-slate-700"
             role="region"
             aria-labelledby="sidebar-weather-title"
           >
@@ -257,20 +257,20 @@ export default function TouristSidebar({ isOpen, setIsOpen }: SidebarProps) {
             {loadingWeather ? (
               <div className="flex items-center justify-center py-2 space-x-2">
                 <RefreshCw className="h-4 w-4 animate-spin text-blue-500" aria-hidden="true" />
-                <span className="text-xs text-gray-500">Updating weather...</span>
+                <span className="text-xs text-gray-500 dark:text-gray-400">Updating weather...</span>
               </div>
             ) : (
               <div className="text-center">
                 <div className="flex items-center space-x-2">
-                  <div className="p-2 bg-white rounded-lg shadow-sm" aria-hidden="true">
+                  <div className="p-2 bg-white dark:bg-slate-800 rounded-lg shadow-sm" aria-hidden="true">
                     {getWeatherIcon(weather?.weatherMain || '')}
                   </div>
                   <div className="text-left">
-                    <p className="text-lg font-bold text-gray-800">
+                    <p className="text-lg font-bold text-gray-800 dark:text-gray-100">
                       <span className="sr-only">Current temperature in Srinagar: </span>
                       {Math.round(weather?.temperature || 0)}°C
                     </p>
-                    <p className="text-[10px] font-medium text-gray-500 uppercase tracking-wider">Srinagar</p>
+                    <p className="text-[10px] font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Srinagar</p>
                     <p className="sr-only">Weather condition: {weather?.weatherDescription}</p>
                   </div>
                 </div>
@@ -280,9 +280,9 @@ export default function TouristSidebar({ isOpen, setIsOpen }: SidebarProps) {
           </div>
 
           {/* Footer */}
-          <footer className="p-4 border-t border-gray-200" role="contentinfo">
-            <div className="text-center text-xs text-gray-600">
-              <p className="font-medium text-gray-800">© 2026 Paradise Tourism</p>
+          <footer className="p-4 border-t border-gray-200 dark:border-slate-700" role="contentinfo">
+            <div className="text-center text-xs text-gray-600 dark:text-gray-400">
+              <p className="font-medium text-gray-800 dark:text-gray-200">© 2026 Paradise Tourism</p>
             </div>
           </footer>
         </div>

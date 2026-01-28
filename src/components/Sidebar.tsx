@@ -84,7 +84,7 @@ export default function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
       {/* Mobile Overlay */}
       {isOpen && (
         <div 
-          className="fixed inset-0 bg-black/60 z-40 lg:hidden backdrop-blur-sm transition-opacity duration-300 animate-in fade-in"
+          className="fixed inset-0 bg-black/60 dark:bg-black/75 z-40 lg:hidden backdrop-blur-sm transition-opacity duration-300 animate-in fade-in"
           onClick={() => setIsOpen?.(false)}
           aria-hidden="true"
         />
@@ -97,13 +97,13 @@ export default function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
         className={cn(
-        "h-full bg-white border-r border-gray-200 w-64 fixed left-0 top-0 z-50 transition-transform duration-300 ease-in-out lg:translate-x-0 shadow-2xl lg:shadow-none",
+        "h-full bg-white dark:bg-slate-900 border-r border-gray-200 dark:border-slate-700 w-64 fixed left-0 top-0 z-50 transition-transform duration-300 ease-in-out lg:translate-x-0 shadow-2xl lg:shadow-none",
         isOpen ? "translate-x-0" : "-translate-x-full"
       )}>
         <div className="flex flex-col h-full">
           {/* Logo */}
           <div 
-            className="p-6 border-b border-gray-200 flex items-center justify-between"
+            className="p-6 border-b border-gray-200 dark:border-slate-700 flex items-center justify-between"
             aria-labelledby="sidebar-logo-title"
           >
             <div className="flex items-center space-x-3">
@@ -111,13 +111,13 @@ export default function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
                 <MapPin className="h-5 w-5 text-white" aria-hidden="true" />
               </div>
               <div>
-                <h1 id="sidebar-logo-title" className="font-bold text-lg text-gray-900">TMS</h1>
-                <p className="text-xs text-gray-500" aria-hidden="true">Tourist Management</p>
+                <h1 id="sidebar-logo-title" className="font-bold text-lg text-gray-900 dark:text-gray-100">TMS</h1>
+                <p className="text-xs text-gray-500 dark:text-gray-400" aria-hidden="true">Tourist Management</p>
               </div>
             </div>
             {/* Close button for mobile */}
             <button 
-              className="lg:hidden p-3 text-gray-500 hover:bg-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 min-h-[44px] min-w-[44px] flex items-center justify-center"
+              className="lg:hidden p-3 text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 min-h-[44px] min-w-[44px] flex items-center justify-center"
               onClick={() => setIsOpen?.(false)}
               aria-label="Close navigation menu"
             >
@@ -141,8 +141,8 @@ export default function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
                       className={cn(
                         'flex items-center space-x-3 px-3 py-3 rounded-lg text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-inset min-h-[44px]',
                         isActive
-                          ? 'bg-green-50 text-green-700 border border-green-200'
-                          : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                          ? 'bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 border border-green-200 dark:border-green-800'
+                          : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-800 hover:text-gray-900 dark:hover:text-gray-100'
                       )}
                     >
                       <Icon className="h-4 w-4" aria-hidden="true" />
@@ -155,9 +155,9 @@ export default function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
           </nav>
 
           {/* Footer */}
-          <footer className="p-4 border-t border-gray-200" role="contentinfo">
-            <div className="text-xs text-gray-500 text-center">
-              <p className="font-medium text-gray-900">Tourist Management System</p>
+          <footer className="p-4 border-t border-gray-200 dark:border-slate-700" role="contentinfo">
+            <div className="text-xs text-gray-500 dark:text-gray-400 text-center">
+              <p className="font-medium text-gray-900 dark:text-gray-100">Tourist Management System</p>
               <p>Jammu & Himachal Pradesh</p>
             </div>
           </footer>

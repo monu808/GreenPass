@@ -145,42 +145,42 @@ export default function OTPVerification({
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-green-50 to-blue-50 flex items-center justify-center py-8 sm:py-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-gradient-to-br from-green-50 to-blue-50 dark:from-slate-950 dark:to-slate-900 flex items-center justify-center py-8 sm:py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full space-y-6 sm:space-y-8">
         {/* Header */}
         <div className="text-center">
           <div className="flex justify-center mb-4">
-            <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center">
-              <Mail className="h-8 w-8 text-green-600" />
+            <div className="w-16 h-16 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center">
+              <Mail className="h-8 w-8 text-green-600 dark:text-green-400" />
             </div>
           </div>
-          <h2 className="text-2xl sm:text-3xl font-bold text-gray-900">
+          <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">
             Verify Your Email
           </h2>
-          <p className="mt-2 text-sm text-gray-600">
+          <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
             We&apos;ve sent a 6-digit code to
           </p>
-          <p className="text-sm font-medium text-gray-900">{email}</p>
+          <p className="text-sm font-medium text-gray-900 dark:text-gray-100">{email}</p>
         </div>
 
         {/* OTP Form */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 sm:p-8 space-y-6">
+        <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-gray-100 dark:border-slate-700 p-6 sm:p-8 space-y-6">
           {error && (
-            <div className="bg-red-50 border border-red-200 rounded-lg p-3">
-              <p className="text-sm text-red-600">{error}</p>
+            <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-3">
+              <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
             </div>
           )}
 
           {success && (
-            <div className="bg-green-50 border border-green-200 rounded-lg p-3 flex items-center">
-              <CheckCircle className="h-5 w-5 text-green-600 mr-2" />
-              <p className="text-sm text-green-600">Verification successful!</p>
+            <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-3 flex items-center">
+              <CheckCircle className="h-5 w-5 text-green-600 dark:text-green-400 mr-2" />
+              <p className="text-sm text-green-600 dark:text-green-400">Verification successful!</p>
             </div>
           )}
 
           {/* OTP Input */}
           <div role="group" aria-labelledby="otp-label">
-            <label id="otp-label" className="block text-sm font-medium text-gray-700 mb-3 text-center">
+            <label id="otp-label" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3 text-center">
               Enter Verification Code
             </label>
             <div className="flex justify-center gap-2 sm:gap-3" onPaste={handlePaste}>
@@ -196,14 +196,14 @@ export default function OTPVerification({
                   onKeyDown={e => handleKeyDown(index, e)}
                   disabled={loading || success}
                   aria-label={`Digit ${index + 1}`}
-                  className={`w-12 h-12 sm:w-14 sm:h-14 text-center text-xl font-bold border-2 rounded-lg focus:outline-none transition-all focus:ring-4 focus:ring-green-500/10 ${
+                  className={`w-12 h-12 sm:w-14 sm:h-14 text-center text-xl font-bold border-2 rounded-lg focus:outline-none transition-all focus:ring-4 focus:ring-green-500/10 text-gray-900 dark:text-white ${
                     digit
-                      ? 'border-green-500 bg-green-50'
-                      : 'border-gray-300 bg-white'
+                      ? 'border-green-500 bg-green-50 dark:bg-green-900/30'
+                      : 'border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-700'
                   } ${
-                    loading || success ? 'opacity-50 cursor-not-allowed' : 'focus:border-green-500 focus:ring-2 focus:ring-green-200'
+                    loading || success ? 'opacity-50 cursor-not-allowed' : 'focus:border-green-500 focus:ring-2 focus:ring-green-200 dark:focus:ring-green-800'
                   } ${
-                    error ? 'border-red-300 shake' : ''
+                    error ? 'border-red-300 dark:border-red-700 shake' : ''
                   }`}
                 />
               ))}
@@ -212,14 +212,14 @@ export default function OTPVerification({
 
           {/* Resend Section */}
           <div className="text-center space-y-3">
-            <p className="text-sm text-gray-600">Didn&apos;t receive the code?</p>
+            <p className="text-sm text-gray-600 dark:text-gray-400">Didn&apos;t receive the code?</p>
             <button
               onClick={handleResend}
               disabled={loading || resendCooldown > 0}
               className={`text-sm font-medium ${
                 resendCooldown > 0
-                  ? 'text-gray-400 cursor-not-allowed'
-                  : 'text-green-600 hover:text-green-700'
+                  ? 'text-gray-400 dark:text-gray-500 cursor-not-allowed'
+                  : 'text-green-600 dark:text-green-400 hover:text-green-700 dark:hover:text-green-300'
               } flex items-center justify-center mx-auto`}
             >
               <RefreshCw className={`h-4 w-4 mr-1 ${loading ? 'animate-spin' : ''}`} />
@@ -233,7 +233,7 @@ export default function OTPVerification({
           <button
             onClick={onBack}
             disabled={loading}
-            className="w-full flex items-center justify-center text-sm text-gray-600 hover:text-gray-800 py-2"
+            className="w-full flex items-center justify-center text-sm text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 py-2"
           >
             <ArrowLeft className="h-4 w-4 mr-1" />
             Back to Sign Up
@@ -241,8 +241,8 @@ export default function OTPVerification({
         </div>
 
         {/* Tips */}
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-          <p className="text-xs text-blue-800">
+        <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+          <p className="text-xs text-blue-800 dark:text-blue-300">
             <strong>Tip:</strong> Check your spam folder if you don&apos;t see the email. 
             The code is valid for 10 minutes.
           </p>

@@ -3,6 +3,7 @@ import { Geist, Geist_Mono, Playfair_Display, Inter } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ConnectionProvider } from "@/contexts/ConnectionContext";
+import { ThemeProvider } from "@/contexts/ThemeContext";
 import { QueryProvider } from "@/components/providers/QueryProvider";
 
 const geistSans = Geist({
@@ -46,17 +47,44 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
+      <head>
+        {/* Prevent flash of incorrect theme */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              (function() {
+                try {
+                  var d = document.documentElement;
+                  d.classList.remove('light', 'dark');
+                  var theme = localStorage.getItem('greenpass-theme');
+                  var resolved;
+                  if (theme === 'dark') {
+                    resolved = 'dark';
+                  } else if (theme === 'light') {
+                    resolved = 'light';
+                  } else {
+                    resolved = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+                  }
+                  d.classList.add(resolved);
+                } catch (e) {}
+              })();
+            `,
+          }}
+        />
+      </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} ${playfairDisplay.variable} ${inter.variable} antialiased`}
       >
-        <QueryProvider>
-          <AuthProvider>
-            <ConnectionProvider>
-              {children}
-            </ConnectionProvider>
-          </AuthProvider>
-        </QueryProvider>
+        <ThemeProvider defaultTheme="system" storageKey="greenpass-theme">
+          <QueryProvider>
+            <AuthProvider>
+              <ConnectionProvider>
+                {children}
+              </ConnectionProvider>
+            </AuthProvider>
+          </QueryProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

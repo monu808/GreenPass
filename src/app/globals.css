@@ -1,7 +1,9 @@
 @import "tailwindcss";
 @plugin "tailwindcss-animate";
 
-:root {
+/* Light Theme Variables */
+:root,
+.light {
   --background: #ffffff;
   --foreground: #1a1a1a;
   --primary: #0d9488; /* Changed from #10b981 (3.24:1) to #0d9488 (4.65:1) for WCAG AA */
@@ -11,19 +13,100 @@
   --text-muted: #4b5563; /* Changed from #6b7280 (3.95:1) to #4b5563 (4.65:1) for WCAG AA */
   --surface: #f8fafc;
   --surface-elevated: #ffffff;
+  
+  /* Extended color variables for components */
+  --card-bg: #ffffff;
+  --card-border: #e2e8f0;
+  --card-shadow: rgba(0, 0, 0, 0.1);
+  --input-bg: #ffffff;
+  --input-border: #d1d5db;
+  --input-focus: #0d9488;
+  --sidebar-bg: #ffffff;
+  --sidebar-border: #e5e7eb;
+  --header-bg: rgba(255, 255, 255, 0.95);
+  --dropdown-bg: #ffffff;
+  --dropdown-border: #e5e7eb;
+  --hover-bg: #f3f4f6;
+  --active-bg: #ecfdf5;
+  --active-text: #047857;
+  --active-border: #a7f3d0;
+  --badge-bg: #dcfce7;
+  --badge-text: #166534;
+  --overlay-bg: rgba(0, 0, 0, 0.6);
+  --scrollbar-track: #f1f5f9;
+  --scrollbar-thumb: #cbd5e1;
+  --scrollbar-thumb-hover: #94a3b8;
 }
 
+/* Dark Theme Variables */
+.dark {
+  --background: #0f172a;
+  --foreground: #f1f5f9;
+  --primary: #2dd4bf; /* Teal 400 - High contrast on dark */
+  --primary-dark: #14b8a6;
+  --secondary: #60a5fa; /* Blue 400 - High contrast on dark */
+  --accent: #fbbf24; /* Amber 400 - High contrast on dark */
+  --text-muted: #94a3b8; /* Slate 400 - High contrast on dark */
+  --surface: #1e293b;
+  --surface-elevated: #334155;
+  
+  /* Extended color variables for components */
+  --card-bg: #1e293b;
+  --card-border: #334155;
+  --card-shadow: rgba(0, 0, 0, 0.3);
+  --input-bg: #1e293b;
+  --input-border: #475569;
+  --input-focus: #2dd4bf;
+  --sidebar-bg: #1e293b;
+  --sidebar-border: #334155;
+  --header-bg: rgba(30, 41, 59, 0.95);
+  --dropdown-bg: #1e293b;
+  --dropdown-border: #334155;
+  --hover-bg: #334155;
+  --active-bg: rgba(45, 212, 191, 0.1);
+  --active-text: #2dd4bf;
+  --active-border: rgba(45, 212, 191, 0.3);
+  --badge-bg: rgba(45, 212, 191, 0.2);
+  --badge-text: #5eead4;
+  --overlay-bg: rgba(0, 0, 0, 0.75);
+  --scrollbar-track: #1e293b;
+  --scrollbar-thumb: #475569;
+  --scrollbar-thumb-hover: #64748b;
+}
+
+/* System preference fallback (when no class is set) */
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not(.light):not(.dark) {
     --background: #0f172a;
     --foreground: #f1f5f9;
-    --primary: #2dd4bf; /* Teal 400 - High contrast on dark */
+    --primary: #2dd4bf;
     --primary-dark: #14b8a6;
-    --secondary: #60a5fa; /* Blue 400 - High contrast on dark */
-    --accent: #fbbf24; /* Amber 400 - High contrast on dark */
-    --text-muted: #94a3b8; /* Slate 400 - High contrast on dark */
+    --secondary: #60a5fa;
+    --accent: #fbbf24;
+    --text-muted: #94a3b8;
     --surface: #1e293b;
     --surface-elevated: #334155;
+    --card-bg: #1e293b;
+    --card-border: #334155;
+    --card-shadow: rgba(0, 0, 0, 0.3);
+    --input-bg: #1e293b;
+    --input-border: #475569;
+    --input-focus: #2dd4bf;
+    --sidebar-bg: #1e293b;
+    --sidebar-border: #334155;
+    --header-bg: rgba(30, 41, 59, 0.95);
+    --dropdown-bg: #1e293b;
+    --dropdown-border: #334155;
+    --hover-bg: #334155;
+    --active-bg: rgba(45, 212, 191, 0.1);
+    --active-text: #2dd4bf;
+    --active-border: rgba(45, 212, 191, 0.3);
+    --badge-bg: rgba(45, 212, 191, 0.2);
+    --badge-text: #5eead4;
+    --overlay-bg: rgba(0, 0, 0, 0.75);
+    --scrollbar-track: #1e293b;
+    --scrollbar-thumb: #475569;
+    --scrollbar-thumb-hover: #64748b;
   }
 }
 
@@ -79,16 +162,16 @@ body {
 }
 
 ::-webkit-scrollbar-track {
-  background: #f1f5f9;
+  background: var(--scrollbar-track);
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
+  background: var(--scrollbar-thumb);
   border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #94a3b8;
+  background: var(--scrollbar-thumb-hover);
 }
 
 /* Typography */
@@ -119,6 +202,13 @@ body {
     radial-gradient(circle at 40% 60%, rgba(245, 158, 11, 0.05) 0%, transparent 50%);
 }
 
+.dark .hero-pattern {
+  background-image: 
+    radial-gradient(circle at 20% 20%, rgba(45, 212, 191, 0.15) 0%, transparent 50%),
+    radial-gradient(circle at 80% 80%, rgba(96, 165, 250, 0.15) 0%, transparent 50%),
+    radial-gradient(circle at 40% 60%, rgba(251, 191, 36, 0.1) 0%, transparent 50%);
+}
+
 /* Glass morphism effect */
 .glass {
   background: rgba(255, 255, 255, 0.1);
@@ -126,10 +216,20 @@ body {
   border: 1px solid rgba(255, 255, 255, 0.2);
 }
 
+.dark .glass {
+  background: rgba(30, 41, 59, 0.7);
+  border: 1px solid rgba(71, 85, 105, 0.5);
+}
+
 .glass-dark {
   background: rgba(0, 0, 0, 0.1);
   backdrop-filter: blur(10px);
   border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.dark .glass-dark {
+  background: rgba(15, 23, 42, 0.8);
+  border: 1px solid rgba(51, 65, 85, 0.5);
 }
 
 /* Card hover effects */
@@ -157,18 +257,26 @@ body {
   gap: 8px;
 }
 
+.dark .btn-primary {
+  color: #0f172a;
+}
+
 .btn-primary:hover {
   transform: translateY(-2px);
   box-shadow: 0 10px 25px rgba(16, 185, 129, 0.3);
 }
 
+.dark .btn-primary:hover {
+  box-shadow: 0 10px 25px rgba(45, 212, 191, 0.3);
+}
+
 .btn-secondary {
-  background: white;
+  background: var(--card-bg);
   color: var(--foreground);
   font-weight: 500;
   padding: 12px 24px;
   border-radius: 12px;
-  border: 2px solid #e2e8f0;
+  border: 2px solid var(--card-border);
   cursor: pointer;
   transition: all 0.3s ease;
   display: inline-flex;
@@ -179,7 +287,7 @@ body {
 .btn-secondary:hover {
   border-color: var(--primary);
   transform: translateY(-2px);
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 10px 25px var(--card-shadow);
 }
 
 /* Loading animations */
@@ -195,6 +303,11 @@ body {
 .shimmer {
   animation: shimmer 2s infinite linear;
   background: linear-gradient(to right, #f6f7f8 0%, #edeef1 20%, #f6f7f8 40%, #f6f7f8 100%);
+  background-size: 800px 104px;
+}
+
+.dark .shimmer {
+  background: linear-gradient(to right, #1e293b 0%, #334155 20%, #1e293b 40%, #1e293b 100%);
   background-size: 800px 104px;
 }
 

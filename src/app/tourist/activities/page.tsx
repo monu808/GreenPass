@@ -156,7 +156,9 @@ export default function AdventureActivities() {
             </div>
             
             <div className="flex flex-wrap gap-3">
+              <label htmlFor="filter-type" className="sr-only">Filter by type</label>
               <select 
+                id="filter-type"
                 value={selectedType}
                 onChange={(e) => setSelectedType(e.target.value)}
                 className="px-6 py-5 bg-gray-50 rounded-[1.8rem] font-bold text-sm outline-none border-none appearance-none cursor-pointer hover:bg-gray-100 transition-colors"
@@ -168,7 +170,9 @@ export default function AdventureActivities() {
                 <option value="Winter Sports">Winter Sports</option>
               </select>
 
+              <label htmlFor="filter-difficulty" className="sr-only">Filter by difficulty</label>
               <select 
+                id="filter-difficulty"
                 value={selectedDifficulty}
                 onChange={(e) => setSelectedDifficulty(e.target.value)}
                 className="px-6 py-5 bg-gray-50 rounded-[1.8rem] font-bold text-sm outline-none border-none appearance-none cursor-pointer hover:bg-gray-100 transition-colors"
@@ -179,7 +183,9 @@ export default function AdventureActivities() {
                 <option value="Challenging">Challenging</option>
               </select>
 
+              <label htmlFor="filter-price" className="sr-only">Filter by price range</label>
               <select 
+                id="filter-price"
                 value={priceRange}
                 onChange={(e) => setPriceRange(e.target.value)}
                 className="px-6 py-5 bg-gray-50 rounded-[1.8rem] font-bold text-sm outline-none border-none appearance-none cursor-pointer hover:bg-gray-100 transition-colors"

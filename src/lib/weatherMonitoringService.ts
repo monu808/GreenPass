@@ -2,7 +2,8 @@ import { weatherService, destinationCoordinates, WeatherData } from '@/lib/weath
 import { getDbService } from '@/lib/databaseService';
 import { Destination } from '@/types';
 import { broadcast } from './messagingService';
-import { logger } from '@/lib/logger'; // NEW IMPORT
+// ✅ RESOLVED: Using Logger
+import { logger } from '@/lib/logger'; 
 
 /**
  * Interface definition for a weather monitoring service.
@@ -75,6 +76,7 @@ class WeatherMonitor implements WeatherMonitoringService {
             });
 
             // Check if this data is fresh enough (6 hours)
+            // ✅ RESOLVED: Using logger logic preference
             const sixHoursAgo = Date.now() - this.checkInterval;
             if (recordedAt > sixHoursAgo) {
               const minutesOld = Math.round((Date.now() - recordedAt) / 60000);
@@ -95,6 +97,7 @@ class WeatherMonitor implements WeatherMonitoringService {
           logger.info(`🌐 FETCHING fresh weather data from Tomorrow.io for ${destination.name}...`);
 
           // Rate limiting: ensure minimum delay between API calls
+          // ✅ RESOLVED: Using logger logic preference
           const now = Date.now();
           if (now - this.lastApiCall < this.apiCallDelay) {
             const waitTime = this.apiCallDelay - (now - this.lastApiCall);

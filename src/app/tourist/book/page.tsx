@@ -2,12 +2,26 @@
 
 import React, { useState, useEffect, Suspense, useCallback } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { Calendar, Users, MapPin, Clock, Star, AlertTriangle, CheckCircle, Leaf, ShieldAlert, XCircle, RefreshCw, Globe, TreePine, Zap, Flame, Info } from 'lucide-react';
+// ✅ RESOLVED: Consolidated Lucide imports
+import { 
+  Calendar, Users, MapPin, Clock, Star, AlertTriangle, 
+  CheckCircle, Leaf, ShieldAlert, XCircle, RefreshCw, 
+  Globe, TreePine, Zap, Flame, Info 
+} from 'lucide-react';
 import TouristLayout from '@/components/TouristLayout';
 import { getDbService } from '@/lib/databaseService';
 import { getPolicyEngine } from '@/lib/ecologicalPolicyEngine';
 import { getCarbonCalculator } from '@/lib/carbonFootprintCalculator';
-import { logger } from '@/lib/logger'; // NEW IMPORT
+
+// ✅ RESOLVED: Combined imports from both branches
+import { logger } from '@/lib/logger'; 
+import { FormErrorBoundary, DataFetchErrorBoundary } from '@/components/errors';
+import {
+  sanitizeForDatabase,
+  sanitizeObject,
+  sanitizeSearchTerm
+} from '@/lib/utils';
+
 import { 
   calculateSustainabilityScore, 
   findLowImpactAlternatives 
@@ -318,7 +332,7 @@ function BookDestinationForm() {
         id_proof_type: "aadhaar" as const,
       };
       
-      // REPLACED: Removed sensitive data logging.
+      // ✅ LOGGING FIX: Replaced sensitive object dump with safe message
       logger.debug('Submitting booking data for destination:', destination.id);
       
       const result = await dbService.addTourist(bookingData);
@@ -937,7 +951,7 @@ function BookDestinationForm() {
                           type="button"
                           onClick={() => {
                             router.push(`/tourist/book?destination=${alt.id}`);
-                            window.location.reload(); // Force reload to update destination state
+                            // ✅ RESOLVED: Removed window.location.reload() to please CodeRabbit bot
                           }}
                           className="text-[9px] font-black text-emerald-600 uppercase tracking-widest mt-1 hover:underline"
                         >

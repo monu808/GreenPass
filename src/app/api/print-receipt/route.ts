@@ -189,18 +189,18 @@ export async function POST(request: Request) {
       headers: { "Content-Type": "text/html" },
     });
   } catch (error) {
-    let errorMsg = 'failed to generate receipt.';
+    let errorMsg = 'Failed to generate receipt.';
     let statusCode = 500;
   
   if (error instanceof Error) {
     if (error.message.includes('validation')) {
-      errorMsg = 'invalid data provided.';
+      errorMsg = 'Invalid data provided.';
       statusCode = 400;
     } else if (error.message.includes('booking not found')) {
       errorMsg = 'Booking not found.';
       statusCode = 404;
     } else if (error.message.includes('database')) {
-      errorMsg = 'database error occurred.';
+      errorMsg = 'Database error occurred.';
       statusCode = 500;
     } else if (error.message.includes('pdf generation')) {
       errorMsg = 'Failed to generate PDF receipt.';
@@ -214,5 +214,4 @@ export async function POST(request: Request) {
     { error: errorMsg, details: error instanceof Error ? error.message : 'Unknown' },
     { status: statusCode }
   );
-}
 }

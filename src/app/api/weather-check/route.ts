@@ -187,7 +187,7 @@ class ServerWeatherService {
     } catch (error) {
       if (error instanceof Error) {
         if(error.message.includes('Database')){
-          alert('Database error occurred while saving weather data.');
+         console.error('Database error occurred while saving weather data:', error.message);
         }
       }
       return false;

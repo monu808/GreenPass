@@ -27,9 +27,13 @@ export function classifyError(error: unknown): ErrorType {
 
   // Check for common error properties or shapes (e.g., from axios or fetch responses)
   if (typeof error === 'object' && error !== null) {
-    const err = error as any;
+    const err = error as Record<string, unknown>;
     if (err.status === 401 || err.status === 403) return ErrorType.AUTH;
-    if (err.status >= 500 || err.code === 'ECONNREFUSED' || err.code === 'ETIMEDOUT') return ErrorType.NETWORK;
+    if (
+      (typeof err.status === 'number' && err.status >= 500) || 
+      err.code === 'ECONNREFUSED' || 
+      err.code === 'ETIMEDOUT'
+    ) return ErrorType.NETWORK;
     if (err.name === 'ValidationError' || err.status === 400) return ErrorType.FORM;
   }
 
@@ -67,8 +71,10 @@ export function formatErrorMessage(error: unknown, type: ErrorType): string {
 export function isRetryableError(error: unknown, type: ErrorType): boolean {
   // 1. First, inspect HTTP status if available
   if (typeof error === 'object' && error !== null) {
-    const err = error as any;
-    const status = err.status || err.response?.status;
+    const err = error as Record<string, unknown>;
+    const response = err.response as Record<string, unknown> | undefined;
+    const status = (typeof err.status === 'number' ? err.status : undefined) || 
+                   (response && typeof response.status === 'number' ? response.status : undefined);
 
     if (typeof status === 'number') {
       // Retryable HTTP status codes: 

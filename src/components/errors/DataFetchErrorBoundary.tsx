@@ -3,7 +3,6 @@
 import React, { Component, ErrorInfo, ReactNode } from 'react';
 import { Loader2, RefreshCw } from 'lucide-react';
 import { errorReporter } from '@/lib/errors/errorReportingService';
-import { ErrorType } from '@/lib/errors/types';
 import { classifyError, isRetryableError } from '@/lib/errors/utils';
 import ErrorFallback from './ErrorFallback';
 

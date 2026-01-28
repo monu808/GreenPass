@@ -8,7 +8,6 @@ import {
   Leaf, 
   Users, 
   MapPin, 
-  Eye,
   Heart,
   Search,
   Recycle,
@@ -23,7 +22,6 @@ import {
   X,
   Scale,
   Zap,
-  Trash2,
   TrendingUp,
   ShieldCheck
 } from 'lucide-react';
@@ -97,8 +95,6 @@ export default function EcoTourism() {
     }
   ]);
 
-  const destinationTypes = Array.from(new Set(allDestinations.map(dest => dest.ecologicalSensitivity)));
-
   const filteredDestinations = useMemo(() => {
     const sanitizedSearch = sanitizeSearchTerm(searchTerm);
     
@@ -147,22 +143,6 @@ export default function EcoTourism() {
     if (score >= 60) return 'bg-green-100 text-green-800 border-green-200';
     if (score >= 40) return 'bg-yellow-100 text-yellow-800 border-yellow-200';
     return 'bg-orange-100 text-orange-800 border-orange-200';
-  };
-
-  const getCarbonFootprintColor = (footprint: string) => {
-    switch (footprint) {
-      case 'Low': return 'bg-green-100 text-green-800 border-green-200';
-      case 'Medium': return 'bg-yellow-100 text-yellow-800 border-yellow-200';
-      case 'High': return 'bg-red-100 text-red-800 border-red-200';
-      default: return 'bg-gray-100 text-gray-800 border-gray-200';
-    }
-  };
-
-  const getActivityIcon = (activity: string) => {
-    if (activity.includes('bird') || activity.includes('wildlife')) return Bird;
-    if (activity.includes('farm')) return Leaf;
-    if (activity.includes('photo')) return Eye;
-    return TreePine;
   };
 
   return (
@@ -521,7 +501,7 @@ export default function EcoTourism() {
               </div>
               <h3 className="text-lg font-semibold text-gray-900 mb-2">No eco destinations found</h3>
               <p className="text-gray-500 max-w-xs mx-auto mb-6">
-                We couldn't find any destinations matching your current filters. Try adjusting your search or filters.
+                We couldn&apos;t find any destinations matching your current filters. Try adjusting your search or filters.
               </p>
               <button 
                 onClick={() => {

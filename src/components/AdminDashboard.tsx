@@ -50,7 +50,14 @@ export default function AdminDashboard() {
   const [destinations, setDestinations] = useState<Destination[]>([]);
   const [adjustedCapacities, setAdjustedCapacities] = useState<Record<string, number>>({});
   const [alerts, setAlerts] = useState<Alert[]>([]);
-  const [weatherMap, setWeatherMap] = useState<Record<string, any>>({});
+  const [weatherMap, setWeatherMap] = useState<Record<string, {
+    temperature: number;
+    humidity: number;
+    weatherMain: string;
+    weatherDescription: string;
+    windSpeed: number;
+    recordedAt: string;
+  }>>({});
   const [policies, setPolicies] = useState<Record<SensitivityLevel, EcologicalPolicy>>(DEFAULT_POLICIES);
   const [loading, setLoading] = useState(true);
   const [editingPolicy, setEditingPolicy] = useState<SensitivityLevel | null>(null);
@@ -62,19 +69,24 @@ export default function AdminDashboard() {
     isOpen: !!editingPolicy,
     onClose: () => setEditingPolicy(null)
   });
-  const [impactData, setImpactData] = useState<any[]>([]);
-  const [historicalTrends, setHistoricalTrends] = useState<any[]>([]);
 
   const [activeTab, setActiveTab] = useState<'overview' | 'policies' | 'ecological'>('overview');
 
   // Use React Query for batch weather data display
-  const { data: batchWeatherData, refetch: refetchWeather } = useWeatherDataBatch(
+  const { refetch: refetchWeather } = useWeatherDataBatch(
     destinations.map(d => d.id)
   );
 
   const updateWeatherData = useCallback(async (destinations: Destination[]) => {
     const dbService = getDbService();
-    const newWeatherMap: Record<string, any> = {};
+    const newWeatherMap: Record<string, {
+      temperature: number;
+      humidity: number;
+      weatherMain: string;
+      weatherDescription: string;
+      windSpeed: number;
+      recordedAt: string;
+    }> = {};
     const destinationIds = destinations.map(d => d.id);
 
     try {
@@ -148,21 +160,15 @@ export default function AdminDashboard() {
         dashboardStats,
         destinationsData,
         alertsData,
-        ecologicalData,
-        trendsData,
-        wasteMetrics
+        ecologicalData
       ] = await Promise.all([
         dbService.getDashboardStats(),
         dbService.getDestinations(),
         dbService.getAlerts(),
-        dbService.getEcologicalImpactData(),
-        dbService.getHistoricalOccupancyTrends(),
-        dbService.getWasteMetricsSummary(),
+        dbService.getEcologicalImpactData()
       ]);
 
       setStats(dashboardStats);
-      setImpactData(ecologicalData);
-      setHistoricalTrends(trendsData);
 
       // Check for ecological alerts
       for (const data of ecologicalData) {
@@ -175,7 +181,7 @@ export default function AdminDashboard() {
               type: "ecological",
               title: `Ecological Limit Warning - ${data.name}`,
               message: `${data.name} has reached ${Math.round(data.utilization)}% of its adjusted ecological capacity.`,
-              severity: severity as any,
+              severity: severity as 'high' | 'critical',
               destinationId: data.id,
               isActive: true,
             });

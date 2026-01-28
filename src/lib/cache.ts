@@ -21,7 +21,7 @@ export const policyConfigCache = new LRUCache<string, Record<string, unknown>>({
   ttl: POLICY_CONFIG_TTL,
 });
 
-export const ecologicalIndicatorCache = new LRUCache<string, Record<string, unknown>>({
+export const ecologicalIndicatorCache = new LRUCache<string, { soil_compaction: number; vegetation_disturbance: number; wildlife_disturbance: number; water_source_impact: number }>({
   max: 500,
   ttl: WEATHER_TTL, // Same TTL as weather for now
 });

@@ -1,9 +1,12 @@
 'use client';
 
 import React, { useState, useEffect, Suspense, useCallback } from 'react';
-import Image from 'next/image';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { Calendar, Users, MapPin, Star, AlertTriangle, CheckCircle, Leaf, ShieldAlert, XCircle, RefreshCw, Globe, TreePine, Zap, Info } from 'lucide-react';
+import { 
+  Calendar, Users, MapPin, Star, 
+  CheckCircle, XCircle, AlertTriangle, 
+  RefreshCw, ShieldAlert, Leaf 
+} from 'lucide-react';
 import TouristLayout from '@/components/TouristLayout';
 import { getDbService } from '@/lib/databaseService';
 import { getPolicyEngine, WeatherConditions } from '@/lib/ecologicalPolicyEngine';
@@ -44,15 +47,14 @@ function BookDestinationForm() {
   const destinationId = searchParams.get('destination');
 
   const [destination, setDestination] = useState<Destination | null>(null);
-  const [allDestinationsState, setAllDestinationsState] = useState<Destination[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [eligibility, setEligibility] = useState<{ allowed: boolean; reason: string | null }>({ allowed: true, reason: null });
   const [ecoAlert, setEcoAlert] = useState<Partial<Alert> | null>(null);
+  const [capacityResult, setCapacityResult] = useState<DynamicCapacityResult | null>(null);
   const [availableSpots, setAvailableSpots] = useState<number>(0);
   const [adjustedCapacity, setAdjustedCapacity] = useState<number>(0);
-  const [capacityResult, setCapacityResult] = useState<DynamicCapacityResult | null>(null);
   const [currentStep, setCurrentStep] = useState(1);
   const totalSteps = (destination && (destination.ecologicalSensitivity === 'high' || destination.ecologicalSensitivity === 'critical')) ? 4 : 3;
 
@@ -125,7 +127,6 @@ function BookDestinationForm() {
         };
       });
 
-      setAllDestinationsState(mappedDestinations);
       const found = mappedDestinations.find(d => d.id === destinationId);
 
       if (found) {
@@ -144,6 +145,7 @@ function BookDestinationForm() {
         } : undefined;
 
         // 2. Use single dynamic capacity call with pre-fetched data
+        const policyEngine = getPolicyEngine();
         const dynResult = await policyEngine.getDynamicCapacity(
           found,
           weatherConditions,
@@ -289,7 +291,7 @@ function BookDestinationForm() {
         checkInDate: sanitizedData.checkInDate,
         checkOutDate: sanitizedData.checkOutDate,
         emergencyContact: sanitizedData.emergencyContact,
-        transportType: sanitizedData.transportType.split('_')[0].toLowerCase() as any,
+        transportType: (sanitizedData.transportType.split('_')[0].toLowerCase()) as z.infer<typeof TransportTypeEnum>,
         originLocationId: sanitizedData.originLocation,
       });
 

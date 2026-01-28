@@ -798,7 +798,7 @@ export default function MyProfile() {
                 <div className="relative z-10 space-y-8">
                   <div className="space-y-2">
                     <h3 className="text-2xl font-black uppercase tracking-tight">Next Milestones</h3>
-                    <p className="text-indigo-200 font-bold text-sm">You're getting close to these rewards!</p>
+                    <p className="text-indigo-200 font-bold text-sm">You&apos;re getting close to these rewards!</p>
                   </div>
                   
                   <div className="space-y-8">

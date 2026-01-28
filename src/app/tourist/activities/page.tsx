@@ -1,14 +1,18 @@
 'use client';
 
 import React, { useState, ChangeEvent } from 'react';
-import Image from 'next/image';
-import { 
-  Heart, Search, 
-  Activity, Leaf, ShieldCheck, Wind, 
-  CheckCircle, AlertTriangle 
-} from 'lucide-react';
 import TouristLayout from '@/components/TouristLayout';
-import { sanitizeSearchTerm } from '@/lib/utils';
+import { 
+  Activity, 
+  Heart, 
+  Search, 
+  Leaf, 
+  ShieldCheck, 
+  CheckCircle, 
+  Wind, 
+  AlertTriangle 
+} from 'lucide-react';
+import Image from 'next/image';
 import { validateInput, SearchFilterSchema } from '@/lib/validation';
 
 interface AdventureActivity {
@@ -17,14 +21,10 @@ interface AdventureActivity {
   type: string;
   location: string;
   duration: string;
-  difficulty: 'Easy' | 'Moderate' | 'Difficult' | 'Expert';
+  difficulty: 'Easy' | 'Moderate' | 'Challenging';
   price: number;
   rating: number;
-  reviews: number;
-  groupSize: string;
-  description: string;
-  highlights: string[];
-  equipment: string[];
+  ecoRating: number;
   bestSeason: string[];
   image: string;
   isPopular: boolean;
@@ -33,10 +33,9 @@ interface AdventureActivity {
 
 export default function AdventureActivities() {
   const [searchTerm, setSearchTerm] = useState<string>('');
-  const [_selectedType, _setSelectedType] = useState<string>('all');
-  const [_selectedDifficulty, _setSelectedDifficulty] = useState<string>('all');
-  const [_priceRange, _setPriceRange] = useState<string>('all');
-  const [_showFilters, _setShowFilters] = useState<boolean>(false);
+  const [selectedType, setSelectedType] = useState<string>('all');
+  const [selectedDifficulty, setSelectedDifficulty] = useState<string>('all');
+  const [priceRange, setPriceRange] = useState<string>('all');
 
   const [activities] = useState<AdventureActivity[]>([
     {
@@ -45,47 +44,68 @@ export default function AdventureActivities() {
       type: 'Air Sports',
       location: 'Bir Billing, HP',
       duration: '45 mins',
-      difficulty: 'Easy',
-      price: 3500,
-      rating: 4.8,
-      reviews: 245,
-      groupSize: '1-2 people',
-      description: 'Experience the thrill of flying like a bird over the beautiful Kangra valley. Bir Billing is one of the world\'s best paragliding sites.',
-      highlights: ['Professional instructor', 'Safety equipment', 'HD video recording', 'Certificate'],
-      equipment: ['Paraglider', 'Harness', 'Helmet'],
-      bestSeason: ['March', 'April', 'October', 'November'],
-      image: 'https://images.unsplash.com/photo-1533130061792-64b345e4a833?w=800',
+      difficulty: 'Moderate',
+      price: 2500,
+      rating: 4.9,
+      ecoRating: 5,
+      bestSeason: ['Mar-Jun', 'Sep-Nov'],
+      image: 'https://images.unsplash.com/photo-1594495894542-a471467e49f1?q=80&w=2071&auto=format&fit=crop',
       isPopular: true,
-      safetyRating: 4.9
+      safetyRating: 4.8
     },
     {
       id: '2',
-      name: 'River Rafting Rishikesh',
+      name: 'Beas River Rafting',
       type: 'Water Sports',
-      location: 'Rishikesh, UK',
-      duration: '4 hours',
+      location: 'Kullu, HP',
+      duration: '2 hours',
       difficulty: 'Moderate',
       price: 1800,
+      rating: 4.7,
+      ecoRating: 4,
+      bestSeason: ['Apr-Jun', 'Sep-Oct'],
+      image: 'https://images.unsplash.com/photo-1530866495547-08899bbbd00a?q=80&w=2070&auto=format&fit=crop',
+      isPopular: true,
+      safetyRating: 4.5
+    },
+    {
+      id: '3',
+      name: 'Hampta Pass Trek',
+      type: 'Trekking',
+      location: 'Manali, HP',
+      duration: '4 Days',
+      difficulty: 'Challenging',
+      price: 8500,
+      rating: 4.9,
+      ecoRating: 5,
+      bestSeason: ['Jun-Sep'],
+      image: 'https://images.unsplash.com/photo-1551632811-561732d1e306?q=80&w=2070&auto=format&fit=crop',
+      isPopular: false,
+      safetyRating: 4.9
+    },
+    {
+      id: '4',
+      name: 'Solang Valley Skiing',
+      type: 'Winter Sports',
+      location: 'Solang, HP',
+      duration: '3 hours',
+      difficulty: 'Easy',
+      price: 1500,
       rating: 4.6,
-      reviews: 189,
-      groupSize: '6-8 people',
-      description: 'Navigate through the rapids of the holy Ganges river with experienced guides.',
-      highlights: ['Grade III rapids', 'Safety briefing', 'Transport included'],
-      equipment: ['Life jacket', 'Helmet', 'Paddle', 'Raft'],
-      bestSeason: ['September', 'October', 'March', 'April'],
-      image: 'https://images.unsplash.com/photo-1530866495547-0840404652c0?w=800',
+      ecoRating: 4,
+      bestSeason: ['Dec-Feb'],
+      image: 'https://images.unsplash.com/photo-1551698618-1fed5d978044?q=80&w=2070&auto=format&fit=crop',
       isPopular: true,
       safetyRating: 4.7
     }
   ]);
 
-  const handleAction = (type: string, name: string): void => {
-    alert(`${type} initiated for: ${name}`);
+  const handleAction = (type: string, name: string) => {
+    console.log(`${type} action for: ${name}`);
   };
 
   const filteredActivities = activities.filter(activity => {
-    const sanitizedSearch = sanitizeSearchTerm(searchTerm);
-    
+    const sanitizedSearch = searchTerm.trim();
     const filterValidation = validateInput(SearchFilterSchema, {
       searchTerm: sanitizedSearch,
     });
@@ -94,25 +114,16 @@ export default function AdventureActivities() {
 
     const matchesSearch = activity.name.toLowerCase().includes(validFilters.searchTerm?.toLowerCase() || "") ||
                          activity.location.toLowerCase().includes(validFilters.searchTerm?.toLowerCase() || "");
-    const matchesType = _selectedType === 'all' || activity.type === _selectedType;
-    const matchesDifficulty = _selectedDifficulty === 'all' || activity.difficulty === _selectedDifficulty;
+    const matchesType = selectedType === 'all' || activity.type === selectedType;
+    const matchesDifficulty = selectedDifficulty === 'all' || activity.difficulty === selectedDifficulty;
     
     let matchesPrice = true;
-    if (_priceRange === 'low') matchesPrice = activity.price < 2000;
-    else if (_priceRange === 'medium') matchesPrice = activity.price >= 2000 && activity.price < 5000;
-    else if (_priceRange === 'high') matchesPrice = activity.price >= 5000;
+    if (priceRange === 'low') matchesPrice = activity.price < 2000;
+    else if (priceRange === 'medium') matchesPrice = activity.price >= 2000 && activity.price < 5000;
+    else if (priceRange === 'high') matchesPrice = activity.price >= 5000;
     
     return matchesSearch && matchesType && matchesDifficulty && matchesPrice;
   });
-
-  const getDifficultyColor = (diff: string) => {
-    switch (diff) {
-      case 'Easy': return 'bg-emerald-50 text-emerald-600 border-emerald-100';
-      case 'Moderate': return 'bg-amber-50 text-amber-600 border-amber-100';
-      case 'Difficult': return 'bg-orange-50 text-orange-600 border-orange-100';
-      default: return 'bg-rose-50 text-rose-600 border-rose-100';
-    }
-  };
 
   return (
     <TouristLayout>
@@ -143,41 +154,93 @@ export default function AdventureActivities() {
                 className="w-full pl-16 pr-8 py-5 bg-gray-50 border-none rounded-[1.8rem] font-bold outline-none"
               />
             </div>
+            
+            <div className="flex flex-wrap gap-3">
+              <label htmlFor="filter-type" className="sr-only">Filter by type</label>
+              <select 
+                id="filter-type"
+                value={selectedType}
+                onChange={(e) => setSelectedType(e.target.value)}
+                className="px-6 py-5 bg-gray-50 rounded-[1.8rem] font-bold text-sm outline-none border-none appearance-none cursor-pointer hover:bg-gray-100 transition-colors"
+              >
+                <option value="all">All Types</option>
+                <option value="Air Sports">Air Sports</option>
+                <option value="Water Sports">Water Sports</option>
+                <option value="Trekking">Trekking</option>
+                <option value="Winter Sports">Winter Sports</option>
+              </select>
+
+              <label htmlFor="filter-difficulty" className="sr-only">Filter by difficulty</label>
+              <select 
+                id="filter-difficulty"
+                value={selectedDifficulty}
+                onChange={(e) => setSelectedDifficulty(e.target.value)}
+                className="px-6 py-5 bg-gray-50 rounded-[1.8rem] font-bold text-sm outline-none border-none appearance-none cursor-pointer hover:bg-gray-100 transition-colors"
+              >
+                <option value="all">All Difficulty</option>
+                <option value="Easy">Easy</option>
+                <option value="Moderate">Moderate</option>
+                <option value="Challenging">Challenging</option>
+              </select>
+
+              <label htmlFor="filter-price" className="sr-only">Filter by price range</label>
+              <select 
+                id="filter-price"
+                value={priceRange}
+                onChange={(e) => setPriceRange(e.target.value)}
+                className="px-6 py-5 bg-gray-50 rounded-[1.8rem] font-bold text-sm outline-none border-none appearance-none cursor-pointer hover:bg-gray-100 transition-colors"
+              >
+                <option value="all">Price Range</option>
+                <option value="low">Under ₹2000</option>
+                <option value="medium">₹2000 - ₹5000</option>
+                <option value="high">Above ₹5000</option>
+              </select>
+            </div>
           </div>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
-          {filteredActivities.map((act, index) => (
-            <div key={act.id} className="group bg-white rounded-[3.5rem] border border-gray-100 overflow-hidden shadow-sm hover:shadow-2xl transition-all duration-500">
-              <div className="h-56 relative overflow-hidden bg-slate-100 shimmer">
-                <Image 
-                  src={act.image} 
-                  className="w-full h-full object-cover" 
-                  alt={act.name}
-                  fill
-                  sizes="(max-width: 1024px) 100vw, 50vw"
-                  priority={index < 2}
-                />
-                <button 
-                   type="button"
-                   aria-label="Add to favorites"
-                   onClick={() => handleAction('Favorite', act.name)}
-                  className="absolute top-6 right-6 p-3 bg-white/20 backdrop-blur-md rounded-2xl border border-white/20 text-white hover:bg-rose-500 transition-colors"
-                >
-                 <Heart className="h-5 w-5" />
-                </button>
-              </div>
-              <div className="p-10 space-y-8">
-                <div className="flex justify-between items-start">
-                  <h3 className="text-3xl font-black text-gray-900 tracking-tighter">{act.name}</h3>
-                  <p className="text-3xl font-black text-emerald-600 tracking-tighter">₹{act.price.toLocaleString()}</p>
+          {filteredActivities.length > 0 ? (
+            filteredActivities.map((act, index) => (
+              <div key={act.id} className="group bg-white rounded-[3.5rem] border border-gray-100 overflow-hidden shadow-sm hover:shadow-2xl transition-all duration-500">
+                <div className="h-56 relative overflow-hidden bg-slate-100 shimmer">
+                  <Image 
+                    src={act.image} 
+                    className="w-full h-full object-cover" 
+                    alt={act.name}
+                    fill
+                    sizes="(max-width: 1024px) 100vw, 50vw"
+                    priority={index < 2}
+                  />
+                  <button 
+                     type="button"
+                     aria-label="Add to favorites"
+                     onClick={() => handleAction('Favorite', act.name)}
+                    className="absolute top-6 right-6 p-3 bg-white/20 backdrop-blur-md rounded-2xl border border-white/20 text-white hover:bg-rose-500 transition-colors"
+                  >
+                   <Heart className="h-5 w-5" />
+                  </button>
                 </div>
-                <div className="flex gap-4">
-                  <button type="button" onClick={() => handleAction('Book', act.name)} className="flex-1 py-5 bg-emerald-600 text-white rounded-[1.5rem] font-black text-xs uppercase tracking-widest">Book Now</button>
+                <div className="p-10 space-y-8">
+                  <div className="flex justify-between items-start">
+                    <h3 className="text-3xl font-black text-gray-900 tracking-tighter">{act.name}</h3>
+                    <p className="text-3xl font-black text-emerald-600 tracking-tighter">₹{act.price.toLocaleString()}</p>
+                  </div>
+                  <div className="flex gap-4">
+                    <button type="button" onClick={() => handleAction('Book', act.name)} className="flex-1 py-5 bg-emerald-600 text-white rounded-[1.5rem] font-black text-xs uppercase tracking-widest">Book Now</button>
+                  </div>
                 </div>
               </div>
+            ))
+          ) : (
+            <div className="col-span-full py-20 text-center space-y-4">
+              <div className="p-6 bg-gray-50 rounded-[2.5rem] inline-block">
+                <Search className="h-10 w-10 text-gray-300" />
+              </div>
+              <h3 className="text-2xl font-black text-gray-900 tracking-tighter">No activities found</h3>
+              <p className="text-gray-500 font-bold">Try adjusting your filters to find more adventures.</p>
             </div>
-          ))}
+          )}
         </div>
 
         {/* RE-INSERTED SAFETY SECTION WITH ALL WRAPPERS CORRECTED */}

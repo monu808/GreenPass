@@ -164,7 +164,7 @@ export function useLikeReviewMutation() {
     const toast = useToast();
 
     return useMutation<void, Error, LikeReviewVariables, LikeMutationContext>({
-        mutationFn: async (_variables: LikeReviewVariables): Promise<void> => {
+        mutationFn: async (): Promise<void> => {
             // TODO: Replace with actual database call
             await new Promise(resolve => setTimeout(resolve, 200));
         },
@@ -210,7 +210,7 @@ export function useMarkHelpfulMutation() {
     const toast = useToast();
 
     return useMutation<void, Error, string, LikeMutationContext>({
-        mutationFn: async (_reviewId: string): Promise<void> => {
+        mutationFn: async (): Promise<void> => {
             // TODO: Replace with actual database call
             await new Promise(resolve => setTimeout(resolve, 200));
         },

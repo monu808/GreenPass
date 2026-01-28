@@ -1,6 +1,6 @@
 'use client';
 
-import { useQuery, useQueries } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { getDbService } from '@/lib/databaseService';
 
 export function useWeatherData(destinationId: string | null) {

@@ -30,7 +30,7 @@ import {
 } from "recharts";
 import { ChartErrorBoundary } from './errors';
 import { getDbService } from "@/lib/databaseService";
-import { Alert, Destination, HistoricalOccupancy, EcologicalMetrics, WasteMetricsSummary, CleanupActivity } from "@/types";
+import { Alert, HistoricalOccupancy, EcologicalMetrics, WasteMetricsSummary, CleanupActivity } from "@/types";
 import { getPolicyEngine } from "@/lib/ecologicalPolicyEngine";
 import { formatDateTime } from "@/lib/utils";
 import { 

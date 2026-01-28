@@ -56,7 +56,7 @@ export default function SignUp() {
         // Move to OTP verification step
         setStep('otp');
       }
-    } catch (_err) {
+    } catch {
       setError('An unexpected error occurred');
     } finally {
       setLoading(false);
@@ -76,7 +76,7 @@ export default function SignUp() {
       
       // Success - user will be redirected automatically by auth state change
       return { success: true };
-    } catch (_err) {
+    } catch {
       return { 
         success: false, 
         error: 'Verification failed. Please try again.' 
@@ -96,7 +96,7 @@ export default function SignUp() {
       }
       
       return { success: true };
-    } catch (_err) {
+    } catch {
       return { 
         success: false, 
         error: 'Failed to resend OTP. Please try again.' 

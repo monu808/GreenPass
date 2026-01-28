@@ -23,9 +23,7 @@ import { getDbService } from "@/lib/databaseService";
 import { Tourist, Destination } from "@/types";
 import { Database } from "@/types/database";
 import { 
-  formatDateTime,
-  sanitizeSearchTerm,
-  sanitizeInput 
+  sanitizeSearchTerm
 } from "@/lib/utils";
 import { 
   validateInput, 
@@ -219,13 +217,13 @@ export default function TouristBookingManagement() {
   
   const filterValidation = validateInput(SearchFilterSchema, {
     searchTerm: sanitizedSearch,
-    status: statusFilter === "all" ? undefined : statusFilter as any,
+    status: statusFilter === "all" ? undefined : statusFilter as Tourist["status"],
     destinationId: destinationFilter === "all" ? undefined : destinationFilter,
   });
 
   const validFilters = filterValidation.success ? filterValidation.data : { 
     searchTerm: sanitizedSearch, 
-    status: statusFilter === "all" ? undefined : statusFilter as any, 
+    status: statusFilter === "all" ? undefined : statusFilter as Tourist["status"], 
     destinationId: destinationFilter === "all" ? undefined : destinationFilter 
   };
 

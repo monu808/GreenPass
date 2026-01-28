@@ -44,7 +44,7 @@ import {
 } from "recharts";
 import { ChartErrorBoundary, DataFetchErrorBoundary } from "@/components/errors";
 import { format, subDays, eachDayOfInterval } from "date-fns";
-import { cn, sanitizeSearchTerm, sanitizeObject, sanitizeForDatabase } from "@/lib/utils";
+import { cn, sanitizeSearchTerm, sanitizeForDatabase } from "@/lib/utils";
 import { validateInput, SearchFilterSchema } from "@/lib/validation";
 import { Database } from "@/types/database";
 
@@ -66,7 +66,6 @@ export default function WasteTrackingPage() {
   const [destinations, setDestinations] = useState<Destination[]>([]);
   const [wasteRecords, setWasteRecords] = useState<WasteData[]>([]);
   const [cleanupActivities, setCleanupActivities] = useState<CleanupActivity[]>([]);
-  const [loading, setLoading] = useState(false);
   const [stats, setStats] = useState({
     totalWaste: 0,
     recyclingRate: 0,
@@ -129,7 +128,6 @@ export default function WasteTrackingPage() {
   };
 
   const loadData = async () => {
-    setLoading(true);
     try {
       const [destData, wasteData, activitiesData] = await Promise.all([
         dbService.getDestinations(),
@@ -160,13 +158,11 @@ export default function WasteTrackingPage() {
       });
 
       // Initial trend data load
-      loadTrendData();
-    } catch (error) {
-      console.error("Error loading waste tracking data:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
+    loadTrendData();
+  } catch (error) {
+    console.error("Error loading waste tracking data:", error);
+  }
+};
 
   return (
     <ProtectedRoute requireAdmin>

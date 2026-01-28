@@ -227,33 +227,12 @@ class ServerWeatherService {
       console.log('✅ Alert added successfully:', data);
       return true;
     } catch (error) {
-    let errorMsg = 'Failed to verify weather.';
-    let statusCode = 500;
-  
-  if (error instanceof Error) {
-    if (error.message.includes('validation') || error.message.includes('invalid')) {
-      errorMsg = 'Invalid input parameters.';
-      statusCode = 400;
-    } else if (error.message.includes('unauthorized') || error.message.includes('401')) {
-      errorMsg = 'Invalid API key.';
-      statusCode = 401;
-    } else if (error.message.includes('timeout') || error.message.includes('network')) {
-      errorMsg = 'Weather service temporarily unavailable. Please try again.';
-      statusCode = 503;
-    } else if (error.message.includes('rate limit')) {
-      errorMsg = 'Rate limit exceeded. Please try again later.';
-      statusCode = 429;
-    } else if (error.message.includes('not found')) {
-      errorMsg = 'Location not found in weather service.';
-      statusCode = 404;
-    } else {
-      errorMsg = `Failed to verify weather: ${error.message}`;
-    }
+       if (error instanceof Error) {
++        console.error('Failed to add alert:', error.message);
++      } 
+     return false;
   }
-  
- return false;
 }
-  }
   async getDestinations(): Promise<DatabaseDestination[]> {
     try {
       console.log('📍 Fetching destinations from database...');

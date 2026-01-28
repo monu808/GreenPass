@@ -69,16 +69,30 @@ export async function GET(request: NextRequest) {
     
     return NextResponse.json(response);
   } catch (error) {
-    console.error('❌ Weather API test failed:', error);
-    
-    return NextResponse.json(
-      { 
-        success: false,
-        error: 'Weather API test failed',
-        message: 'Internal server error',
-        timestamp: new Date().toISOString()
-      },
-      { status: 500 }
-    );
+  let errorMsg = 'weather test failed.';
+  let statusCode = 500;
+  
+  if (error instanceof Error) {
+    if (error.message.includes('connection')) {
+      errorMsg = 'Access to weather service failed.';
+      statusCode = 503;
+    } else if (error.message.includes('timeout')) {
+      errorMsg = 'Weather service timed out.';
+      statusCode = 504;
+    } else if (error.message.includes('authentication')) {
+      errorMsg = 'Invalid weather service credentials.';
+      statusCode = 401;
+    } else if (error.message.includes('validation')) {
+      errorMsg = 'Invalid test data.';
+      statusCode = 400;
+    } else {
+      errorMsg = `Error in test: ${error.message}`;
+    }
   }
+  
+  return NextResponse.json(
+    { error: errorMsg, status: 'failed' },
+    { status: statusCode }
+  );
+}
 }

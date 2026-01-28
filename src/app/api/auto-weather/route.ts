@@ -44,16 +44,30 @@ export async function GET(request: NextRequest) {
       message: 'Weather check triggered automatically'
     });
   } catch (error) {
-    console.error('Error in auto weather trigger:', error);
-    
-    return NextResponse.json(
-      { 
-        success: false,
-        error: 'Failed to trigger automatic weather check',
-        message: 'Internal server error',
-        timestamp: new Date().toISOString()
-      },
-      { status: 500 }
-    );
+  let errorMsg = 'automatic weather check failed.';
+  let statusCode = 500;
+  
+  if (error instanceof Error) {
+    if (error.message.includes('database')) {
+      errorMsg = 'Database access error.';
+      statusCode = 500;
+    } else if (error.message.includes('weather service')) {
+      errorMsg = 'Weather service temporarily unavailable.';
+      statusCode = 503;
+    } else if (error.message.includes('timeout')) {
+      errorMsg = 'Request to weather service timed out.';
+      statusCode = 504;
+    } else if (error.message.includes('validation')) {
+      errorMsg = 'Invalid destination configuration.';
+      statusCode = 400;
+    } else {
+      errorMsg = `Error: ${error.message}`;
+    }
   }
+  
+  return NextResponse.json(
+    { error: errorMsg, timestamp: new Date().toISOString() },
+    { status: statusCode }
+  );
+}
 }

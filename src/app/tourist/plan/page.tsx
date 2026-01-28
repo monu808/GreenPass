@@ -7,8 +7,7 @@ import {
   Info, Sparkles, ChevronDown, ChevronUp 
 } from 'lucide-react';
 import TouristLayout from '@/components/TouristLayout';
-import { sanitizeForDatabase, sanitizeObject } from '@/lib/utils';
-import { validateInput, TouristRegistrationSchema } from '@/lib/validation';
+import { sanitizeForDatabase } from '@/lib/utils';
 
 // Build Fix: Strict interface for the state structure to satisfy TS compiler
 interface DayPlan {
@@ -76,10 +75,6 @@ export default function PlanYourTripPage() {
 
   const handleSavePlan = (): void => {
     const sanitizedDestination = sanitizeForDatabase(destination);
-    const sanitizedDays = days.map(day => ({
-      ...sanitizeObject(day),
-      activities: day.activities.map(a => sanitizeForDatabase(a))
-    }));
 
     if (!sanitizedDestination) {
       alert("Please specify a destination before saving your expedition.");

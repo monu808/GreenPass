@@ -1,4 +1,4 @@
-import { useEffect, useRef, useCallback, RefObject } from 'react';
+import { useEffect, useRef, RefObject } from 'react';
 
 /**
  * Returns an array of focusable elements within a container.

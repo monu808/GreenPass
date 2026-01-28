@@ -3,18 +3,17 @@
 import React, { useState, useEffect, useCallback, useRef, ChangeEvent } from 'react';
 import Image from 'next/image';
 import { 
-  Users, Search, RefreshCw, Leaf, Heart, 
-  ArrowRight, Compass, Thermometer, Calendar,
-  Award, Zap, Scale, Trash2, X
+  Users, RefreshCw, Leaf, Heart, 
+  ArrowRight, Compass, Thermometer,
+  Award, Zap, Scale, Trash2, X, Search, Calendar
 } from 'lucide-react';
+import { DataFetchErrorBoundary } from '@/components/errors';
 import TouristLayout from '@/components/TouristLayout';
 import EcoSensitivityBadge from '@/components/EcoSensitivityBadge';
 import EcoCapacityAlert from '@/components/EcoCapacityAlert';
 import ConnectionStatusIndicator from '@/components/ConnectionStatusIndicator';
 import { getDbService } from '@/lib/databaseService';
 import { getPolicyEngine } from '@/lib/ecologicalPolicyEngine';
-import { getEcoFriendlyAlternatives } from '@/lib/recommendationEngine';
-import { destinations as allDestinations } from '@/data/mockData';
 import { 
   calculateSustainabilityScore, 
   calculateCarbonOffset, 
@@ -25,9 +24,9 @@ import {
 import { 
   isValidEcologicalSensitivity, 
 } from '@/lib/typeGuards';
+import { getEcoFriendlyAlternatives } from '@/lib/recommendationEngine';
 import { Destination, DynamicCapacityResult } from '@/types';
-import { DataFetchErrorBoundary } from '@/components/errors';
-import { sanitizeSearchTerm, cn } from '@/lib/utils';
+import { sanitizeSearchTerm } from '@/lib/utils';
 import { validateInput, SearchFilterSchema } from '@/lib/validation';
 import { useSSE } from '@/contexts/ConnectionContext';
 import { useModalAccessibility } from '@/lib/accessibility';
@@ -152,11 +151,11 @@ export default function TouristDestinations() {
     });
 
     setFilteredDestinations(result);
-  }, [destinations, searchTerm, selectedFilter]);
+  }, [destinations, searchTerm, selectedFilter, capacityResults]);
 
   useEffect(() => { 
     loadData(); 
-  }, []);
+  }, [loadData]);
  useEffect(() => {
     setIsSearching(true);
     const timer = setTimeout(() => {
@@ -483,7 +482,7 @@ export default function TouristDestinations() {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-              {findLowImpactAlternatives(allDestinations, filteredDestinations[0]).map((alt) => {
+              {findLowImpactAlternatives(destinations, filteredDestinations[0]).map((alt) => {
                 const score = calculateSustainabilityScore(alt);
                 return (
                   <div key={alt.id} className="bg-white p-6 rounded-[2.5rem] border border-emerald-100 flex gap-6 items-center group hover:shadow-xl transition-all">

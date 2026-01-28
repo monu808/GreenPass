@@ -12,7 +12,6 @@ import {
   Users,
   Plus,
   ArrowRight,
-  ShieldAlert,
   Clock,
   Filter,
   XCircle,
@@ -26,7 +25,7 @@ import { Destination, AdjustmentLog, DynamicCapacityResult } from "@/types";
 import { format } from "date-fns";
 import { Database } from "@/types/database";
 import { FormErrorBoundary } from "@/components/errors";
-import { sanitizeSearchTerm, sanitizeObject, sanitizeForDatabase } from "@/lib/utils";
+import { sanitizeSearchTerm, sanitizeForDatabase } from "@/lib/utils";
 import { validateInput, SearchFilterSchema } from "@/lib/validation";
 
 type DbDestination = Database['public']['Tables']['destinations']['Row'];

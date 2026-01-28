@@ -14,10 +14,12 @@ const encoder = new TextEncoder();
 let sharedChannel: RealtimeChannel | null = null;
 let heartbeatInterval: NodeJS.Timeout | null = null;
 
+type LocalFlushData = BroadcastPayload | { type: 'heartbeat'; timestamp: string };
+
 /**
  * localFlush sends a message to all SSE connections connected to THIS instance.
  */
-const localFlush = async (data: any) => {
+const localFlush = async (data: LocalFlushData) => {
   const message = `data: ${JSON.stringify(data)}\n\n`;
   const encoded = encoder.encode(message);
   
@@ -94,7 +96,7 @@ export async function POST(request: NextRequest) {
       if (request.headers.get('content-type')?.includes('application/json')) {
         body = await request.json();
       }
-    } catch (e) {
+    } catch {
       // Body might be empty
     }
 

@@ -1,28 +1,24 @@
+import { fetch, Request, Response, Headers } from 'undici';
 import { TextEncoder, TextDecoder } from 'util';
 import { MessageChannel, MessagePort } from 'worker_threads';
 
 // Polyfill for Node environment missing these globals
-// @ts-ignore
-global.TextEncoder = TextEncoder;
-// @ts-ignore
-global.TextDecoder = TextDecoder;
+global.TextEncoder = TextEncoder as any;
+global.TextDecoder = TextDecoder as any;
 
 if (typeof global.MessageChannel === 'undefined') {
-  // @ts-ignore
-  global.MessageChannel = MessageChannel;
+  global.MessageChannel = MessageChannel as any;
 }
 if (typeof global.MessagePort === 'undefined') {
-  // @ts-ignore
-  global.MessagePort = MessagePort;
+  global.MessagePort = MessagePort as any;
 }
 
 // Polyfill fetch, Request, Response, Headers for MSW 2.0+
-const { fetch, Request, Response, Headers } = require('undici');
 if (typeof global.fetch === 'undefined') {
-  global.fetch = fetch;
-  global.Request = Request;
-  global.Response = Response;
-  global.Headers = Headers;
+  global.fetch = fetch as any;
+  global.Request = Request as any;
+  global.Response = Response as any;
+  global.Headers = Headers as any;
 }
 
 import '@testing-library/jest-dom';

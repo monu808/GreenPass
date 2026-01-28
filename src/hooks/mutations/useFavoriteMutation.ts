@@ -101,7 +101,7 @@ export function useRemoveFavoriteMutation() {
     const toast = useToast();
 
     return useMutation<void, Error, RemoveFavoriteVariables, FavoriteContext>({
-        mutationFn: async (_variables: RemoveFavoriteVariables): Promise<void> => {
+        mutationFn: async (): Promise<void> => {
             // TODO: Replace with actual database call when favorites table exists
             await new Promise(resolve => setTimeout(resolve, 300));
         },

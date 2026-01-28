@@ -105,7 +105,7 @@ export default function BookingsPage() {
     
     const filterValidation = validateInput(SearchFilterSchema, {
       searchTerm: sanitizedSearch,
-      status: statusFilter === "all" ? undefined : statusFilter as any,
+      status: statusFilter === "all" ? undefined : statusFilter as Tourist["status"],
       destinationId: destinationFilter === "all" ? undefined : destinationFilter,
     });
 

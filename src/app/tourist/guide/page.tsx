@@ -461,7 +461,7 @@ export default function TravelGuide() {
                 <li>• Inform someone about your trekking plans</li>
                 <li>• Carry adequate warm clothing</li>
                 <li>• Stay hydrated and acclimatize properly</li>
-                <li>• Don't trek alone in remote areas</li>
+                <li>• Don&apos;t trek alone in remote areas</li>
                 <li>• Carry emergency whistle and flashlight</li>
                 <li>• Be aware of altitude sickness symptoms</li>
               </ul>
@@ -507,7 +507,7 @@ export default function TravelGuide() {
                 <ul className="space-y-1 text-orange-700">
                   <li>• Avoid camping near rivers</li>
                   <li>• Move to higher ground if warned</li>
-                  <li>• Don't cross flooded roads</li>
+                  <li>• Don&apos;t cross flooded roads</li>
                 </ul>
               </div>
             </div>

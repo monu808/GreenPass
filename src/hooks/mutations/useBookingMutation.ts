@@ -18,8 +18,9 @@ interface BookingMutationContext {
 }
 
 export interface UseBookingMutationOptions {
-    onSuccess?: (data: TouristRow) => void;
+    onSuccess?: (data: TouristRow, bookingId: string) => void;
     onError?: (error: Error) => void;
+    skipPayment?: boolean; // Flag to skip payment for admin bookings
 }
 
 // Helper to create a pending tourist for optimistic update
@@ -54,7 +55,14 @@ export function useBookingMutation(options?: UseBookingMutationOptions) {
     return useMutation<TouristRow, Error, TouristInsert, BookingMutationContext>({
         mutationFn: async (bookingData: TouristInsert): Promise<TouristRow> => {
             const dbService = getDbService();
-            const result = await dbService.addTourist(bookingData);
+            
+            // Create booking with payment_status = 'unpaid' by default
+            const bookingWithPaymentStatus = {
+                ...bookingData,
+                payment_status: 'unpaid',
+            };
+            
+            const result = await dbService.addTourist(bookingWithPaymentStatus);
             if (!result) {
                 throw new Error('Booking rejected by server');
             }
@@ -63,7 +71,7 @@ export function useBookingMutation(options?: UseBookingMutationOptions) {
 
         onMutate: async (variables: TouristInsert): Promise<BookingMutationContext> => {
             // Show pending toast
-            const pendingToastId = toast.pending('Submitting booking...', 'Please wait while we process your request.');
+            const pendingToastId = toast.pending('Creating booking...', 'Please wait while we process your request.');
 
             // Cancel any outgoing refetches
             await queryClient.cancelQueries({ queryKey: queryKeys.tourists });
@@ -115,7 +123,11 @@ export function useBookingMutation(options?: UseBookingMutationOptions) {
             }
 
             // Show success toast
-            toast.success('Booking submitted!', 'Your booking is pending approval.');
+            if (options?.skipPayment) {
+                toast.success('Booking created!', 'The booking has been created successfully.');
+            } else {
+                toast.success('Booking created!', 'Please proceed to payment to confirm your booking.');
+            }
 
             // Replace the optimistic item with the real one
             if (context?.optimisticId) {
@@ -127,7 +139,8 @@ export function useBookingMutation(options?: UseBookingMutationOptions) {
                 });
             }
 
-            options?.onSuccess?.(data);
+            // Call success callback with booking ID for payment flow
+            options?.onSuccess?.(data, data.id);
         },
 
         onSettled: (): void => {
@@ -137,4 +150,19 @@ export function useBookingMutation(options?: UseBookingMutationOptions) {
             queryClient.invalidateQueries({ queryKey: queryKeys.destinations });
         },
     });
+}
+
+/**
+ * Hook for payment-aware booking flow
+ * Automatically redirects to payment after successful booking creation
+ */
+export function useBookingWithPayment() {
+    const bookingMutation = useBookingMutation({
+        onSuccess: (data, bookingId) => {
+            // Redirect to payment page
+            window.location.href = `/tourist/book/payment?booking_id=${bookingId}`;
+        },
+    });
+
+    return bookingMutation;
 }

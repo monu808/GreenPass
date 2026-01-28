@@ -233,8 +233,8 @@ class ServerWeatherService {
       return true;
     } catch (error) {
        if (error instanceof Error) {
-+        console.error('Failed to add alert:', error.message);
-+      } 
+         console.error('Failed to add alert:', error.message);
+     } 
      return false;
   }
 }

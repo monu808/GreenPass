@@ -186,9 +186,15 @@ class ServerWeatherService {
       return true;
     } catch (error) {
       if (error instanceof Error) {
-        if(error.message.includes('Database')){
-         console.error('Database error occurred while saving weather data:', error.message);
-        }
+        const isDbError = error.message.includes('Database');
+        console.error(
+          isDbError
+            ? 'Database error occurred while saving weather data:'
+            : 'Error saving weather data:',
+          error.message
+       );
+      } else {
+        console.error('Unknown error saving weather data:', error);
       }
       return false;
     }

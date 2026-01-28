@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { BookingPricing, PaymentIntent } from '@/types/payment';
-import { CreditCard, Smartphone, Building2, Wallet } from 'lucide-react';
+import { CreditCard, Smartphone, Building2, Wallet, AlertCircle } from 'lucide-react';
 
 interface PaymentFormProps {
   bookingId: string;
@@ -10,18 +10,39 @@ interface PaymentFormProps {
   onError?: (error: string) => void;
 }
 
+// Load Stripe.js dynamically
+const loadStripeJs = (): Promise<any> => {
+  return new Promise((resolve, reject) => {
+    if ((window as any).Stripe) {
+      resolve((window as any).Stripe);
+      return;
+    }
+
+    const script = document.createElement('script');
+    script.src = 'https://js.stripe.com/v3/';
+    script.onload = () => {
+      if ((window as any).Stripe) {
+        resolve((window as any).Stripe);
+      } else {
+        reject(new Error('Failed to load Stripe.js'));
+      }
+    };
+    script.onerror = () => reject(new Error('Failed to load Stripe.js'));
+    document.head.appendChild(script);
+  });
+};
+
 export default function PaymentForm({ bookingId, onSuccess, onError }: PaymentFormProps) {
   const [loading, setLoading] = useState(false);
   const [pricing, setPricing] = useState<BookingPricing | null>(null);
   const [paymentIntent, setPaymentIntent] = useState<PaymentIntent | null>(null);
   const [selectedMethod, setSelectedMethod] = useState<'card' | 'upi' | 'netbanking' | 'wallet'>('card');
   const [error, setError] = useState<string | null>(null);
+  const [stripeElements, setStripeElements] = useState<any>(null);
+  const [stripeInstance, setStripeInstance] = useState<any>(null);
+  const [isStripeGateway, setIsStripeGateway] = useState(false);
 
-  useEffect(() => {
-    initializePayment();
-  }, [bookingId]);
-
-  const initializePayment = async () => {
+  const initializePayment = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -29,7 +50,10 @@ export default function PaymentForm({ bookingId, onSuccess, onError }: PaymentFo
       const response = await fetch('/api/payments/create-intent', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ booking_id: bookingId }),
+        body: JSON.stringify({
+          booking_id: bookingId,
+          payment_method: selectedMethod,
+        }),
       });
 
       const data = await response.json();
@@ -40,12 +64,63 @@ export default function PaymentForm({ bookingId, onSuccess, onError }: PaymentFo
 
       setPricing(data.pricing);
       setPaymentIntent(data.payment_intent);
+
+      // Check if this is a Stripe payment (has client_secret)
+      if (data.payment_intent.gateway_data?.client_secret) {
+        setIsStripeGateway(true);
+        await setupStripeElements(data.payment_intent.gateway_data);
+      } else {
+        setIsStripeGateway(false);
+      }
     } catch (err: any) {
       const errorMsg = err.message || 'Failed to initialize payment';
       setError(errorMsg);
       onError?.(errorMsg);
     } finally {
       setLoading(false);
+    }
+  }, [bookingId, selectedMethod, onError]);
+
+  // Re-initialize payment when payment method changes
+  useEffect(() => {
+    initializePayment();
+  }, [initializePayment]);
+
+  const setupStripeElements = async (gatewayData: any) => {
+    try {
+      const StripeConstructor = await loadStripeJs();
+      const stripe = StripeConstructor(gatewayData.publishable_key);
+      setStripeInstance(stripe);
+
+      const elements = stripe.elements({
+        clientSecret: gatewayData.client_secret,
+        appearance: {
+          theme: 'stripe',
+          variables: {
+            colorPrimary: '#16a34a',
+            colorBackground: '#ffffff',
+            colorText: '#30313d',
+            colorDanger: '#ef4444',
+            fontFamily: 'system-ui, sans-serif',
+            spacingUnit: '4px',
+            borderRadius: '8px',
+          },
+        },
+      });
+
+      setStripeElements(elements);
+
+      // Wait for DOM to be ready, then mount the payment element
+      setTimeout(() => {
+        const paymentElement = elements.create('payment');
+        const container = document.getElementById('stripe-payment-element');
+        if (container) {
+          paymentElement.mount('#stripe-payment-element');
+        }
+      }, 100);
+    } catch (err: any) {
+      console.error('Failed to setup Stripe:', err);
+      setError('Failed to load payment form');
     }
   };
 
@@ -62,7 +137,7 @@ export default function PaymentForm({ bookingId, onSuccess, onError }: PaymentFo
         await handleRazorpayPayment(paymentIntent.gateway_data);
       } else {
         // Stripe payment
-        await handleStripePayment(paymentIntent.gateway_data);
+        await handleStripePayment();
       }
     } catch (err: any) {
       const errorMsg = err.message || 'Payment failed';
@@ -86,6 +161,13 @@ export default function PaymentForm({ bookingId, onSuccess, onError }: PaymentFo
           description: orderData.description,
           order_id: orderData.order_id,
           prefill: orderData.prefill,
+          // Pass preferred payment method to Razorpay
+          method: {
+            card: selectedMethod === 'card',
+            upi: selectedMethod === 'upi',
+            netbanking: selectedMethod === 'netbanking',
+            wallet: selectedMethod === 'wallet',
+          },
           theme: {
             color: '#16a34a', // Green theme
           },
@@ -118,18 +200,30 @@ export default function PaymentForm({ bookingId, onSuccess, onError }: PaymentFo
     });
   };
 
-  const handleStripePayment = async (intentData: any) => {
-    // Load Stripe.js
-    const stripe = await (window as any).Stripe(intentData.publishable_key);
-    
-    const { error: stripeError } = await stripe.confirmCardPayment(intentData.client_secret);
+  const handleStripePayment = async () => {
+    if (!stripeInstance || !stripeElements || !paymentIntent) {
+      throw new Error('Payment form not ready');
+    }
+
+    const { error: submitError } = await stripeElements.submit();
+    if (submitError) {
+      throw new Error(submitError.message);
+    }
+
+    const { error: stripeError } = await stripeInstance.confirmPayment({
+      elements: stripeElements,
+      confirmParams: {
+        return_url: `${window.location.origin}/tourist/book/payment/success?payment_id=${paymentIntent.id}`,
+      },
+      redirect: 'if_required',
+    });
 
     if (stripeError) {
       throw new Error(stripeError.message);
     }
 
     setLoading(false);
-    onSuccess?.(paymentIntent!.id);
+    onSuccess?.(paymentIntent.id);
   };
 
   if (loading && !pricing) {
@@ -143,7 +237,10 @@ export default function PaymentForm({ bookingId, onSuccess, onError }: PaymentFo
   if (error && !pricing) {
     return (
       <div className="bg-red-50 border border-red-200 rounded-lg p-6">
-        <p className="text-red-800">{error}</p>
+        <div className="flex items-center space-x-2 text-red-800">
+          <AlertCircle className="w-5 h-5" />
+          <p>{error}</p>
+        </div>
         <button
           onClick={initializePayment}
           className="mt-4 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
@@ -159,7 +256,7 @@ export default function PaymentForm({ bookingId, onSuccess, onError }: PaymentFo
       {/* Pricing Breakdown */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
         <h3 className="text-lg font-semibold mb-4">Payment Summary</h3>
-        
+
         <div className="space-y-2">
           {pricing?.breakdown.map((item, index) => {
             const isTotal = item.startsWith('Total:');
@@ -176,65 +273,76 @@ export default function PaymentForm({ bookingId, onSuccess, onError }: PaymentFo
         </div>
       </div>
 
-      {/* Payment Method Selection */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-        <h3 className="text-lg font-semibold mb-4">Select Payment Method</h3>
-        
-        <div className="grid grid-cols-2 gap-4">
-          <button
-            onClick={() => setSelectedMethod('card')}
-            className={`p-4 border-2 rounded-lg flex flex-col items-center space-y-2 transition-colors ${
-              selectedMethod === 'card'
-                ? 'border-green-600 bg-green-50'
-                : 'border-gray-200 hover:border-gray-300'
-            }`}
-          >
-            <CreditCard className="w-8 h-8" />
-            <span className="font-medium">Card</span>
-          </button>
+      {/* Payment Method Selection (only for Razorpay) */}
+      {!isStripeGateway && (
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+          <h3 className="text-lg font-semibold mb-4">Select Payment Method</h3>
 
-          <button
-            onClick={() => setSelectedMethod('upi')}
-            className={`p-4 border-2 rounded-lg flex flex-col items-center space-y-2 transition-colors ${
-              selectedMethod === 'upi'
-                ? 'border-green-600 bg-green-50'
-                : 'border-gray-200 hover:border-gray-300'
-            }`}
-          >
-            <Smartphone className="w-8 h-8" />
-            <span className="font-medium">UPI</span>
-          </button>
+          <div className="grid grid-cols-2 gap-4">
+            <button
+              onClick={() => setSelectedMethod('card')}
+              className={`p-4 border-2 rounded-lg flex flex-col items-center space-y-2 transition-colors ${selectedMethod === 'card'
+                  ? 'border-green-600 bg-green-50'
+                  : 'border-gray-200 hover:border-gray-300'
+                }`}
+            >
+              <CreditCard className="w-8 h-8" />
+              <span className="font-medium">Card</span>
+            </button>
 
-          <button
-            onClick={() => setSelectedMethod('netbanking')}
-            className={`p-4 border-2 rounded-lg flex flex-col items-center space-y-2 transition-colors ${
-              selectedMethod === 'netbanking'
-                ? 'border-green-600 bg-green-50'
-                : 'border-gray-200 hover:border-gray-300'
-            }`}
-          >
-            <Building2 className="w-8 h-8" />
-            <span className="font-medium">Net Banking</span>
-          </button>
+            <button
+              onClick={() => setSelectedMethod('upi')}
+              className={`p-4 border-2 rounded-lg flex flex-col items-center space-y-2 transition-colors ${selectedMethod === 'upi'
+                  ? 'border-green-600 bg-green-50'
+                  : 'border-gray-200 hover:border-gray-300'
+                }`}
+            >
+              <Smartphone className="w-8 h-8" />
+              <span className="font-medium">UPI</span>
+            </button>
 
-          <button
-            onClick={() => setSelectedMethod('wallet')}
-            className={`p-4 border-2 rounded-lg flex flex-col items-center space-y-2 transition-colors ${
-              selectedMethod === 'wallet'
-                ? 'border-green-600 bg-green-50'
-                : 'border-gray-200 hover:border-gray-300'
-            }`}
-          >
-            <Wallet className="w-8 h-8" />
-            <span className="font-medium">Wallet</span>
-          </button>
+            <button
+              onClick={() => setSelectedMethod('netbanking')}
+              className={`p-4 border-2 rounded-lg flex flex-col items-center space-y-2 transition-colors ${selectedMethod === 'netbanking'
+                  ? 'border-green-600 bg-green-50'
+                  : 'border-gray-200 hover:border-gray-300'
+                }`}
+            >
+              <Building2 className="w-8 h-8" />
+              <span className="font-medium">Net Banking</span>
+            </button>
+
+            <button
+              onClick={() => setSelectedMethod('wallet')}
+              className={`p-4 border-2 rounded-lg flex flex-col items-center space-y-2 transition-colors ${selectedMethod === 'wallet'
+                  ? 'border-green-600 bg-green-50'
+                  : 'border-gray-200 hover:border-gray-300'
+                }`}
+            >
+              <Wallet className="w-8 h-8" />
+              <span className="font-medium">Wallet</span>
+            </button>
+          </div>
         </div>
-      </div>
+      )}
+
+      {/* Stripe Payment Element */}
+      {isStripeGateway && (
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+          <h3 className="text-lg font-semibold mb-4">Payment Details</h3>
+          <div id="stripe-payment-element" className="min-h-[150px]">
+            {/* Stripe Elements will be mounted here */}
+          </div>
+        </div>
+      )}
 
       {/* Error Display */}
       {error && (
         <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-          <p className="text-red-800 text-sm">{error}</p>
+          <div className="flex items-center space-x-2 text-red-800">
+            <AlertCircle className="w-4 h-4" />
+            <p className="text-sm">{error}</p>
+          </div>
         </div>
       )}
 

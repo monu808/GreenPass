@@ -27,8 +27,27 @@ class PaymentService {
   private gateway: PaymentGateway;
 
   constructor() {
-    // Default to Razorpay for Indian market, fallback to Stripe
-    this.gateway = RAZORPAY_KEY_ID ? 'razorpay' : 'stripe';
+    // Default to Razorpay for Indian market if both keys are present, fallback to Stripe
+    if (RAZORPAY_KEY_ID && RAZORPAY_KEY_SECRET) {
+      this.gateway = 'razorpay';
+    } else if (STRIPE_SECRET_KEY && STRIPE_PUBLISHABLE_KEY) {
+      this.gateway = 'stripe';
+    } else {
+      // Default to Razorpay, but it will fail gracefully when credentials are missing
+      this.gateway = 'razorpay';
+      console.warn('Payment gateway credentials not fully configured. Payment operations may fail.');
+    }
+  }
+
+  /**
+   * Check if payment gateway is properly configured
+   */
+  isConfigured(): boolean {
+    if (this.gateway === 'razorpay') {
+      return !!(RAZORPAY_KEY_ID && RAZORPAY_KEY_SECRET);
+    } else {
+      return !!(STRIPE_SECRET_KEY && STRIPE_PUBLISHABLE_KEY);
+    }
   }
 
   /**
@@ -59,7 +78,7 @@ class PaymentService {
       }
 
       const pricing = data[0];
-      
+
       return {
         base_amount: pricing.base_amount,
         destination_fee: pricing.destination_fee,
@@ -86,33 +105,33 @@ class PaymentService {
     const formatAmount = (amount: number) => `₹${(amount / 100).toFixed(2)}`;
 
     breakdown.push(`Base Fee: ${formatAmount(pricing.base_amount)}`);
-    
+
     if (pricing.destination_fee !== 0) {
       breakdown.push(`Destination Fee: ${formatAmount(pricing.destination_fee)}`);
     }
-    
+
     if (pricing.seasonal_adjustment !== 0) {
       breakdown.push(`Seasonal Adjustment: ${formatAmount(pricing.seasonal_adjustment)}`);
     }
-    
+
     if (pricing.group_discount !== 0) {
       breakdown.push(`Group Discount: ${formatAmount(Math.abs(pricing.group_discount))}`);
     }
-    
+
     if (pricing.carbon_offset_fee !== 0) {
       breakdown.push(`Carbon Offset: ${formatAmount(pricing.carbon_offset_fee)}`);
     }
-    
+
     if (pricing.processing_fee !== 0) {
       breakdown.push(`Processing Fee: ${formatAmount(pricing.processing_fee)}`);
     }
-    
+
     if (pricing.tax_amount !== 0) {
       breakdown.push(`Tax: ${formatAmount(pricing.tax_amount)}`);
     }
-    
+
     breakdown.push(`Total: ${formatAmount(pricing.total_amount)}`);
-    
+
     return breakdown;
   }
 
@@ -122,6 +141,10 @@ class PaymentService {
   async createPaymentIntent(input: CreatePaymentIntentInput): Promise<PaymentIntent> {
     if (!supabase) {
       throw new Error('Payment service unavailable');
+    }
+
+    if (!this.isConfigured()) {
+      throw new Error('Payment gateway not properly configured');
     }
 
     try {
@@ -146,6 +169,7 @@ class PaymentService {
           currency: input.currency || 'INR',
           status: 'pending',
           gateway: this.gateway,
+          payment_method: input.payment_method,
           metadata: input.metadata || {},
         })
         .select()
@@ -175,7 +199,7 @@ class PaymentService {
       // In production, this should call Razorpay API
       // For now, creating a mock order structure
       const Razorpay = await import('razorpay').then(m => m.default).catch(() => null);
-      
+
       if (!Razorpay || !RAZORPAY_KEY_ID || !RAZORPAY_KEY_SECRET) {
         throw new Error('Razorpay not configured');
       }
@@ -196,10 +220,15 @@ class PaymentService {
       });
 
       // Update payment with gateway order ID
-      await supabase
-        ?.from('payments')
+      const { error: updateError } = await supabase!
+        .from('payments')
         .update({ gateway_order_id: order.id })
         .eq('id', payment.id);
+
+      if (updateError) {
+        console.error('Failed to update payment with gateway order ID:', updateError);
+        // Continue anyway as the order was created
+      }
 
       const orderData: RazorpayOrderData = {
         order_id: order.id,
@@ -233,13 +262,13 @@ class PaymentService {
   private async createStripeIntent(payment: DbPayment): Promise<PaymentIntent> {
     try {
       const Stripe = await import('stripe').then(m => m.default).catch(() => null);
-      
+
       if (!Stripe || !STRIPE_SECRET_KEY || !STRIPE_PUBLISHABLE_KEY) {
         throw new Error('Stripe not configured');
       }
 
       const stripe = new Stripe(STRIPE_SECRET_KEY, {
-        apiVersion: '2024-12-18.acacia',
+        apiVersion: '2025-12-15.clover',
       });
 
       const intent = await stripe.paymentIntents.create({
@@ -252,10 +281,15 @@ class PaymentService {
       });
 
       // Update payment with gateway payment ID
-      await supabase
-        ?.from('payments')
+      const { error: updateError } = await supabase!
+        .from('payments')
         .update({ gateway_payment_id: intent.id })
         .eq('id', payment.id);
+
+      if (updateError) {
+        console.error('Failed to update payment with gateway payment ID:', updateError);
+        // Continue anyway as the intent was created
+      }
 
       return {
         id: payment.id,
@@ -286,16 +320,42 @@ class PaymentService {
     }
 
     try {
-      // Find payment by gateway ID
-      const { data: payment, error: fetchError } = await supabase
+      // Find payment by gateway ID (check both gateway_payment_id and gateway_order_id)
+      let payment: DbPayment | null = null;
+
+      // First try by gateway_payment_id
+      const { data: paymentByPaymentId, error: fetchError1 } = await supabase
         .from('payments')
         .select('*')
         .eq('gateway_payment_id', gatewayPaymentId)
-        .single();
+        .maybeSingle();
 
-      if (fetchError || !payment) {
+      if (paymentByPaymentId) {
+        payment = paymentByPaymentId;
+      } else {
+        // Fallback to gateway_order_id (for Razorpay)
+        const { data: paymentByOrderId, error: fetchError2 } = await supabase
+          .from('payments')
+          .select('*')
+          .eq('gateway_order_id', gatewayPaymentId)
+          .maybeSingle();
+
+        if (paymentByOrderId) {
+          payment = paymentByOrderId;
+        }
+      }
+
+      if (!payment) {
         console.error('Payment not found for webhook:', gatewayPaymentId);
         return;
+      }
+
+      // Update gateway_payment_id if we found it by order_id and have the payment ID
+      if (!payment.gateway_payment_id && gatewayPaymentId.startsWith('pay_')) {
+        await supabase
+          .from('payments')
+          .update({ gateway_payment_id: gatewayPaymentId })
+          .eq('id', payment.id);
       }
 
       // Update payment status
@@ -430,6 +490,15 @@ class PaymentService {
 
       const refundAmount = input.amount || payment.amount;
 
+      // Validate refund amount
+      if (refundAmount <= 0) {
+        throw new Error('Refund amount must be positive');
+      }
+
+      if (refundAmount > payment.amount) {
+        throw new Error('Refund amount cannot exceed payment amount');
+      }
+
       // Create refund record
       const { data: refund, error: refundError } = await supabase
         .from('refunds')
@@ -449,9 +518,11 @@ class PaymentService {
         throw new Error('Failed to create refund record');
       }
 
-      // Process gateway refund
+      // Process gateway refund using the payment's gateway (not this.gateway)
+      const paymentGateway = payment.gateway as PaymentGateway;
+
       try {
-        if (this.gateway === 'razorpay') {
+        if (paymentGateway === 'razorpay') {
           await this.processRazorpayRefund(payment as any, refundAmount);
         } else {
           await this.processStripeRefund(payment as any, refundAmount);
@@ -499,7 +570,7 @@ class PaymentService {
    */
   private async processRazorpayRefund(payment: DbPayment, amount: number): Promise<void> {
     const Razorpay = await import('razorpay').then(m => m.default).catch(() => null);
-    
+
     if (!Razorpay || !RAZORPAY_KEY_ID || !RAZORPAY_KEY_SECRET) {
       throw new Error('Razorpay not configured');
     }
@@ -523,13 +594,13 @@ class PaymentService {
    */
   private async processStripeRefund(payment: DbPayment, amount: number): Promise<void> {
     const Stripe = await import('stripe').then(m => m.default).catch(() => null);
-    
+
     if (!Stripe || !STRIPE_SECRET_KEY) {
       throw new Error('Stripe not configured');
     }
 
     const stripe = new Stripe(STRIPE_SECRET_KEY, {
-      apiVersion: '2024-12-18.acacia',
+      apiVersion: '2025-12-15.clover',
     });
 
     if (!payment.gateway_payment_id) {
@@ -576,7 +647,7 @@ class PaymentService {
 
       methodData?.forEach(payment => {
         if (payment.payment_method) {
-          methodBreakdown[payment.payment_method] = 
+          methodBreakdown[payment.payment_method] =
             (methodBreakdown[payment.payment_method] || 0) + payment.amount;
         }
       });

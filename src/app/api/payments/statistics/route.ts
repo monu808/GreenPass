@@ -1,19 +1,42 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { paymentService } from '@/lib/paymentService';
-import { supabase } from '@/lib/supabase';
+import { createServerClient } from '@supabase/ssr';
+import { cookies } from 'next/headers';
+
+async function createSupabaseClient() {
+  const cookieStore = await cookies();
+
+  return createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        getAll() {
+          return cookieStore.getAll();
+        },
+        setAll(cookiesToSet) {
+          try {
+            cookiesToSet.forEach(({ name, value, options }) => {
+              cookieStore.set(name, value, options);
+            });
+          } catch {
+            // The `setAll` method was called from a Server Component.
+            // This can be ignored if you have middleware refreshing sessions.
+          }
+        },
+      },
+    }
+  );
+}
 
 export async function GET(request: NextRequest) {
   try {
-    // Verify user is admin
-    if (!supabase) {
-      return NextResponse.json(
-        { error: 'Service unavailable' },
-        { status: 503 }
-      );
-    }
+    // Create authenticated Supabase client for route handler
+    const supabase = await createSupabaseClient();
 
+    // Get authenticated user
     const { data: { user } } = await supabase.auth.getUser();
-    
+
     if (!user) {
       return NextResponse.json(
         { error: 'Unauthorized' },

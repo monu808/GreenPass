@@ -1,17 +1,35 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { PaymentStatistics, Payment } from '@/types/payment';
-import { 
-  DollarSign, 
-  TrendingUp, 
-  TrendingDown, 
-  CreditCard, 
+import {
+  DollarSign,
+  TrendingUp,
+  TrendingDown,
+  CreditCard,
   RefreshCcw,
   Download,
   Filter
 } from 'lucide-react';
 import { format } from 'date-fns';
+
+/**
+ * Escape CSV field to handle special characters
+ */
+function escapeCSVField(field: string | number | null | undefined): string {
+  if (field === null || field === undefined) {
+    return '';
+  }
+
+  const stringValue = String(field);
+
+  // If the field contains commas, quotes, or newlines, wrap in quotes and escape internal quotes
+  if (stringValue.includes(',') || stringValue.includes('"') || stringValue.includes('\n') || stringValue.includes('\r')) {
+    return `"${stringValue.replace(/"/g, '""')}"`;
+  }
+
+  return stringValue;
+}
 
 export default function PaymentDashboard() {
   const [statistics, setStatistics] = useState<PaymentStatistics | null>(null);
@@ -23,12 +41,7 @@ export default function PaymentDashboard() {
   });
   const [selectedStatus, setSelectedStatus] = useState<string>('all');
 
-  useEffect(() => {
-    fetchStatistics();
-    fetchPayments();
-  }, [dateRange]);
-
-  const fetchStatistics = async () => {
+  const fetchStatistics = useCallback(async () => {
     try {
       const params = new URLSearchParams({
         start_date: new Date(dateRange.start).toISOString(),
@@ -46,9 +59,9 @@ export default function PaymentDashboard() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [dateRange]);
 
-  const fetchPayments = async () => {
+  const fetchPayments = useCallback(async () => {
     try {
       // This would need to be implemented as a new API route
       const response = await fetch('/api/payments/list');
@@ -60,7 +73,12 @@ export default function PaymentDashboard() {
     } catch (error) {
       console.error('Error fetching payments:', error);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    fetchStatistics();
+    fetchPayments();
+  }, [fetchStatistics, fetchPayments]);
 
   const handleRefund = async (paymentId: string) => {
     const reason = window.prompt('Enter refund reason:');
@@ -94,21 +112,24 @@ export default function PaymentDashboard() {
   const exportToCSV = () => {
     const headers = ['Date', 'Booking ID', 'Amount', 'Status', 'Method', 'Gateway ID'];
     const rows = payments.map(p => [
-      format(new Date(p.created_at), 'yyyy-MM-dd HH:mm'),
-      p.booking_id,
-      `${p.currency} ${(p.amount / 100).toFixed(2)}`,
-      p.status,
-      p.payment_method || 'N/A',
-      p.gateway_payment_id || 'N/A',
+      escapeCSVField(format(new Date(p.created_at), 'yyyy-MM-dd HH:mm')),
+      escapeCSVField(p.booking_id),
+      escapeCSVField(`${p.currency} ${(p.amount / 100).toFixed(2)}`),
+      escapeCSVField(p.status),
+      escapeCSVField(p.payment_method || 'N/A'),
+      escapeCSVField(p.gateway_payment_id || 'N/A'),
     ]);
 
-    const csv = [headers, ...rows].map(row => row.join(',')).join('\n');
-    const blob = new Blob([csv], { type: 'text/csv' });
+    const csv = [headers.map(escapeCSVField), ...rows].map(row => row.join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
     a.download = `payments-${dateRange.start}-to-${dateRange.end}.csv`;
     a.click();
+
+    // Revoke the object URL to prevent memory leaks
+    URL.revokeObjectURL(url);
   };
 
   if (loading) {
@@ -126,7 +147,7 @@ export default function PaymentDashboard() {
       {/* Header with Filters */}
       <div className="flex justify-between items-center">
         <h2 className="text-2xl font-bold">Payment Management</h2>
-        
+
         <div className="flex space-x-4">
           <div className="flex space-x-2">
             <input
@@ -142,7 +163,7 @@ export default function PaymentDashboard() {
               className="px-3 py-2 border border-gray-300 rounded-lg"
             />
           </div>
-          
+
           <button
             onClick={exportToCSV}
             className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center space-x-2"
@@ -281,17 +302,16 @@ export default function PaymentDashboard() {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span
-                        className={`px-2 py-1 text-xs font-semibold rounded-full ${
-                          payment.status === 'succeeded'
+                        className={`px-2 py-1 text-xs font-semibold rounded-full ${payment.status === 'succeeded'
                             ? 'bg-green-100 text-green-800'
                             : payment.status === 'pending' || payment.status === 'processing'
-                            ? 'bg-yellow-100 text-yellow-800'
-                            : payment.status === 'failed'
-                            ? 'bg-red-100 text-red-800'
-                            : payment.status === 'refunded'
-                            ? 'bg-purple-100 text-purple-800'
-                            : 'bg-gray-100 text-gray-800'
-                        }`}
+                              ? 'bg-yellow-100 text-yellow-800'
+                              : payment.status === 'failed'
+                                ? 'bg-red-100 text-red-800'
+                                : payment.status === 'refunded'
+                                  ? 'bg-purple-100 text-purple-800'
+                                  : 'bg-gray-100 text-gray-800'
+                          }`}
                       >
                         {payment.status}
                       </span>

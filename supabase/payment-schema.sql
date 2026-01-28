@@ -38,11 +38,11 @@ CREATE TABLE IF NOT EXISTS payments (
 );
 
 -- Indexes for performance
-CREATE INDEX idx_payments_booking_id ON payments(booking_id);
-CREATE INDEX idx_payments_user_id ON payments(user_id);
-CREATE INDEX idx_payments_status ON payments(status);
-CREATE INDEX idx_payments_created_at ON payments(created_at DESC);
-CREATE INDEX idx_payments_gateway_order_id ON payments(gateway, gateway_order_id);
+CREATE INDEX IF NOT EXISTS idx_payments_booking_id ON payments(booking_id);
+CREATE INDEX IF NOT EXISTS idx_payments_user_id ON payments(user_id);
+CREATE INDEX IF NOT EXISTS idx_payments_status ON payments(status);
+CREATE INDEX IF NOT EXISTS idx_payments_created_at ON payments(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_payments_gateway_order_id ON payments(gateway, gateway_order_id);
 
 -- =============================================
 -- REFUNDS TABLE
@@ -74,10 +74,10 @@ CREATE TABLE IF NOT EXISTS refunds (
 );
 
 -- Indexes for refunds
-CREATE INDEX idx_refunds_payment_id ON refunds(payment_id);
-CREATE INDEX idx_refunds_booking_id ON refunds(booking_id);
-CREATE INDEX idx_refunds_status ON refunds(status);
-CREATE INDEX idx_refunds_processed_by ON refunds(processed_by);
+CREATE INDEX IF NOT EXISTS idx_refunds_payment_id ON refunds(payment_id);
+CREATE INDEX IF NOT EXISTS idx_refunds_booking_id ON refunds(booking_id);
+CREATE INDEX IF NOT EXISTS idx_refunds_status ON refunds(status);
+CREATE INDEX IF NOT EXISTS idx_refunds_processed_by ON refunds(processed_by);
 
 -- =============================================
 -- PAYMENT RECEIPTS TABLE (for quick lookups)
@@ -91,8 +91,8 @@ CREATE TABLE IF NOT EXISTS payment_receipts (
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX idx_receipts_booking_id ON payment_receipts(booking_id);
-CREATE INDEX idx_receipts_receipt_number ON payment_receipts(receipt_number);
+CREATE INDEX IF NOT EXISTS idx_receipts_booking_id ON payment_receipts(booking_id);
+CREATE INDEX IF NOT EXISTS idx_receipts_receipt_number ON payment_receipts(receipt_number);
 
 -- =============================================
 -- PRICING CONFIGURATION TABLE
@@ -124,7 +124,7 @@ CREATE TABLE IF NOT EXISTS pricing_config (
 );
 
 -- Only one active pricing config at a time
-CREATE UNIQUE INDEX idx_active_pricing ON pricing_config(is_active) 
+CREATE UNIQUE INDEX IF NOT EXISTS idx_active_pricing ON pricing_config(is_active) 
 WHERE is_active = true;
 
 -- =============================================
@@ -154,12 +154,15 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS update_payments_updated_at ON payments;
 CREATE TRIGGER update_payments_updated_at BEFORE UPDATE ON payments
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
+DROP TRIGGER IF EXISTS update_refunds_updated_at ON refunds;
 CREATE TRIGGER update_refunds_updated_at BEFORE UPDATE ON refunds
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
+DROP TRIGGER IF EXISTS update_pricing_config_updated_at ON pricing_config;
 CREATE TRIGGER update_pricing_config_updated_at BEFORE UPDATE ON pricing_config
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
@@ -218,8 +221,8 @@ BEGIN
     ELSE 1.0 -- Off-peak
   END;
   
-  -- Calculate group discount
-  SELECT discount_percentage INTO v_discount_percentage
+  -- Calculate group discount with COALESCE to handle NULL
+  SELECT COALESCE(discount_percentage, 0) INTO v_discount_percentage
   FROM (
     SELECT 
       (elem->>'min_size')::INTEGER as min_size,
@@ -229,6 +232,9 @@ BEGIN
   WHERE p_group_size >= min_size
   ORDER BY min_size DESC
   LIMIT 1;
+  
+  -- Ensure discount percentage is not NULL
+  v_discount_percentage := COALESCE(v_discount_percentage, 0);
   
   -- Calculate fees
   v_subtotal := v_base_amount;
@@ -292,6 +298,18 @@ ALTER TABLE refunds ENABLE ROW LEVEL SECURITY;
 ALTER TABLE payment_receipts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE pricing_config ENABLE ROW LEVEL SECURITY;
 
+-- Drop existing policies if they exist
+DROP POLICY IF EXISTS "Users can view their own payments" ON payments;
+DROP POLICY IF EXISTS "Admins can view all payments" ON payments;
+DROP POLICY IF EXISTS "System can insert payments" ON payments;
+DROP POLICY IF EXISTS "System can update payments" ON payments;
+DROP POLICY IF EXISTS "Users can view refunds for their payments" ON refunds;
+DROP POLICY IF EXISTS "Admins can manage refunds" ON refunds;
+DROP POLICY IF EXISTS "Users can view their own receipts" ON payment_receipts;
+DROP POLICY IF EXISTS "Admins can view all receipts" ON payment_receipts;
+DROP POLICY IF EXISTS "Anyone can view active pricing" ON pricing_config;
+DROP POLICY IF EXISTS "Admins can manage pricing" ON pricing_config;
+
 -- Policies for payments
 CREATE POLICY "Users can view their own payments" ON payments
   FOR SELECT USING (auth.uid() = user_id);
@@ -301,11 +319,16 @@ CREATE POLICY "Admins can view all payments" ON payments
     EXISTS (SELECT 1 FROM users WHERE id = auth.uid() AND is_admin = true)
   );
 
-CREATE POLICY "System can insert payments" ON payments
-  FOR INSERT WITH CHECK (true); -- Controlled by application logic
+-- Tightened insert/update policies - only through service role or admin
+CREATE POLICY "Admins can insert payments" ON payments
+  FOR INSERT WITH CHECK (
+    EXISTS (SELECT 1 FROM users WHERE id = auth.uid() AND is_admin = true)
+  );
 
-CREATE POLICY "System can update payments" ON payments
-  FOR UPDATE USING (true); -- Controlled by application logic
+CREATE POLICY "Admins can update payments" ON payments
+  FOR UPDATE USING (
+    EXISTS (SELECT 1 FROM users WHERE id = auth.uid() AND is_admin = true)
+  );
 
 -- Policies for refunds
 CREATE POLICY "Users can view refunds for their payments" ON refunds
@@ -366,7 +389,9 @@ INSERT INTO pricing_config (
 -- =============================================
 
 -- View for payment summary with booking details
-CREATE OR REPLACE VIEW payment_summary AS
+-- Fixed to prevent duplicate rows and include gateway IDs
+DROP VIEW IF EXISTS payment_summary;
+CREATE VIEW payment_summary AS
 SELECT 
   p.id,
   p.booking_id,
@@ -376,6 +401,8 @@ SELECT
   p.status as payment_status,
   p.payment_method,
   p.gateway,
+  p.gateway_payment_id,
+  p.gateway_order_id,
   p.created_at,
   p.paid_at,
   t.name as customer_name,
@@ -387,12 +414,11 @@ SELECT
   t.check_out_date,
   t.group_size,
   CASE 
-    WHEN r.id IS NOT NULL THEN 'refunded'
+    WHEN EXISTS (SELECT 1 FROM refunds r WHERE r.payment_id = p.id AND r.status = 'succeeded') THEN 'refunded'
     ELSE p.status
   END as effective_status
 FROM payments p
 JOIN tourists t ON p.booking_id = t.id
-JOIN destinations d ON t.destination_id = d.id
-LEFT JOIN refunds r ON r.payment_id = p.id AND r.status = 'succeeded';
+JOIN destinations d ON t.destination_id = d.id;
 
 COMMENT ON VIEW payment_summary IS 'Comprehensive view of payments with booking and customer details';

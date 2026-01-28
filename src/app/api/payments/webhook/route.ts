@@ -10,8 +10,8 @@ import crypto from 'crypto';
 export async function POST(request: NextRequest) {
   try {
     const body = await request.text();
-    const signature = request.headers.get('x-razorpay-signature') || 
-                     request.headers.get('stripe-signature') || '';
+    const signature = request.headers.get('x-razorpay-signature') ||
+      request.headers.get('stripe-signature') || '';
 
     // Determine gateway from signature header
     const isRazorpay = request.headers.has('x-razorpay-signature');
@@ -37,12 +37,33 @@ export async function POST(request: NextRequest) {
 }
 
 /**
+ * Timing-safe comparison for webhook signatures
+ */
+function timingSafeEqual(a: string, b: string): boolean {
+  try {
+    const bufA = Buffer.from(a);
+    const bufB = Buffer.from(b);
+
+    // If lengths differ, we still do a comparison to avoid timing leaks
+    if (bufA.length !== bufB.length) {
+      // Compare against itself to maintain constant time
+      crypto.timingSafeEqual(bufA, bufA);
+      return false;
+    }
+
+    return crypto.timingSafeEqual(bufA, bufB);
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Handle Razorpay webhook
  */
 async function handleRazorpayWebhook(body: string, signature: string) {
   try {
     const webhookSecret = process.env.RAZORPAY_WEBHOOK_SECRET;
-    
+
     if (!webhookSecret) {
       console.error('Razorpay webhook secret not configured');
       return NextResponse.json(
@@ -51,13 +72,13 @@ async function handleRazorpayWebhook(body: string, signature: string) {
       );
     }
 
-    // Verify signature
+    // Verify signature using timing-safe compare
     const expectedSignature = crypto
       .createHmac('sha256', webhookSecret)
       .update(body)
       .digest('hex');
 
-    if (signature !== expectedSignature) {
+    if (!timingSafeEqual(signature, expectedSignature)) {
       console.error('Invalid Razorpay webhook signature');
       return NextResponse.json(
         { error: 'Invalid signature' },
@@ -115,7 +136,8 @@ async function handleRazorpayWebhook(body: string, signature: string) {
 async function handleStripeWebhook(body: string, signature: string) {
   try {
     const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
-    
+    const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
+
     if (!webhookSecret) {
       console.error('Stripe webhook secret not configured');
       return NextResponse.json(
@@ -124,9 +146,17 @@ async function handleStripeWebhook(body: string, signature: string) {
       );
     }
 
+    if (!stripeSecretKey) {
+      console.error('Stripe secret key not configured');
+      return NextResponse.json(
+        { error: 'Stripe not configured' },
+        { status: 500 }
+      );
+    }
+
     const Stripe = await import('stripe').then(m => m.default);
-    const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-      apiVersion: '2024-12-18.acacia',
+    const stripe = new Stripe(stripeSecretKey, {
+      apiVersion: '2025-12-15.clover',
     });
 
     // Verify webhook signature

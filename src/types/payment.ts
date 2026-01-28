@@ -1,6 +1,6 @@
 // Payment-related types and interfaces
 
-export type PaymentStatus = 
+export type PaymentStatus =
   | 'pending'           // Payment intent created, awaiting user action
   | 'processing'        // Payment being processed by gateway
   | 'succeeded'         // Payment completed successfully
@@ -9,17 +9,17 @@ export type PaymentStatus =
   | 'refunded'          // Payment refunded (full or partial)
   | 'requires_action';  // Requires additional authentication (3D Secure)
 
-export type PaymentMethod = 
+export type PaymentMethod =
   | 'card'
   | 'upi'
   | 'netbanking'
   | 'wallet';
 
-export type RefundStatus = 
-  | 'pending' 
-  | 'processing' 
-  | 'succeeded' 
-  | 'failed' 
+export type RefundStatus =
+  | 'pending'
+  | 'processing'
+  | 'succeeded'
+  | 'failed'
   | 'cancelled';
 
 export type PaymentGateway = 'razorpay' | 'stripe';
@@ -143,6 +143,7 @@ export interface CreatePaymentIntentInput {
   booking_id: string;
   amount: number;
   currency?: string;
+  payment_method?: PaymentMethod;
   metadata?: PaymentMetadata;
 }
 

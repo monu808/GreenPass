@@ -18,7 +18,7 @@ export default function TouristLayout({ children }: TouristLayoutProps) {
       {/* BUILD FIX: Added min-h-screen and overflow-x-hidden to prevent 
          mobile layout shifts that bots often flag as "UI Stability" issues.
       */}
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-100 relative overflow-x-hidden">
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-100 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 relative overflow-x-hidden">
         <a href="#main-content" className="skip-link">
           Skip to main content
         </a>
@@ -27,9 +27,9 @@ export default function TouristLayout({ children }: TouristLayoutProps) {
         <div className="absolute inset-0 hero-pattern opacity-30 pointer-events-none"></div>
         
         {/* FLOATING GLASS ELEMENTS */}
-        <div className="absolute top-20 left-10 w-32 h-32 bg-gradient-to-br from-emerald-400/20 to-blue-400/20 rounded-full blur-xl float-animation pointer-events-none"></div>
-        <div className="absolute top-40 right-20 w-24 h-24 bg-gradient-to-br from-amber-400/20 to-orange-400/20 rounded-full blur-xl float-animation pointer-events-none" style={{animationDelay: '1s'}}></div>
-        <div className="absolute bottom-20 left-1/4 w-20 h-20 bg-gradient-to-br from-purple-400/20 to-pink-400/20 rounded-full blur-xl float-animation pointer-events-none" style={{animationDelay: '2s'}}></div>
+        <div className="absolute top-20 left-10 w-32 h-32 bg-gradient-to-br from-emerald-400/20 to-blue-400/20 dark:from-emerald-400/10 dark:to-blue-400/10 rounded-full blur-xl float-animation pointer-events-none"></div>
+        <div className="absolute top-40 right-20 w-24 h-24 bg-gradient-to-br from-amber-400/20 to-orange-400/20 dark:from-amber-400/10 dark:to-orange-400/10 rounded-full blur-xl float-animation pointer-events-none" style={{animationDelay: '1s'}}></div>
+        <div className="absolute bottom-20 left-1/4 w-20 h-20 bg-gradient-to-br from-purple-400/20 to-pink-400/20 dark:from-purple-400/10 dark:to-pink-400/10 rounded-full blur-xl float-animation pointer-events-none" style={{animationDelay: '2s'}}></div>
         
         {/* NAVIGATION COMPONENTS */}
         {/* BOT FIX: Ensure Sidebar and Header have explicit event handlers passed */}

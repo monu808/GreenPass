@@ -1,11 +1,38 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { weatherService } from '@/lib/weatherService';
+import { validateInput, TestWeatherSchema } from '@/lib/validation';
 
 export async function GET(request: NextRequest) {
+  // Production Warning: This route should be protected or disabled in production
+  if (process.env.NODE_ENV === 'production') {
+    return NextResponse.json(
+      { error: 'Unauthorized', message: 'Test routes are disabled in production' },
+      { status: 401 }
+    );
+  }
+
   const { searchParams } = new URL(request.url);
-  const lat = searchParams.get('lat') || '32.2396'; // Default to Manali
-  const lon = searchParams.get('lon') || '77.1887';
-  const city = searchParams.get('city') || 'Manali';
+  const latParam = searchParams.get('lat') || '32.2396'; // Default to Manali
+  const lonParam = searchParams.get('lon') || '77.1887';
+  const cityParam = searchParams.get('city') || 'Manali';
+
+  // Validate parameters
+  const validation = validateInput(TestWeatherSchema, {
+    lat: latParam,
+    lon: lonParam,
+    city: cityParam
+  });
+
+  if (!validation.success) {
+    return NextResponse.json({
+      success: false,
+      error: 'Invalid query parameters',
+      details: validation.errors,
+      timestamp: new Date().toISOString()
+    }, { status: 400 });
+  }
+
+  const { lat, lon, city } = validation.data;
 
   try {
     console.log(`🌤️ Testing Tomorrow.io API for ${city} (${lat}, ${lon})`);
@@ -46,8 +73,9 @@ export async function GET(request: NextRequest) {
     
     return NextResponse.json(
       { 
+        success: false,
         error: 'Weather API test failed',
-        details: error instanceof Error ? error.message : 'Unknown error',
+        message: 'Internal server error',
         timestamp: new Date().toISOString()
       },
       { status: 500 }

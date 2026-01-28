@@ -1,10 +1,11 @@
 'use client';
 
-import React, { useState } from 'react';
-import { Bell, Search, User, LogOut, Settings, Shield, UserCircle, ChevronDown, Key, Users, BarChart3, FileText, Activity, Database, AlertTriangle, Menu } from 'lucide-react';
+import React, { useState, useRef } from 'react';
+import { Bell, Search, LogOut, Settings, Shield, UserCircle, ChevronDown, Key, Users, BarChart3, FileText, Menu } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { useFocusTrap, useEscapeKey, useClickOutside } from '@/lib/accessibility';
 
 interface HeaderProps {
   onMenuClick?: () => void;
@@ -16,6 +17,17 @@ export default function Header({ onMenuClick }: HeaderProps) {
   const [showAuthDropdown, setShowAuthDropdown] = useState(false);
   const [showAdminPanel, setShowAdminPanel] = useState(false);
   const router = useRouter();
+  const userMenuRef = useRef<HTMLDivElement>(null);
+
+  useFocusTrap(userMenuRef, showUserMenu);
+  useEscapeKey(() => {
+    setShowUserMenu(false);
+    setShowAuthDropdown(false);
+  }, showUserMenu);
+  useClickOutside(userMenuRef, () => {
+    setShowUserMenu(false);
+    setShowAuthDropdown(false);
+  }, showUserMenu);
 
   const handleSignOut = async () => {
     await signOut();
@@ -32,213 +44,226 @@ export default function Header({ onMenuClick }: HeaderProps) {
   };
 
   return (
-    <header className="bg-white border-b border-gray-200 h-16 fixed top-0 right-0 left-0 lg:left-64 z-30 shadow-sm transition-all duration-300">
+    <header 
+      role="banner"
+      aria-label="Admin header" 
+      className="bg-white border-b border-gray-200 h-16 fixed top-0 right-0 left-0 lg:left-64 z-30 shadow-sm transition-all duration-300"
+    >
       <div className="flex items-center justify-between h-full px-4 lg:px-6">
         <div className="flex items-center flex-1">
           <button
             onClick={onMenuClick}
-            className="p-2 mr-4 text-gray-600 lg:hidden hover:bg-gray-100 rounded-lg transition-colors"
+            aria-label="Open navigation menu"
+            className="p-3 mr-2 text-gray-600 lg:hidden hover:bg-gray-100 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-green-500 min-h-[44px] min-w-[44px] flex items-center justify-center"
           >
-            <Menu className="h-6 w-6" />
+            <Menu className="h-6 w-6" aria-hidden="true" />
           </button>
           
           {/* Search */}
-          <div className="flex-1 max-w-md hidden md:block">
+          <form role="search" className="flex-1 max-w-md hidden md:block" onSubmit={(e) => e.preventDefault()}>
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" aria-hidden="true" />
+              <label htmlFor="admin-search" className="sr-only">Search tourists, destinations</label>
               <input
+                id="admin-search"
                 type="text"
+                name="search"
                 placeholder="Search tourists, destinations..."
                 className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-sm"
               />
             </div>
-          </div>
+          </form>
         </div>
 
         {/* Right side */}
         <div className="flex items-center space-x-2 lg:space-x-4">
           {/* Notifications */}
-          <button className="relative p-2 text-gray-400 hover:text-gray-600 transition-colors">
-            <Bell className="h-5 w-5" />
-            <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
+          <button 
+            aria-label="View notifications"
+            aria-haspopup="true"
+            className="relative p-2 text-gray-400 hover:text-gray-600 transition-colors focus:outline-none focus:ring-2 focus:ring-green-500 rounded-lg"
+          >
+            <Bell className="h-5 w-5" aria-hidden="true" />
+            <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full">
+              <span className="sr-only">New notifications available</span>
+            </span>
           </button>
 
           {/* User menu */}
-          <div className="relative">
+          <div className="relative" ref={userMenuRef}>
             <button
+              id="user-menu-button"
               onClick={() => setShowUserMenu(!showUserMenu)}
-              className="flex items-center space-x-2 lg:space-x-3 px-2 lg:px-3 py-2 rounded-lg hover:bg-gray-50 transition-all focus:outline-none"
+              aria-label="Open user menu"
+              aria-expanded={showUserMenu}
+              aria-haspopup="menu"
+              aria-controls="user-menu-dropdown"
+              className="flex items-center space-x-2 lg:space-x-3 px-2 lg:px-3 py-2 rounded-lg hover:bg-gray-50 transition-all focus:outline-none focus:ring-2 focus:ring-green-500"
             >
               <div className="text-right hidden sm:block">
                 <p className="text-sm font-medium text-gray-900">
                   {user?.user_metadata?.name || user?.email?.split('@')[0] || 'User'}
                 </p>
                 <p className="text-xs text-gray-500">
-                  {isAdmin ? 'Administrator' : 'Tourist'}
+                  {isAdmin ? 'Administrator' : 'Staff'}
                 </p>
               </div>
-              <div className="w-8 h-8 bg-green-600 rounded-full flex items-center justify-center">
-                <User className="h-4 w-4 text-white" />
+              <div className="h-8 w-8 bg-green-600 rounded-full flex items-center justify-center text-white font-bold text-sm shadow-sm" aria-hidden="true">
+                {user?.email?.[0].toUpperCase() || 'U'}
               </div>
-              <ChevronDown className={`h-4 w-4 text-gray-400 transition-transform ${showUserMenu ? 'rotate-180' : ''}`} />
+              <ChevronDown className={`h-4 w-4 text-gray-500 transition-transform ${showUserMenu ? 'rotate-180' : ''}`} aria-hidden="true" />
             </button>
 
-            {/* Dropdown menu */}
+            {/* User Dropdown */}
             {showUserMenu && (
-              <div className="absolute right-0 mt-2 w-64 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-50">
-                <div className="px-4 py-3 border-b border-gray-200">
-                  <p className="text-sm font-medium text-gray-900">
-                    {user?.user_metadata?.name || user?.email}
-                  </p>
-                  <p className="text-xs text-gray-500">{user?.email}</p>
-                  <div className="mt-2 inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                    <Shield className="h-3 w-3 mr-1" />
-                    {isAdmin ? 'Administrator' : 'Tourist'}
+              <div
+                id="user-menu-dropdown"
+                className="absolute right-0 mt-2 w-64 bg-white border border-gray-200 rounded-lg shadow-lg z-50 overflow-hidden"
+                role="menu"
+                aria-labelledby="user-menu-button"
+              >
+                <div className="px-4 py-3 border-b border-gray-200" role="none">
+                  <p className="text-sm font-medium text-gray-900" id="user-email-label">{user?.email}</p>
+                  <div className="mt-1 inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-green-100 text-green-800" aria-describedby="user-email-label">
+                    <Shield className="h-3 w-3 mr-1" aria-hidden="true" />
+                    {isAdmin ? 'Admin Access' : 'Staff Access'}
                   </div>
                 </div>
-                
-                <Link
-                  href="/settings"
-                  className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center"
-                  onClick={() => setShowUserMenu(false)}
-                >
-                  <UserCircle className="h-4 w-4 mr-3" />
-                  Profile Settings
-                </Link>
 
-                {/* Admin Panel Options - Only visible to admins */}
+                <div className="py-1" role="none">
+                  <Link
+                    href="/management/profile"
+                    className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-inset"
+                    onClick={() => setShowUserMenu(false)}
+                    role="menuitem"
+                  >
+                    <UserCircle className="h-4 w-4 mr-3 text-gray-400" aria-hidden="true" />
+                    My Profile
+                  </Link>
+                </div>
+
                 {isAdmin && (
-                  <>
-                    <div className="border-t border-gray-200 my-2"></div>
-                    <div className="px-4 py-2">
-                      <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
-                        Admin Panel
-                      </p>
-                    </div>
-                    <div className="relative">
-                      <button
-                        onClick={toggleAdminPanel}
-                        className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center justify-between"
+                  <div className="py-1 border-t border-gray-100" role="none">
+                    <button
+                      id="admin-panel-button"
+                      onClick={toggleAdminPanel}
+                      aria-expanded={showAdminPanel}
+                      aria-haspopup="true"
+                      aria-controls="admin-panel-dropdown"
+                      aria-label="Toggle admin management options"
+                      className="w-full flex items-center justify-between px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-inset"
+                      role="menuitem"
+                    >
+                      <div className="flex items-center">
+                        <Shield className="h-4 w-4 mr-3 text-gray-400" aria-hidden="true" />
+                        Admin Controls
+                      </div>
+                      <ChevronDown className={`h-4 w-4 transition-transform ${showAdminPanel ? 'rotate-180' : ''}`} aria-hidden="true" />
+                    </button>
+                    
+                    {showAdminPanel && (
+                      <div
+                        id="admin-panel-dropdown"
+                        className="bg-gray-50 py-1"
+                        role="group"
+                        aria-labelledby="admin-panel-button"
                       >
-                        <div className="flex items-center">
-                          <Shield className="h-4 w-4 mr-3 text-purple-600" />
-                          <span className="font-medium">Admin Controls</span>
-                        </div>
-                        <ChevronDown className={`h-4 w-4 transition-transform ${showAdminPanel ? 'rotate-180' : ''}`} />
-                      </button>
-                      
-                      {showAdminPanel && (
-                        <div className="ml-4 pl-4 border-l-2 border-purple-200">
-                          <Link
-                            href="/management"
-                            className="flex items-center px-4 py-2 text-sm text-gray-600 hover:bg-gray-50 hover:text-gray-900"
-                            onClick={() => setShowUserMenu(false)}
-                          >
-                            <Users className="h-4 w-4 mr-3" />
-                            User Management
-                          </Link>
-                          <Link
-                            href="/analytics"
-                            className="flex items-center px-4 py-2 text-sm text-gray-600 hover:bg-gray-50 hover:text-gray-900"
-                            onClick={() => setShowUserMenu(false)}
-                          >
-                            <BarChart3 className="h-4 w-4 mr-3" />
-                            Analytics & Reports
-                          </Link>
-                          <Link
-                            href="/destinations"
-                            className="flex items-center px-4 py-2 text-sm text-gray-600 hover:bg-gray-50 hover:text-gray-900"
-                            onClick={() => setShowUserMenu(false)}
-                          >
-                            <Database className="h-4 w-4 mr-3" />
-                            Manage Destinations
-                          </Link>
-                          <Link
-                            href="/alerts"
-                            className="flex items-center px-4 py-2 text-sm text-gray-600 hover:bg-gray-50 hover:text-gray-900"
-                            onClick={() => setShowUserMenu(false)}
-                          >
-                            <AlertTriangle className="h-4 w-4 mr-3" />
-                            System Alerts
-                          </Link>
-                          <Link
-                            href="/settings#audit-logs"
-                            className="flex items-center px-4 py-2 text-sm text-gray-600 hover:bg-gray-50 hover:text-gray-900"
-                            onClick={() => setShowUserMenu(false)}
-                          >
-                            <FileText className="h-4 w-4 mr-3" />
-                            Audit Logs
-                          </Link>
-                          <Link
-                            href="/settings#system-health"
-                            className="flex items-center px-4 py-2 text-sm text-gray-600 hover:bg-gray-50 hover:text-gray-900"
-                            onClick={() => setShowUserMenu(false)}
-                          >
-                            <Activity className="h-4 w-4 mr-3" />
-                            System Health
-              </Link>
-            </div>
-                      )}
-                    </div>
-                    <div className="border-t border-gray-200 my-2"></div>
-                  </>
+                        <Link
+                          href="/admin/users"
+                          className="flex items-center px-8 py-2 text-xs text-gray-600 hover:bg-gray-100 hover:text-gray-900 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-inset"
+                          onClick={() => setShowUserMenu(false)}
+                          role="menuitem"
+                        >
+                          <Users className="h-3.5 w-3.5 mr-2" aria-hidden="true" />
+                          User Management
+                        </Link>
+                        <Link
+                          href="/admin/analytics"
+                          className="flex items-center px-8 py-2 text-xs text-gray-600 hover:bg-gray-100 hover:text-gray-900 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-inset"
+                          onClick={() => setShowUserMenu(false)}
+                          role="menuitem"
+                        >
+                          <BarChart3 className="h-3.5 w-3.5 mr-2" aria-hidden="true" />
+                          System Analytics
+                        </Link>
+                        <Link
+                          href="/admin/logs"
+                          className="flex items-center px-8 py-2 text-xs text-gray-600 hover:bg-gray-100 hover:text-gray-900 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-inset"
+                          onClick={() => setShowUserMenu(false)}
+                          role="menuitem"
+                        >
+                          <FileText className="h-3.5 w-3.5 mr-2" aria-hidden="true" />
+                          Audit Logs
+                        </Link>
+                      </div>
+                    )}
+                  </div>
                 )}
-                
-                {/* Authentication Dropdown */}
-                <div className="relative">
+
+                <div className="py-1" role="none">
                   <button
+                    id="auth-menu-button"
                     onClick={toggleAuthDropdown}
-                    className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center justify-between"
+                    aria-expanded={showAuthDropdown}
+                    aria-haspopup="true"
+                    aria-controls="auth-menu-dropdown"
+                    aria-label="Toggle security and authentication options"
+                    className="w-full flex items-center justify-between px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-inset"
+                    role="menuitem"
                   >
                     <div className="flex items-center">
-                      <Key className="h-4 w-4 mr-3" />
-                      Authentication
+                      <Key className="h-4 w-4 mr-3 text-gray-400" aria-hidden="true" />
+                      Security
                     </div>
-                    <ChevronDown className={`h-4 w-4 transition-transform ${showAuthDropdown ? 'rotate-180' : ''}`} />
+                    <ChevronDown className={`h-4 w-4 transition-transform ${showAuthDropdown ? 'rotate-180' : ''}`} aria-hidden="true" />
                   </button>
                   
                   {showAuthDropdown && (
-                    <div className="ml-4 pl-4 border-l border-gray-200">
+                    <div
+                      id="auth-menu-dropdown"
+                      className="bg-gray-50 py-1"
+                      role="group"
+                      aria-labelledby="auth-menu-button"
+                    >
                       <Link
-                        href="/settings#change-password"
-                        className="block px-4 py-2 text-sm text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                        href="/management/settings#security"
+                        className="flex items-center px-8 py-2 text-xs text-gray-600 hover:bg-gray-100 hover:text-gray-900 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-inset"
                         onClick={() => setShowUserMenu(false)}
+                        role="menuitem"
                       >
-                        Change Password
+                        Password & 2FA
                       </Link>
                       <Link
-                        href="/settings#two-factor"
-                        className="block px-4 py-2 text-sm text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                        href="/management/settings#sessions"
+                        className="flex items-center px-8 py-2 text-xs text-gray-600 hover:bg-gray-100 hover:text-gray-900 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-inset"
                         onClick={() => setShowUserMenu(false)}
-                      >
-                        Two-Factor Auth
-                      </Link>
-                      <Link
-                        href="/settings#sessions"
-                        className="block px-4 py-2 text-sm text-gray-600 hover:bg-gray-50 hover:text-gray-900"
-                        onClick={() => setShowUserMenu(false)}
+                        role="menuitem"
                       >
                         Active Sessions
                       </Link>
                     </div>
                   )}
                 </div>
-                
-                <Link
-                  href="/settings"
-                  className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center"
-                  onClick={() => setShowUserMenu(false)}
-                >
-                  <Settings className="h-4 w-4 mr-3" />
-                  General Settings
-                </Link>
-                
-                <div className="border-t border-gray-200 mt-2 pt-2">
+
+                <div className="py-1" role="none">
+                  <Link
+                    href="/management/settings"
+                    className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-inset"
+                    onClick={() => setShowUserMenu(false)}
+                    role="menuitem"
+                  >
+                    <Settings className="h-4 w-4 mr-3 text-gray-400" aria-hidden="true" />
+                    Settings
+                  </Link>
+                </div>
+
+                <div className="py-1 border-t border-gray-100" role="none">
                   <button
                     onClick={handleSignOut}
-                    className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center"
+                    className="flex items-center w-full px-4 py-2 text-sm text-red-600 hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-inset"
+                    role="menuitem"
                   >
-                    <LogOut className="h-4 w-4 mr-3" />
+                    <LogOut className="h-4 w-4 mr-3" aria-hidden="true" />
                     Sign Out
                   </button>
                 </div>
@@ -247,17 +272,6 @@ export default function Header({ onMenuClick }: HeaderProps) {
           </div>
         </div>
       </div>
-
-      {/* Overlay to close dropdown */}
-      {showUserMenu && (
-        <div
-          className="fixed inset-0 z-40"
-          onClick={() => {
-            setShowUserMenu(false);
-            setShowAuthDropdown(false);
-          }}
-        />
-      )}
     </header>
   );
 }

@@ -26,7 +26,8 @@ export const ORIGIN_LOCATIONS: OriginLocation[] = [
   { id: 'pb', name: 'Punjab (Chandigarh)', type: 'state', latitude: 30.7333, longitude: 76.7794 },
   { id: 'br', name: 'Bihar (Patna)', type: 'state', latitude: 25.5941, longitude: 85.1376 },
   { id: 'or', name: 'Odisha (Bhubaneswar)', type: 'state', latitude: 20.2961, longitude: 85.8245 },
-  { id: 'as', name: 'Assam (Guwahati)', type: 'state', latitude: 26.1445, longitude: 91.7362 }
+  { id: 'as', name: 'Assam (Guwahati)', type: 'state', latitude: 26.1445, longitude: 91.7362 },
+  { id: 'jk', name: 'Jammu & Kashmir (Srinagar)', type: 'state', latitude: 34.0837, longitude: 74.7973 }
 ];
 
 export const getOriginLocationById = (id: string) => 

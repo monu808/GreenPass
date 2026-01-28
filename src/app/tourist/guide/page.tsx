@@ -2,17 +2,16 @@
 
 import React, { useState } from 'react';
 import TouristLayout from '@/components/TouristLayout';
+import { sanitizeSearchTerm } from '@/lib/utils';
+import { validateInput, SearchFilterSchema } from '@/lib/validation';
 import { 
-  Book, 
   MapPin, 
   Clock, 
   Users, 
   Car, 
   Plane, 
   Train,
-  Camera,
   Mountain,
-  TreePine,
   Sun,
   Cloud,
   Snowflake,
@@ -20,10 +19,7 @@ import {
   Shield,
   AlertTriangle,
   Phone,
-  Mail,
   Search,
-  ChevronRight,
-  ChevronDown,
   Info,
   Star,
   Download,
@@ -130,13 +126,20 @@ export default function TravelGuide() {
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {destinations
-              .filter(dest => 
-                (selectedRegion === 'all' || dest.region === selectedRegion) &&
-                dest.name.toLowerCase().includes(searchTerm.toLowerCase())
-              )
+              .filter(dest => {
+                const sanitizedSearch = sanitizeSearchTerm(searchTerm);
+                const filterValidation = validateInput(SearchFilterSchema, {
+                  searchTerm: sanitizedSearch,
+                });
+                const validFilters = filterValidation.success ? filterValidation.data : { searchTerm: "" };
+                const matchesSearch = dest.name.toLowerCase().includes(validFilters.searchTerm?.toLowerCase() || "") ||
+                                     dest.region.toLowerCase().includes(validFilters.searchTerm?.toLowerCase() || "");
+                const matchesRegion = selectedRegion === 'all' || dest.region === selectedRegion;
+                return matchesSearch && matchesRegion;
+              })
               .map((destination) => (
               <div key={destination.id} className="bg-gray-50 rounded-lg p-4 border border-gray-200 hover:border-blue-300 transition-colors">
-                <div className="h-32 bg-gray-200 rounded-lg mb-3" />
+                <div className="h-32 bg-slate-100 shimmer rounded-lg mb-3" />
                 <h3 className="font-semibold text-gray-900 mb-2">{destination.name}</h3>
                 <p className="text-sm text-gray-600 mb-2">{destination.region}</p>
                 <div className="flex items-center justify-between text-xs text-gray-500 mb-3">
@@ -458,7 +461,7 @@ export default function TravelGuide() {
                 <li>• Inform someone about your trekking plans</li>
                 <li>• Carry adequate warm clothing</li>
                 <li>• Stay hydrated and acclimatize properly</li>
-                <li>• Don't trek alone in remote areas</li>
+                <li>• Don&apos;t trek alone in remote areas</li>
                 <li>• Carry emergency whistle and flashlight</li>
                 <li>• Be aware of altitude sickness symptoms</li>
               </ul>
@@ -504,7 +507,7 @@ export default function TravelGuide() {
                 <ul className="space-y-1 text-orange-700">
                   <li>• Avoid camping near rivers</li>
                   <li>• Move to higher ground if warned</li>
-                  <li>• Don't cross flooded roads</li>
+                  <li>• Don&apos;t cross flooded roads</li>
                 </ul>
               </div>
             </div>
@@ -520,20 +523,20 @@ export default function TravelGuide() {
     <TouristLayout>
       <div className="space-y-6">
         {/* Header */}
-        <div className="bg-gradient-to-r from-indigo-600 to-blue-600 rounded-xl p-6 text-white">
+        <div className="bg-gradient-to-r from-indigo-600 to-blue-600 rounded-xl p-6 text-white" role="banner">
           <h1 className="text-3xl font-bold mb-2">Travel Guide</h1>
           <p className="text-indigo-100">Complete guide for traveling in Jammu & Himachal Pradesh</p>
           <div className="mt-4 flex flex-wrap gap-3">
-            <button className="flex items-center px-3 py-1 bg-white/20 rounded-lg text-sm">
-              <Download className="h-4 w-4 mr-1" />
+            <button className="flex items-center px-3 py-1 bg-white/20 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-white">
+              <Download className="h-4 w-4 mr-1" aria-hidden="true" />
               Download Guide
             </button>
-            <button className="flex items-center px-3 py-1 bg-white/20 rounded-lg text-sm">
-              <Bookmark className="h-4 w-4 mr-1" />
+            <button className="flex items-center px-3 py-1 bg-white/20 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-white">
+              <Bookmark className="h-4 w-4 mr-1" aria-hidden="true" />
               Save Guide
             </button>
-            <button className="flex items-center px-3 py-1 bg-white/20 rounded-lg text-sm">
-              <Share2 className="h-4 w-4 mr-1" />
+            <button className="flex items-center px-3 py-1 bg-white/20 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-white">
+              <Share2 className="h-4 w-4 mr-1" aria-hidden="true" />
               Share
             </button>
           </div>
@@ -541,33 +544,45 @@ export default function TravelGuide() {
 
         {/* Navigation */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-200">
-          <div className="flex overflow-x-auto">
-            {guideSections.map((section) => {
-              const IconComponent = section.icon;
-              return (
-                <button
-                  key={section.id}
-                  onClick={() => setActiveSection(section.id)}
-                  className={`flex items-center space-x-2 px-6 py-4 text-sm font-medium whitespace-nowrap border-b-2 transition-colors ${
-                    activeSection === section.id
-                      ? 'border-blue-600 text-blue-600 bg-blue-50'
-                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50'
-                  }`}
-                >
-                  <IconComponent className="h-4 w-4" />
-                  <span>{section.title}</span>
-                </button>
-              );
-            })}
-          </div>
+          <nav className="flex overflow-x-auto" aria-label="Guide categories">
+            <div className="flex" role="tablist">
+              {guideSections.map((section) => {
+                const IconComponent = section.icon;
+                const isSelected = activeSection === section.id;
+                return (
+                  <button
+                    key={section.id}
+                    id={`tab-${section.id}`}
+                    role="tab"
+                    aria-selected={isSelected}
+                    aria-controls={`panel-${section.id}`}
+                    onClick={() => setActiveSection(section.id)}
+                    className={`flex items-center space-x-2 px-6 py-4 text-sm font-medium whitespace-nowrap border-b-2 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-inset ${
+                      isSelected
+                        ? 'border-blue-600 text-blue-600 bg-blue-50'
+                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+                    }`}
+                  >
+                    <IconComponent className="h-4 w-4" aria-hidden="true" />
+                    <span>{section.title}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </nav>
         </div>
 
         {/* Content */}
-        <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
+        <div 
+          id={`panel-${activeSection}`}
+          role="tabpanel"
+          aria-labelledby={`tab-${activeSection}`}
+          className="bg-white rounded-xl p-6 shadow-sm border border-gray-200"
+        >
           <div className="flex items-center mb-6">
             {activeGuideSection && (
               <>
-                <activeGuideSection.icon className="h-6 w-6 text-blue-600 mr-3" />
+                <activeGuideSection.icon className="h-6 w-6 text-blue-600 mr-3" aria-hidden="true" />
                 <h2 className="text-2xl font-bold text-gray-900">{activeGuideSection.title}</h2>
               </>
             )}

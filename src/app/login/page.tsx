@@ -3,10 +3,14 @@
 
 import React, { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { z } from 'zod';
 import Link from 'next/link';
 import { Eye, EyeOff, Mail, Lock, MapPin } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import OTPVerification from '@/components/OTPVerification';
+import { validateInput } from '@/lib/validation';
+import { AccountSchema } from '@/lib/validation/schemas';
+import { sanitizeObject } from '@/lib/utils';
 
 type LoginMethod = 'password' | 'otp';
 type LoginStep = 'method' | 'otp';
@@ -49,15 +53,26 @@ function LoginForm() {
     setLoading(true);
     setError('');
 
+    const sanitizedData = sanitizeObject({ email });
+    const validation = validateInput(AccountSchema.partial().extend({ 
+      email: z.email('Invalid email address') 
+    }), sanitizedData);
+
+    if (!validation.success) {
+      setError(validation.errors?.email || 'Invalid email');
+      setLoading(false);
+      return;
+    }
+
     try {
-      const { error } = await signIn(email, password);
+      const { error } = await signIn(validation.data.email, password);
       
       if (error) {
         setError(error.message);
       } else {
         router.push('/');
       }
-    } catch (err) {
+    } catch {
       setError('An unexpected error occurred');
     } finally {
       setLoading(false);
@@ -69,15 +84,26 @@ function LoginForm() {
     setLoading(true);
     setError('');
 
+    const sanitizedData = sanitizeObject({ email });
+    const validation = validateInput(AccountSchema.partial().extend({ 
+      email: z.email('Invalid email address') 
+    }), sanitizedData);
+
+    if (!validation.success) {
+      setError(validation.errors?.email || 'Invalid email');
+      setLoading(false);
+      return;
+    }
+
     try {
-      const { error } = await signUpWithOTP(email, '');
+      const { error } = await signUpWithOTP(validation.data.email, '');
       
       if (error) {
         setError(error.message);
       } else {
         setStep('otp');
       }
-    } catch (err) {
+    } catch {
       setError('An unexpected error occurred');
     } finally {
       setLoading(false);
@@ -96,7 +122,7 @@ function LoginForm() {
       }
       
       return { success: true };
-    } catch (err) {
+    } catch {
       return { 
         success: false, 
         error: 'Verification failed. Please try again.' 
@@ -116,7 +142,7 @@ function LoginForm() {
       }
       
       return { success: true };
-    } catch (err) {
+    } catch {
       return { 
         success: false, 
         error: 'Failed to resend OTP. Please try again.' 
@@ -135,7 +161,7 @@ function LoginForm() {
         setError(error.message);
         setLoading(false);
       }
-    } catch (err) {
+    } catch {
       setError('An unexpected error occurred');
       setLoading(false);
     }
@@ -359,7 +385,7 @@ function LoginForm() {
           {/* Sign Up Link */}
           <div className="text-center pt-2">
             <p className="text-sm text-gray-600">
-              Don't have an account?{' '}
+              Don&apos;t have an account?{' '}
               <Link href="/signup" className="font-semibold text-green-600 hover:text-green-500">
                 Sign up here
               </Link>

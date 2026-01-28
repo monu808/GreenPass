@@ -3,27 +3,20 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Layout from '@/components/Layout';
-import { User } from 'lucide-react';
+import { User, CheckCircle } from 'lucide-react';
 import { getDbService } from '@/lib/databaseService';
-import { 
-  validateEmail, 
-  validatePhone, 
-  validateIdProof,
-  validateIdProofByType,
-  validateName,
-  validateGroupName,
-  validateDateRange,
-  validateGroupSize,
-  validateAge,
-  validateGender,
-  validateAddress,
-  validatePinCode,
-  sanitizeInput 
+import { FormErrorBoundary } from '@/components/errors';
+import {
+  sanitizeObject
 } from '@/lib/utils';
+import { 
+  validateInput, 
+  TouristRegistrationSchema,
+  BookingDataSchema 
+} from '@/lib/validation';
 import type { Database } from '@/types/database';
 
 type Destination = Database['public']['Tables']['destinations']['Row'];
-type TouristInsert = Database['public']['Tables']['tourists']['Insert'];
 
 type Gender = 'male' | 'female' | 'other' | 'prefer-not-to-say';
 type IdProofType = 'aadhaar' | 'pan' | 'passport' | 'driving-license' | 'voter-id';
@@ -55,6 +48,8 @@ export default function RegisterTourist() {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitSuccess, setSubmitSuccess] = useState(false);
+  const [currentStep, setCurrentStep] = useState(1);
+  const totalSteps = 3;
   
   const formRef = useRef<HTMLFormElement>(null);
   const successButtonRef = useRef<HTMLButtonElement>(null);
@@ -103,136 +98,114 @@ export default function RegisterTourist() {
     }
   };
 
-  const validateForm = (): boolean => {
+  const sanitizeFormData = (data: typeof formData) => {
+    return {
+      ...sanitizeObject(data),
+      // Ensure numeric values are preserved if they were already numbers
+      groupSize: typeof data.groupSize === 'number' ? data.groupSize : parseInt(String(data.groupSize), 10) || 1,
+    };
+  };
+
+  const validateForm = (step?: number): boolean => {
+    const sanitizedData = sanitizeFormData(formData);
     const newErrors: Record<string, string> = {};
-
-    const nameValidation = validateName(formData.name);
-    if (!nameValidation.valid) {
-      newErrors.name = nameValidation.error || 'Invalid name';
-    }
-
-    if (!formData.email.trim()) {
-      newErrors.email = 'Email is required';
-    } else if (!validateEmail(formData.email)) {
-      newErrors.email = 'Please enter a valid email address (e.g., user@example.com)';
-    }
+    const targetStep = step || currentStep;
     
-    if (!formData.phone.trim()) {
-      newErrors.phone = 'Phone number is required';
-    } else if (!validatePhone(formData.phone)) {
-      newErrors.phone = 'Please enter a valid phone number (10 digits for Indian mobile, or include country code for international)';
-    }
-
-    const ageValidation = validateAge(formData.age);
-    if (!ageValidation.valid) {
-      newErrors.age = ageValidation.error || 'Invalid age';
-    }
-
-    const genderValidation = validateGender(formData.gender);
-    if (!genderValidation.valid) {
-      newErrors.gender = genderValidation.error || 'Please select a gender';
-    }
-
-    const addressValidation = validateAddress(formData.address);
-    if (!addressValidation.valid) {
-      newErrors.address = addressValidation.error || 'Invalid address';
-    }
-
-    const pinCodeValidation = validatePinCode(formData.pinCode);
-    if (!pinCodeValidation.valid) {
-      newErrors.pinCode = pinCodeValidation.error || 'Invalid PIN code';
-    }
-
-    if (!formData.idProofType) {
-      newErrors.idProofType = 'Please select an ID proof type';
-    }
-
-    if (!formData.idProof.trim()) {
-      newErrors.idProof = 'ID proof number is required';
-    } else if (formData.idProofType) {
-      const idProofValidation = validateIdProofByType(formData.idProof, formData.idProofType);
-      if (!idProofValidation.valid) {
-        newErrors.idProof = idProofValidation.error || 'Invalid ID proof';
-      }
-    }
-    if (formData.group_name.trim()) {
-  const groupNameValidation = validateGroupName(formData.group_name);
-      if (!groupNameValidation.valid) {
-        newErrors.group_name = groupNameValidation.error || 'Invalid group name';
-      }
-    }
-    if (!formData.destination) {
-      newErrors.destination = 'Please select a destination';
-    }
-
-    if (!formData.checkInDate) {
-      newErrors.checkInDate = 'Check-in date is required';
-    }
-    if (!formData.checkOutDate) {
-      newErrors.checkOutDate = 'Check-out date is required';
-    }
-    
-    if (formData.checkInDate && formData.checkOutDate) {
-      const dateValidation = validateDateRange(formData.checkInDate, formData.checkOutDate, {
-        minAdvanceDays: 1, 
-        maxStayDays: 30    
+    // Step 1: Personal Information
+    if (targetStep === 1 || !step) {
+      const registrationResult = validateInput(TouristRegistrationSchema, {
+        name: sanitizedData.name,
+        email: sanitizedData.email,
+        phone: sanitizedData.phone,
+        age: parseInt(sanitizedData.age.toString(), 10),
+        address: sanitizedData.address,
+        pinCode: sanitizedData.pinCode,
+        idProof: sanitizedData.idProof,
+        idType: sanitizedData.idProofType,
       });
-      if (!dateValidation.valid) {
-        newErrors.checkOutDate = dateValidation.error || 'Invalid date range';
+
+      if (!registrationResult.success) {
+        Object.assign(newErrors, registrationResult.errors);
       }
-    } else if (formData.checkInDate) {
-  
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      const checkIn = new Date(formData.checkInDate);
-      const tomorrow = new Date(today);
-      tomorrow.setDate(tomorrow.getDate() + 1);
       
-      if (checkIn < tomorrow) {
-        newErrors.checkInDate = 'Check-in date must be at least 1 day from today';
+      if (!sanitizedData.gender) {
+        newErrors.gender = 'Gender is required';
       }
     }
 
-    const groupSizeValidation = validateGroupSize(formData.groupSize, 10);
-    if (!groupSizeValidation.valid) {
-      newErrors.groupSize = groupSizeValidation.error || 'Invalid group size';
-    }
+    // Step 2: Travel Information
+    if (targetStep === 2 || !step) {
+      const bookingResult = validateInput(BookingDataSchema, {
+        groupSize: sanitizedData.groupSize,
+        checkInDate: sanitizedData.checkInDate,
+        checkOutDate: sanitizedData.checkOutDate,
+        emergencyContact: {
+          name: 'Temp Name', // Temporary for partial validation
+          phone: '9876543210',
+          relationship: 'Friend',
+        },
+        transportType: 'other',
+        originLocationId: sanitizedData.nationality === 'Indian' ? 'domestic' : 'international',
+      });
 
-    const emergencyNameValidation = validateName(formData.emergencyContactName);
-    if (!emergencyNameValidation.valid) {
-      newErrors.emergencyContactName = emergencyNameValidation.error || 'Invalid emergency contact name';
-    }
-
-    if (!formData.emergencyContactPhone.trim()) {
-      newErrors.emergencyContactPhone = 'Emergency contact phone is required';
-    } else if (!validatePhone(formData.emergencyContactPhone)) {
-      newErrors.emergencyContactPhone = 'Please enter a valid emergency contact phone number';
-    }
-
-    if (!formData.emergencyContactRelationship.trim()) {
-      newErrors.emergencyContactRelationship = 'Please select a relationship';
-    }
-
-    if (formData.phone && formData.emergencyContactPhone) {
-      const cleanPhone = formData.phone.replace(/[\s\-\(\)]/g, '');
-      const cleanEmergencyPhone = formData.emergencyContactPhone.replace(/[\s\-\(\)]/g, '');
-      if (cleanPhone === cleanEmergencyPhone) {
-        newErrors.emergencyContactPhone = 'Emergency contact phone must be different from your phone number';
+      if (!bookingResult.success) {
+        if (bookingResult.errors.groupSize) newErrors.groupSize = bookingResult.errors.groupSize;
+        if (bookingResult.errors.checkInDate) newErrors.checkInDate = bookingResult.errors.checkInDate;
+        if (bookingResult.errors.checkOutDate) newErrors.checkOutDate = bookingResult.errors.checkOutDate;
       }
-    }
 
-    if (formData.destination && !newErrors.groupSize) {
-      const destination = destinations.find(d => d.id === formData.destination);
-      if (destination) {
-        const availableCapacity = destination.max_capacity - destination.current_occupancy;
-        if (formData.groupSize > availableCapacity) {
-          newErrors.groupSize = `Only ${availableCapacity} slots available for this destination`;
+      if (!sanitizedData.destination) {
+        newErrors.destination = 'Please select a destination';
+      }
+
+      // Custom validation for destination capacity
+      if (sanitizedData.destination && !newErrors.groupSize) {
+        const destination = destinations.find(d => d.id === sanitizedData.destination);
+        if (destination) {
+          const availableCapacity = destination.max_capacity - destination.current_occupancy;
+          if (sanitizedData.groupSize > availableCapacity) {
+            newErrors.groupSize = `Only ${availableCapacity} slots available for this destination`;
+          }
         }
+      }
+    }
+
+    // Step 3: Emergency Contact
+    if (targetStep === 3 || !step) {
+      const bookingResult = validateInput(BookingDataSchema, {
+        groupSize: 1, // Temporary
+        checkInDate: '2025-01-01', // Temporary
+        checkOutDate: '2025-01-02', // Temporary
+        emergencyContact: {
+          name: sanitizedData.emergencyContactName,
+          phone: sanitizedData.emergencyContactPhone,
+          relationship: sanitizedData.emergencyContactRelationship,
+        },
+        transportType: 'other',
+        originLocationId: 'domestic',
+      });
+
+      if (!bookingResult.success) {
+        if (bookingResult.errors['emergencyContact.name']) newErrors.emergencyContactName = bookingResult.errors['emergencyContact.name'];
+        if (bookingResult.errors['emergencyContact.phone']) newErrors.emergencyContactPhone = bookingResult.errors['emergencyContact.phone'];
+        if (bookingResult.errors['emergencyContact.relationship']) newErrors.emergencyContactRelationship = bookingResult.errors['emergencyContact.relationship'];
       }
     }
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
+  };
+
+  const handleNextStep = () => {
+    if (validateForm(currentStep)) {
+      setCurrentStep(prev => Math.min(prev + 1, totalSteps));
+      window.scrollTo(0, 0);
+    }
+  };
+
+  const handlePrevStep = () => {
+    setCurrentStep(prev => Math.max(prev - 1, 1));
+    window.scrollTo(0, 0);
   };
 
 const handleSubmit = async (e: React.FormEvent) => {
@@ -241,35 +214,36 @@ const handleSubmit = async (e: React.FormEvent) => {
   const selectedDestination = destinations.find(d => d.id === formData.destination);
   
   if (!validateForm() || !selectedDestination) {
-    alert('Please fill in all required fields');
+    alert('Please fill in all required fields and correct any errors');
     return;
   }
   
   setIsSubmitting(true);
   
   try {
+    const sanitizedData = sanitizeFormData(formData);
+    
     const bookingData = {
-      name: formData.name,
-      email: formData.email,
-      phone: formData.phone,
-      id_proof: formData.idProof,
-      nationality: formData.nationality,
-      group_size: parseInt(formData.groupSize.toString(), 10),
+      name: sanitizedData.name,
+      email: sanitizedData.email,
+      phone: sanitizedData.phone,
+      id_proof: sanitizedData.idProof,
+      nationality: sanitizedData.nationality,
+      group_size: parseInt(sanitizedData.groupSize.toString(), 10),
       destination_id: selectedDestination.id,
-      check_in_date: formData.checkInDate,
-      check_out_date: formData.checkOutDate,
+      check_in_date: sanitizedData.checkInDate,
+      check_out_date: sanitizedData.checkOutDate,
       status: 'pending' as const,
-      emergency_contact_name: formData.emergencyContactName,
-      emergency_contact_phone: formData.emergencyContactPhone,
-      emergency_contact_relationship: formData.emergencyContactRelationship,
-      user_id: null, // Set to null to avoid foreign key constraint
+      emergency_contact_name: sanitizedData.emergencyContactName,
+      emergency_contact_phone: sanitizedData.emergencyContactPhone,
+      emergency_contact_relationship: sanitizedData.emergencyContactRelationship,
+      user_id: null,
       registration_date: new Date().toISOString(),
-      // Use values from formData
-      age: parseInt(formData.age, 10),
-      gender: formData.gender as Gender,
-      address: formData.address,
-      pin_code: formData.pinCode,
-      id_proof_type: formData.idProofType as IdProofType
+      age: parseInt(sanitizedData.age.toString(), 10),
+      gender: sanitizedData.gender as Gender,
+      address: sanitizedData.address,
+      pin_code: sanitizedData.pinCode,
+      id_proof_type: sanitizedData.idProofType as IdProofType
     };
     
     console.log('Submitting booking data:', bookingData);
@@ -347,13 +321,59 @@ const handleSubmit = async (e: React.FormEvent) => {
         <div className="mb-6">
           <h1 className="text-2xl font-bold text-gray-900">Tourist Registration</h1>
           <p className="text-gray-700">Register for visiting ecologically sensitive areas in Jammu & Himachal Pradesh</p>
+          
+          {/* Step Indicator */}
+          <div className="mt-6 flex items-center justify-between relative">
+            <div className="absolute top-1/2 left-0 w-full h-0.5 bg-gray-200 -translate-y-1/2 z-0"></div>
+            {[1, 2, 3].map((step) => (
+              <div key={step} className="relative z-10 flex flex-col items-center">
+                <div 
+                  className={`w-10 h-10 rounded-full flex items-center justify-center font-bold transition-colors ${
+                    currentStep === step 
+                      ? 'bg-green-600 text-white shadow-lg' 
+                      : currentStep > step 
+                        ? 'bg-green-100 text-green-600' 
+                        : 'bg-white border-2 border-gray-200 text-gray-400'
+                  }`}
+                >
+                  {currentStep > step ? <CheckCircle className="h-6 w-6" /> : step}
+                </div>
+                <span className={`mt-2 text-xs font-bold uppercase tracking-wider ${
+                  currentStep === step ? 'text-green-600' : 'text-gray-400'
+                }`}>
+                  {step === 1 ? 'Personal' : step === 2 ? 'Travel' : 'Emergency'}
+                </span>
+              </div>
+            ))}
+          </div>
         </div>
 
-        <form ref={formRef} onSubmit={handleSubmit} className="space-y-6" noValidate aria-label="Tourist registration form">
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Personal Information</h2>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <FormErrorBoundary formName="Tourist Registration" onReset={() => setFormData({
+          name: '',
+          email: '',
+          phone: '',
+          age: '',
+          gender: '',
+          address: '',
+          pinCode: '',
+          idProofType: '',
+          group_name: '',
+          idProof: '',
+          nationality: 'Indian',
+          groupSize: 1,
+          destination: '',
+          checkInDate: '',
+          checkOutDate: '',
+          emergencyContactName: '',
+          emergencyContactPhone: '',
+          emergencyContactRelationship: ''
+        })}>
+          <form ref={formRef} onSubmit={handleSubmit} className="space-y-6" noValidate aria-label="Tourist registration form">
+          {currentStep === 1 && (
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 animate-in slide-in-from-right duration-300">
+              <h2 className="text-lg font-semibold text-gray-900 mb-4">Personal Information</h2>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label htmlFor="name" className="block text-sm font-medium text-gray-900 mb-1">
                   Full Name *
@@ -364,7 +384,7 @@ const handleSubmit = async (e: React.FormEvent) => {
                   name="name"
                   value={formData.name}
                   onChange={handleInputChange}
-                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-green-500 focus:outline-none focus:border-transparent text-gray-900 ${
+                  className={`w-full px-3 py-2 min-h-[52px] border rounded-lg focus:ring-2 focus:ring-green-500 focus:outline-none focus:border-transparent text-gray-900 ${
                     errors.name ? 'border-red-600' : 'border-gray-300'
                   }`}
                   placeholder="Enter your full name"
@@ -390,9 +410,10 @@ const handleSubmit = async (e: React.FormEvent) => {
                   type="email"
                   id="email"
                   name="email"
+                  autoComplete="email"
                   value={formData.email}
                   onChange={handleInputChange}
-                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-green-500 focus:outline-none focus:border-transparent text-gray-900 ${
+                  className={`w-full px-3 py-2 min-h-[52px] border rounded-lg focus:ring-2 focus:ring-green-500 focus:outline-none focus:border-transparent text-gray-900 ${
                     errors.email ? 'border-red-600' : 'border-gray-300'
                   }`}
                   placeholder="Enter your email (e.g., user@example.com)"
@@ -401,7 +422,6 @@ const handleSubmit = async (e: React.FormEvent) => {
                   aria-invalid={!!errors.email}
                   aria-describedby={errors.email ? 'email-error' : 'email-hint'}
                   maxLength={254}
-                  autoComplete="email"
                 />
                 <p id="email-hint" className="text-gray-500 text-xs mt-1">We&apos;ll send confirmation to this email</p>
                 {errors.email && <p id="email-error" className="text-red-700 text-xs mt-1" role="alert">{errors.email}</p>}
@@ -413,11 +433,12 @@ const handleSubmit = async (e: React.FormEvent) => {
                 </label>
                 <input
                   type="tel"
+                  autoComplete="tel"
                   id="phone"
                   name="phone"
                   value={formData.phone}
                   onChange={handleInputChange}
-                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-green-500 focus:outline-none focus:border-transparent text-gray-900 ${
+                  className={`w-full px-3 py-2 min-h-[52px] border rounded-lg focus:ring-2 focus:ring-green-500 focus:outline-none focus:border-transparent text-gray-900 ${
                     errors.phone ? 'border-red-600' : 'border-gray-300'
                   }`}
                   placeholder="e.g., 9876543210 or +91-98765-43210"
@@ -427,7 +448,6 @@ const handleSubmit = async (e: React.FormEvent) => {
                   aria-describedby={errors.phone ? 'phone-error' : 'phone-hint'}
                   minLength={10}
                   maxLength={15}
-                  autoComplete="tel"
                 />
                 <p id="phone-hint" className="text-gray-500 text-xs mt-1">Indian mobile: 10 digits starting with 6-9</p>
                 {errors.phone && <p id="phone-error" className="text-red-700 text-xs mt-1" role="alert">{errors.phone}</p>}
@@ -497,6 +517,7 @@ const handleSubmit = async (e: React.FormEvent) => {
                 <textarea
                   id="address"
                   name="address"
+                  autoComplete="street-address"
                   value={formData.address}
                   onChange={(e) => {
                     setFormData(prev => ({ ...prev, address: e.target.value }));
@@ -515,7 +536,6 @@ const handleSubmit = async (e: React.FormEvent) => {
                   rows={3}
                   minLength={10}
                   maxLength={500}
-                  autoComplete="street-address"
                 />
                 <p id="address-hint" className="text-gray-500 text-xs mt-1">Enter complete address including house number, street, city, and state</p>
                 {errors.address && <p id="address-error" className="text-red-700 text-xs mt-1" role="alert">{errors.address}</p>}
@@ -531,7 +551,7 @@ const handleSubmit = async (e: React.FormEvent) => {
                   name="pinCode"
                   value={formData.pinCode}
                   onChange={handleInputChange}
-                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-green-500 focus:outline-none focus:border-transparent text-gray-900 ${
+                  className={`w-full px-3 py-2 min-h-[52px] border rounded-lg focus:ring-2 focus:ring-green-500 focus:outline-none focus:border-transparent text-gray-900 ${
                     errors.pinCode ? 'border-red-600' : 'border-gray-300'
                   }`}
                   placeholder="e.g., 110001"
@@ -556,7 +576,7 @@ const handleSubmit = async (e: React.FormEvent) => {
                   name="idProofType"
                   value={formData.idProofType}
                   onChange={handleInputChange}
-                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-green-500 focus:outline-none focus:border-transparent text-gray-900 ${
+                  className={`w-full px-3 py-2 min-h-[52px] border rounded-lg focus:ring-2 focus:ring-green-500 focus:outline-none focus:border-transparent text-gray-900 ${
                     errors.idProofType ? 'border-red-600' : 'border-gray-300'
                   }`}
                   aria-label="Government ID type"
@@ -584,7 +604,7 @@ const handleSubmit = async (e: React.FormEvent) => {
                   name="idProof"
                   value={formData.idProof}
                   onChange={handleInputChange}
-                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-green-500 focus:outline-none focus:border-transparent text-gray-900 ${
+                  className={`w-full px-3 py-2 min-h-[52px] border rounded-lg focus:ring-2 focus:ring-green-500 focus:outline-none focus:border-transparent text-gray-900 ${
                     errors.idProof ? 'border-red-600' : 'border-gray-300'
                   }`}
                   placeholder={
@@ -685,8 +705,10 @@ const handleSubmit = async (e: React.FormEvent) => {
               </div>
             </div>
           </div>
+          )}
 
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+          {currentStep === 2 && (
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 animate-in slide-in-from-right duration-300">
             <h2 className="text-lg font-semibold text-gray-900 mb-4">Travel Information</h2>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -699,7 +721,7 @@ const handleSubmit = async (e: React.FormEvent) => {
                   name="destination"
                   value={formData.destination}
                   onChange={handleInputChange}
-                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-green-500 focus:outline-none focus:border-transparent text-gray-900 ${
+                  className={`w-full px-3 py-2 min-h-[52px] border rounded-lg focus:ring-2 focus:ring-green-500 focus:outline-none focus:border-transparent text-gray-900 ${
                     errors.destination ? 'border-red-600' : 'border-gray-300'
                   }`}
                   aria-label="Select destination"
@@ -737,7 +759,7 @@ const handleSubmit = async (e: React.FormEvent) => {
                     maxDate.setFullYear(maxDate.getFullYear() + 1);
                     return maxDate.toISOString().split('T')[0];
                   })()}
-                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-green-500 focus:outline-none focus:border-transparent text-gray-900 ${
+                  className={`w-full px-3 py-2 min-h-[52px] border rounded-lg focus:ring-2 focus:ring-green-500 focus:outline-none focus:border-transparent text-gray-900 ${
                     errors.checkInDate ? 'border-red-600' : 'border-gray-300'
                   }`}
                   aria-label="Check-in date"
@@ -769,7 +791,7 @@ const handleSubmit = async (e: React.FormEvent) => {
                     maxDate.setDate(maxDate.getDate() + 30);
                     return maxDate.toISOString().split('T')[0];
                   })() : undefined}
-                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-green-500 focus:outline-none focus:border-transparent text-gray-900 ${
+                  className={`w-full px-3 py-2 min-h-[52px] border rounded-lg focus:ring-2 focus:ring-green-500 focus:outline-none focus:border-transparent text-gray-900 ${
                     errors.checkOutDate ? 'border-red-600' : 'border-gray-300'
                   }`}
                   aria-label="Check-out date"
@@ -801,8 +823,10 @@ const handleSubmit = async (e: React.FormEvent) => {
               )}
             </div>
           </div>
+          )}
 
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+          {currentStep === 3 && (
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 animate-in slide-in-from-right duration-300">
             <h2 className="text-lg font-semibold text-gray-900 mb-4">Emergency Contact</h2>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -816,7 +840,7 @@ const handleSubmit = async (e: React.FormEvent) => {
                   name="emergencyContactName"
                   value={formData.emergencyContactName}
                   onChange={handleInputChange}
-                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-green-500 focus:outline-none focus:border-transparent text-gray-900 ${
+                  className={`w-full px-3 py-2 min-h-[52px] border rounded-lg focus:ring-2 focus:ring-green-500 focus:outline-none focus:border-transparent text-gray-900 ${
                     errors.emergencyContactName ? 'border-red-600' : 'border-gray-300'
                   }`}
                   placeholder="Emergency contact full name"
@@ -838,11 +862,12 @@ const handleSubmit = async (e: React.FormEvent) => {
                 </label>
                 <input
                   type="tel"
+                  autoComplete="tel"
                   id="emergencyContactPhone"
                   name="emergencyContactPhone"
                   value={formData.emergencyContactPhone}
                   onChange={handleInputChange}
-                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-green-500 focus:outline-none focus:border-transparent text-gray-900 ${
+                  className={`w-full px-3 py-2 min-h-[52px] border rounded-lg focus:ring-2 focus:ring-green-500 focus:outline-none focus:border-transparent text-gray-900 ${
                     errors.emergencyContactPhone ? 'border-red-600' : 'border-gray-300'
                   }`}
                   placeholder="e.g., 9876543210"
@@ -852,7 +877,6 @@ const handleSubmit = async (e: React.FormEvent) => {
                   aria-describedby={errors.emergencyContactPhone ? 'emergencyContactPhone-error' : 'emergencyContactPhone-hint'}
                   minLength={10}
                   maxLength={15}
-                  autoComplete="off"
                 />
                 <p id="emergencyContactPhone-hint" className="text-gray-500 text-xs mt-1">Must be different from your phone number</p>
                 {errors.emergencyContactPhone && <p id="emergencyContactPhone-error" className="text-red-700 text-xs mt-1" role="alert">{errors.emergencyContactPhone}</p>}
@@ -867,7 +891,7 @@ const handleSubmit = async (e: React.FormEvent) => {
                   name="emergencyContactRelationship"
                   value={formData.emergencyContactRelationship}
                   onChange={handleInputChange}
-                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-green-500 focus:outline-none focus:border-transparent text-gray-900 ${
+                  className={`w-full px-3 py-2 min-h-[52px] border rounded-lg focus:ring-2 focus:ring-green-500 focus:outline-none focus:border-transparent text-gray-900 ${
                     errors.emergencyContactRelationship ? 'border-red-600' : 'border-gray-300'
                   }`}
                   aria-label="Emergency contact relationship"
@@ -886,25 +910,49 @@ const handleSubmit = async (e: React.FormEvent) => {
               </div>
             </div>
           </div>
+          )}
 
-          <div className="flex justify-end space-x-4">
+          {/* Form Navigation */}
+          <div className="flex flex-col sm:flex-row justify-between items-center gap-4 pt-6 border-t border-gray-100">
             <button
               type="button"
-              className="px-6 py-2 border border-gray-300 rounded-lg text-gray-900 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-colors"
-              aria-label="Cancel registration"
+              onClick={handlePrevStep}
+              disabled={currentStep === 1 || isSubmitting || loading}
+              className={`w-full sm:w-auto px-8 py-3 rounded-xl font-bold text-sm transition-all min-h-[44px] flex items-center justify-center ${
+                currentStep === 1
+                  ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                  : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 active:scale-[0.98]'
+              }`}
             >
-              Cancel
+              Previous Step
             </button>
-            <button
-              type="submit"
-              disabled={isSubmitting}
-              className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              aria-label={isSubmitting ? 'Registering tourist, please wait' : 'Submit tourist registration'}
-            >
-              {isSubmitting ? 'Registering...' : 'Register Tourist'}
-            </button>
+            
+            {currentStep < totalSteps ? (
+              <button
+                type="button"
+                onClick={handleNextStep}
+                disabled={isSubmitting || loading}
+                className="w-full sm:w-auto px-8 py-3 bg-green-600 text-white rounded-xl font-bold text-sm hover:bg-green-700 active:scale-[0.98] transition-all shadow-sm min-h-[44px] flex items-center justify-center"
+              >
+                Next Step
+              </button>
+            ) : (
+              <button
+                type="submit"
+                disabled={isSubmitting || loading}
+                className="w-full sm:w-auto px-10 py-3 bg-green-600 text-white rounded-xl font-bold text-sm hover:bg-green-700 active:scale-[0.98] transition-all shadow-md min-h-[44px] flex items-center justify-center disabled:opacity-50"
+              >
+                {isSubmitting ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-2 border-white/20 border-t-white mr-2"></div>
+                    Processing...
+                  </>
+                ) : 'Complete Registration'}
+              </button>
+            )}
           </div>
         </form>
+        </FormErrorBoundary>
       </div>
     </Layout>
   );

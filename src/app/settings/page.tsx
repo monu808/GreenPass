@@ -1,21 +1,15 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import Layout from '@/components/Layout';
 import { 
   Settings, 
   Save, 
-  Database,
   Bell,
   Shield,
   Globe,
   User,
-  Mail,
-  Phone,
-  MapPin,
   CheckCircle,
-  AlertTriangle,
-  Key,
   RefreshCw
 } from 'lucide-react';
 
@@ -173,13 +167,14 @@ export default function SettingsPage() {
     </div>
   );
 
-  const InputField = <T extends string | number>({ 
-    label, 
-    value, 
-    onChange, 
-    type = 'text', 
+  const InputField = <T extends string | number>({
+    label,
+    value,
+    onChange,
+    type = 'text',
     placeholder,
-    required = false 
+    required = false,
+    autoComplete,
   }: {
     label: string;
     value: T;
@@ -187,19 +182,25 @@ export default function SettingsPage() {
     type?: 'text' | 'email' | 'number' | 'password';
     placeholder?: string;
     required?: boolean;
-  }) => (
-    <div>
-      <label className="block text-sm font-medium text-gray-700 mb-2">{label}</label>
-      <input
-        type={type}
-        value={value}
-        onChange={(e) => onChange((type === 'number' ? Number(e.target.value) : e.target.value) as T)}
-        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-        placeholder={placeholder}
-        required={required}
-      />
-    </div>
-  );
+    autoComplete?: string;
+  }) => {
+    const fieldId = `input-${label.toLowerCase().replace(/\s+/g, '-')}`;
+    return (
+      <div>
+        <label htmlFor={fieldId} className="block text-sm font-medium text-gray-700 mb-2">{label}</label>
+        <input
+          id={fieldId}
+          type={type}
+          autoComplete={autoComplete}
+          value={value}
+          onChange={(e) => onChange(e.target.value as T)}
+          placeholder={placeholder}
+          required={required}
+          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+        />
+      </div>
+    );
+  };
 
   const SelectField = ({ 
     label, 
@@ -211,20 +212,24 @@ export default function SettingsPage() {
     value: string;
     onChange: (value: string) => void;
     options: { value: string; label: string }[];
-  }) => (
-    <div>
-      <label className="block text-sm font-medium text-gray-700 mb-2">{label}</label>
-      <select
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-      >
-        {options.map(option => (
-          <option key={option.value} value={option.value}>{option.label}</option>
-        ))}
-      </select>
-    </div>
-  );
+  }) => {
+    const fieldId = `select-${label.toLowerCase().replace(/\s+/g, '-')}`;
+    return (
+      <div>
+        <label htmlFor={fieldId} className="block text-sm font-medium text-gray-700 mb-2">{label}</label>
+        <select
+          id={fieldId}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+        >
+          {options.map(option => (
+            <option key={option.value} value={option.value}>{option.label}</option>
+          ))}
+        </select>
+      </div>
+    );
+  };
 
   const CheckboxField = ({ 
     label, 
@@ -234,17 +239,21 @@ export default function SettingsPage() {
     label: string;
     checked: boolean;
     onChange: (checked: boolean) => void;
-  }) => (
-    <div className="flex items-center">
-      <input
-        type="checkbox"
-        checked={checked}
-        onChange={(e) => onChange(e.target.checked)}
-        className="rounded border-gray-300 text-green-600 focus:ring-green-500"
-      />
-      <label className="ml-2 text-sm text-gray-700">{label}</label>
-    </div>
-  );
+  }) => {
+    const fieldId = `checkbox-${label.toLowerCase().replace(/\s+/g, '-')}`;
+    return (
+      <div className="flex items-center">
+        <input
+          id={fieldId}
+          type="checkbox"
+          checked={checked}
+          onChange={(e) => onChange(e.target.checked)}
+          className="rounded border-gray-300 text-green-600 focus:ring-green-500"
+        />
+        <label htmlFor={fieldId} className="ml-2 text-sm text-gray-700">{label}</label>
+      </div>
+    );
+  };
 
   const renderTabContent = () => {
     switch (activeTab) {
@@ -264,6 +273,7 @@ export default function SettingsPage() {
                   value={settings.general.adminEmail}
                   onChange={(value) => handleInputChange('general', 'adminEmail', value)}
                   type="email"
+                  autoComplete="email"
                   required
                 />
                 <InputField
@@ -410,6 +420,7 @@ export default function SettingsPage() {
                   value={settings.weather.apiKey}
                   onChange={(value) => handleInputChange('weather', 'apiKey', value)}
                   type="password"
+                  autoComplete="off"
                   placeholder="Enter your OpenWeatherMap API key"
                 />
                 <InputField

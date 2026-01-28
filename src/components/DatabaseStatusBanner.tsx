@@ -63,7 +63,7 @@ export default function DatabaseStatusBanner() {
   const iconColor = content.type === 'error' ? 'text-red-600' : 'text-yellow-600';
 
   return (
-    <div className={`border-l-4 p-4 ${bgColor} border-l-4`}>
+    <div role="status" aria-live="polite" className={`border-l-4 p-4 ${bgColor} border-l-4`}>
       <div className="flex items-start">
         <div className="flex-shrink-0">
           {content.type === 'error' ? (

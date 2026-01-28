@@ -68,6 +68,15 @@ export interface Destination {
     longitude: number;
   };
   sustainabilityFeatures?: SustainabilityFeatures;
+  weather?: {
+    temperature: number;
+    humidity: number;
+    weatherMain: string;
+    weatherDescription: string;
+    windSpeed: number;
+    alertLevel: string;
+    recordedAt: string;
+  };
 }
 
 export interface BookingSlot {
@@ -114,6 +123,18 @@ export interface DashboardStats {
   recyclingRate: number;
 }
 
+export interface EcologicalDamageIndicators {
+  soilCompaction?: number;
+  vegetationDisturbance?: number;
+  wildlifeDisturbance?: number;
+  waterSourceImpact?: number;
+  // Support snake_case from DB
+  soil_compaction?: number;
+  vegetation_disturbance?: number;
+  wildlife_disturbance?: number;
+  water_source_impact?: number;
+}
+
 export interface ComplianceReport {
   id: string;
   reportPeriod: string;
@@ -128,12 +149,7 @@ export interface ComplianceReport {
   };
   carbonFootprint: number;
   ecologicalImpactIndex: number;
-  ecologicalDamageIndicators?: {
-    soilCompaction: number;
-    vegetationDisturbance: number;
-    wildlifeDisturbance: number;
-    waterSourceImpact: number;
-  };
+  ecologicalDamageIndicators?: EcologicalDamageIndicators;
   previousPeriodScore?: number;
   policyViolationsCount: number;
   totalFines: number;
@@ -288,6 +304,23 @@ export interface EcoPointsLeaderboardEntry {
 }
 
 export type EcoImpactCategory = 'low-carbon' | 'community-friendly' | 'wildlife-safe';
+
+export type ConnectionState = 'connecting' | 'connected' | 'disconnected' | 'error';
+
+export interface EventSourceOptions {
+  reconnect?: boolean;
+  maxRetries?: number;
+  heartbeatTimeout?: number; // ms to wait before considering connection dead
+  onMessage?: (event: MessageEvent) => void;
+  onStateChange?: (state: ConnectionState) => void;
+}
+
+export interface UseEventSourceReturn {
+  connectionState: ConnectionState;
+  error: Error | null;
+  reconnect: () => void;
+  disconnect: () => void;
+}
 
 export interface SustainabilityScore {
   overallScore: number;

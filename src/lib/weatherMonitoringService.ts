@@ -50,12 +50,19 @@ class WeatherMonitor implements WeatherMonitoringService {
         return;
       }
 
+      // 1. Batch-fetch existing weather data from DB for all destinations at once
+      const destinationIds = destinations.map(d => d.id);
+      const latestWeatherBatch = await dbService.getWeatherDataForDestinations(destinationIds);
+      const sixHoursInMs = 6 * 60 * 60 * 1000;
+      const now = Date.now();
+
       // Check weather for each destination with rate limiting
       for (const dbDestination of destinations) {
         try {
           const destination = dbService.transformDbDestinationToDestination(dbDestination);
-          // Always check the database first to have some data (even if old)
-          const latestWeather = await dbService.getLatestWeatherData(destination.id);
+          
+          // 2. Use prefetched batch data for freshness checks
+          const latestWeather = latestWeatherBatch.get(destination.id);
 
           if (latestWeather && latestWeather.recorded_at) {
             const recordedAt = new Date(latestWeather.recorded_at).getTime();

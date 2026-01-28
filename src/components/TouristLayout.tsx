@@ -19,6 +19,9 @@ export default function TouristLayout({ children }: TouristLayoutProps) {
          mobile layout shifts that bots often flag as "UI Stability" issues.
       */}
       <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-100 relative overflow-x-hidden">
+        <a href="#main-content" className="skip-link">
+          Skip to main content
+        </a>
         
         {/* BACKGROUND ELEMENTS */}
         <div className="absolute inset-0 hero-pattern opacity-30 pointer-events-none"></div>
@@ -37,10 +40,11 @@ export default function TouristLayout({ children }: TouristLayoutProps) {
         
         <TouristHeader 
           onMenuClick={() => setIsSidebarOpen(true)} 
+          isMenuOpen={isSidebarOpen}
         />
         
         {/* MAIN CONTENT AREA */}
-        <main className="lg:ml-64 pt-16 relative z-10 transition-all duration-300">
+        <main id="main-content" aria-label="Main content" className="lg:ml-64 pt-16 relative z-10 transition-all duration-300">
           <div className="p-4 lg:p-8">
             <div className="max-w-7xl mx-auto animate-in fade-in duration-700">
               {children}

@@ -21,7 +21,7 @@ const EcoCapacityAlert: React.FC<EcoCapacityAlertProps> = ({
   const isCritical = utilization >= 80;
   
   return (
-    <div className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border ${
+    <div role="alert" aria-live="assertive" className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border ${
       isCritical 
         ? 'bg-red-50 border-red-200 text-red-700 animate-pulse' 
         : 'bg-orange-50 border-orange-200 text-orange-700'

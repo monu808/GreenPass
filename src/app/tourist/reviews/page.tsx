@@ -1,7 +1,10 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import TouristLayout from '@/components/TouristLayout';
+import { useModalAccessibility } from "@/lib/accessibility";
+import { sanitizeSearchTerm, cn } from '@/lib/utils';
+import { validateInput, SearchFilterSchema } from '@/lib/validation';
 import { 
   Star, 
   ThumbsUp, 
@@ -145,6 +148,14 @@ export default function ReviewsRatings() {
   const [selectedRating, setSelectedRating] = useState<string>('all');
   const [sortBy, setSortBy] = useState<string>('newest');
   const [showWriteReview, setShowWriteReview] = useState(false);
+  const [newReviewRating, setNewReviewRating] = useState<number>(0);
+
+  const modalRef = useRef<HTMLDivElement>(null);
+  useModalAccessibility({
+    modalRef,
+    isOpen: showWriteReview,
+    onClose: () => setShowWriteReview(false)
+  });
 
   const destinations = Array.from(new Set(reviews.map(review => review.destination)));
   
@@ -160,9 +171,17 @@ export default function ReviewsRatings() {
   const totalReviews = ratingBreakdown.reduce((sum, item) => sum + item.count, 0);
 
   const filteredReviews = reviews.filter(review => {
-    const matchesSearch = review.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         review.content.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         review.destination.toLowerCase().includes(searchTerm.toLowerCase());
+    const sanitizedSearch = sanitizeSearchTerm(searchTerm);
+    
+    const filterValidation = validateInput(SearchFilterSchema, {
+      searchTerm: sanitizedSearch,
+    });
+
+    const validFilters = filterValidation.success ? filterValidation.data : { searchTerm: "" };
+
+    const matchesSearch = review.title.toLowerCase().includes(validFilters.searchTerm?.toLowerCase() || "") ||
+                         review.content.toLowerCase().includes(validFilters.searchTerm?.toLowerCase() || "") ||
+                         review.destination.toLowerCase().includes(validFilters.searchTerm?.toLowerCase() || "");
     const matchesDestination = selectedDestination === 'all' || review.destination === selectedDestination;
     const matchesRating = selectedRating === 'all' || review.rating >= parseInt(selectedRating);
     
@@ -196,6 +215,7 @@ export default function ReviewsRatings() {
             className={`${sizeClass} ${
               star <= rating ? 'text-yellow-400 fill-current' : 'text-gray-300'
             }`}
+            aria-hidden="true"
           />
         ))}
       </div>
@@ -208,6 +228,38 @@ export default function ReviewsRatings() {
 
   const markHelpful = (reviewId: string) => {
     console.log('Mark helpful:', reviewId);
+  };
+
+  const handleReviewSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const formData = new FormData(e.currentTarget);
+    
+    const reviewData = {
+      destination: formData.get('destination') as string,
+      rating: newReviewRating,
+      title: formData.get('title') as string,
+      content: formData.get('content') as string,
+    };
+
+    if (!reviewData.destination || reviewData.rating === 0 || !reviewData.title || !reviewData.content) {
+      alert('Please fill in all fields and provide a rating.');
+      return;
+    }
+
+    console.log('Submitting review:', reviewData);
+    
+    // Simulate API call
+    try {
+      // In a real app, this would be an API call:
+      // await fetch('/api/reviews', { method: 'POST', body: JSON.stringify(reviewData) });
+      
+      alert('Review posted successfully!');
+      setShowWriteReview(false);
+      setNewReviewRating(0); // Reset rating after success
+    } catch (error) {
+      console.error('Error posting review:', error);
+      alert('Failed to post review. Please try again.');
+    }
   };
 
   return (
@@ -239,7 +291,7 @@ export default function ReviewsRatings() {
                 {ratingBreakdown.map((item) => (
                   <div key={item.rating} className="flex items-center">
                     <span className="text-sm text-gray-600 w-8">{item.rating}</span>
-                    <Star className="h-4 w-4 text-yellow-400 fill-current mr-2" />
+                    <Star className="h-4 w-4 text-yellow-400 fill-current mr-2" aria-hidden="true" />
                     <div className="flex-1 bg-gray-200 rounded-full h-2 mr-3">
                       <div 
                         className="bg-yellow-400 h-2 rounded-full" 
@@ -259,22 +311,22 @@ export default function ReviewsRatings() {
         {/* Top Stats */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <div className="bg-white p-4 rounded-lg border border-gray-200 text-center">
-            <BarChart3 className="h-8 w-8 text-blue-600 mx-auto mb-2" />
+            <BarChart3 className="h-8 w-8 text-blue-600 mx-auto mb-2" aria-hidden="true" />
             <div className="text-2xl font-bold text-gray-900">{totalReviews}</div>
             <div className="text-sm text-gray-600">Total Reviews</div>
           </div>
           <div className="bg-white p-4 rounded-lg border border-gray-200 text-center">
-            <TrendingUp className="h-8 w-8 text-green-600 mx-auto mb-2" />
+            <TrendingUp className="h-8 w-8 text-green-600 mx-auto mb-2" aria-hidden="true" />
             <div className="text-2xl font-bold text-gray-900">94%</div>
             <div className="text-sm text-gray-600">Positive Reviews</div>
           </div>
           <div className="bg-white p-4 rounded-lg border border-gray-200 text-center">
-            <Award className="h-8 w-8 text-yellow-600 mx-auto mb-2" />
+            <Award className="h-8 w-8 text-yellow-600 mx-auto mb-2" aria-hidden="true" />
             <div className="text-2xl font-bold text-gray-900">24</div>
             <div className="text-sm text-gray-600">Featured Reviews</div>
           </div>
           <div className="bg-white p-4 rounded-lg border border-gray-200 text-center">
-            <Users className="h-8 w-8 text-purple-600 mx-auto mb-2" />
+            <Users className="h-8 w-8 text-purple-600 mx-auto mb-2" aria-hidden="true" />
             <div className="text-2xl font-bold text-gray-900">1.2K</div>
             <div className="text-sm text-gray-600">Active Reviewers</div>
           </div>
@@ -284,8 +336,10 @@ export default function ReviewsRatings() {
         <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
           <div className="flex flex-col lg:flex-row lg:items-center gap-4 mb-4">
             <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+              <label htmlFor="review-search" className="sr-only">Search reviews</label>
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" aria-hidden="true" />
               <input
+                id="review-search"
                 type="text"
                 placeholder="Search reviews..."
                 value={searchTerm}
@@ -298,13 +352,15 @@ export default function ReviewsRatings() {
               onClick={() => setShowWriteReview(true)}
               className="flex items-center px-4 py-2 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 transition-colors"
             >
-              <Edit3 className="h-4 w-4 mr-2" />
+              <Edit3 className="h-4 w-4 mr-2" aria-hidden="true" />
               Write Review
             </button>
           </div>
 
           <div className="flex flex-wrap gap-3">
+            <label htmlFor="destination-filter" className="sr-only">Filter by destination</label>
             <select
+              id="destination-filter"
               value={selectedDestination}
               onChange={(e) => setSelectedDestination(e.target.value)}
               className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-transparent"
@@ -315,7 +371,9 @@ export default function ReviewsRatings() {
               ))}
             </select>
             
+            <label htmlFor="rating-filter" className="sr-only">Filter by rating</label>
             <select
+              id="rating-filter"
               value={selectedRating}
               onChange={(e) => setSelectedRating(e.target.value)}
               className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-transparent"
@@ -326,7 +384,9 @@ export default function ReviewsRatings() {
               <option value="3">3+ Stars</option>
             </select>
             
+            <label htmlFor="sort-filter" className="sr-only">Sort reviews</label>
             <select
+              id="sort-filter"
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value)}
               className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-transparent"
@@ -341,30 +401,30 @@ export default function ReviewsRatings() {
         </div>
 
         {/* Reviews List */}
-        <div className="space-y-4">
+        <div className="space-y-4" aria-live="polite" aria-atomic="true">
           {sortedReviews.map((review) => (
             <div key={review.id} className="bg-white rounded-xl p-6 shadow-sm border border-gray-200 hover:border-yellow-300 transition-colors">
               {/* Review Header */}
               <div className="flex items-start justify-between mb-4">
                 <div className="flex items-start space-x-3">
-                  <div className="w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center">
-                    <User className="h-6 w-6 text-gray-500" />
+                  <div className="w-10 h-10 bg-slate-100 shimmer rounded-full flex items-center justify-center">
+                    <User className="h-6 w-6 text-gray-500" aria-hidden="true" />
                   </div>
                   <div>
                     <div className="flex items-center space-x-2">
                       <h3 className="font-semibold text-gray-900">{review.userName}</h3>
                       {review.verified && (
                         <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
-                          <Award className="h-3 w-3 mr-1" />
+                          <Award className="h-3 w-3 mr-1" aria-hidden="true" />
                           Verified
                         </span>
                       )}
                     </div>
                     <div className="flex items-center space-x-2 text-sm text-gray-600 mt-1">
-                      <MapPin className="h-3 w-3" />
+                      <MapPin className="h-3 w-3" aria-hidden="true" />
                       <span>{review.destination}</span>
                       <span>•</span>
-                      <Calendar className="h-3 w-3" />
+                      <Calendar className="h-3 w-3" aria-hidden="true" />
                       <span>{new Date(review.date).toLocaleDateString()}</span>
                       <span>•</span>
                       <span className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded text-xs">
@@ -391,8 +451,9 @@ export default function ReviewsRatings() {
                 <div className="mb-4">
                   <div className="flex space-x-2 overflow-x-auto">
                     {review.photos.map((photo, index) => (
-                      <div key={index} className="w-24 h-24 bg-gray-200 rounded-lg flex-shrink-0 flex items-center justify-center">
-                        <Camera className="h-6 w-6 text-gray-400" />
+                      <div key={index} className="w-24 h-24 bg-slate-100 shimmer rounded-lg flex-shrink-0 flex items-center justify-center">
+                        <Camera className="h-6 w-6 text-gray-400" aria-hidden="true" />
+                        <span className="sr-only">Photo {index + 1} of {review.destination}</span>
                       </div>
                     ))}
                   </div>
@@ -418,8 +479,9 @@ export default function ReviewsRatings() {
                   <button
                     onClick={() => markHelpful(review.id)}
                     className="flex items-center space-x-1 text-gray-600 hover:text-green-600 transition-colors"
+                    aria-label={`Mark review by ${review.userName} as helpful`}
                   >
-                    <ThumbsUp className="h-4 w-4" />
+                    <ThumbsUp className="h-4 w-4" aria-hidden="true" />
                     <span className="text-sm">Helpful ({review.helpful})</span>
                   </button>
                   
@@ -428,23 +490,34 @@ export default function ReviewsRatings() {
                     className={`flex items-center space-x-1 transition-colors ${
                       review.isLiked ? 'text-red-600' : 'text-gray-600 hover:text-red-600'
                     }`}
+                    aria-label={review.isLiked ? "Unlike review" : "Like review"}
+                    aria-pressed={review.isLiked}
                   >
-                    <Heart className={`h-4 w-4 ${review.isLiked ? 'fill-current' : ''}`} />
+                    <Heart className={`h-4 w-4 ${review.isLiked ? 'fill-current' : ''}`} aria-hidden="true" />
                     <span className="text-sm">{review.likes}</span>
                   </button>
                   
-                  <button className="flex items-center space-x-1 text-gray-600 hover:text-blue-600 transition-colors">
-                    <MessageCircle className="h-4 w-4" />
+                  <button 
+                    className="flex items-center space-x-1 text-gray-600 hover:text-blue-600 transition-colors"
+                    aria-label={`Reply to review by ${review.userName}`}
+                  >
+                    <MessageCircle className="h-4 w-4" aria-hidden="true" />
                     <span className="text-sm">Reply</span>
                   </button>
                 </div>
                 
                 <div className="flex items-center space-x-2">
-                  <button className="p-1 text-gray-600 hover:text-blue-600 transition-colors">
-                    <Share2 className="h-4 w-4" />
+                  <button 
+                    className="p-1 text-gray-600 hover:text-blue-600 transition-colors"
+                    aria-label="Share review"
+                  >
+                    <Share2 className="h-4 w-4" aria-hidden="true" />
                   </button>
-                  <button className="p-1 text-gray-600 hover:text-red-600 transition-colors">
-                    <Flag className="h-4 w-4" />
+                  <button 
+                    className="p-1 text-gray-600 hover:text-red-600 transition-colors"
+                    aria-label="Report review"
+                  >
+                    <Flag className="h-4 w-4" aria-hidden="true" />
                   </button>
                 </div>
               </div>
@@ -454,76 +527,95 @@ export default function ReviewsRatings() {
 
         {/* Write Review Modal */}
         {showWriteReview && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-              <div className="p-6">
-                <div className="flex items-center justify-between mb-6">
-                  <h2 className="text-xl font-bold text-gray-900">Write a Review</h2>
-                  <button
-                    onClick={() => setShowWriteReview(false)}
-                    className="text-gray-400 hover:text-gray-600"
+          <div 
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center z-50 p-0 sm:p-4"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="write-review-title"
+          >
+            <div 
+              ref={modalRef}
+              className="bg-white rounded-t-[2rem] sm:rounded-2xl max-w-2xl w-full h-[90vh] sm:h-auto sm:max-h-[90vh] overflow-hidden flex flex-col animate-in slide-in-from-bottom duration-300"
+            >
+              <div className="p-6 border-b border-gray-100 flex items-center justify-between sticky top-0 bg-white z-10">
+                <h2 id="write-review-title" className="text-xl font-bold text-gray-900">Write a Review</h2>
+                <button
+                  onClick={() => setShowWriteReview(false)}
+                  className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-yellow-500 min-h-[44px] min-w-[44px] flex items-center justify-center"
+                  aria-label="Close modal"
+                >
+                  <span aria-hidden="true" className="text-2xl leading-none">×</span>
+                </button>
+              </div>
+              
+              <form onSubmit={handleReviewSubmit} className="p-6 space-y-6 overflow-y-auto no-scrollbar flex-1">
+                <div>
+                  <label htmlFor="destination-select" className="block text-sm font-bold text-gray-700 mb-2">Destination</label>
+                  <select 
+                    id="destination-select" 
+                    name="destination"
+                    className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-yellow-500 focus:border-transparent transition-all outline-none bg-gray-50/50"
                   >
-                    ×
-                  </button>
+                    <option value="">Select destination...</option>
+                    {destinations.map(dest => (
+                      <option key={dest} value={dest}>{dest}</option>
+                    ))}
+                  </select>
                 </div>
                 
-                <form className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Destination</label>
-                    <select className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-transparent">
-                      <option value="">Select destination...</option>
-                      {destinations.map(dest => (
-                        <option key={dest} value={dest}>{dest}</option>
-                      ))}
-                    </select>
+                <div>
+                  <p id="rating-label" className="text-sm font-bold text-gray-700 mb-3">Rating</p>
+                  <div className="flex space-x-2" role="radiogroup" aria-labelledby="rating-label">
+                    {[1, 2, 3, 4, 5].map((star) => (
+                      <button 
+                        key={star} 
+                        type="button" 
+                        onClick={() => setNewReviewRating(star)}
+                        role="radio"
+                        aria-checked={newReviewRating === star}
+                        className={cn(
+                          "focus:outline-none focus:ring-2 focus:ring-yellow-500 rounded-lg p-2 transition-all hover:scale-110 active:scale-95 min-h-[44px] min-w-[44px] flex items-center justify-center",
+                          newReviewRating >= star ? "text-yellow-400 bg-yellow-50/50" : "text-gray-200 bg-gray-50"
+                        )}
+                        aria-label={`Rate ${star} out of 5 stars`}
+                      >
+                        <Star className={cn("h-7 w-7", newReviewRating >= star && "fill-current")} aria-hidden="true" />
+                      </button>
+                    ))}
                   </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Rating</label>
-                    <div className="flex space-x-1">
-                      {[1, 2, 3, 4, 5].map((star) => (
-                        <button key={star} type="button" className="text-gray-300 hover:text-yellow-400">
-                          <Star className="h-6 w-6" />
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Review Title</label>
-                    <input
-                      type="text"
-                      placeholder="Summarize your experience..."
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-transparent"
-                    />
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Your Review</label>
-                    <textarea
-                      rows={4}
-                      placeholder="Share your experience with other travelers..."
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-transparent"
-                    />
-                  </div>
-                  
-                  <div className="flex justify-end space-x-3 pt-4">
-                    <button
-                      type="button"
-                      onClick={() => setShowWriteReview(false)}
-                      className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      type="submit"
-                      className="px-4 py-2 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 transition-colors"
-                    >
-                      Submit Review
-                    </button>
-                  </div>
-                </form>
-              </div>
+                </div>
+                
+                <div>
+                  <label htmlFor="review-title" className="block text-sm font-bold text-gray-700 mb-2">Review Title</label>
+                  <input
+                    id="review-title"
+                    name="title"
+                    type="text"
+                    placeholder="Sum up your experience"
+                    className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-yellow-500 focus:border-transparent transition-all outline-none bg-gray-50/50"
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor="review-content" className="block text-sm font-bold text-gray-700 mb-2">Review Content</label>
+                  <textarea
+                    id="review-content"
+                    name="content"
+                    rows={4}
+                    placeholder="What did you like or dislike?"
+                    className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-yellow-500 focus:border-transparent transition-all outline-none bg-gray-50/50 resize-none"
+                  />
+                </div>
+
+                <div className="pt-2">
+                  <button 
+                    type="submit"
+                    className="w-full py-4 bg-yellow-500 text-white rounded-xl font-bold text-lg hover:bg-yellow-600 transition-all shadow-lg shadow-yellow-500/20 active:scale-[0.98]"
+                  >
+                    Post Review
+                  </button>
+                </div>
+              </form>
             </div>
           </div>
         )}

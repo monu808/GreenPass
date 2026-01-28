@@ -1,6 +1,6 @@
 
 import { CarbonFootprintResult, CarbonOffsetOption } from '@/types';
-import { ORIGIN_LOCATIONS, getOriginLocationById } from '@/data/originLocations';
+import { getOriginLocationById } from '@/data/originLocations';
 
 /**
  * Carbon Footprint Calculator for GreenPass

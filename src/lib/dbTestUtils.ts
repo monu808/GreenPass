@@ -15,7 +15,7 @@ export async function testDatabaseConnection(): Promise<{
       };
     }
     // Test basic connection
-    const { data: connectionTest, error: connectionError } = await supabase!
+    const { error: connectionError } = await supabase!
       .from('destinations')
       .select('count', { count: 'exact', head: true });
 

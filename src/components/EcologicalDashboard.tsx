@@ -28,8 +28,9 @@ import {
   Cell,
   Legend
 } from "recharts";
+import { ChartErrorBoundary } from './errors';
 import { getDbService } from "@/lib/databaseService";
-import { Alert, Destination, HistoricalOccupancy, EcologicalMetrics, WasteMetricsSummary, CleanupActivity } from "@/types";
+import { Alert, HistoricalOccupancy, EcologicalMetrics, WasteMetricsSummary, CleanupActivity } from "@/types";
 import { getPolicyEngine } from "@/lib/ecologicalPolicyEngine";
 import { formatDateTime } from "@/lib/utils";
 import { 
@@ -351,7 +352,7 @@ export default function EcologicalDashboard() {
 
   if (error) {
     return (
-      <div className="p-6 bg-red-50 rounded-lg border border-red-200 text-center">
+      <div className="p-6 bg-red-50 rounded-lg border border-red-200 text-center" aria-live="assertive">
         <AlertTriangle className="h-12 w-12 text-red-500 mx-auto mb-4" />
         <h3 className="text-lg font-bold text-red-800 mb-2">Error</h3>
         <p className="text-red-600 mb-4">{error}</p>
@@ -384,7 +385,7 @@ export default function EcologicalDashboard() {
       </div>
 
       {/* Summary Statistics */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6" aria-live="polite">
         <StatCard
           title="Destinations at Risk"
           value={summaryStats.destinationsAtRisk}
@@ -485,53 +486,55 @@ export default function EcologicalDashboard() {
             </div>
           </div>
           <div className="h-80 w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={historicalTrends}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                <XAxis 
-                  dataKey="isoDate" 
-                  tick={{ fontSize: 12 }} 
-                  tickFormatter={(str: string) => {
-                    const date = new Date(str);
-                    return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
-                  }}
-                />
-                <YAxis tick={{ fontSize: 12 }} />
-                <Tooltip 
-                  contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
-                  labelFormatter={(str: string) => new Date(str).toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
-                />
-                <Legend verticalAlign="top" height={36} iconType="circle" />
-                <Line 
-                  type="monotone" 
-                  dataKey="occupancy" 
-                  name="Actual Occupancy"
-                  stroke="#2563eb" 
-                  strokeWidth={3} 
-                  dot={{ r: 4, fill: '#2563eb', strokeWidth: 2, stroke: '#fff' }}
-                  activeDot={{ r: 6, strokeWidth: 0 }}
-                />
-                <Line 
-                  type="monotone" 
-                  dataKey="adjustedCapacity" 
-                  name="Ecological Limit"
-                  stroke="#ef4444" 
-                  strokeDasharray="5 5"
-                  strokeWidth={2} 
-                  dot={false}
-                />
-                {/* 70% Threshold Line */}
-                <Line 
-                  type="monotone"
-                  dataKey={(d: HistoricalOccupancy) => d.adjustedCapacity * 0.7}
-                  name="Caution (70%)"
-                  stroke="#eab308"
-                  strokeDasharray="3 3"
-                  strokeWidth={1}
-                  dot={false}
-                />
-              </LineChart>
-            </ResponsiveContainer>
+            <ChartErrorBoundary chartTitle="Historical Occupancy Trends">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={historicalTrends}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                  <XAxis 
+                    dataKey="isoDate" 
+                    tick={{ fontSize: 12 }} 
+                    tickFormatter={(str: string) => {
+                      const date = new Date(str);
+                      return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+                    }}
+                  />
+                  <YAxis tick={{ fontSize: 12 }} />
+                  <Tooltip 
+                    contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
+                    labelFormatter={(str: string) => new Date(str).toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+                  />
+                  <Legend verticalAlign="top" height={36} iconType="circle" />
+                  <Line 
+                    type="monotone" 
+                    dataKey="occupancy" 
+                    name="Actual Occupancy"
+                    stroke="#2563eb" 
+                    strokeWidth={3} 
+                    dot={{ r: 4, fill: '#2563eb', strokeWidth: 2, stroke: '#fff' }}
+                    activeDot={{ r: 6, strokeWidth: 0 }}
+                  />
+                  <Line 
+                    type="monotone" 
+                    dataKey="adjustedCapacity" 
+                    name="Ecological Limit"
+                    stroke="#ef4444" 
+                    strokeDasharray="5 5"
+                    strokeWidth={2} 
+                    dot={false}
+                  />
+                  {/* 70% Threshold Line */}
+                  <Line 
+                    type="monotone"
+                    dataKey={(d: HistoricalOccupancy) => d.adjustedCapacity * 0.7}
+                    name="Caution (70%)"
+                    stroke="#eab308"
+                    strokeDasharray="3 3"
+                    strokeWidth={1}
+                    dot={false}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            </ChartErrorBoundary>
           </div>
         </div>
       </div>
@@ -586,7 +589,7 @@ export default function EcologicalDashboard() {
           </div>
         </div>
 
-        <div className="overflow-x-auto">
+        <div className="hidden sm:block overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
@@ -636,6 +639,53 @@ export default function EcologicalDashboard() {
               })}
             </tbody>
           </table>
+        </div>
+
+        {/* Mobile Card View for Impact Estimations */}
+        <div className="sm:hidden space-y-4">
+          {destinations.map((item) => {
+            const carbon = estimateCarbonFootprint(item.currentOccupancy, item.sensitivity);
+            const waste = estimateWasteGeneration(item.currentOccupancy, item.sensitivity);
+            return (
+              <div key={item.id} className="bg-gray-50 rounded-2xl p-5 border border-gray-100 shadow-sm active:scale-[0.98] transition-transform">
+                <div className="flex justify-between items-start mb-4">
+                  <h3 className="font-black text-gray-900 uppercase tracking-tight text-sm">{item.name}</h3>
+                  <div className="flex items-center text-green-600 bg-green-50 px-2 py-1 rounded-lg">
+                    <TrendingUp className="h-3 w-3 mr-1 transform rotate-180" />
+                    <span className="text-[10px] font-black">-2.4%</span>
+                  </div>
+                </div>
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="bg-white p-3 rounded-xl border border-gray-100">
+                    <p className="text-[10px] font-black text-blue-600 uppercase tracking-widest mb-1">Daily CO2e</p>
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-black text-gray-900">{carbon.toLocaleString()} kg</span>
+                      <div className="w-8 bg-gray-100 h-1 rounded-full overflow-hidden">
+                        <div 
+                          className="bg-blue-500 h-full" 
+                          style={{ width: `${Math.min(100, (carbon / 500) * 100)}%` }}
+                        ></div>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="bg-white p-3 rounded-xl border border-gray-100">
+                    <p className="text-[10px] font-black text-emerald-600 uppercase tracking-widest mb-1">Daily Waste</p>
+                    <div className="flex items-center justify-between">
+                      <span className={`text-xs font-black ${getWasteRiskColor(waste)}`}>{waste.toLocaleString()} kg</span>
+                      <div className="w-8 bg-gray-100 h-1 rounded-full overflow-hidden">
+                        <div 
+                          className={`h-full ${waste > 120 ? 'bg-red-500' : 'bg-green-500'}`}
+                          style={{ width: `${Math.min(100, (waste / 150) * 100)}%` }}
+                        ></div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
         </div>
         
         <div className="mt-6 pt-6 border-t border-gray-100 text-[10px] text-gray-400 leading-relaxed">
@@ -756,43 +806,45 @@ export default function EcologicalDashboard() {
               </div>
             </div>
             <div className="h-64 w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={wasteTrendData}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                  <XAxis 
-                    dataKey="date" 
-                    tick={{ fontSize: 10, fill: "#64748b" }} 
-                    axisLine={false}
-                    tickLine={false}
-                    tickFormatter={(str: string) => {
-                      const date = new Date(str);
-                      return date.toLocaleDateString(undefined, { month: "short", day: "numeric" });
-                    }}
-                  />
-                  <YAxis 
-                    tick={{ fontSize: 10, fill: "#64748b" }}
-                    axisLine={false}
-                    tickLine={false}
-                  />
-                  <Tooltip 
-                    contentStyle={{ 
-                      borderRadius: "12px", 
-                      border: "none", 
-                      boxShadow: "0 10px 15px -3px rgb(0 0 0 / 0.1)",
-                      fontSize: "12px"
-                    }}
-                  />
-                  <Line 
-                    type="monotone" 
-                    dataKey="quantity" 
-                    name="Waste (kg)"
-                    stroke="#10b981" 
-                    strokeWidth={2} 
-                    dot={{ r: 3, fill: "#10b981", strokeWidth: 2, stroke: "#fff" }}
-                    activeDot={{ r: 5, strokeWidth: 0 }}
-                  />
-                </LineChart>
-              </ResponsiveContainer>
+              <ChartErrorBoundary chartTitle="Waste Collection Trend">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={wasteTrendData}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                    <XAxis 
+                      dataKey="date" 
+                      tick={{ fontSize: 10, fill: "#64748b" }} 
+                      axisLine={false}
+                      tickLine={false}
+                      tickFormatter={(str: string) => {
+                        const date = new Date(str);
+                        return date.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+                      }}
+                    />
+                    <YAxis 
+                      tick={{ fontSize: 10, fill: "#64748b" }}
+                      axisLine={false}
+                      tickLine={false}
+                    />
+                    <Tooltip 
+                      contentStyle={{ 
+                        borderRadius: "12px", 
+                        border: "none", 
+                        boxShadow: "0 10px 15px -3px rgb(0 0 0 / 0.1)",
+                        fontSize: "12px"
+                      }}
+                    />
+                    <Line 
+                      type="monotone" 
+                      dataKey="quantity" 
+                      name="Waste (kg)"
+                      stroke="#10b981" 
+                      strokeWidth={2} 
+                      dot={{ r: 3, fill: "#10b981", strokeWidth: 2, stroke: "#fff" }}
+                      activeDot={{ r: 5, strokeWidth: 0 }}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              </ChartErrorBoundary>
             </div>
           </div>
 
@@ -803,39 +855,41 @@ export default function EcologicalDashboard() {
               Waste Type Distribution
             </h3>
             <div className="h-64 w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={wasteDistributionData} layout="vertical">
-                  <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#f1f5f9" />
-                  <XAxis type="number" hide />
-                  <YAxis 
-                    dataKey="name" 
-                    type="category" 
-                    tick={{ fontSize: 10, fill: "#64748b" }} 
-                    axisLine={false}
-                    tickLine={false}
-                    width={80}
-                  />
-                  <Tooltip 
-                    cursor={{ fill: '#f8fafc' }}
-                    contentStyle={{ 
-                      borderRadius: "12px", 
-                      border: "none", 
-                      boxShadow: "0 10px 15px -3px rgb(0 0 0 / 0.1)",
-                      fontSize: "12px"
-                    }}
-                  />
-                  <Bar dataKey="value" name="Quantity (kg)" radius={[0, 4, 4, 0]}>
-                    {wasteDistributionData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={['#10b981', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6'][index % 5]} />
-                    ))}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
+              <ChartErrorBoundary chartTitle="Waste Type Distribution">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={wasteDistributionData} layout="vertical">
+                    <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#f1f5f9" />
+                    <XAxis type="number" hide />
+                    <YAxis 
+                      dataKey="name" 
+                      type="category" 
+                      tick={{ fontSize: 10, fill: "#64748b" }} 
+                      axisLine={false}
+                      tickLine={false}
+                      width={80}
+                    />
+                    <Tooltip 
+                      cursor={{ fill: '#f8fafc' }}
+                      contentStyle={{ 
+                        borderRadius: "12px", 
+                        border: "none", 
+                        boxShadow: "0 10px 15px -3px rgb(0 0 0 / 0.1)",
+                        fontSize: "12px"
+                      }}
+                    />
+                    <Bar dataKey="value" name="Quantity (kg)" radius={[0, 4, 4, 0]}>
+                      {wasteDistributionData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={['#10b981', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6'][index % 5]} />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </ChartErrorBoundary>
             </div>
           </div>
         </div>
 
-        <div className="overflow-x-auto">
+        <div className="hidden sm:block overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
@@ -875,6 +929,40 @@ export default function EcologicalDashboard() {
               ))}
             </tbody>
           </table>
+        </div>
+
+        {/* Mobile Card View for Waste Distribution */}
+        <div className="sm:hidden space-y-4">
+          {destinationsWaste.map((item) => (
+            <div key={item.id} className="bg-gray-50 rounded-2xl p-5 border border-gray-100 shadow-sm active:scale-[0.98] transition-transform">
+              <div className="flex justify-between items-start mb-4">
+                <h3 className="font-black text-gray-900 uppercase tracking-tight text-sm">{item.name}</h3>
+                <div className="flex items-center">
+                  <div className="flex text-emerald-500 mr-1">
+                    <Leaf className="h-3 w-3 fill-current" />
+                  </div>
+                  <span className="text-[10px] font-black text-gray-500 uppercase tracking-widest">Good Score</span>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between mb-4">
+                <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Total Collected</span>
+                <span className="text-sm font-black text-emerald-600">{item.totalWaste.toLocaleString()} kg</span>
+              </div>
+
+              <div className="space-y-2">
+                <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Waste Types</span>
+                <div className="flex flex-wrap gap-2">
+                  {Object.entries(item.byType || {}).map(([type, qty]: [string, number]) => (
+                    <div key={type} className="bg-white px-3 py-1.5 rounded-xl border border-gray-100 flex items-center gap-2">
+                      <span className="text-[10px] font-black text-gray-900 capitalize">{type}</span>
+                      <span className="text-[10px] font-black text-blue-600">{qty}kg</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          ))}
         </div>
       </div>
 
@@ -940,7 +1028,7 @@ export default function EcologicalDashboard() {
           <ShieldAlert className="h-5 w-5 mr-2 text-orange-500" />
           Destination Risk & Impact Analysis
         </h2>
-        <div className="overflow-x-auto">
+        <div className="hidden sm:block overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
@@ -989,16 +1077,75 @@ export default function EcologicalDashboard() {
             </tbody>
           </table>
         </div>
+
+        {/* Mobile Card View for Risk & Impact Analysis */}
+        <div className="sm:hidden space-y-4">
+          {destinations.map((item) => (
+            <div key={item.id} className="bg-gray-50 rounded-2xl p-5 border border-gray-100 shadow-sm active:scale-[0.98] transition-transform">
+              <div className="flex justify-between items-start mb-4">
+                <div>
+                  <h3 className="font-black text-gray-900 uppercase tracking-tight text-sm">{item.name}</h3>
+                  <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest mt-1 block">
+                    {item.sensitivity} Sensitivity
+                  </span>
+                </div>
+                <span className={`inline-flex items-center px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider ${
+                  item.riskLevel === 'critical' ? 'bg-red-100 text-red-700' :
+                  item.riskLevel === 'high' ? 'bg-orange-100 text-orange-700' :
+                  item.riskLevel === 'medium' ? 'bg-yellow-100 text-yellow-700' :
+                  'bg-green-100 text-green-700'
+                }`}>
+                  {item.riskLevel}
+                </span>
+              </div>
+
+              <div className="space-y-4">
+                <div className="bg-white p-4 rounded-xl border border-gray-100">
+                  <div className="flex justify-between items-center mb-2">
+                    <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Ecological Utilization</span>
+                    <span className="text-sm font-black text-gray-900">{Math.round(item.utilization)}%</span>
+                  </div>
+                  <div className="w-full bg-gray-100 rounded-full h-2">
+                    <div 
+                      className={`h-2 rounded-full transition-all duration-500 ${
+                        item.utilization > 85 ? 'bg-red-500' : 
+                        item.utilization > 70 ? 'bg-orange-500' : 
+                        item.utilization > 50 ? 'bg-yellow-500' : 'bg-green-500'
+                      }`}
+                      style={{ width: `${Math.min(100, item.utilization)}%` }}
+                    ></div>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between px-1">
+                  <div className="flex flex-col">
+                    <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Carbon Footprint</span>
+                    <div className="flex items-center gap-2">
+                      <TrendingUp className="h-4 w-4 text-blue-500" />
+                      <span className="text-sm font-black text-gray-900">{item.carbonFootprint} kg CO2e</span>
+                    </div>
+                  </div>
+                  <button 
+                    aria-label={`View details for ${item.name}`}
+                    className="h-10 w-10 flex items-center justify-center bg-white rounded-xl border border-gray-200 text-gray-400 active:bg-gray-50 active:text-green-600 transition-colors"
+                  >
+                    <Activity className="h-5 w-5" />
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
 
       {/* Ecological Alerts Summary */}
       <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-200">
         <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
           <AlertTriangle className="h-5 w-5 mr-2 text-red-500" />
-          Active Ecological Alerts
-        </h2>
-        <div className="space-y-4">
-          {alerts.length > 0 ? (
+        Active Ecological Alerts
+      </h2>
+      <div className="space-y-4" aria-live="polite">
+        {alerts.length > 0 ? (
             alerts.map((alert) => (
               <div key={alert.id} className="flex items-start space-x-3 p-3 bg-gray-50 rounded-lg">
                 <div className={`mt-0.5 ${

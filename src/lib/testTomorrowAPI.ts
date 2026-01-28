@@ -2,10 +2,11 @@
 // This file demonstrates how to use the new weather service
 
 import { weatherService } from '@/lib/weatherService';
+import { logger } from '@/lib/logger'; // NEW IMPORT
 
 async function testTomorrowWeatherAPI() {
-  console.log('🌤️ Testing Tomorrow.io Weather API Integration');
-  console.log('====================================================');
+  logger.info('🌤️ Testing Tomorrow.io Weather API Integration');
+  logger.info('====================================================');
 
   // Test coordinates for Manali, Himachal Pradesh
   const testLocation = {
@@ -15,7 +16,7 @@ async function testTomorrowWeatherAPI() {
   };
 
   try {
-    console.log(`📍 Fetching weather data for ${testLocation.name}...`);
+    logger.info(`📍 Fetching weather data for ${testLocation.name}...`);
     
     const weatherData = await weatherService.getWeatherByCoordinates(
       testLocation.lat,
@@ -24,33 +25,33 @@ async function testTomorrowWeatherAPI() {
     );
 
     if (weatherData) {
-      console.log('✅ Weather data fetched successfully!');
-      console.log('📊 Weather Details:');
-      console.log(`   🌡️  Temperature: ${weatherData.temperature}°C`);
-      console.log(`   💧 Humidity: ${weatherData.humidity}%`);
-      console.log(`   🎈 Pressure: ${weatherData.pressure} hPa`);
-      console.log(`   🌤️  Condition: ${weatherData.weatherMain} - ${weatherData.weatherDescription}`);
-      console.log(`   💨 Wind: ${weatherData.windSpeed} m/s from ${weatherData.windDirection}°`);
-      console.log(`   👁️  Visibility: ${weatherData.visibility} km`);
-      console.log(`   ☀️  UV Index: ${weatherData.uvIndex || 'N/A'}`);
-      console.log(`   ☁️  Cloud Cover: ${weatherData.cloudCover || 'N/A'}%`);
-      console.log(`   🌧️  Precipitation Probability: ${weatherData.precipitationProbability || 'N/A'}%`);
-      console.log(`   💧 Precipitation Type: ${weatherData.precipitationType || 'N/A'}`);
+      logger.info('✅ Weather data fetched successfully!');
+      logger.info('📊 Weather Details:');
+      logger.info(`   🌡️  Temperature: ${weatherData.temperature}°C`);
+      logger.info(`   💧 Humidity: ${weatherData.humidity}%`);
+      logger.info(`   🎈 Pressure: ${weatherData.pressure} hPa`);
+      logger.info(`   🌤️  Condition: ${weatherData.weatherMain} - ${weatherData.weatherDescription}`);
+      logger.info(`   💨 Wind: ${weatherData.windSpeed} m/s from ${weatherData.windDirection}°`);
+      logger.info(`   👁️  Visibility: ${weatherData.visibility} km`);
+      logger.info(`   ☀️  UV Index: ${weatherData.uvIndex || 'N/A'}`);
+      logger.info(`   ☁️  Cloud Cover: ${weatherData.cloudCover || 'N/A'}%`);
+      logger.info(`   🌧️  Precipitation Probability: ${weatherData.precipitationProbability || 'N/A'}%`);
+      logger.info(`   💧 Precipitation Type: ${weatherData.precipitationType || 'N/A'}`);
 
       // Test alert generation
       const alertCheck = weatherService.shouldGenerateAlert(weatherData);
       if (alertCheck.shouldAlert) {
-        console.log('⚠️  WEATHER ALERT:');
-        console.log(`   📢 Reason: ${alertCheck.reason}`);
+        logger.info('⚠️  WEATHER ALERT:');
+        logger.info(`   📢 Reason: ${alertCheck.reason}`);
       } else {
-        console.log('✅ No weather alerts needed');
+        logger.info('✅ No weather alerts needed');
       }
 
     } else {
-      console.log('❌ Failed to fetch weather data');
+      logger.error('❌ Failed to fetch weather data');
     }
   } catch (error) {
-    console.error('❌ Error testing Tomorrow.io API:', error);
+    logger.error('❌ Error testing Tomorrow.io API:', error);
   }
 }
 
@@ -64,14 +65,14 @@ function checkRainIntensity(intensity: number) {
   const ALERT_LIMIT = 10; // Threshold for heavy rain
 
   if (intensity > ALERT_LIMIT) {
-    console.log("⚠️  HEAVY RAIN ALERT: Intensity is " + intensity + ". Triggering warning system!");
+    logger.warn("⚠️  HEAVY RAIN ALERT: Intensity is " + intensity + ". Triggering warning system!");
   } else {
-    console.log("✅ Weather is within normal limits. Intensity: " + intensity);
+    logger.info("✅ Weather is within normal limits. Intensity: " + intensity);
   }
 }
 
 
 export function runWeatherTest() {
-  console.log("--- RUNNING MANUAL WEATHER TEST ---");
+  logger.info("--- RUNNING MANUAL WEATHER TEST ---");
   checkRainIntensity(15);
 }

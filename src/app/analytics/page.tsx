@@ -11,7 +11,7 @@ import {
   Activity,
   Target
 } from 'lucide-react';
-import { getDbService } from '@/lib/databaseService';
+import { Tourist, Destination } from '@/types';
 import { useTourists } from '@/hooks/useTourists';
 import { useDestinations } from '@/hooks/useDestinations';
 import { DataFetchErrorBoundary, ChartErrorBoundary } from '@/components/errors';
@@ -40,7 +40,7 @@ export default function AnalyticsPage() {
     }
   }, [tourists, destinations, selectedTimeRange]);
 
-  const processAnalytics = (tourists: any[], destinations: any[]) => {
+  const processAnalytics = (tourists: Tourist[], destinations: Destination[]) => {
     try {
       setLoading(true);
       
@@ -88,9 +88,9 @@ export default function AnalyticsPage() {
       // Capacity utilization
       const capacityUtilization = destinations.map(dest => ({
         destination: dest.name,
-        utilization: dest.max_capacity > 0 ? (dest.current_occupancy / dest.max_capacity) * 100 : 0,
-        max: dest.max_capacity,
-        current: dest.current_occupancy
+        utilization: dest.maxCapacity > 0 ? (dest.currentOccupancy / dest.maxCapacity) * 100 : 0,
+        max: dest.maxCapacity,
+        current: dest.currentOccupancy
       }));
 
       setAnalytics({

@@ -6,7 +6,7 @@ import { ErrorInfo } from './types';
 export interface ErrorReporter {
   captureError(error: unknown, errorInfo?: Partial<ErrorInfo>): Promise<void>;
   captureMessage(message: string, level?: 'info' | 'warning' | 'error'): Promise<void>;
-  setUser(userId: string | null, userInfo?: Record<string, any>): void;
+  setUser(userId: string | null, userInfo?: Record<string, unknown>): void;
 }
 
 /**
@@ -27,7 +27,7 @@ class ConsoleErrorReporter implements ErrorReporter {
     console.log(`${icon} [${level.toUpperCase()}]: ${message}`);
   }
 
-  setUser(userId: string | null, userInfo?: Record<string, any>): void {
+  setUser(userId: string | null, userInfo?: Record<string, unknown>): void {
     console.info('👤 User set for reporting:', userId, userInfo);
   }
 }
@@ -68,7 +68,7 @@ class ProductionErrorReporter implements ErrorReporter {
     if (this.loggingEndpoint) {
       try {
         await fetch(this.loggingEndpoint, {
-          method: 'POST',
+          method: 'POST', 
           headers: {
             'Content-Type': 'application/json',
             ...(this.apiKey ? { 'X-API-Key': this.apiKey } : {}),
@@ -100,14 +100,22 @@ class ProductionErrorReporter implements ErrorReporter {
           'Content-Type': 'application/json',
           ...(this.apiKey ? { 'X-API-Key': this.apiKey } : {}),
         },
-        body: JSON.stringify({ type: 'message', message, level, timestamp: Date.now() }),
+        body: JSON.stringify({
+          type: 'message',
+          message,
+          level,
+          context: {
+            url: typeof window !== 'undefined' ? window.location.href : 'server-side',
+            timestamp: Date.now(),
+          }
+        }),
       });
-    } catch (err) {
-      console.error('Failed to report message:', err);
+    } catch (fetchError) {
+      console.error('Failed to report message to production endpoint:', fetchError);
     }
   }
 
-  setUser(userId: string | null, userInfo?: Record<string, any>): void {
+  setUser(userId: string | null, userInfo?: Record<string, unknown>): void {
     // This could be used to set user context in Sentry/LogRocket
     if (!this.loggingEndpoint) {
       console.info('[Production User Context]:', userId, userInfo);

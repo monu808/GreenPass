@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import Image from 'next/image';
 import {
   MapPin, Star, Calendar, Users, Camera, TrendingUp,
@@ -38,10 +38,9 @@ export default function TouristDashboard() {
 
   // Use the interface here instead of 'any'
   const [weatherMap, setWeatherMap] = useState<Record<string, WeatherData>>({});
-  const weatherMapRef = useRef<Record<string, WeatherData>>({});
 
   // 1. Use React Query hooks for client-side caching
-  const { data: destinationsData, isLoading: destLoading } = useDestinations();
+  const { data: destinationsData } = useDestinations();
   const { data: batchWeatherData } = useWeatherDataBatch(
     destinationsData ? destinationsData.map(d => d.id) : []
   );
@@ -416,7 +415,7 @@ export default function TouristDashboard() {
                   <h3 className="font-black text-gray-900 text-xl mb-3 tracking-tight">{action.title}</h3>
                   <p className="text-gray-500 text-xs font-bold leading-relaxed">{action.desc}</p>
                   <div className="mt-6 flex items-center text-emerald-600 font-black text-[9px] uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-opacity">
-                    Let's Go <ArrowRight className="h-3 w-3 ml-2" aria-hidden="true" />
+                    Let&apos;s Go <ArrowRight className="h-3 w-3 ml-2" aria-hidden="true" />
                   </div>
                 </button>
               ))}

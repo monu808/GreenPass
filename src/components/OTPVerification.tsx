@@ -112,7 +112,7 @@ export default function OTPVerification({
         setOtp(['', '', '', '', '', '']);
         inputRefs.current[0]?.focus();
       }
-    } catch (_err) {
+    } catch {
       setError('Verification failed. Please try again.');
       setOtp(['', '', '', '', '', '']);
       inputRefs.current[0]?.focus();
@@ -137,7 +137,7 @@ export default function OTPVerification({
       } else {
         setError(result.error || 'Failed to resend OTP. Please try again.');
       }
-    } catch (_err) {
+    } catch {
       setError('Failed to resend OTP. Please try again.');
     } finally {
       setLoading(false);

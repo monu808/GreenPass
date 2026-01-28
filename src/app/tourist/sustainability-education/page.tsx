@@ -344,7 +344,7 @@ export default function SustainabilityEducation() {
                     </div>
 
                     <div className="space-y-4">
-                      {selectedModule.quiz.questions.map((question, index) => (
+                      {selectedModule.quiz.questions.map((question) => (
                         <div key={question.id} className="bg-gray-50 rounded-2xl p-4 text-left">
                           <p className="font-bold text-gray-900 mb-2">{question.question}</p>
                           <p className={`text-sm ${quizAnswers[question.id] === question.correctAnswer ? 'text-green-600' : 'text-red-600'}`}>

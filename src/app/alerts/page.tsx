@@ -183,8 +183,8 @@ export default function AlertsPage() {
     
     const filterValidation = validateInput(AlertFilterSchema, {
       searchTerm: sanitizedSearch,
-      type: typeFilter === "all" ? undefined : typeFilter as any,
-      severity: severityFilter === "all" ? undefined : severityFilter as any,
+      type: typeFilter === "all" ? undefined : typeFilter as Alert["type"],
+      severity: severityFilter === "all" ? undefined : severityFilter as Alert["severity"],
     });
 
     const validFilters = filterValidation.success 

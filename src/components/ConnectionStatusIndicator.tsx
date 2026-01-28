@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Wifi, WifiOff, RefreshCw } from 'lucide-react';
+import { WifiOff, RefreshCw } from 'lucide-react';
 import { ConnectionState } from '@/types';
 
 interface ConnectionStatusIndicatorProps {

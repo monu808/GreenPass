@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useRef } from 'react';
-import { Bell, Search, User, LogOut, Settings, Shield, UserCircle, ChevronDown, Key, Users, BarChart3, FileText, Activity, Database, AlertTriangle, Menu } from 'lucide-react';
+import { Bell, Search, LogOut, Settings, Shield, UserCircle, ChevronDown, Key, Users, BarChart3, FileText, Menu } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';

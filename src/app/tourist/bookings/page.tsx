@@ -2,9 +2,8 @@
 
 import React, { useState, useRef } from 'react';
 import Image from 'next/image';
-import { MapPin, Calendar, Users, Eye, Download, XCircle, Leaf, Award, Wind, RefreshCw, ChevronDown, Filter, Search, CheckCircle, CreditCard, TrendingUp } from 'lucide-react';
+import { MapPin, Calendar, Users, Eye, Download, XCircle, Leaf, Award, Wind, RefreshCw, Search, CheckCircle, CreditCard, TrendingUp } from 'lucide-react';
 import TouristLayout from '@/components/TouristLayout';
-import ProtectedRoute from '@/components/ProtectedRoute';
 import { useModalAccessibility } from '@/lib/accessibility';
 import { getDbService } from '@/lib/databaseService';
 import { useAuth } from '@/contexts/AuthContext';

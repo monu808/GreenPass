@@ -1,5 +1,4 @@
 import { supabase, createServerComponentClient } from '@/lib/supabase';
-import { SupabaseClient } from '@supabase/supabase-js';
 import { 
   Tourist, 
   Destination, 
@@ -23,7 +22,6 @@ import { isWithinInterval, format } from 'date-fns';
 import { 
   weatherCache, 
   ecologicalIndicatorCache, 
-  destinationCache, 
   withCache 
 } from './cache';
 import { getPolicyEngine } from './ecologicalPolicyEngine';
@@ -78,6 +76,7 @@ export interface ComplianceReportInput {
   status?: "pending" | "approved";
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const db = supabase as any;
 
 class DatabaseService {
@@ -277,9 +276,9 @@ class DatabaseService {
       }
 
       // 2. Perform insert operation
-      const { data, error } = await db
-        .from('tourists')
-        .insert(touristToInsert)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data, error } = await (db.from('tourists') as any)
+        .insert([touristToInsert])
         .select()
         .single();
 
@@ -331,8 +330,8 @@ class DatabaseService {
         }
       }
 
-      const { data, error } = await db
-        .from('tourists')
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data, error } = await (db.from('tourists') as any)
         .insert(validatedTourists)
         .select();
 
@@ -1549,13 +1548,14 @@ class DatabaseService {
     }
   }
 
-  async getLatestEcologicalIndicators(_destinationId: string): Promise<{ soil_compaction: number; vegetation_disturbance: number; wildlife_disturbance: number; water_source_impact: number } | null> {
+  async getLatestEcologicalIndicators(destinationId: string): Promise<{ soil_compaction: number; vegetation_disturbance: number; wildlife_disturbance: number; water_source_impact: number } | null> {
     try {
       if (this.isPlaceholderMode() || !db) return null;
 
       const { data, error } = await db
         .from('compliance_reports')
         .select('ecological_damage_indicators')
+        .eq('destination_id', destinationId)
         .order('created_at', { ascending: false })
         .limit(1)
         .maybeSingle();
@@ -1656,12 +1656,12 @@ class DatabaseService {
       if (this.isPlaceholderMode() || !db) return new Map();
 
       // Check cache first
-      const result = new Map<string, any>();
+      const result = new Map<string, { soil_compaction: number; vegetation_disturbance: number; wildlife_disturbance: number; water_source_impact: number }>();
       const missingIds: string[] = [];
 
       for (const id of destinationIds) {
         const cached = ecologicalIndicatorCache.get(id);
-        if (cached) {
+        if (cached !== undefined) {
           result.set(id, cached);
         } else {
           missingIds.push(id);
@@ -1913,14 +1913,14 @@ class DatabaseService {
       console.log('Saving weather data for destination:', data.destination_id, data);
       
       // Use service role client to bypass RLS policies for system operations
-      const client = createServerComponentClient() as SupabaseClient<any> | null;
+      const client = createServerComponentClient();
       if (!client) {
         console.warn('⚠️ SUPABASE_SERVICE_ROLE_KEY is missing. Skipping database operation.');
         return false;
       }
       
-      const { error } = await client
-        .from('weather_data')
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { error } = await (client.from('weather_data') as any)
         .insert([data]);
 
       if (error) {

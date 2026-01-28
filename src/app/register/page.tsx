@@ -6,9 +6,8 @@ import Layout from '@/components/Layout';
 import { User, CheckCircle } from 'lucide-react';
 import { getDbService } from '@/lib/databaseService';
 import { FormErrorBoundary } from '@/components/errors';
-import { 
-  sanitizeForDatabase, 
-  sanitizeObject 
+import {
+  sanitizeObject
 } from '@/lib/utils';
 import { 
   validateInput, 

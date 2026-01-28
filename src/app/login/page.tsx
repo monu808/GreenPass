@@ -74,18 +74,20 @@ function LoginForm() {
       }
     } catch (_err) {
      let msg = 'Login failed.';
-  if (_err instanceof Error) {
-    if (_err.message.includes('Invalid credentials')) {
-      msg = 'Email or senha incorrects.Check the credentials and try again';
-    } else if (_err.message.includes('network') || _err.message.includes('Network')) {
-      msg = 'Network connection error: verify your internet and try again.';
-    } else if (_err.message.includes('user not found')) {
-      msg = 'User not found. Verify the email.';
-    } else if (_err.message.includes('timeout')) {
-      msg = 'Request timed out. Try again.';
-    } else {
-      msg = `Login failed: ${_err.message}`;
-    }
+     if (_err instanceof Error) {
+        const message = _err.message.toLowerCase();
++       if (message.includes('invalid credentials')) {
++          msg = 'Email or password is incorrect. Check your credentials and try again.';
++       }else if (message.includes('network')) {
+          msg = 'Network connection error: verify your internet and try again.';
+        }else if (message.includes('user not found')) {
+          msg = 'User not found. Verify the email.';
+       }else if (message.includes('timeout')) {
+          msg = 'Request timed out. Try again.';
+       }else {
+            msg = `Login failed: ${_err.message}`;
+        }
+    setError(msg)
     alert(msg);
   }
     } finally {

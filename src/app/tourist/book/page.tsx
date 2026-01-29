@@ -132,22 +132,22 @@ function BookDestinationForm() {
         setEcoAlert(alert);
       }
     } catch (error) {
-       let msg = 'An unexpected error occurred while submitting your booking. Please try again.';
+       let msg = 'An unexpected error occurred while loading the destination. Please try again.';
      if (error instanceof Error) {
         if (error.message.includes('capacity')) {
-          msg = 'Booking failed: insufficient available spots for the selected dates.';
+           msg = 'Destination load failed: capacity data is unavailable for the selected dates.';
        } else if (error.message.includes('validation')) {
-         msg = 'Invalid data: please check all required fields.';
+         msg = 'Invalid data received while loading the destination.';
        } else if (error.message.includes('payment')) {
-          msg = 'Payment error: your transaction could not be processed.';
+          msg = 'Destination load failed due to a payment configuration error.';
         } else if (error.message.includes('network')) {
-          msg = 'Connection error: please check your internet and try again.';
+          msg = 'Connection error while loading the destination. Please check your internet and try again.';
         } else if (error.message.includes('timeout')) {
-          msg = 'Operation timed out. Please try again.';
+          msg = 'Destination load timed out. Please try again.';
         } else if (error.message.includes('duplicate')) {
-          msg = 'You already have a booking for this date.';
+          msg = 'Duplicate destination data detected.';
         } else {
-          msg = `Reservation failed: ${error.message}`;
+          msg = `Failed to load destination: ${error.message}`;
         }
       }
       alert(msg);

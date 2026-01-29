@@ -133,7 +133,7 @@ function BookDestinationForm() {
       }
     } catch (error) {
        let msg = 'An unexpected error occurred while submitting your booking. Please try again.';
-+      if (error instanceof Error) {
++     if (error instanceof Error) {
 +        if (error.message.includes('capacity')) {
 +          msg = 'Booking failed: insufficient available spots for the selected dates.';
 +        } else if (error.message.includes('validation')) {

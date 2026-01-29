@@ -2,6 +2,7 @@ import { weatherService, destinationCoordinates, WeatherData } from '@/lib/weath
 import { getDbService } from '@/lib/databaseService';
 import { Destination } from '@/types';
 import { broadcast } from './messagingService';
+import { logger } from '@/lib/logger'; // ✅ NEW IMPORT
 
 /**
  * Interface definition for a weather monitoring service.
@@ -26,26 +27,25 @@ class WeatherMonitor implements WeatherMonitoringService {
   /**
    * Triggers an immediate check of weather conditions for all destinations.
    * Respects rate limiting and cache freshness to minimize API usage.
-   * 
-   * @returns {Promise<void>} Resolves when the monitoring cycle is complete.
+   * * @returns {Promise<void>} Resolves when the monitoring cycle is complete.
    */
   async checkWeatherNow(): Promise<void> {
     if (this.isScanning) {
-      console.log('🔒 Weather scan already in progress. Skipping.');
+      logger.warn('🔒 Weather scan already in progress. Skipping.');
       return;
     }
 
     this.isScanning = true;
 
     try {
-      console.log('🔍 Checking weather conditions...', new Date().toLocaleTimeString());
+      logger.info('🔍 Checking weather conditions...', new Date().toLocaleTimeString());
 
       const dbService = getDbService();
       // Get all destinations
       const destinations = await dbService.getDestinations();
 
       if (!destinations || destinations.length === 0) {
-        console.log('⚠️ No destinations found for weather monitoring');
+        logger.warn('⚠️ No destinations found for weather monitoring');
         return;
       }
 
@@ -78,7 +78,7 @@ class WeatherMonitor implements WeatherMonitoringService {
             const sixHoursAgo = Date.now() - this.checkInterval;
             if (recordedAt > sixHoursAgo) {
               const minutesOld = Math.round((Date.now() - recordedAt) / 60000);
-              console.log(`✅ Weather for ${destination.name} is fresh (${minutesOld} min old). Skipping external API call.`);
+              logger.debug(`✅ Weather for ${destination.name} is fresh (${minutesOld} min old). Skipping external API call.`);
               continue;
             }
           }
@@ -88,17 +88,17 @@ class WeatherMonitor implements WeatherMonitoringService {
             destinationCoordinates[destination.name?.toLowerCase()];
 
           if (!coordinates) {
-            console.log(`⚠️ No coordinates found for ${destination.name}. Skipping.`);
+            logger.warn(`⚠️ No coordinates found for ${destination.name}. Skipping.`);
             continue;
           }
 
-          console.log(`🌐 FETCHING fresh weather data from Tomorrow.io for ${destination.name}...`);
+          logger.info(`🌐 FETCHING fresh weather data from Tomorrow.io for ${destination.name}...`);
 
           // Rate limiting: ensure minimum delay between API calls
           const now = Date.now();
           if (now - this.lastApiCall < this.apiCallDelay) {
             const waitTime = this.apiCallDelay - (now - this.lastApiCall);
-            console.log(`⏱️ Rate limiting: waiting ${waitTime}ms before API call...`);
+            logger.debug(`⏱️ Rate limiting: waiting ${waitTime}ms before API call...`);
             await new Promise(resolve => setTimeout(resolve, waitTime));
           }
 
@@ -111,16 +111,16 @@ class WeatherMonitor implements WeatherMonitoringService {
           );
 
           if (!weatherData) {
-            console.log(`❌ Failed to get weather data for ${destination.name} - using last available data`);
+            logger.error(`❌ Failed to get weather data for ${destination.name} - using last available data`);
 
             // Try to use cached data for alerts if API fails
             const cachedData = this.lastCheckedData.get(destination.id);
             if (cachedData) {
-              console.log(`📋 Using last available weather data for ${destination.name} (from ${new Date(cachedData.timestamp).toLocaleTimeString()})`);
+              logger.warn(`📋 Using last available weather data for ${destination.name} (from ${new Date(cachedData.timestamp).toLocaleTimeString()})`);
               // Process cached data for alerts but don't save to database again
               this.processWeatherAlerts(destination, cachedData, false);
             } else {
-              console.log(`❌ No data available for ${destination.name}, skipping...`);
+              logger.warn(`❌ No data available for ${destination.name}, skipping...`);
             }
             continue;
           }
@@ -135,14 +135,14 @@ class WeatherMonitor implements WeatherMonitoringService {
           await this.processWeatherAlerts(destination, weatherData, true);
 
         } catch (error) {
-          console.error(`❌ Error checking weather for ${dbDestination.name}:`, error);
+          logger.error(`❌ Error checking weather for ${dbDestination.name}:`, error);
         }
       }
 
-      console.log('✅ Weather monitoring cycle completed');
+      logger.info('✅ Weather monitoring cycle completed');
 
     } catch (error) {
-      console.error('❌ Error in weather monitoring:', error);
+      logger.error('❌ Error in weather monitoring:', error);
     } finally {
       this.isScanning = false;
     }
@@ -151,8 +151,7 @@ class WeatherMonitor implements WeatherMonitoringService {
   /**
    * Analyzes weather data to determine if alerts should be generated.
    * If alerts are generated, they are saved to the database and broadcast via SSE.
-   * 
-   * @param {Destination} destination - The destination being checked.
+   * * @param {Destination} destination - The destination being checked.
    * @param {WeatherData} weatherData - Current weather conditions.
    * @param {boolean} [saveToDatabase=true] - Whether to persist the check results to the DB.
    */
@@ -184,10 +183,10 @@ class WeatherMonitor implements WeatherMonitoringService {
         alertMessage = `${alertCheck.reason}. Current: ${weatherData.temperature}°C, ${weatherData.weatherDescription}. Wind: ${weatherData.windSpeed}m/s. ${weatherData.uvIndex ? `UV: ${weatherData.uvIndex}. ` : ''}${weatherData.precipitationProbability ? `Rain chance: ${weatherData.precipitationProbability}%.` : ''}`;
         alertReason = alertCheck.reason;
 
-        console.log(`⚠️ Weather alert generated for ${destination.name}: ${alertLevel.toUpperCase()}`);
-        console.log(`   Reason: ${alertCheck.reason}`);
+        logger.warn(`⚠️ Weather alert generated for ${destination.name}: ${alertLevel.toUpperCase()}`);
+        logger.warn(`   Reason: ${alertCheck.reason}`);
       } else {
-        console.log(`✅ Weather conditions normal for ${destination.name}`);
+        logger.debug(`✅ Weather conditions normal for ${destination.name}`);
       }
 
       // Save weather data with alert info to database only if requested
@@ -228,11 +227,11 @@ class WeatherMonitor implements WeatherMonitoringService {
         });
       }
 
-      // Log current weather summary
-      console.log(`   📊 ${destination.name}: ${weatherData.temperature}°C, ${weatherData.weatherDescription}, Wind: ${weatherData.windSpeed}m/s${weatherData.uvIndex ? `, UV: ${weatherData.uvIndex}` : ''}${weatherData.precipitationProbability ? `, Rain: ${weatherData.precipitationProbability}%` : ''}`);
+      // Log current weather summary (Info level for visibility during dev, suppressed in prod)
+      logger.info(`   📊 ${destination.name}: ${weatherData.temperature}°C, ${weatherData.weatherDescription}, Wind: ${weatherData.windSpeed}m/s${weatherData.uvIndex ? `, UV: ${weatherData.uvIndex}` : ''}${weatherData.precipitationProbability ? `, Rain: ${weatherData.precipitationProbability}%` : ''}`);
 
     } catch (error) {
-      console.error(`Error processing weather alerts for ${destination.name}:`, error);
+      logger.error(`Error processing weather alerts for ${destination.name}:`, error);
     }
   }
 }

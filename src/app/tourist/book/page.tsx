@@ -7,6 +7,7 @@ import TouristLayout from '@/components/TouristLayout';
 import { getDbService } from '@/lib/databaseService';
 import { getPolicyEngine } from '@/lib/ecologicalPolicyEngine';
 import { getCarbonCalculator } from '@/lib/carbonFootprintCalculator';
+import { logger } from '@/lib/logger'; // ✅ NEW IMPORT
 import { 
   calculateSustainabilityScore, 
   findLowImpactAlternatives 
@@ -131,7 +132,7 @@ function BookDestinationForm() {
         setEcoAlert(alert);
       }
     } catch (error) {
-      console.error("Error loading destination:", error);
+      logger.error("Error loading destination:", error);
     } finally {
       setLoading(false);
     }
@@ -317,7 +318,8 @@ function BookDestinationForm() {
         id_proof_type: "aadhaar" as const,
       };
       
-      console.log('Submitting booking data:', bookingData);
+      // ✅ LOGGING FIX: Replaced sensitive object dump with safe message
+      logger.debug('Submitting booking data for destination:', destination.id);
       
       const result = await dbService.addTourist(bookingData);
       
@@ -337,7 +339,7 @@ function BookDestinationForm() {
       }, 3000);
       
     } catch (error) {
-      console.error("Error submitting booking:", error);
+      logger.error("Error submitting booking:", error);
       alert("Failed to submit booking. Please try again.");
     } finally {
       setSubmitting(false);

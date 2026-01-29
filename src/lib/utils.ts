@@ -57,8 +57,7 @@ export function getCapacityStatus(current: number, max: number): {
 }
 
 export function validateEmail(email: string): boolean {
- 
-  const emailRegex = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/;
+  const emailRegex = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)+$/;
   if (!email || email.length > 254) return false;
   return emailRegex.test(email.toLowerCase());
 }
@@ -292,7 +291,10 @@ export function validateDateRange(
   return { valid: true };
 }
 
-export function sanitizeInput(input: string): string {
+/**
+ * @deprecated Use sanitizeForDatabase or sanitizeSearchTerm instead
+ */
+export function sanitizeInput(input: string | null | undefined): string {
   if (!input) return '';
   return input
     .replace(/<[^>]*>/g, '') 
@@ -307,6 +309,53 @@ export function sanitizeInput(input: string): string {
       return entities[char] || char;
     })
     .trim();
+}
+
+/**
+ * Sanitizes input for database storage by combining XSS protection 
+ * with whitespace normalization.
+ */
+export function sanitizeForDatabase(input: string | null | undefined): string {
+  if (!input) return '';
+  return input
+    .replace(/<[^>]*>/g, '') // Basic XSS protection
+    .replace(/\s+/g, ' ')    // Normalize whitespace
+    .trim();
+}
+
+/**
+ * Sanitizes search terms by removing regex-special characters to prevent ReDoS 
+ * and other injection attacks.
+ */
+export function sanitizeSearchTerm(term: string | null | undefined): string {
+  if (!term) return '';
+  // Remove characters that have special meaning in regex
+  return term.replace(/[\\^$*+?.()|[\]{}]/g, '').trim();
+}
+
+/**
+ * Recursively sanitizes all string properties in an object.
+ */
+export function sanitizeObject<T>(obj: T): T {
+  if (obj === null || obj === undefined) return obj;
+  
+  if (typeof obj === 'string') {
+    return sanitizeForDatabase(obj) as unknown as T;
+  }
+  
+  if (Array.isArray(obj)) {
+    return obj.map(item => sanitizeObject(item)) as unknown as T;
+  }
+  
+  if (typeof obj === 'object') {
+    const sanitized = {} as Record<string, unknown>;
+    for (const [key, value] of Object.entries(obj as Record<string, unknown>)) {
+      sanitized[key] = sanitizeObject(value);
+    }
+    return sanitized as T;
+  }
+  
+  return obj;
 }
 
 export function validateGroupSize(size: number | string, maxAllowed: number = 10): { valid: boolean; error?: string } {

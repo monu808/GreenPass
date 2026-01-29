@@ -30,8 +30,12 @@ const EcoSensitivityBadge: React.FC<EcoSensitivityBadgeProps> = ({ level, classN
   const { label, classes } = config[level] || config.low;
 
   return (
-    <div className={`inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider border shadow-sm ${classes} ${className}`}>
-      <Leaf className="w-3 h-3 mr-1 opacity-80" />
+    <div 
+      role="status"
+      aria-label={`Ecological Sensitivity: ${label}`}
+      className={`inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider border shadow-sm ${classes} ${className}`}
+    >
+      <Leaf className="w-3 h-3 mr-1 opacity-80" aria-hidden="true" />
       {label}
     </div>
   );

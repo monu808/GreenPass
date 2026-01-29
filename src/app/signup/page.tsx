@@ -7,6 +7,9 @@ import Link from 'next/link';
 import { Mail, User, MapPin } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import OTPVerification from '@/components/OTPVerification';
+import { validateInput } from '@/lib/validation';
+import { AccountSchema } from '@/lib/validation/schemas';
+import { sanitizeObject } from '@/lib/utils';
 
 type SignupStep = 'form' | 'otp';
 
@@ -27,34 +30,25 @@ export default function SignUp() {
     }
   }, [user, router]);
 
-  const validateForm = () => {
-    if (!name.trim()) {
-      setError('Name is required');
-      return false;
-    }
-    if (!email.trim()) {
-      setError('Email is required');
-      return false;
-    }
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      setError('Please enter a valid email address');
-      return false;
-    }
-    return true;
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
 
-    if (!validateForm()) {
+    const sanitizedData = sanitizeObject({ name, email });
+    const validation = validateInput(AccountSchema, {
+      ...sanitizedData,
+      role: 'tourist' // Default role for signup
+    });
+
+    if (!validation.success) {
+      setError(Object.values(validation.errors)[0] || 'Invalid input');
       return;
     }
 
     setLoading(true);
 
     try {
-      const { error } = await signUpWithOTP(email, name);
+      const { error } = await signUpWithOTP(validation.data.email, validation.data.name);
       
       if (error) {
         setError(error.message);
@@ -62,7 +56,7 @@ export default function SignUp() {
         // Move to OTP verification step
         setStep('otp');
       }
-    } catch (err) {
+    } catch {
       setError('An unexpected error occurred');
     } finally {
       setLoading(false);
@@ -82,7 +76,7 @@ export default function SignUp() {
       
       // Success - user will be redirected automatically by auth state change
       return { success: true };
-    } catch (err) {
+    } catch {
       return { 
         success: false, 
         error: 'Verification failed. Please try again.' 
@@ -102,7 +96,7 @@ export default function SignUp() {
       }
       
       return { success: true };
-    } catch (err) {
+    } catch {
       return { 
         success: false, 
         error: 'Failed to resend OTP. Please try again.' 
@@ -196,7 +190,7 @@ export default function SignUp() {
                 />
               </div>
               <p className="text-[10px] sm:text-xs text-gray-500 mt-1">
-                We'll send a verification code to this email
+                We&apos;ll send a verification code to this email
               </p>
             </div>
 
@@ -219,7 +213,7 @@ export default function SignUp() {
             {/* Info Box */}
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
               <p className="text-xs text-blue-800">
-                <strong>Secure Sign Up:</strong> We'll send a 6-digit verification code to your email. 
+                <strong>Secure Sign Up:</strong> We&apos;ll send a 6-digit verification code to your email. 
                 No password needed!
               </p>
             </div>

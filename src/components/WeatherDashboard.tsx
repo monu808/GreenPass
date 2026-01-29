@@ -9,6 +9,7 @@ import { getEcoFriendlyAlternatives } from "@/lib/recommendationEngine";
 import EcoSensitivityBadge from "./EcoSensitivityBadge";
 import EcoCapacityAlert from "./EcoCapacityAlert";
 import { Destination } from "@/types";
+import { DataFetchErrorBoundary } from "@/components/errors";
 import {
   Cloud,
   Sun,
@@ -16,16 +17,12 @@ import {
   CloudSnow,
   CloudLightning,
   Wind,
-  Eye,
   Droplets,
-  Thermometer,
-  Gauge,
   Zap,
   AlertTriangle,
   RefreshCw,
   Leaf,
   Users,
-  ShieldAlert,
   MapPin,
   ArrowRight,
 } from "lucide-react";
@@ -402,26 +399,28 @@ const WeatherDashboard: React.FC = () => {
   }
 
   return (
-    <div className="p-6">
-      <div className="mb-8">
-        <h2 className="text-3xl font-black text-gray-900 mb-3 tracking-tight">
-          Environmental Intelligence
-        </h2>
-        <p className="text-gray-500 font-medium">
-          Real-time weather monitoring integrated with ecological capacity data for sustainable tourism.
-        </p>
-      </div>
+    <DataFetchErrorBoundary onRetry={() => window.location.reload()} maxRetries={0}>
+      <div aria-live="polite" className="p-6">
+        <div className="mb-8">
+          <h2 className="text-3xl font-black text-gray-900 mb-3 tracking-tight">
+            Environmental Intelligence
+          </h2>
+          <p className="text-gray-500 font-medium">
+            Real-time weather monitoring integrated with ecological capacity data for sustainable tourism.
+          </p>
+        </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-        {destinations.map((destination) => (
-          <WeatherCard
-            key={destination.id}
-            destination={destination}
-            allDestinations={destinations}
-          />
-        ))}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+          {destinations.map((destination) => (
+            <WeatherCard
+              key={destination.id}
+              destination={destination}
+              allDestinations={destinations}
+            />
+          ))}
+        </div>
       </div>
-    </div>
+    </DataFetchErrorBoundary>
   );
 };
 

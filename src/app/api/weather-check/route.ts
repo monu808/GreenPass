@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import { validateInput, WeatherCheckSchema } from '@/lib/validation';
 
 interface WeatherData {
   temperature: number;
@@ -380,8 +381,53 @@ export async function POST(request: NextRequest) {
   try {
     console.log('🌤️ Server-side weather monitoring started [v2]...');
     
+    // Validate request body if present
+    let body = {};
+    try {
+      if (request.headers.get('content-type')?.includes('application/json')) {
+        body = await request.json();
+      }
+    } catch {
+      // Body might be empty, which is fine for this trigger
+    }
+
+    const validation = validateInput(WeatherCheckSchema, body);
+    if (!validation.success) {
+      return NextResponse.json({
+        success: false,
+        error: 'Invalid input parameters',
+        details: validation.errors,
+        timestamp: new Date().toISOString()
+      }, { status: 400 });
+    }
+
+    const validData = validation.data;
     const weatherService = new ServerWeatherService();
-    const destinations = await weatherService.getDestinations();
+    
+    let destinations = [];
+    if (validData.destinationId) {
+      // Validate specific destination ID
+      const { data, error } = await createClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.SUPABASE_SERVICE_ROLE_KEY!
+      )
+        .from('destinations')
+        .select('id, name, location, is_active')
+        .eq('id', validData.destinationId)
+        .eq('is_active', true)
+        .single();
+      
+      if (error || !data) {
+        return NextResponse.json({
+          success: false,
+          error: 'Destination not found or inactive',
+          timestamp: new Date().toISOString()
+        }, { status: 404 });
+      }
+      destinations = [data];
+    } else {
+      destinations = await weatherService.getDestinations();
+    }
     
     if (!destinations || destinations.length === 0) {
       return NextResponse.json({
@@ -501,8 +547,9 @@ export async function POST(request: NextRequest) {
     
     return NextResponse.json(
       { 
+        success: false,
         error: 'Weather monitoring failed',
-        details: error instanceof Error ? error.message : 'Unknown error',
+        message: 'An internal error occurred while processing weather data',
         timestamp: new Date().toISOString()
       },
       { status: 500 }
@@ -510,7 +557,7 @@ export async function POST(request: NextRequest) {
   }
 }
 
-export async function GET(request: NextRequest) {
+export async function GET() {
   return NextResponse.json({
     message: 'Weather monitoring API endpoint',
     timestamp: new Date().toISOString(),

@@ -513,9 +513,210 @@ export type Database = {
           created_at?: string;
         };
       };
+
+      payments: {
+        Row: {
+          id: string;
+          booking_id: string;
+          user_id: string;
+          amount: number;
+          currency: string;
+          status: 'pending' | 'processing' | 'succeeded' | 'failed' | 'cancelled' | 'refunded' | 'requires_action';
+          payment_method: 'card' | 'upi' | 'netbanking' | 'wallet' | null;
+          gateway: 'razorpay' | 'stripe';
+          gateway_payment_id: string | null;
+          gateway_order_id: string | null;
+          metadata: any | null;
+          failure_reason: string | null;
+          created_at: string;
+          updated_at: string;
+          paid_at: string | null;
+        };
+        Insert: {
+          id?: string;
+          booking_id: string;
+          user_id: string;
+          amount: number;
+          currency?: string;
+          status?: 'pending' | 'processing' | 'succeeded' | 'failed' | 'cancelled' | 'refunded' | 'requires_action';
+          payment_method?: 'card' | 'upi' | 'netbanking' | 'wallet' | null;
+          gateway: 'razorpay' | 'stripe';
+          gateway_payment_id?: string | null;
+          gateway_order_id?: string | null;
+          metadata?: any | null;
+          failure_reason?: string | null;
+          created_at?: string;
+          updated_at?: string;
+          paid_at?: string | null;
+        };
+        Update: {
+          id?: string;
+          booking_id?: string;
+          user_id?: string;
+          amount?: number;
+          currency?: string;
+          status?: 'pending' | 'processing' | 'succeeded' | 'failed' | 'cancelled' | 'refunded' | 'requires_action';
+          payment_method?: 'card' | 'upi' | 'netbanking' | 'wallet' | null;
+          gateway?: 'razorpay' | 'stripe';
+          gateway_payment_id?: string | null;
+          gateway_order_id?: string | null;
+          metadata?: any | null;
+          failure_reason?: string | null;
+          created_at?: string;
+          updated_at?: string;
+          paid_at?: string | null;
+        };
+      };
+
+      refunds: {
+        Row: {
+          id: string;
+          payment_id: string;
+          booking_id: string;
+          amount: number;
+          reason: string;
+          status: 'pending' | 'processing' | 'succeeded' | 'failed' | 'cancelled';
+          gateway_refund_id: string | null;
+          processed_by: string | null;
+          notes: string | null;
+          created_at: string;
+          updated_at: string;
+          processed_at: string | null;
+        };
+        Insert: {
+          id?: string;
+          payment_id: string;
+          booking_id: string;
+          amount: number;
+          reason: string;
+          status?: 'pending' | 'processing' | 'succeeded' | 'failed' | 'cancelled';
+          gateway_refund_id?: string | null;
+          processed_by?: string | null;
+          notes?: string | null;
+          created_at?: string;
+          updated_at?: string;
+          processed_at?: string | null;
+        };
+        Update: {
+          id?: string;
+          payment_id?: string;
+          booking_id?: string;
+          amount?: number;
+          reason?: string;
+          status?: 'pending' | 'processing' | 'succeeded' | 'failed' | 'cancelled';
+          gateway_refund_id?: string | null;
+          processed_by?: string | null;
+          notes?: string | null;
+          created_at?: string;
+          updated_at?: string;
+          processed_at?: string | null;
+        };
+      };
+
+      payment_receipts: {
+        Row: {
+          id: string;
+          payment_id: string;
+          booking_id: string;
+          receipt_number: string;
+          receipt_url: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          payment_id: string;
+          booking_id: string;
+          receipt_number: string;
+          receipt_url?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          payment_id?: string;
+          booking_id?: string;
+          receipt_number?: string;
+          receipt_url?: string | null;
+          created_at?: string;
+        };
+      };
+
+      pricing_config: {
+        Row: {
+          id: string;
+          base_fee_per_person: number;
+          processing_fee_percentage: number;
+          tax_percentage: number;
+          destination_multipliers: any;
+          seasonal_multipliers: any;
+          group_discounts: any;
+          carbon_offset_fee_per_kg: number;
+          version: number;
+          is_active: boolean;
+          effective_from: string;
+          effective_until: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          base_fee_per_person?: number;
+          processing_fee_percentage?: number;
+          tax_percentage?: number;
+          destination_multipliers?: any;
+          seasonal_multipliers?: any;
+          group_discounts?: any;
+          carbon_offset_fee_per_kg?: number;
+          version?: number;
+          is_active?: boolean;
+          effective_from?: string;
+          effective_until?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          base_fee_per_person?: number;
+          processing_fee_percentage?: number;
+          tax_percentage?: number;
+          destination_multipliers?: any;
+          seasonal_multipliers?: any;
+          group_discounts?: any;
+          carbon_offset_fee_per_kg?: number;
+          version?: number;
+          is_active?: boolean;
+          effective_from?: string;
+          effective_until?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+      };
     };
     Views: {
-      [_ in never]: never;
+      payment_summary: {
+        Row: {
+          id: string;
+          booking_id: string;
+          user_id: string;
+          amount: number;
+          currency: string;
+          payment_status: string;
+          payment_method: string | null;
+          gateway: string;
+          created_at: string;
+          paid_at: string | null;
+          customer_name: string;
+          customer_email: string;
+          customer_phone: string;
+          booking_status: string;
+          destination_name: string;
+          check_in_date: string;
+          check_out_date: string;
+          group_size: number;
+          effective_status: string;
+          gateway_payment_id: string | null;
+          gateway_order_id: string | null;
+        };
+      };
     };
     Functions: {
       register_for_cleanup: {
@@ -547,6 +748,40 @@ export type Database = {
         }
         Returns: boolean
       }
+      calculate_booking_price: {
+        Args: {
+          p_destination_id: string;
+          p_group_size: number;
+          p_check_in_date: string;
+          p_carbon_footprint?: number;
+        };
+        Returns: Array<{
+          base_amount: number;
+          destination_fee: number;
+          seasonal_adjustment: number;
+          group_discount: number;
+          carbon_offset_fee: number;
+          processing_fee: number;
+          tax_amount: number;
+          total_amount: number;
+        }>;
+      };
+      get_payment_statistics: {
+        Args: {
+          p_start_date: string;
+          p_end_date: string;
+        };
+        Returns: Array<{
+          total_revenue: number;
+          total_transactions: number;
+          successful_payments: number;
+          failed_payments: number;
+          pending_payments: number;
+          total_refunds: number;
+          refund_amount: number;
+          average_transaction_value: number;
+        }>;
+      };
     };
     Enums: {
       [_ in never]: never;

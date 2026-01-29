@@ -5,7 +5,7 @@ import { getDbService } from '@/lib/databaseService';
 import { Destination } from '@/types';
 
 export function useDestinations() {
-  return useQuery({
+   return useQuery<Destination[]>({
     queryKey: ['destinations'],
     queryFn: async () => {
       const dbService = getDbService();

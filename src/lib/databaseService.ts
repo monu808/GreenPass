@@ -15,13 +15,19 @@ import {
   CleanupActivity, 
   CleanupRegistration, 
   EcoPointsTransaction, 
-  EcoPointsLeaderboardEntry
+  EcoPointsLeaderboardEntry,
+  EcologicalDamageIndicators
 } from '@/types';
 import { Database } from '@/types/database';
+import { isWithinInterval, format } from 'date-fns';
+import { 
+  weatherCache, 
+  ecologicalIndicatorCache, 
+  destinationCache, 
+  withCache 
+} from './cache';
 import { getPolicyEngine } from './ecologicalPolicyEngine';
-import { format, isWithinInterval } from 'date-fns';
 import * as mockData from '@/data/mockData';
-import { weatherCache, withCache, ecologicalIndicatorCache } from './cache';
 
 // Type aliases for database types
 export type DbTourist = Database['public']['Tables']['tourists']['Row'];
@@ -65,12 +71,7 @@ export interface ComplianceReportInput {
   };
   carbonFootprint: number;
   ecologicalImpactIndex: number;
-  ecologicalDamageIndicators?: {
-    soilCompaction: number;
-    vegetationDisturbance: number;
-    wildlifeDisturbance: number;
-    waterSourceImpact: number;
-  };
+  ecologicalDamageIndicators?: EcologicalDamageIndicators;
   previousPeriodScore?: number;
   policyViolationsCount: number;
   totalFines: number;
@@ -90,6 +91,14 @@ class DatabaseService {
 
   private isPlaceholderMode(): boolean {
     const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    // Force mock mode for development/testing
+  // Change this to false when you want to use real database
+    const USE_MOCK_DATA = true;
+  
+    if (USE_MOCK_DATA) {
+      console.log('🎭 Using mock data mode');
+      return true;
+    }
     return !supabase || !url || url.includes('placeholder') || url.includes('your-project');
   }
 
@@ -1548,7 +1557,7 @@ class DatabaseService {
     }
   }
 
-  async getLatestEcologicalIndicators(destinationId: string): Promise<{ soil_compaction: number; vegetation_disturbance: number; wildlife_disturbance: number; water_source_impact: number } | null> {
+  async getLatestEcologicalIndicators(_destinationId: string): Promise<{ soil_compaction: number; vegetation_disturbance: number; wildlife_disturbance: number; water_source_impact: number } | null> {
     try {
       if (this.isPlaceholderMode() || !db) return null;
 
@@ -2095,10 +2104,10 @@ class DatabaseService {
         carbon_footprint: report.carbonFootprint,
         ecological_impact_index: report.ecologicalImpactIndex,
         ecological_damage_indicators: report.ecologicalDamageIndicators ? {
-          soil_compaction: report.ecologicalDamageIndicators.soilCompaction,
-          vegetation_disturbance: report.ecologicalDamageIndicators.vegetationDisturbance,
-          wildlife_disturbance: report.ecologicalDamageIndicators.wildlifeDisturbance,
-          water_source_impact: report.ecologicalDamageIndicators.waterSourceImpact,
+          soil_compaction: report.ecologicalDamageIndicators.soilCompaction ?? report.ecologicalDamageIndicators.soilCompaction ?? 0,
+          vegetation_disturbance: report.ecologicalDamageIndicators.vegetationDisturbance ?? report.ecologicalDamageIndicators.vegetationDisturbance ?? 0,
+          wildlife_disturbance: report.ecologicalDamageIndicators.wildlifeDisturbance ?? report.ecologicalDamageIndicators.wildlifeDisturbance ?? 0,
+          water_source_impact: report.ecologicalDamageIndicators.waterSourceImpact ?? report.ecologicalDamageIndicators.waterSourceImpact ?? 0,
         } : undefined,
         previous_period_score: report.previousPeriodScore,
         policy_violations_count: report.policyViolationsCount,
@@ -2611,7 +2620,7 @@ class DatabaseService {
     };
   }
 
-  private transformDbTouristToTourist(dbTourist: DbTourist): Tourist {
+  public transformDbTouristToTourist(dbTourist: DbTourist): Tourist {
     return {
       id: dbTourist.id,
       name: dbTourist.name,

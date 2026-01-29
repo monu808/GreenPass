@@ -17,8 +17,8 @@ import {
 import { getDbService } from "@/lib/databaseService";
 import { Tourist, Destination } from "@/types";
 import type { Database } from "@/types/database";
-import { sanitizeSearchTerm } from "@/lib/utils";
-import { validateInput, SearchFilterSchema } from "@/lib/validation";
+import { sanitizeSearchTerm, formatPhone } from "@/lib/utils";
+import { SearchFilterSchema } from "@/lib/validation/schemas"; 
 
 type DbDestination = Database['public']['Tables']['destinations']['Row'];
 
@@ -40,6 +40,7 @@ export default function BookingsPage() {
         dbService.getDestinations(),
       ]);
       setBookings(touristData);
+      
       // Transform database properties to component interface
       const transformedDestinations = destinationData.map((dest: DbDestination) => ({
         ...dest,
@@ -65,32 +66,53 @@ export default function BookingsPage() {
     router.push(`/management?id=${bookingId}`);
   };
 
+  // Updated to use API endpoint
   const handleApproveBooking = async (bookingId: string) => {
     try {
-      const dbService = getDbService();
-      await dbService.updateTouristStatus(bookingId, "approved");
+      const response = await fetch(`/api/bookings/${bookingId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'approved' }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.message || 'Failed to approve booking');
+      }
+
       // Optimistic update
       setBookings((prev) =>
         prev.map((b) => (b.id === bookingId ? { ...b, status: "approved" } : b))
       );
     } catch (error) {
       console.error("Error approving booking:", error);
-      alert("Failed to approve booking. Please try again.");
+      alert(error instanceof Error ? error.message : "Failed to approve booking. Please try again.");
     }
   };
 
+  // Updated to use API endpoint
   const handleCancelBooking = async (bookingId: string) => {
     if (!confirm("Are you sure you want to cancel this booking?")) return;
+    
     try {
-      const dbService = getDbService();
-      await dbService.updateTouristStatus(bookingId, "cancelled");
+      const response = await fetch(`/api/bookings/${bookingId}`, {
+        method: 'DELETE',
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.message || 'Failed to cancel booking');
+      }
+
       // Optimistic update
       setBookings((prev) =>
         prev.map((b) => (b.id === bookingId ? { ...b, status: "cancelled" } : b))
       );
     } catch (error) {
       console.error("Error cancelling booking:", error);
-      alert("Failed to cancel booking. Please try again.");
+      alert(error instanceof Error ? error.message : "Failed to cancel booking. Please try again.");
     }
   };
 
@@ -100,24 +122,38 @@ export default function BookingsPage() {
   };
 
   const filteredBookings = bookings.filter((booking) => {
+    // Sanitize search term
     const sanitizedSearch = sanitizeSearchTerm(searchTerm);
     
-    const filterValidation = validateInput(SearchFilterSchema, {
-      searchTerm: sanitizedSearch,
+    // Prepare filter data for validation
+    const filterData = {
+      searchTerm: sanitizedSearch || undefined,
       status: statusFilter === "all" ? undefined : statusFilter as any,
       destinationId: destinationFilter === "all" ? undefined : destinationFilter,
-    });
+    };
 
-    const validFilters = filterValidation.success ? filterValidation.data : { searchTerm: "", status: undefined, destinationId: undefined };
+    // Validate filters using Zod schema
+    const filterValidation = SearchFilterSchema.safeParse(filterData);
+    
+    // Use validated data or fallback to empty values
+    const validFilters = filterValidation.success 
+      ? filterValidation.data 
+      : { searchTerm: undefined, status: undefined, destinationId: undefined };
 
+    // Apply filters
+    const searchLower = (validFilters.searchTerm || "").toLowerCase();
     const matchesSearch =
-      booking.name.toLowerCase().includes(validFilters.searchTerm?.toLowerCase() || "") ||
-      booking.email.toLowerCase().includes(validFilters.searchTerm?.toLowerCase() || "") ||
-      booking.phone.includes(validFilters.searchTerm || "");
+      !searchLower ||
+      booking.name.toLowerCase().includes(searchLower) ||
+      booking.email.toLowerCase().includes(searchLower) ||
+      booking.phone.includes(searchLower);
+
     const matchesStatus =
-      statusFilter === "all" || booking.status === validFilters.status;
+      !validFilters.status || booking.status === validFilters.status;
+
     const matchesDestination =
-      destinationFilter === "all" || booking.destination === validFilters.destinationId;
+      !validFilters.destinationId || booking.destination === validFilters.destinationId;
+
     return matchesSearch && matchesStatus && matchesDestination;
   });
 
@@ -193,7 +229,10 @@ export default function BookingsPage() {
               <Calendar className="h-4 w-4" />
               <span>{filteredBookings.length} bookings</span>
             </div>
-            <button className="flex items-center justify-center px-4 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors shadow-sm">
+            <button 
+              onClick={() => router.push('/register')}
+              className="flex items-center justify-center px-4 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors shadow-sm"
+            >
               <Plus className="h-4 w-4 mr-2" />
               <span className="text-sm font-medium">New Booking</span>
             </button>
@@ -271,6 +310,8 @@ export default function BookingsPage() {
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="w-full pl-10 pr-4 py-2.5 sm:py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-sm"
+                  maxLength={100}
+                  aria-label="Search bookings"
                 />
               </div>
             </div>
@@ -280,6 +321,7 @@ export default function BookingsPage() {
                   value={statusFilter}
                   onChange={(e) => setStatusFilter(e.target.value)}
                   className="w-full px-3 py-2.5 sm:py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-sm"
+                  aria-label="Filter by status"
                 >
                   <option value="all">All Status</option>
                   <option value="pending">Pending</option>
@@ -294,6 +336,7 @@ export default function BookingsPage() {
                   value={destinationFilter}
                   onChange={(e) => setDestinationFilter(e.target.value)}
                   className="w-full px-3 py-2.5 sm:py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-sm"
+                  aria-label="Filter by destination"
                 >
                   <option value="all">All Destinations</option>
                   {destinations.map((dest) => (
@@ -318,6 +361,11 @@ export default function BookingsPage() {
             <div className="p-8 text-center">
               <Calendar className="h-12 w-12 text-gray-400 mx-auto mb-4" />
               <p className="text-gray-600 text-sm">No bookings found</p>
+              {(searchTerm || statusFilter !== "all" || destinationFilter !== "all") && (
+                <p className="text-gray-500 text-xs mt-2">
+                  Try adjusting your filters
+                </p>
+              )}
             </div>
           ) : (
             <>
@@ -360,11 +408,14 @@ export default function BookingsPage() {
                             <div className="text-xs text-gray-500">
                               {booking.email}
                             </div>
+                            <div className="text-xs text-gray-500">
+                              {formatPhone(booking.phone)}
+                            </div>
                           </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="flex items-center text-sm text-gray-600">
-                            <MapPin className="h-4 w-4 text-gray-400 mr-2" />
+                            <MapPin className="h-4 w-4 text-gray-400 mr-2 flex-shrink-0" />
                             {getDestinationName(booking.destination)}
                           </div>
                         </td>
@@ -394,7 +445,7 @@ export default function BookingsPage() {
                               onClick={() => handleViewBooking(booking.id)}
                               className="text-green-600 hover:text-green-700 transition-colors"
                               title="View Details"
-                              aria-label="View booking"
+                              aria-label={`View booking details for ${booking.name}`}
                             >
                               <Eye className="h-4 w-4" />
                             </button>
@@ -404,7 +455,7 @@ export default function BookingsPage() {
                                   onClick={() => handleApproveBooking(booking.id)}
                                   className="text-blue-600 hover:text-blue-700 transition-colors"
                                   title="Approve Booking"
-                                  aria-label="Approve booking"
+                                  aria-label={`Approve booking for ${booking.name}`}
                                 >
                                   <CheckCircle className="h-4 w-4" />
                                 </button>
@@ -412,7 +463,7 @@ export default function BookingsPage() {
                                   onClick={() => handleCancelBooking(booking.id)}
                                   className="text-red-600 hover:text-red-700 transition-colors"
                                   title="Cancel Booking"
-                                  aria-label="Cancel booking"
+                                  aria-label={`Cancel booking for ${booking.name}`}
                                 >
                                   <XCircle className="h-4 w-4" />
                                 </button>
@@ -431,32 +482,38 @@ export default function BookingsPage() {
                 {filteredBookings.map((booking) => (
                   <div key={booking.id} className="p-4 space-y-3">
                     <div className="flex justify-between items-start">
-                      <div>
-                        <h3 className="text-sm font-semibold text-gray-900">{booking.name}</h3>
-                        <p className="text-xs text-gray-500">{booking.email}</p>
+                      <div className="flex-1 min-w-0">
+                        <h3 className="text-sm font-semibold text-gray-900 truncate">
+                          {booking.name}
+                        </h3>
+                        <p className="text-xs text-gray-500 truncate">{booking.email}</p>
+                        <p className="text-xs text-gray-500">{formatPhone(booking.phone)}</p>
                       </div>
                       <StatusBadge status={booking.status} />
                     </div>
                     
                     <div className="grid grid-cols-2 gap-y-2 text-xs">
                       <div className="flex items-center text-gray-600">
-                        <MapPin className="h-3.5 w-3.5 mr-1.5 text-gray-400" />
-                        {getDestinationName(booking.destination)}
+                        <MapPin className="h-3.5 w-3.5 mr-1.5 text-gray-400 flex-shrink-0" />
+                        <span className="truncate">{getDestinationName(booking.destination)}</span>
                       </div>
                       <div className="flex items-center text-gray-600">
                         <Users className="h-3.5 w-3.5 mr-1.5 text-gray-400" />
                         {booking.groupSize} members
                       </div>
-                      <div className="col-span-2 flex items-center text-gray-600">
-                        <Calendar className="h-3.5 w-3.5 mr-1.5 text-gray-400" />
-                        {formatDateRange(booking.checkInDate, booking.checkOutDate)}
+                      <div className="col-span-2 flex items-start text-gray-600">
+                        <Calendar className="h-3.5 w-3.5 mr-1.5 mt-0.5 text-gray-400 flex-shrink-0" />
+                        <span className="break-words">
+                          {formatDateRange(booking.checkInDate, booking.checkOutDate)}
+                        </span>
                       </div>
                     </div>
 
-                    <div className="flex justify-end items-center pt-2 space-x-3 border-t border-gray-50">
+                    <div className="flex justify-end items-center pt-2 space-x-2 border-t border-gray-50">
                       <button
                         onClick={() => handleViewBooking(booking.id)}
-                        className="flex items-center text-xs font-medium text-green-600 bg-green-50 px-3 py-1.5 rounded-lg"
+                        className="flex items-center text-xs font-medium text-green-600 bg-green-50 px-3 py-1.5 rounded-lg hover:bg-green-100 transition-colors"
+                        aria-label={`View details for ${booking.name}`}
                       >
                         <Eye className="h-3.5 w-3.5 mr-1.5" />
                         Details
@@ -465,14 +522,16 @@ export default function BookingsPage() {
                         <>
                           <button
                             onClick={() => handleApproveBooking(booking.id)}
-                            className="flex items-center text-xs font-medium text-blue-600 bg-blue-50 px-3 py-1.5 rounded-lg"
+                            className="flex items-center text-xs font-medium text-blue-600 bg-blue-50 px-3 py-1.5 rounded-lg hover:bg-blue-100 transition-colors"
+                            aria-label={`Approve booking for ${booking.name}`}
                           >
                             <CheckCircle className="h-3.5 w-3.5 mr-1.5" />
                             Approve
                           </button>
                           <button
                             onClick={() => handleCancelBooking(booking.id)}
-                            className="flex items-center text-xs font-medium text-red-600 bg-red-50 px-3 py-1.5 rounded-lg"
+                            className="flex items-center text-xs font-medium text-red-600 bg-red-50 px-3 py-1.5 rounded-lg hover:bg-red-100 transition-colors"
+                            aria-label={`Cancel booking for ${booking.name}`}
                           >
                             <XCircle className="h-3.5 w-3.5 mr-1.5" />
                             Cancel

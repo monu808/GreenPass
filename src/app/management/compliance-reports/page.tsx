@@ -1,7 +1,8 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import Layout from "@/components/Layout";
+import { useModalAccessibility } from "@/lib/accessibility";
 import {
   FileText,
   Download,
@@ -31,6 +32,13 @@ export default function ComplianceReportsPage() {
   const [reportYear, setReportYear] = useState(new Date().getFullYear().toString());
   const [reportType, setReportType] = useState<"monthly" | "quarterly">("monthly");
   const [filterType, setFilterType] = useState<string>("All Types");
+  
+  const modalRef = useRef<HTMLDivElement>(null);
+  useModalAccessibility({
+    modalRef,
+    isOpen: showGenerateModal,
+    onClose: () => setShowGenerateModal(false)
+  });
 
   const dbService = getDbService();
 
@@ -251,7 +259,8 @@ export default function ComplianceReportsPage() {
             </div>
           </div>
 
-          <div className="overflow-x-auto">
+          {/* Desktop View Table */}
+          <div className="hidden lg:block overflow-x-auto">
             <table className="w-full text-left">
               <thead className="bg-gray-50 text-gray-500 text-xs uppercase tracking-wider">
                 <tr>
@@ -357,27 +366,111 @@ export default function ComplianceReportsPage() {
               </tbody>
             </table>
           </div>
+
+          {/* Mobile View Cards */}
+          <div className="lg:hidden divide-y divide-gray-100">
+            {loading ? (
+              <div className="p-8 text-center text-gray-500">Loading reports...</div>
+            ) : reports.length === 0 ? (
+              <div className="p-8 text-center text-gray-500">No reports generated yet.</div>
+            ) : reports.filter(report => filterType === "All Types" || report.reportType === filterType).length === 0 ? (
+              <div className="p-8 text-center text-gray-500">No reports found for the selected filter.</div>
+            ) : (
+              reports
+                .filter(report => filterType === "All Types" || report.reportType === filterType)
+                .map((report, index) => (
+                <div key={`${report.id}-${index}`} className="p-4 space-y-4">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <div className="text-base font-bold text-gray-900">{report.reportPeriod}</div>
+                      <div className="text-xs text-gray-500 mt-0.5">
+                        Generated {format(report.createdAt, "MMM dd, yyyy")}
+                      </div>
+                    </div>
+                    <span
+                      className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${
+                        report.status === "approved"
+                          ? "bg-green-50 text-green-700 border border-green-100"
+                          : "bg-yellow-50 text-yellow-700 border border-yellow-100"
+                      }`}
+                    >
+                      {report.status === "approved" ? (
+                        <CheckCircle className="h-3 w-3" />
+                      ) : (
+                        <AlertCircle className="h-3 w-3" />
+                      )}
+                      {report.status}
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="bg-gray-50 p-3 rounded-xl border border-gray-100">
+                      <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1">Score</span>
+                      <div className={`text-lg font-bold ${getScoreColor(report.complianceScore)}`}>
+                        {report.complianceScore.toFixed(1)}%
+                      </div>
+                    </div>
+                    <div className="bg-gray-50 p-3 rounded-xl border border-gray-100">
+                      <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1">Volume</span>
+                      <div className="text-lg font-bold text-gray-900">
+                        {report.totalTourists.toLocaleString()}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex gap-2 pt-1">
+                    {report.status === "pending" && (
+                      <button
+                        onClick={() => handleApproveReport(report.id)}
+                        className="flex-1 flex items-center justify-center min-h-[44px] gap-2 bg-green-50 hover:bg-green-100 text-green-700 font-semibold rounded-xl border border-green-100 transition-colors"
+                      >
+                        <CheckSquare className="h-5 w-5" />
+                        Approve
+                      </button>
+                    )}
+                    <button
+                      onClick={() => handleExportPDF(report)}
+                      className="flex-1 flex items-center justify-center min-h-[44px] gap-2 bg-blue-50 hover:bg-blue-100 text-blue-700 font-semibold rounded-xl border border-blue-100 transition-colors"
+                    >
+                      <Download className="h-5 w-5" />
+                      Export PDF
+                    </button>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
         </div>
 
         {/* Generate Modal */}
         {showGenerateModal && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
-            <div className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden">
+          <div 
+            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 backdrop-blur-sm"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="modal-title"
+          >
+            <div 
+              ref={modalRef}
+              className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden"
+            >
               <div className="p-6 border-b border-gray-200 flex items-center justify-between">
-                <h3 className="text-lg font-bold text-gray-900">Generate Compliance Report</h3>
+                <h3 id="modal-title" className="text-lg font-bold text-gray-900">Generate Compliance Report</h3>
                 <button
                   onClick={() => setShowGenerateModal(false)}
-                  className="text-gray-400 hover:text-gray-600 transition-colors"
+                  className="text-gray-400 hover:text-gray-600 transition-colors focus:outline-none focus:ring-2 focus:ring-green-500 rounded-lg p-1"
+                  aria-label="Close modal"
                 >
-                  <Plus className="h-6 w-6 rotate-45" />
+                  <Plus className="h-6 w-6 rotate-45" aria-hidden="true" />
                 </button>
               </div>
               <div className="p-6 space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label htmlFor="report-type-select" className="block text-sm font-medium text-gray-700 mb-1">
                     Report Type
                   </label>
                   <select
+                    id="report-type-select"
                     value={reportType}
                     onChange={(e) => setReportType(e.target.value as "monthly" | "quarterly")}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 outline-none text-gray-900 bg-white"
@@ -390,10 +483,11 @@ export default function ComplianceReportsPage() {
                 {reportType === "monthly" ? (
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                      <label htmlFor="report-year-input" className="block text-sm font-medium text-gray-700 mb-1">
                         Year
                       </label>
                       <input
+                        id="report-year-input"
                         type="number"
                         value={reportYear}
                         onChange={(e) => setReportYear(e.target.value)}
@@ -403,10 +497,11 @@ export default function ComplianceReportsPage() {
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                      <label htmlFor="report-month-select" className="block text-sm font-medium text-gray-700 mb-1">
                         Month
                       </label>
                       <select
+                        id="report-month-select"
                         value={reportMonth}
                         onChange={(e) => setReportMonth(e.target.value)}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 outline-none text-gray-900 bg-white"
@@ -429,10 +524,11 @@ export default function ComplianceReportsPage() {
                 ) : (
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                      <label htmlFor="report-year-input-q" className="block text-sm font-medium text-gray-700 mb-1">
                         Year
                       </label>
                       <input
+                        id="report-year-input-q"
                         type="number"
                         value={reportYear}
                         onChange={(e) => setReportYear(e.target.value)}
@@ -442,18 +538,19 @@ export default function ComplianceReportsPage() {
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                      <label htmlFor="report-quarter-select" className="block text-sm font-medium text-gray-700 mb-1">
                         Quarter
                       </label>
                       <select
+                        id="report-quarter-select"
                         value={reportQuarter}
                         onChange={(e) => setReportQuarter(e.target.value)}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 outline-none text-gray-900 bg-white"
                       >
-                        <option value="1">Q1 (Jan-Mar)</option>
-                        <option value="2">Q2 (Apr-Jun)</option>
-                        <option value="3">Q3 (Jul-Sep)</option>
-                        <option value="4">Q4 (Oct-Dec)</option>
+                        <option value="1">Q1 (Jan - Mar)</option>
+                        <option value="2">Q2 (Apr - Jun)</option>
+                        <option value="3">Q3 (Jul - Sep)</option>
+                        <option value="4">Q4 (Oct - Dec)</option>
                       </select>
                     </div>
                   </div>

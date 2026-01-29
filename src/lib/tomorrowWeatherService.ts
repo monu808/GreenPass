@@ -304,25 +304,37 @@ class TomorrowWeatherService {
   }
 
   private transformWeatherData(data: TomorrowRealtimeResponse, cityName: string): WeatherData {
-    const values = data.data?.values || {};
-    const weatherCode = values.weatherCode || 0;
+    const values = data.data?.values || {
+      temperature: 0,
+      humidity: 0,
+      pressureSeaLevel: 0,
+      windSpeed: 0,
+      windDirection: 0,
+      visibility: 0,
+      uvIndex: 0,
+      cloudCover: 0,
+      precipitationProbability: 0,
+      precipitationType: 0,
+      weatherCode: 0
+    };
+    const weatherCode = values.weatherCode;
     const weatherInfo = this.weatherCodeMap[weatherCode] || this.weatherCodeMap[0];
 
     return {
-      temperature: values.temperature || 0,
-      humidity: values.humidity || 0,
-      pressure: values.pressureSeaLevel || 0,
+      temperature: values.temperature,
+      humidity: values.humidity,
+      pressure: values.pressureSeaLevel,
       weatherMain: weatherInfo.main,
       weatherDescription: weatherInfo.description,
-      windSpeed: values.windSpeed || 0,
-      windDirection: values.windDirection || 0,
-      visibility: values.visibility || 0,
+      windSpeed: values.windSpeed,
+      windDirection: values.windDirection,
+      visibility: values.visibility,
       cityName,
       icon: weatherInfo.icon,
-      uvIndex: values.uvIndex || 0,
-      cloudCover: values.cloudCover || 0,
-      precipitationProbability: values.precipitationProbability || 0,
-      precipitationType: this.getPrecipitationType(values.precipitationType || 0)
+      uvIndex: values.uvIndex,
+      cloudCover: values.cloudCover,
+      precipitationProbability: values.precipitationProbability,
+      precipitationType: this.getPrecipitationType(values.precipitationType)
     };
   }
 

@@ -1,7 +1,8 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import Layout from "@/components/Layout";
+import { useModalAccessibility } from "@/lib/accessibility";
 import {
   AlertTriangle,
   Search,
@@ -182,8 +183,8 @@ export default function AlertsPage() {
     
     const filterValidation = validateInput(AlertFilterSchema, {
       searchTerm: sanitizedSearch,
-      type: typeFilter === "all" ? undefined : typeFilter as any,
-      severity: severityFilter === "all" ? undefined : severityFilter as any,
+      type: typeFilter === "all" ? undefined : typeFilter as Alert["type"],
+      severity: severityFilter === "all" ? undefined : severityFilter as Alert["severity"],
     });
 
     const validFilters = filterValidation.success 
@@ -254,6 +255,9 @@ export default function AlertsPage() {
   );
 
   const CreateAlertModal = ({ onClose }: { onClose: () => void }) => {
+    const modalRef = useRef<HTMLDivElement>(null);
+    useModalAccessibility({ modalRef, isOpen: true, onClose });
+
     const [formData, setFormData] = useState({
       type: "weather",
       title: "",
@@ -284,24 +288,42 @@ export default function AlertsPage() {
     };
 
     return (
-      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-        <div className="bg-white rounded-lg max-w-md w-full">
-          <div className="p-6">
-            <h2 className="text-xl font-bold text-gray-900 mb-4">
+      <div 
+        className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="create-alert-title"
+      >
+        <div 
+          ref={modalRef}
+          className="bg-white w-full max-w-md rounded-t-[2rem] sm:rounded-2xl overflow-hidden shadow-2xl flex flex-col max-h-[95vh] sm:max-h-[90vh] animate-in slide-in-from-bottom duration-300"
+        >
+          <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-white sticky top-0 z-20">
+            <h2 id="create-alert-title" className="text-xl font-bold text-gray-900">
               Create New Alert
             </h2>
+            <button
+              onClick={onClose}
+              className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center"
+              aria-label="Close modal"
+            >
+              <span aria-hidden="true" className="text-2xl">×</span>
+            </button>
+          </div>
 
-            <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="p-6 overflow-y-auto">
+            <form id="create-alert-form" onSubmit={handleSubmit} className="space-y-5">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label htmlFor="alert-type" className="block text-sm font-semibold text-gray-700 mb-2">
                   Type
                 </label>
                 <select
+                  id="alert-type"
                   value={formData.type}
                   onChange={(e) =>
                     setFormData((prev) => ({ ...prev, type: e.target.value }))
                   }
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all text-base min-h-[44px]"
                   required
                 >
                   <option value="weather">Weather</option>
@@ -313,25 +335,28 @@ export default function AlertsPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label htmlFor="alert-title" className="block text-sm font-semibold text-gray-700 mb-2">
                   Title
                 </label>
                 <input
+                  id="alert-title"
                   type="text"
                   value={formData.title}
                   onChange={(e) =>
                     setFormData((prev) => ({ ...prev, title: e.target.value }))
                   }
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                  placeholder="e.g., Heavy Rain Warning"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all text-base min-h-[44px]"
                   required
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label htmlFor="alert-message" className="block text-sm font-semibold text-gray-700 mb-2">
                   Message
                 </label>
                 <textarea
+                  id="alert-message"
                   value={formData.message}
                   onChange={(e) =>
                     setFormData((prev) => ({
@@ -340,57 +365,62 @@ export default function AlertsPage() {
                     }))
                   }
                   rows={3}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                  placeholder="Provide details about the alert..."
+                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all text-base min-h-[44px]"
                   required
                 />
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Severity
-                </label>
-                <select
-                  value={formData.severity}
-                  onChange={(e) =>
-                    setFormData((prev) => ({
-                      ...prev,
-                      severity: e.target.value,
-                    }))
-                  }
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                  required
-                >
-                  <option value="low">Low</option>
-                  <option value="medium">Medium</option>
-                  <option value="high">High</option>
-                  <option value="critical">Critical</option>
-                </select>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label htmlFor="alert-severity" className="block text-sm font-semibold text-gray-700 mb-2">
+                    Severity
+                  </label>
+                  <select
+                    id="alert-severity"
+                    value={formData.severity}
+                    onChange={(e) =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        severity: e.target.value,
+                      }))
+                    }
+                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all text-base min-h-[44px]"
+                    required
+                  >
+                    <option value="low">Low</option>
+                    <option value="medium">Medium</option>
+                    <option value="high">High</option>
+                    <option value="critical">Critical</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label htmlFor="alert-destination" className="block text-sm font-semibold text-gray-700 mb-2">
+                    Destination
+                  </label>
+                  <select
+                    id="alert-destination"
+                    value={formData.destinationId}
+                    onChange={(e) =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        destinationId: e.target.value,
+                      }))
+                    }
+                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all text-base min-h-[44px]"
+                  >
+                    <option value="">All Destinations</option>
+                    {destinations.map((dest) => (
+                      <option key={dest.id} value={dest.id}>
+                        {dest.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Destination
-                </label>
-                <select
-                  value={formData.destinationId}
-                  onChange={(e) =>
-                    setFormData((prev) => ({
-                      ...prev,
-                      destinationId: e.target.value,
-                    }))
-                  }
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                >
-                  <option value="">All Destinations</option>
-                  {destinations.map((dest) => (
-                    <option key={dest.id} value={dest.id}>
-                      {dest.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="flex items-center">
+              <div className="flex items-center p-3 bg-gray-50 rounded-xl border border-gray-100">
                 <input
                   type="checkbox"
                   id="isActive"
@@ -401,32 +431,33 @@ export default function AlertsPage() {
                       isActive: e.target.checked,
                     }))
                   }
-                  className="rounded border-gray-300 text-green-600 focus:ring-green-500"
+                  className="h-5 w-5 rounded border-gray-300 text-green-600 focus:ring-green-500"
                 />
                 <label
                   htmlFor="isActive"
-                  className="ml-2 text-sm text-gray-700"
+                  className="ml-3 text-sm font-medium text-gray-700 select-none cursor-pointer"
                 >
-                  Active alert
+                  Active alert (visible to users)
                 </label>
               </div>
-
-              <div className="flex gap-2 pt-4">
-                <button
-                  type="submit"
-                  className="flex-1 px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
-                >
-                  Create Alert
-                </button>
-                <button
-                  type="button"
-                  onClick={onClose}
-                  className="flex-1 px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700"
-                >
-                  Cancel
-                </button>
-              </div>
             </form>
+          </div>
+
+          <div className="p-6 border-t border-gray-100 bg-gray-50 mt-auto flex flex-col sm:flex-row gap-3">
+            <button
+              type="submit"
+              form="create-alert-form"
+              className="flex-1 min-h-[48px] px-6 py-3 bg-green-600 text-white font-bold rounded-xl hover:bg-green-700 transition-all shadow-md active:scale-[0.98]"
+            >
+              Create Alert
+            </button>
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex-1 min-h-[48px] px-6 py-3 bg-white text-gray-700 font-bold border border-gray-300 rounded-xl hover:bg-gray-50 transition-all active:scale-[0.98]"
+            >
+              Cancel
+            </button>
           </div>
         </div>
       </div>
@@ -437,125 +468,111 @@ export default function AlertsPage() {
     <Layout>
       <div className="space-y-6">
         {/* Header */}
-        <div className="flex justify-between items-center">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">
+            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">
               Alerts Management
             </h1>
-            <p className="text-gray-600">Monitor and manage system alerts</p>
+            <p className="text-sm sm:text-base text-gray-600">Monitor and manage system alerts</p>
             {lastUpdated && (
-              <p className="text-sm text-gray-500 mt-1">
+              <p className="text-xs sm:text-sm text-gray-500 mt-1">
                 Last updated: {lastUpdated.toLocaleTimeString()}
               </p>
             )}
           </div>
-          <div className="flex items-center space-x-4">
-            {/* Weather Monitoring Controls */}
-            <div className="flex items-center space-x-2 px-3 py-2 bg-blue-50 rounded-lg border border-blue-200">
-              <Cloud className="h-4 w-4 text-blue-600" />
-              <span className="text-sm text-blue-700">
-                Tomorrow.io Weather API
-              </span>
-            </div>
-
+          <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
             {/* Manual Refresh */}
             <button
               onClick={handleManualWeatherCheck}
               disabled={loading}
-              className="flex items-center px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+              className="flex-1 sm:flex-none flex items-center justify-center px-4 py-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 disabled:opacity-50 transition-all min-h-[44px] shadow-sm active:scale-[0.98]"
               title="Check weather now and generate alerts"
             >
               <RefreshCw
                 className={`h-4 w-4 mr-2 ${loading ? "animate-spin" : ""}`}
               />
-              Check Weather Now
+              <span className="text-sm font-semibold">Check Weather</span>
             </button>
 
-            {/* Auto-refresh toggle */}
-            <label className="flex items-center space-x-2 text-sm text-gray-600">
-              <input
-                type="checkbox"
-                checked={autoRefresh}
-                onChange={(e) => setAutoRefresh(e.target.checked)}
-                className="rounded border-gray-300 text-green-600 focus:ring-green-500"
-              />
-              <span>Auto-refresh</span>
-            </label>
-
-            <div className="flex items-center space-x-2 text-sm text-gray-600">
-              <AlertTriangle className="h-4 w-4" />
-              <span>
-                {alerts.filter((a) => a.isActive).length} active alerts
-              </span>
-            </div>
             <button
               onClick={() => setShowCreateModal(true)}
-              className="flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+              className="flex-1 sm:flex-none flex items-center justify-center px-4 py-2.5 bg-green-600 text-white rounded-xl hover:bg-green-700 transition-all min-h-[44px] shadow-sm active:scale-[0.98]"
             >
               <Plus className="h-4 w-4 mr-2" />
-              New Alert
+              <span className="text-sm font-semibold">New Alert</span>
             </button>
           </div>
         </div>
 
+        {/* Status & Monitoring Info */}
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 py-3 px-4 bg-gray-50 rounded-xl border border-gray-200">
+          <div className="flex items-center space-x-2 px-3 py-1.5 bg-blue-100 rounded-full border border-blue-200">
+            <Cloud className="h-4 w-4 text-blue-600" />
+            <span className="text-xs font-semibold text-blue-700 uppercase tracking-wider">
+              Weather Monitoring Active
+            </span>
+          </div>
+
+          <div className="flex items-center space-x-4">
+            <label className="flex items-center space-x-2 text-sm font-medium text-gray-700 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={autoRefresh}
+                onChange={(e) => setAutoRefresh(e.target.checked)}
+                className="h-5 w-5 rounded border-gray-300 text-green-600 focus:ring-green-500"
+              />
+              <span>Auto-refresh</span>
+            </label>
+
+            <div className="flex items-center space-x-2 text-sm font-medium text-gray-600 border-l border-gray-300 pl-4">
+              <AlertTriangle className="h-4 w-4 text-orange-500" />
+              <span>
+                {alerts.filter((a) => a.isActive).length} Active
+              </span>
+            </div>
+          </div>
+        </div>
+
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-          <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
-            <div className="flex items-center">
-              <AlertTriangle className="h-8 w-8 text-red-600" />
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">Critical</p>
-                <p className="text-2xl font-bold text-gray-900">
-                  {
-                    alerts.filter(
-                      (a) => a.severity === "critical" && a.isActive
-                    ).length
-                  }
-                </p>
-              </div>
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+          <div className="bg-white p-4 sm:p-6 rounded-2xl shadow-sm border border-gray-200 flex flex-col items-center sm:items-start text-center sm:text-left">
+            <div className="p-2 bg-red-50 rounded-xl mb-3">
+              <AlertTriangle className="h-6 w-6 sm:h-8 sm:w-8 text-red-600" />
             </div>
+            <p className="text-xs sm:text-sm font-semibold text-gray-500 uppercase tracking-wider">Critical</p>
+            <p className="text-2xl sm:text-3xl font-bold text-gray-900 mt-1">
+              {alerts.filter((a) => a.severity === "critical" && a.isActive).length}
+            </p>
           </div>
 
-          <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
-            <div className="flex items-center">
-              <AlertTriangle className="h-8 w-8 text-orange-600" />
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">High</p>
-                <p className="text-2xl font-bold text-gray-900">
-                  {
-                    alerts.filter((a) => a.severity === "high" && a.isActive)
-                      .length
-                  }
-                </p>
-              </div>
+          <div className="bg-white p-4 sm:p-6 rounded-2xl shadow-sm border border-gray-200 flex flex-col items-center sm:items-start text-center sm:text-left">
+            <div className="p-2 bg-orange-50 rounded-xl mb-3">
+              <AlertTriangle className="h-6 w-6 sm:h-8 sm:w-8 text-orange-600" />
             </div>
+            <p className="text-xs sm:text-sm font-semibold text-gray-500 uppercase tracking-wider">High</p>
+            <p className="text-2xl sm:text-3xl font-bold text-gray-900 mt-1">
+              {alerts.filter((a) => a.severity === "high" && a.isActive).length}
+            </p>
           </div>
 
-          <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
-            <div className="flex items-center">
-              <AlertTriangle className="h-8 w-8 text-yellow-600" />
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">Medium</p>
-                <p className="text-2xl font-bold text-gray-900">
-                  {
-                    alerts.filter((a) => a.severity === "medium" && a.isActive)
-                      .length
-                  }
-                </p>
-              </div>
+          <div className="bg-white p-4 sm:p-6 rounded-2xl shadow-sm border border-gray-200 flex flex-col items-center sm:items-start text-center sm:text-left">
+            <div className="p-2 bg-yellow-50 rounded-xl mb-3">
+              <AlertTriangle className="h-6 w-6 sm:h-8 sm:w-8 text-yellow-600" />
             </div>
+            <p className="text-xs sm:text-sm font-semibold text-gray-500 uppercase tracking-wider">Medium</p>
+            <p className="text-2xl sm:text-3xl font-bold text-gray-900 mt-1">
+              {alerts.filter((a) => a.severity === "medium" && a.isActive).length}
+            </p>
           </div>
 
-          <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
-            <div className="flex items-center">
-              <CheckCircle className="h-8 w-8 text-green-600" />
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">Total</p>
-                <p className="text-2xl font-bold text-gray-900">
-                  {alerts.length}
-                </p>
-              </div>
+          <div className="bg-white p-4 sm:p-6 rounded-2xl shadow-sm border border-gray-200 flex flex-col items-center sm:items-start text-center sm:text-left">
+            <div className="p-2 bg-green-50 rounded-xl mb-3">
+              <CheckCircle className="h-6 w-6 sm:h-8 sm:w-8 text-green-600" />
             </div>
+            <p className="text-xs sm:text-sm font-semibold text-gray-500 uppercase tracking-wider">Total Alerts</p>
+            <p className="text-2xl sm:text-3xl font-bold text-gray-900 mt-1">
+              {alerts.length}
+            </p>
           </div>
         </div>
 
@@ -620,64 +637,75 @@ export default function AlertsPage() {
               <button
                 onClick={() => setWeatherResult(null)}
                 className="text-gray-400 hover:text-gray-600"
+                aria-label="Close weather check results"
               >
-                <XCircle className="h-4 w-4" />
+                <XCircle className="h-4 w-4" aria-hidden="true" />
               </button>
             </div>
           </div>
         )}
 
         {/* Filters */}
-        <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+        <div className="bg-white p-4 sm:p-6 rounded-2xl shadow-sm border border-gray-200">
           <div className="flex flex-col lg:flex-row gap-4">
             <div className="flex-1">
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                <label htmlFor="search-alerts" className="sr-only">Search alerts by title or message</label>
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" aria-hidden="true" />
                 <input
+                  id="search-alerts"
                   type="text"
                   placeholder="Search alerts..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent text-base min-h-[44px]"
                 />
               </div>
             </div>
-            <div className="lg:w-40">
-              <select
-                value={typeFilter}
-                onChange={(e) => setTypeFilter(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-              >
-                <option value="all">All Types</option>
-                <option value="weather">Weather</option>
-                <option value="capacity">Capacity</option>
-                <option value="emergency">Emergency</option>
-                <option value="maintenance">Maintenance</option>
-              </select>
-            </div>
-            <div className="lg:w-40">
-              <select
-                value={severityFilter}
-                onChange={(e) => setSeverityFilter(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-              >
-                <option value="all">All Severity</option>
-                <option value="low">Low</option>
-                <option value="medium">Medium</option>
-                <option value="high">High</option>
-                <option value="critical">Critical</option>
-              </select>
-            </div>
-            <div className="lg:w-40">
-              <select
-                value={activeFilter}
-                onChange={(e) => setActiveFilter(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-              >
-                <option value="active">Active Only</option>
-                <option value="all">All Status</option>
-                <option value="inactive">Inactive Only</option>
-              </select>
+            <div className="grid grid-cols-2 lg:flex lg:flex-row gap-3">
+              <div className="flex-1 lg:w-40">
+                <label htmlFor="type-filter" className="sr-only">Filter by alert type</label>
+                <select
+                  id="type-filter"
+                  value={typeFilter}
+                  onChange={(e) => setTypeFilter(e.target.value)}
+                  className="w-full px-3 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent text-sm min-h-[44px]"
+                >
+                  <option value="all">All Types</option>
+                  <option value="weather">Weather</option>
+                  <option value="capacity">Capacity</option>
+                  <option value="emergency">Emergency</option>
+                  <option value="maintenance">Maintenance</option>
+                </select>
+              </div>
+              <div className="flex-1 lg:w-40">
+                <label htmlFor="severity-filter" className="sr-only">Filter by severity</label>
+                <select
+                  id="severity-filter"
+                  value={severityFilter}
+                  onChange={(e) => setSeverityFilter(e.target.value)}
+                  className="w-full px-3 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent text-sm min-h-[44px]"
+                >
+                  <option value="all">All Severity</option>
+                  <option value="low">Low</option>
+                  <option value="medium">Medium</option>
+                  <option value="high">High</option>
+                  <option value="critical">Critical</option>
+                </select>
+              </div>
+              <div className="col-span-2 lg:w-40">
+                <label htmlFor="active-filter" className="sr-only">Filter by active status</label>
+                <select
+                  id="active-filter"
+                  value={activeFilter}
+                  onChange={(e) => setActiveFilter(e.target.value)}
+                  className="w-full px-3 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent text-sm min-h-[44px]"
+                >
+                  <option value="active">Active Only</option>
+                  <option value="all">All Status</option>
+                  <option value="inactive">Inactive Only</option>
+                </select>
+              </div>
             </div>
           </div>
         </div>
@@ -685,20 +713,23 @@ export default function AlertsPage() {
         {/* Alerts List */}
         <div className="space-y-4">
           {loading ? (
-            <div className="bg-white p-8 rounded-lg shadow-sm border border-gray-200 text-center">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600 mx-auto"></div>
-              <p className="mt-2 text-gray-600">Loading alerts...</p>
+            <div className="bg-white p-12 rounded-2xl shadow-sm border border-gray-200 text-center">
+              <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-green-600 mx-auto"></div>
+              <p className="mt-4 text-gray-600 font-medium">Loading alerts...</p>
             </div>
           ) : filteredAlerts.length === 0 ? (
-            <div className="bg-white p-8 rounded-lg shadow-sm border border-gray-200 text-center">
-              <AlertTriangle className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-              <p className="text-gray-600">No alerts found</p>
+            <div className="bg-white p-12 rounded-2xl shadow-sm border border-gray-200 text-center">
+              <div className="bg-gray-50 h-20 w-20 rounded-full flex items-center justify-center mx-auto mb-4">
+                <AlertTriangle className="h-10 w-10 text-gray-400" />
+              </div>
+              <h3 className="text-lg font-bold text-gray-900">No alerts found</h3>
+              <p className="text-gray-500 mt-1">Try adjusting your search or filters.</p>
             </div>
           ) : (
             filteredAlerts.map((alert) => (
               <div
                 key={alert.id}
-                className={`bg-white rounded-lg shadow-sm border-l-4 p-6 ${
+                className={`bg-white rounded-2xl shadow-sm border-l-8 overflow-hidden transition-all hover:shadow-md ${
                   alert.isActive
                     ? alert.severity === "critical"
                       ? "border-l-red-500"
@@ -707,67 +738,81 @@ export default function AlertsPage() {
                       : alert.severity === "medium"
                       ? "border-l-yellow-500"
                       : "border-l-green-500"
-                    : "border-l-gray-300"
-                } ${!alert.isActive ? "opacity-60" : ""}`}
+                    : "border-l-gray-300 opacity-75"
+                }`}
               >
-                <div className="flex items-start justify-between">
+                <div className="flex flex-col sm:flex-row sm:items-start p-5 sm:p-6">
                   <div className="flex-1">
-                    <div className="flex items-center space-x-3 mb-2">
+                    <div className="flex flex-wrap items-center gap-2 mb-3">
                       <TypeBadge type={alert.type} />
                       <SeverityBadge severity={alert.severity} />
                       {!alert.isActive && (
-                        <span className="text-xs font-medium text-gray-500 bg-gray-100 px-2 py-1 rounded">
+                        <span className="text-[10px] font-bold text-gray-500 bg-gray-100 px-2 py-0.5 rounded uppercase tracking-wider">
                           INACTIVE
                         </span>
                       )}
                     </div>
 
-                    <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                    <h3 className="text-lg font-bold text-gray-900 mb-2 leading-tight">
                       {alert.title}
                     </h3>
-                    <p className="text-gray-700 mb-3">{alert.message}</p>
+                    <p className="text-gray-600 mb-4 text-sm sm:text-base leading-relaxed">
+                      {alert.message}
+                    </p>
 
-                    <div className="flex items-center space-x-4 text-sm text-gray-500">
+                    <div className="flex flex-wrap items-center gap-4 text-xs sm:text-sm text-gray-500 font-medium">
                       <div className="flex items-center">
-                        <MapPin className="h-4 w-4 mr-1" />
+                        <MapPin className="h-4 w-4 mr-1.5 text-gray-400" />
                         {getDestinationName(alert.destinationId)}
                       </div>
                       <div className="flex items-center">
-                        <Calendar className="h-4 w-4 mr-1" />
-                        {new Date(alert.timestamp).toLocaleDateString()}
+                        <Calendar className="h-4 w-4 mr-1.5 text-gray-400" />
+                        {new Date(alert.timestamp).toLocaleDateString(undefined, {
+                          month: 'short',
+                          day: 'numeric',
+                          year: 'numeric'
+                        })}
                       </div>
                     </div>
                   </div>
 
-                  <div className="flex items-center space-x-2 ml-4">
+                  <div className="flex items-center justify-end space-x-2 mt-5 sm:mt-0 sm:ml-6 border-t sm:border-t-0 pt-4 sm:pt-0">
                     <button
                       onClick={() =>
                         handleToggleAlert(alert.id, alert.isActive)
                       }
-                      className={`p-2 rounded-lg ${
+                      className={`flex-1 sm:flex-none flex items-center justify-center p-2.5 rounded-xl transition-all min-h-[44px] min-w-[44px] ${
                         alert.isActive
-                          ? "text-red-600 hover:bg-red-50"
-                          : "text-green-600 hover:bg-green-50"
+                          ? "text-red-600 bg-red-50 hover:bg-red-100"
+                          : "text-green-600 bg-green-50 hover:bg-green-100"
                       }`}
                       title={alert.isActive ? "Deactivate" : "Activate"}
+                      aria-label={alert.isActive ? `Deactivate alert: ${alert.title}` : `Activate alert: ${alert.title}`}
                     >
                       {alert.isActive ? (
-                        <XCircle className="h-4 w-4" />
+                        <XCircle className="h-5 w-5" aria-hidden="true" />
                       ) : (
-                        <CheckCircle className="h-4 w-4" />
+                        <CheckCircle className="h-5 w-5" aria-hidden="true" />
                       )}
+                      <span className="sm:hidden ml-2 font-bold text-sm">
+                        {alert.isActive ? "Deactivate" : "Activate"}
+                      </span>
                     </button>
                     <button
-                      className="p-2 text-gray-600 hover:bg-gray-50 rounded-lg"
+                      className="flex-1 sm:flex-none flex items-center justify-center p-2.5 text-gray-600 bg-gray-50 hover:bg-gray-100 rounded-xl transition-all min-h-[44px] min-w-[44px]"
                       title="Edit"
+                      aria-label={`Edit alert: ${alert.title}`}
                     >
-                      <Edit className="h-4 w-4" />
+                      <Edit className="h-5 w-5" aria-hidden="true" />
+                      <span className="sm:hidden ml-2 font-bold text-sm">Edit</span>
                     </button>
                     <button
-                      className="p-2 text-red-600 hover:bg-red-50 rounded-lg"
+                      className="flex-1 sm:flex-none flex items-center justify-center p-2.5 text-red-600 bg-red-50 hover:bg-red-100 rounded-xl transition-all min-h-[44px] min-w-[44px]"
                       title="Delete"
+                      aria-label={`Delete alert: ${alert.title}`}
                     >
-                      <Trash2 className="h-4 w-4" />
+                      <Trash2 className="h-5 w-5" aria-hidden="true" />
+                      <span className="sm:hidden ml-2 font-bold text-sm">Delete</span>
                     </button>
                   </div>
                 </div>

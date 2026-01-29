@@ -461,7 +461,7 @@ export default function TravelGuide() {
                 <li>• Inform someone about your trekking plans</li>
                 <li>• Carry adequate warm clothing</li>
                 <li>• Stay hydrated and acclimatize properly</li>
-                <li>• Don't trek alone in remote areas</li>
+                <li>• Don&apos;t trek alone in remote areas</li>
                 <li>• Carry emergency whistle and flashlight</li>
                 <li>• Be aware of altitude sickness symptoms</li>
               </ul>
@@ -507,7 +507,7 @@ export default function TravelGuide() {
                 <ul className="space-y-1 text-orange-700">
                   <li>• Avoid camping near rivers</li>
                   <li>• Move to higher ground if warned</li>
-                  <li>• Don't cross flooded roads</li>
+                  <li>• Don&apos;t cross flooded roads</li>
                 </ul>
               </div>
             </div>
@@ -523,20 +523,20 @@ export default function TravelGuide() {
     <TouristLayout>
       <div className="space-y-6">
         {/* Header */}
-        <div className="bg-gradient-to-r from-indigo-600 to-blue-600 rounded-xl p-6 text-white">
+        <div className="bg-gradient-to-r from-indigo-600 to-blue-600 rounded-xl p-6 text-white" role="banner">
           <h1 className="text-3xl font-bold mb-2">Travel Guide</h1>
           <p className="text-indigo-100">Complete guide for traveling in Jammu & Himachal Pradesh</p>
           <div className="mt-4 flex flex-wrap gap-3">
-            <button className="flex items-center px-3 py-1 bg-white/20 rounded-lg text-sm">
-              <Download className="h-4 w-4 mr-1" />
+            <button className="flex items-center px-3 py-1 bg-white/20 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-white">
+              <Download className="h-4 w-4 mr-1" aria-hidden="true" />
               Download Guide
             </button>
-            <button className="flex items-center px-3 py-1 bg-white/20 rounded-lg text-sm">
-              <Bookmark className="h-4 w-4 mr-1" />
+            <button className="flex items-center px-3 py-1 bg-white/20 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-white">
+              <Bookmark className="h-4 w-4 mr-1" aria-hidden="true" />
               Save Guide
             </button>
-            <button className="flex items-center px-3 py-1 bg-white/20 rounded-lg text-sm">
-              <Share2 className="h-4 w-4 mr-1" />
+            <button className="flex items-center px-3 py-1 bg-white/20 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-white">
+              <Share2 className="h-4 w-4 mr-1" aria-hidden="true" />
               Share
             </button>
           </div>
@@ -544,33 +544,45 @@ export default function TravelGuide() {
 
         {/* Navigation */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-200">
-          <div className="flex overflow-x-auto">
-            {guideSections.map((section) => {
-              const IconComponent = section.icon;
-              return (
-                <button
-                  key={section.id}
-                  onClick={() => setActiveSection(section.id)}
-                  className={`flex items-center space-x-2 px-6 py-4 text-sm font-medium whitespace-nowrap border-b-2 transition-colors ${
-                    activeSection === section.id
-                      ? 'border-blue-600 text-blue-600 bg-blue-50'
-                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50'
-                  }`}
-                >
-                  <IconComponent className="h-4 w-4" />
-                  <span>{section.title}</span>
-                </button>
-              );
-            })}
-          </div>
+          <nav className="flex overflow-x-auto" aria-label="Guide categories">
+            <div className="flex" role="tablist">
+              {guideSections.map((section) => {
+                const IconComponent = section.icon;
+                const isSelected = activeSection === section.id;
+                return (
+                  <button
+                    key={section.id}
+                    id={`tab-${section.id}`}
+                    role="tab"
+                    aria-selected={isSelected}
+                    aria-controls={`panel-${section.id}`}
+                    onClick={() => setActiveSection(section.id)}
+                    className={`flex items-center space-x-2 px-6 py-4 text-sm font-medium whitespace-nowrap border-b-2 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-inset ${
+                      isSelected
+                        ? 'border-blue-600 text-blue-600 bg-blue-50'
+                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+                    }`}
+                  >
+                    <IconComponent className="h-4 w-4" aria-hidden="true" />
+                    <span>{section.title}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </nav>
         </div>
 
         {/* Content */}
-        <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
+        <div 
+          id={`panel-${activeSection}`}
+          role="tabpanel"
+          aria-labelledby={`tab-${activeSection}`}
+          className="bg-white rounded-xl p-6 shadow-sm border border-gray-200"
+        >
           <div className="flex items-center mb-6">
             {activeGuideSection && (
               <>
-                <activeGuideSection.icon className="h-6 w-6 text-blue-600 mr-3" />
+                <activeGuideSection.icon className="h-6 w-6 text-blue-600 mr-3" aria-hidden="true" />
                 <h2 className="text-2xl font-bold text-gray-900">{activeGuideSection.title}</h2>
               </>
             )}

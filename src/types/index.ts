@@ -123,6 +123,18 @@ export interface DashboardStats {
   recyclingRate: number;
 }
 
+export interface EcologicalDamageIndicators {
+  soilCompaction?: number;
+  vegetationDisturbance?: number;
+  wildlifeDisturbance?: number;
+  waterSourceImpact?: number;
+  // Support snake_case from DB
+  soil_compaction?: number;
+  vegetation_disturbance?: number;
+  wildlife_disturbance?: number;
+  water_source_impact?: number;
+}
+
 export interface ComplianceReport {
   id: string;
   reportPeriod: string;
@@ -137,12 +149,7 @@ export interface ComplianceReport {
   };
   carbonFootprint: number;
   ecologicalImpactIndex: number;
-  ecologicalDamageIndicators?: {
-    soilCompaction: number;
-    vegetationDisturbance: number;
-    wildlifeDisturbance: number;
-    waterSourceImpact: number;
-  };
+  ecologicalDamageIndicators?: EcologicalDamageIndicators;
   previousPeriodScore?: number;
   policyViolationsCount: number;
   totalFines: number;

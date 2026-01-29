@@ -1,7 +1,8 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import Layout from "@/components/Layout";
+import { useModalAccessibility } from "@/lib/accessibility";
 import {
   Users,
   Search,
@@ -22,14 +23,13 @@ import { getDbService } from "@/lib/databaseService";
 import { Tourist, Destination } from "@/types";
 import { Database } from "@/types/database";
 import { 
-  formatDateTime,
-  sanitizeSearchTerm,
-  sanitizeInput 
+  sanitizeSearchTerm
 } from "@/lib/utils";
 import { 
   validateInput, 
   SearchFilterSchema 
 } from "@/lib/validation";
+import { DataFetchErrorBoundary } from "@/components/errors";
 
 type DbDestination = Database["public"]["Tables"]["destinations"]["Row"];
 
@@ -217,13 +217,13 @@ export default function TouristBookingManagement() {
   
   const filterValidation = validateInput(SearchFilterSchema, {
     searchTerm: sanitizedSearch,
-    status: statusFilter === "all" ? undefined : statusFilter as any,
+    status: statusFilter === "all" ? undefined : statusFilter as Tourist["status"],
     destinationId: destinationFilter === "all" ? undefined : destinationFilter,
   });
 
   const validFilters = filterValidation.success ? filterValidation.data : { 
     searchTerm: sanitizedSearch, 
-    status: statusFilter === "all" ? undefined : statusFilter as any, 
+    status: statusFilter === "all" ? undefined : statusFilter as Tourist["status"], 
     destinationId: destinationFilter === "all" ? undefined : destinationFilter 
   };
 
@@ -250,7 +250,7 @@ export default function TouristBookingManagement() {
           )}
         </div>
         <div className={`p-3 rounded-lg ${color}`}>
-          <Icon className="h-6 w-6" />
+          <Icon className="h-6 w-6" aria-hidden="true" />
         </div>
       </div>
     </div>
@@ -276,6 +276,7 @@ export default function TouristBookingManagement() {
                 }
               }}
               className="rounded border-gray-300 text-green-600 focus:ring-green-500"
+              aria-label={`Select ${tourist.name}`}
             />
             <div>
               <h3 className="font-semibold text-gray-900">{tourist.name}</h3>
@@ -287,7 +288,7 @@ export default function TouristBookingManagement() {
               tourist.status
             )}`}
           >
-            <StatusIcon className="h-3 w-3 mr-1" />
+            <StatusIcon className="h-3 w-3 mr-1" aria-hidden="true" />
             {tourist.status.charAt(0).toUpperCase() + tourist.status.slice(1)}
           </span>
         </div>
@@ -323,9 +324,10 @@ export default function TouristBookingManagement() {
               setSelectedTourist(tourist);
               setShowDetails(true);
             }}
-            className="text-sm text-green-600 hover:text-green-700 font-medium flex items-center"
+            className="text-sm text-green-600 hover:text-green-700 font-medium flex items-center min-h-[44px]"
+            aria-label={`View details for ${tourist.name}`}
           >
-            <Eye className="h-4 w-4 mr-1" />
+            <Eye className="h-4 w-4 mr-1" aria-hidden="true" />
             View Details
           </button>
 
@@ -334,36 +336,40 @@ export default function TouristBookingManagement() {
               <>
                 <button
                   onClick={() => handleStatusUpdate(tourist.id, "approved")}
-                  className="p-1 text-green-600 hover:text-green-700"
+                  className="flex items-center justify-center min-h-[44px] min-w-[44px] text-green-600 hover:text-green-700 hover:bg-green-50 rounded-lg transition-colors"
                   title="Approve"
+                  aria-label={`Approve ${tourist.name}`}
                 >
-                  <CheckCircle className="h-4 w-4" />
+                  <CheckCircle className="h-5 w-5" aria-hidden="true" />
                 </button>
                 <button
                   onClick={() => handleStatusUpdate(tourist.id, "cancelled")}
-                  className="p-1 text-red-600 hover:text-red-700"
+                  className="flex items-center justify-center min-h-[44px] min-w-[44px] text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors"
                   title="Reject"
+                  aria-label={`Reject ${tourist.name}`}
                 >
-                  <XCircle className="h-4 w-4" />
+                  <XCircle className="h-5 w-5" aria-hidden="true" />
                 </button>
               </>
             )}
             {tourist.status === "approved" && (
               <button
                 onClick={() => handleStatusUpdate(tourist.id, "checked-in")}
-                className="p-1 text-blue-600 hover:text-blue-700"
+                className="flex items-center justify-center min-h-[44px] min-w-[44px] text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-colors"
                 title="Check In"
+                aria-label={`Check in ${tourist.name}`}
               >
-                <UserCheck className="h-4 w-4" />
+                <UserCheck className="h-5 w-5" aria-hidden="true" />
               </button>
             )}
             {tourist.status === "checked-in" && (
               <button
                 onClick={() => handleStatusUpdate(tourist.id, "checked-out")}
-                className="p-1 text-gray-600 hover:text-gray-700"
+                className="flex items-center justify-center min-h-[44px] min-w-[44px] text-gray-600 hover:text-gray-700 hover:bg-gray-50 rounded-lg transition-colors"
                 title="Check Out"
+                aria-label={`Check out ${tourist.name}`}
               >
-                <UserX className="h-4 w-4" />
+                <UserX className="h-5 w-5" aria-hidden="true" />
               </button>
             )}
           </div>
@@ -387,146 +393,150 @@ export default function TouristBookingManagement() {
 
   return (
     <Layout>
-      <div className="space-y-6">
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-4 sm:space-y-0">
+      <DataFetchErrorBoundary onRetry={loadData}>
+        <div className="space-y-6">
+          {/* Stats Grid */}
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6">
           <div>
-            <h1 className="text-xl sm:text-2xl font-bold text-gray-900">
-              Tourist & Booking Management
+            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">
+              Tourist Management
             </h1>
-            <p className="text-sm sm:text-base text-gray-600">
-              Comprehensive management of tourist registrations and bookings
+            <p className="text-sm sm:text-base text-gray-600 mt-1">
+              Manage registrations and visitor flow
             </p>
           </div>
-          <div className="flex flex-wrap gap-2 sm:space-x-3 sm:gap-0">
-            <button className="flex-1 sm:flex-none flex items-center justify-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm">
-              <Plus className="h-4 w-4 mr-2" />
-              New
+          <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+            <button className="flex-1 sm:flex-none flex items-center justify-center px-4 py-2.5 bg-green-600 text-white rounded-xl hover:bg-green-700 transition-all min-h-[44px] shadow-sm active:scale-[0.98] font-bold text-sm">
+              <Plus className="h-4 w-4 mr-2" aria-hidden="true" />
+              New Registration
             </button>
-            <button className="flex-1 sm:flex-none flex items-center justify-center px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors text-sm">
-              <Download className="h-4 w-4 mr-2" />
+            <button className="flex-1 sm:flex-none flex items-center justify-center px-4 py-2.5 border border-gray-300 rounded-xl hover:bg-gray-50 transition-all min-h-[44px] font-bold text-sm text-gray-700">
+              <Download className="h-4 w-4 mr-2" aria-hidden="true" />
               Export
             </button>
             <button
               onClick={loadData}
-              className="flex-1 sm:flex-none flex items-center justify-center px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors text-sm"
+              className="p-2.5 border border-gray-300 rounded-xl hover:bg-gray-50 transition-all min-h-[44px] min-w-[44px] flex items-center justify-center"
+              title="Refresh Data"
             >
-              <RefreshCw className="h-4 w-4 mr-2" />
-              Refresh
+              <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} aria-hidden="true" />
             </button>
           </div>
         </div>
 
         {/* Statistics Dashboard */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+        <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
           <StatCard
-            title="Total Tourists"
+            title="Total"
             value={stats.total}
             icon={Users}
             color="bg-blue-100 text-blue-600"
-            description="All registrations"
           />
           <StatCard
             title="Approved"
             value={stats.approved}
             icon={CheckCircle}
             color="bg-green-100 text-green-600"
-            description="Ready to visit"
           />
           <StatCard
             title="Pending"
             value={stats.pending}
             icon={Clock}
             color="bg-yellow-100 text-yellow-600"
-            description="Awaiting approval"
           />
           <StatCard
-            title="Checked In"
+            title="Active"
             value={stats.checkedIn}
             icon={UserCheck}
             color="bg-purple-100 text-purple-600"
-            description="Currently visiting"
           />
           <StatCard
             title="Rejected"
             value={stats.rejected}
             icon={XCircle}
             color="bg-red-100 text-red-600"
-            description="Not approved"
           />
           <StatCard
-            title="Today's Bookings"
+            title="Today"
             value={stats.todayBookings}
             icon={CalendarDays}
             color="bg-indigo-100 text-indigo-600"
-            description="Starting today"
           />
         </div>
 
         {/* Filters and Search */}
-        <div className="bg-white rounded-lg border border-gray-200 p-4 sm:p-6">
-          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between space-y-4 lg:space-y-0 lg:space-x-4">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:flex lg:flex-row gap-3 flex-1">
-              <div className="relative col-span-1 sm:col-span-2 lg:flex-1">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+        <div className="bg-white rounded-2xl border border-gray-200 p-4 sm:p-6 shadow-sm">
+          <div className="flex flex-col lg:flex-row gap-4">
+            <div className="flex-1">
+              <div className="relative">
+                <label htmlFor="search-tourists" className="sr-only">Search tourists</label>
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" aria-hidden="true" />
                 <input
+                  id="search-tourists"
                   type="text"
-                  placeholder="Search..."
+                  placeholder="Search by name, email or phone..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-sm text-gray-900"
+                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent text-base min-h-[44px]"
                 />
               </div>
-
-              <select
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-sm bg-white text-gray-900"
-              >
-                <option value="all" className="text-gray-900">All Status</option>
-                <option value="pending" className="text-gray-900">Pending</option>
-                <option value="approved" className="text-gray-900">Approved</option>
-                <option value="cancelled" className="text-gray-900">Cancelled</option>
-                <option value="checked-in" className="text-gray-900">Checked In</option>
-                <option value="checked-out" className="text-gray-900">Checked Out</option>
-              </select>
-
-              <select
-                value={destinationFilter}
-                onChange={(e) => setDestinationFilter(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-sm bg-white text-gray-900"
-              >
-                <option value="all" className="text-gray-900">All Destinations</option>
-                {destinations.map((dest) => (
-                  <option key={dest.id} value={dest.id} className="text-gray-900">
-                    {dest.name}
-                  </option>
-                ))}
-              </select>
             </div>
 
-            <div className="flex items-center justify-between sm:justify-end space-x-2">
-              <span className="text-sm text-gray-500 lg:hidden">View:</span>
-              <div className="flex border border-gray-300 rounded-lg overflow-hidden">
+            <div className="grid grid-cols-2 lg:flex lg:flex-row gap-3">
+              <div className="flex-1 lg:w-44">
+                <label htmlFor="status-filter" className="sr-only">Filter by status</label>
+                <select
+                  id="status-filter"
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value)}
+                  className="w-full px-3 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent text-sm min-h-[44px] bg-white"
+                >
+                  <option value="all">All Status</option>
+                  <option value="pending">Pending</option>
+                  <option value="approved">Approved</option>
+                  <option value="cancelled">Cancelled</option>
+                  <option value="checked-in">Checked In</option>
+                  <option value="checked-out">Checked Out</option>
+                </select>
+              </div>
+
+              <div className="flex-1 lg:w-44">
+                <label htmlFor="destination-filter" className="sr-only">Filter by destination</label>
+                <select
+                  id="destination-filter"
+                  value={destinationFilter}
+                  onChange={(e) => setDestinationFilter(e.target.value)}
+                  className="w-full px-3 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent text-sm min-h-[44px] bg-white"
+                >
+                  <option value="all">All Destinations</option>
+                  {destinations.map((dest) => (
+                    <option key={dest.id} value={dest.id}>
+                      {dest.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="col-span-2 lg:w-auto flex border border-gray-300 rounded-xl overflow-hidden min-h-[44px]">
                 <button
                   onClick={() => setViewMode("list")}
-                  className={`px-4 py-2 text-sm font-medium ${
+                  className={`flex-1 px-4 py-2 text-sm font-bold transition-all ${
                     viewMode === "list"
-                      ? "bg-green-100 text-green-700"
-                      : "text-gray-700 hover:bg-gray-50"
+                      ? "bg-green-600 text-white"
+                      : "text-gray-600 hover:bg-gray-50"
                   }`}
                 >
                   List
                 </button>
                 <button
                   onClick={() => setViewMode("grid")}
-                  className={`px-4 py-2 text-sm font-medium ${
+                  className={`flex-1 px-4 py-2 text-sm font-bold transition-all ${
                     viewMode === "grid"
-                      ? "bg-green-100 text-green-700"
-                      : "text-gray-700 hover:bg-gray-50"
+                      ? "bg-green-600 text-white"
+                      : "text-gray-600 hover:bg-gray-50"
                   }`}
                 >
-                  Grid
+                  Cards
                 </button>
               </div>
             </div>
@@ -537,7 +547,7 @@ export default function TouristBookingManagement() {
             <div className="mt-4 p-4 bg-green-50 rounded-lg border border-green-200">
               <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
                 <div className="flex items-center space-x-2">
-                  <CheckSquare className="h-5 w-5 text-green-600" />
+                  <CheckSquare className="h-5 w-5 text-green-600" aria-hidden="true" />
                   <span className="text-sm font-medium text-green-800">
                     {selectedTourists.length} selected
                   </span>
@@ -545,19 +555,19 @@ export default function TouristBookingManagement() {
                 <div className="flex flex-wrap justify-center gap-2">
                   <button
                     onClick={() => handleBulkStatusUpdate("approved")}
-                    className="px-3 py-1.5 bg-green-600 text-white text-xs font-medium rounded hover:bg-green-700 transition-colors"
+                    className="px-4 py-2.5 bg-green-600 text-white text-xs font-bold rounded-xl hover:bg-green-700 transition-all min-h-[44px] shadow-sm"
                   >
                     Approve
                   </button>
                   <button
                     onClick={() => handleBulkStatusUpdate("cancelled")}
-                    className="px-3 py-1.5 bg-red-600 text-white text-xs font-medium rounded hover:bg-red-700 transition-colors"
+                    className="px-4 py-2.5 bg-red-600 text-white text-xs font-bold rounded-xl hover:bg-red-700 transition-all min-h-[44px] shadow-sm"
                   >
                     Cancel
                   </button>
                   <button
                     onClick={() => setSelectedTourists([])}
-                    className="px-3 py-1.5 border border-gray-300 text-gray-700 text-xs font-medium rounded hover:bg-gray-50 transition-colors bg-white"
+                    className="px-4 py-2.5 border border-gray-300 text-gray-700 text-xs font-bold rounded-xl hover:bg-gray-50 transition-all min-h-[44px] bg-white"
                   >
                     Clear
                   </button>
@@ -582,7 +592,7 @@ export default function TouristBookingManagement() {
                       selectedTourists.length === allIds.length ? [] : allIds
                     );
                   }}
-                  className="text-sm text-green-600 hover:text-green-700"
+                  className="text-sm text-green-600 hover:text-green-700 font-bold min-h-[44px] px-4 rounded-lg hover:bg-green-50 transition-colors"
                 >
                   {selectedTourists.length === filteredTourists.length
                     ? "Deselect All"
@@ -594,7 +604,7 @@ export default function TouristBookingManagement() {
 
           {filteredTourists.length === 0 ? (
             <div className="text-center py-12">
-              <Users className="mx-auto h-12 w-12 text-gray-400" />
+              <Users className="mx-auto h-12 w-12 text-gray-400" aria-hidden="true" />
               <h3 className="mt-2 text-sm font-medium text-gray-900">
                 No tourists found
               </h3>
@@ -615,191 +625,205 @@ export default function TouristBookingManagement() {
                   <TouristCard key={tourist.id} tourist={tourist} />
                 ))
               ) : (
-                <div className="overflow-x-auto">
-                  <table className="min-w-full divide-y divide-gray-200">
-                    <thead className="bg-gray-50">
-                      <tr>
-                        <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          <input
-                            type="checkbox"
-                            checked={
-                              selectedTourists.length ===
-                              filteredTourists.length
-                            }
-                            onChange={(e) => {
-                              const allIds = filteredTourists.map((t) => t.id);
-                              setSelectedTourists(
-                                e.target.checked ? allIds : []
-                              );
-                            }}
-                            className="rounded border-gray-300 text-green-600 focus:ring-green-500"
-                          />
-                        </th>
-                        <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Tourist
-                        </th>
-                        <th className="hidden md:table-cell px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Destination
-                        </th>
-                        <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Dates
-                        </th>
-                        <th className="hidden sm:table-cell px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Status
-                        </th>
-                        <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Actions
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
-                      {filteredTourists.map((tourist) => {
-                        const StatusIcon = getStatusIcon(tourist.status);
-                        return (
-                          <tr key={tourist.id} className="hover:bg-gray-50">
-                            <td className="px-4 sm:px-6 py-4 whitespace-nowrap">
-                              <input
-                                type="checkbox"
-                                checked={selectedTourists.includes(tourist.id)}
-                                onChange={(e) => {
-                                  if (e.target.checked) {
-                                    setSelectedTourists([
-                                      ...selectedTourists,
-                                      tourist.id,
-                                    ]);
-                                  } else {
-                                    setSelectedTourists(
-                                      selectedTourists.filter(
-                                        (id) => id !== tourist.id
-                                      )
-                                    );
-                                  }
-                                }}
-                                className="rounded border-gray-300 text-green-600 focus:ring-green-500"
-                              />
-                            </td>
-                            <td className="px-4 sm:px-6 py-4 whitespace-nowrap">
-                              <div className="flex items-center">
-                                <div>
-                                  <div className="text-sm font-medium text-gray-900">
-                                    {tourist.name}
-                                  </div>
-                                  <div className="hidden sm:block text-xs text-gray-500">
-                                    {tourist.email}
-                                  </div>
-                                  <div className="block sm:hidden text-xs font-medium text-green-600">
-                                    {tourist.status}
-                                  </div>
-                                </div>
-                              </div>
-                            </td>
-                            <td className="hidden md:table-cell px-6 py-4 whitespace-nowrap">
-                              <div className="text-sm text-gray-900">
-                                {getDestinationName(tourist.destination)}
-                              </div>
-                              <div className="text-sm text-gray-500">
-                                Group: {tourist.groupSize}
-                              </div>
-                            </td>
-                            <td className="px-4 sm:px-6 py-4 whitespace-nowrap">
-                              <div className="text-xs sm:text-sm text-gray-900">
-                                <div className="flex items-center">
-                                  <span className="w-8 sm:w-auto text-gray-400 mr-1 sm:mr-0 sm:hidden">In:</span>
-                                  {new Date(
-                                    tourist.checkInDate
-                                  ).toLocaleDateString()}
-                                </div>
-                                <div className="flex items-center">
-                                  <span className="w-8 sm:w-auto text-gray-400 mr-1 sm:mr-0 sm:hidden">Out:</span>
-                                  {new Date(
-                                    tourist.checkOutDate
-                                  ).toLocaleDateString()}
-                                </div>
-                              </div>
-                            </td>
-                            <td className="hidden sm:table-cell px-6 py-4 whitespace-nowrap">
-                              <span
-                                className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(
-                                  tourist.status
-                                )}`}
-                              >
-                                <StatusIcon className="h-3 w-3 mr-1" />
-                                {tourist.status.charAt(0).toUpperCase() +
-                                  tourist.status.slice(1)}
-                              </span>
-                            </td>
-                            <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-sm font-medium">
-                              <div className="flex items-center space-x-2 sm:space-x-3">
-                                <button
-                                  onClick={() => {
-                                    setSelectedTourist(tourist);
-                                    setShowDetails(true);
+                <>
+                  <div className="hidden lg:block overflow-x-auto">
+                    <table className="min-w-full divide-y divide-gray-200">
+                      <thead className="bg-gray-50">
+                        <tr>
+                          <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            <input
+                              type="checkbox"
+                              checked={
+                                selectedTourists.length ===
+                                filteredTourists.length
+                              }
+                              onChange={(e) => {
+                                const allIds = filteredTourists.map((t) => t.id);
+                                setSelectedTourists(
+                                  e.target.checked ? allIds : []
+                                );
+                              }}
+                              className="rounded border-gray-300 text-green-600 focus:ring-green-500"
+                              aria-label="Select all tourists"
+                            />
+                          </th>
+                          <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Tourist
+                          </th>
+                          <th className="hidden md:table-cell px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Destination
+                          </th>
+                          <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Dates
+                          </th>
+                          <th className="hidden sm:table-cell px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Status
+                          </th>
+                          <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Actions
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody className="bg-white divide-y divide-gray-200">
+                        {filteredTourists.map((tourist) => {
+                          const StatusIcon = getStatusIcon(tourist.status);
+                          return (
+                            <tr key={tourist.id} className="hover:bg-gray-50">
+                              <td className="px-4 sm:px-6 py-4 whitespace-nowrap">
+                                <input
+                                  type="checkbox"
+                                  checked={selectedTourists.includes(tourist.id)}
+                                  onChange={(e) => {
+                                    if (e.target.checked) {
+                                      setSelectedTourists([
+                                        ...selectedTourists,
+                                        tourist.id,
+                                      ]);
+                                    } else {
+                                      setSelectedTourists(
+                                        selectedTourists.filter(
+                                          (id) => id !== tourist.id
+                                        )
+                                      );
+                                    }
                                   }}
-                                  className="text-green-600 hover:text-green-900 p-1"
+                                  className="rounded border-gray-300 text-green-600 focus:ring-green-500"
+                                  aria-label={`Select ${tourist.name}`}
+                                />
+                              </td>
+                              <td className="px-4 sm:px-6 py-4 whitespace-nowrap">
+                                <div className="flex items-center">
+                                  <div>
+                                    <div className="text-sm font-medium text-gray-900">
+                                      {tourist.name}
+                                    </div>
+                                    <div className="hidden sm:block text-xs text-gray-500">
+                                      {tourist.email}
+                                    </div>
+                                    <div className="block sm:hidden text-xs font-medium text-green-600">
+                                      {tourist.status}
+                                    </div>
+                                  </div>
+                                </div>
+                              </td>
+                              <td className="hidden md:table-cell px-6 py-4 whitespace-nowrap">
+                                <div className="text-sm text-gray-900">
+                                  {getDestinationName(tourist.destination)}
+                                </div>
+                                <div className="text-sm text-gray-500">
+                                  Group: {tourist.groupSize}
+                                </div>
+                              </td>
+                              <td className="px-4 sm:px-6 py-4 whitespace-nowrap">
+                                <div className="text-xs sm:text-sm text-gray-900">
+                                  <div className="flex items-center">
+                                    <span className="w-8 sm:w-auto text-gray-400 mr-1 sm:mr-0 sm:hidden">In:</span>
+                                    {new Date(
+                                      tourist.checkInDate
+                                    ).toLocaleDateString()}
+                                  </div>
+                                  <div className="flex items-center">
+                                    <span className="w-8 sm:w-auto text-gray-400 mr-1 sm:mr-0 sm:hidden">Out:</span>
+                                    {new Date(
+                                      tourist.checkOutDate
+                                    ).toLocaleDateString()}
+                                  </div>
+                                </div>
+                              </td>
+                              <td className="hidden sm:table-cell px-6 py-4 whitespace-nowrap">
+                                <span
+                                  className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(
+                                    tourist.status
+                                  )}`}
                                 >
-                                  <Eye className="h-4 w-4" />
-                                </button>
+                                  <StatusIcon className="h-3 w-3 mr-1" aria-hidden="true" />
+                                  {tourist.status.charAt(0).toUpperCase() +
+                                    tourist.status.slice(1)}
+                                </span>
+                              </td>
+                              <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                <div className="flex items-center space-x-2 sm:space-x-3">
+                                  <button
+                                    onClick={() => {
+                                      setSelectedTourist(tourist);
+                                      setShowDetails(true);
+                                    }}
+                                    className="flex items-center justify-center min-h-[44px] min-w-[44px] text-green-600 hover:text-green-900 hover:bg-green-50 rounded-lg transition-colors"
+                                    aria-label={`View details for ${tourist.name}`}
+                                  >
+                                    <Eye className="h-5 w-5" aria-hidden="true" />
+                                  </button>
 
-                                {tourist.status === "pending" && (
-                                  <>
+                                  {tourist.status === "pending" && (
+                                    <>
+                                      <button
+                                        onClick={() =>
+                                          handleStatusUpdate(tourist.id, "approved")
+                                        }
+                                        className="flex items-center justify-center min-h-[44px] min-w-[44px] text-green-600 hover:text-green-900 hover:bg-green-50 rounded-lg transition-colors"
+                                        title="Approve"
+                                        aria-label={`Approve ${tourist.name}`}
+                                      >
+                                        <CheckCircle className="h-5 w-5" aria-hidden="true" />
+                                      </button>
+                                      <button
+                                        onClick={() =>
+                                          handleStatusUpdate(
+                                            tourist.id,
+                                            "cancelled"
+                                          )
+                                        }
+                                        className="flex items-center justify-center min-h-[44px] min-w-[44px] text-red-600 hover:text-red-900 hover:bg-red-50 rounded-lg transition-colors"
+                                        title="Cancel"
+                                        aria-label={`Reject ${tourist.name}`}
+                                      >
+                                        <XCircle className="h-5 w-5" aria-hidden="true" />
+                                      </button>
+                                    </>
+                                  )}
+
+                                  {tourist.status === "approved" && (
                                     <button
                                       onClick={() =>
-                                        handleStatusUpdate(tourist.id, "approved")
+                                        handleStatusUpdate(tourist.id, "checked-in")
                                       }
-                                      className="text-green-600 hover:text-green-900 p-1"
-                                      title="Approve"
+                                      className="flex items-center justify-center min-h-[44px] min-w-[44px] text-blue-600 hover:text-blue-900 hover:bg-blue-50 rounded-lg transition-colors"
+                                      title="Check In"
+                                      aria-label={`Check in ${tourist.name}`}
                                     >
-                                      <CheckCircle className="h-4 w-4" />
+                                      <UserCheck className="h-5 w-5" aria-hidden="true" />
                                     </button>
+                                  )}
+
+                                  {tourist.status === "checked-in" && (
                                     <button
                                       onClick={() =>
                                         handleStatusUpdate(
                                           tourist.id,
-                                          "cancelled"
+                                          "checked-out"
                                         )
                                       }
-                                      className="text-red-600 hover:text-red-900 p-1"
-                                      title="Cancel"
+                                      className="flex items-center justify-center min-h-[44px] min-w-[44px] text-gray-600 hover:text-gray-900 hover:bg-gray-50 rounded-lg transition-colors"
+                                      title="Check Out"
+                                      aria-label={`Check out ${tourist.name}`}
                                     >
-                                      <XCircle className="h-4 w-4" />
+                                      <UserX className="h-5 w-5" aria-hidden="true" />
                                     </button>
-                                  </>
-                                )}
-
-                                {tourist.status === "approved" && (
-                                  <button
-                                    onClick={() =>
-                                      handleStatusUpdate(tourist.id, "checked-in")
-                                    }
-                                    className="text-blue-600 hover:text-blue-900 p-1"
-                                    title="Check In"
-                                  >
-                                    <UserCheck className="h-4 w-4" />
-                                  </button>
-                                )}
-
-                                {tourist.status === "checked-in" && (
-                                  <button
-                                    onClick={() =>
-                                      handleStatusUpdate(
-                                        tourist.id,
-                                        "checked-out"
-                                      )
-                                    }
-                                    className="text-gray-600 hover:text-gray-900 p-1"
-                                    title="Check Out"
-                                  >
-                                    <UserX className="h-4 w-4" />
-                                  </button>
-                                )}
-                              </div>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
+                                  )}
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                  <div className="lg:hidden space-y-4">
+                    {filteredTourists.map((tourist) => (
+                      <TouristCard key={tourist.id} tourist={tourist} />
+                    ))}
+                  </div>
+                </>
               )}
             </div>
           )}
@@ -807,210 +831,228 @@ export default function TouristBookingManagement() {
 
         {/* Tourist Details Modal */}
         {showDetails && selectedTourist && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 print:hidden">
-            <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto print:max-w-none print:rounded-none print:shadow-none print:max-h-none print:overflow-visible">
-              <div className="p-6 print:p-8">
-                {/* Screen-only content */}
-                <div className="print:hidden">
-                  <div className="flex items-center justify-between mb-6">
-                    <h2 className="text-xl font-bold text-gray-900">
-                      Tourist Details
-                    </h2>
-                    <button
-                      onClick={() => setShowDetails(false)}
-                      className="text-gray-400 hover:text-gray-600"
-                    >
-                      <XCircle className="h-6 w-6" />
-                    </button>
-                  </div>
-
-                  <div className="space-y-6">
-                    <div>
-                      <h3 className="text-lg font-semibold text-gray-900 mb-3">
-                        Personal Information
-                      </h3>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700">
-                            Name
-                          </label>
-                          <p className="mt-1 text-sm text-gray-900">
-                            {selectedTourist.name}
-                          </p>
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700">
-                            Email
-                          </label>
-                          <p className="mt-1 text-sm text-gray-900">
-                            {selectedTourist.email}
-                          </p>
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700">
-                            Phone
-                          </label>
-                          <p className="mt-1 text-sm text-gray-900">
-                            {selectedTourist.phone}
-                          </p>
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700">
-                            ID Proof
-                          </label>
-                          <p className="mt-1 text-sm text-gray-900">
-                            {selectedTourist.idProof}
-                          </p>
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700">
-                            Nationality
-                          </label>
-                          <p className="mt-1 text-sm text-gray-900">
-                            {selectedTourist.nationality}
-                          </p>
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700">
-                            Group Size
-                          </label>
-                          <p className="mt-1 text-sm text-gray-900">
-                            {selectedTourist.groupSize}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div>
-                      <h3 className="text-lg font-semibold text-gray-900 mb-3">
-                        Travel Information
-                      </h3>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700">
-                            Destination
-                          </label>
-                          <p className="mt-1 text-sm text-gray-900">
-                            {getDestinationName(selectedTourist.destination)}
-                          </p>
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700">
-                            Status
-                          </label>
-                          <span
-                            className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(
-                              selectedTourist.status
-                            )}`}
-                          >
-                            {selectedTourist.status.charAt(0).toUpperCase() +
-                              selectedTourist.status.slice(1)}
-                          </span>
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700">
-                            Check-in Date
-                          </label>
-                          <p className="mt-1 text-sm text-gray-900">
-                            {new Date(
-                              selectedTourist.checkInDate
-                            ).toLocaleDateString()}
-                          </p>
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700">
-                            Check-out Date
-                          </label>
-                          <p className="mt-1 text-sm text-gray-900">
-                            {new Date(
-                              selectedTourist.checkOutDate
-                            ).toLocaleDateString()}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div>
-                      <h3 className="text-lg font-semibold text-gray-900 mb-3">
-                        Emergency Contact
-                      </h3>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700">
-                            Contact Name
-                          </label>
-                          <p className="mt-1 text-sm text-gray-900">
-                            {selectedTourist.emergencyContact.name}
-                          </p>
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700">
-                            Contact Phone
-                          </label>
-                          <p className="mt-1 text-sm text-gray-900">
-                            {selectedTourist.emergencyContact.phone}
-                          </p>
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700">
-                            Relationship
-                          </label>
-                          <p className="mt-1 text-sm text-gray-900">
-                            {selectedTourist.emergencyContact.relationship}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="flex flex-col sm:flex-row justify-end gap-3 pt-6 border-t border-gray-200">
-                      <button
-                        onClick={() => setShowDetails(false)}
-                        className="w-full sm:w-auto px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 text-sm font-medium"
-                      >
-                        Close
-                      </button>
-                      <button
-                        onClick={handlePrintReceipt}
-                        className="w-full sm:w-auto px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium"
-                      >
-                        Print Receipt
-                      </button>
-                      {selectedTourist.status === "pending" && (
-                        <>
-                          <button
-                            onClick={() => {
-                              handleStatusUpdate(
-                                selectedTourist.id,
-                                "approved"
-                              );
-                              setShowDetails(false);
-                            }}
-                            className="w-full sm:w-auto px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm font-medium"
-                          >
-                            Approve
-                          </button>
-                          <button
-                            onClick={() => {
-                              handleStatusUpdate(
-                                selectedTourist.id,
-                                "cancelled"
-                              );
-                              setShowDetails(false);
-                            }}
-                            className="w-full sm:w-auto px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 text-sm font-medium"
-                          >
-                            Cancel
-                          </button>
-                        </>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
+          <TouristDetailsModal 
+            selectedTourist={selectedTourist} 
+            onClose={() => setShowDetails(false)} 
+            getDestinationName={getDestinationName}
+            getStatusColor={getStatusColor}
+            handlePrintReceipt={handlePrintReceipt}
+          />
         )}
       </div>
+      </DataFetchErrorBoundary>
     </Layout>
   );
 }
+
+const TouristDetailsModal = ({ 
+  selectedTourist, 
+  onClose, 
+  getDestinationName,
+  getStatusColor,
+  handlePrintReceipt
+}: { 
+  selectedTourist: Tourist; 
+  onClose: () => void;
+  getDestinationName: (id: string) => string;
+  getStatusColor: (status: Tourist["status"]) => string;
+  handlePrintReceipt: () => void;
+}) => {
+  const modalRef = useRef<HTMLDivElement>(null);
+  useModalAccessibility({ modalRef, isOpen: true, onClose });
+
+  return (
+    <div 
+      className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4 z-[100] print:hidden"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="modal-title"
+    >
+      <div 
+        ref={modalRef}
+        className="bg-white w-full max-w-2xl rounded-t-[2rem] sm:rounded-2xl overflow-hidden shadow-2xl flex flex-col max-h-[95vh] sm:max-h-[90vh] animate-in slide-in-from-bottom duration-300 print:max-w-none print:rounded-none print:shadow-none print:max-h-none print:overflow-visible"
+      >
+        {/* Modal Header */}
+        <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-white sticky top-0 z-20">
+          <h2 id="modal-title" className="text-xl font-bold text-gray-900">
+            Tourist Details
+          </h2>
+          <button
+            onClick={onClose}
+            className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center"
+            aria-label="Close details"
+          >
+            <span aria-hidden="true" className="text-2xl">×</span>
+          </button>
+        </div>
+
+        {/* Modal Content */}
+        <div className="flex-1 overflow-y-auto p-6 space-y-8 sm:p-8">
+          <section>
+            <div className="flex items-center space-x-2 mb-4">
+              <div className="h-8 w-1 bg-green-500 rounded-full"></div>
+              <h3 className="text-lg font-bold text-gray-900">
+                Personal Information
+              </h3>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 bg-gray-50 p-4 rounded-2xl">
+              <div>
+                <span className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">
+                  Name
+                </span>
+                <p className="text-sm font-semibold text-gray-900">
+                  {selectedTourist.name}
+                </p>
+              </div>
+              <div>
+                <span className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">
+                  Email
+                </span>
+                <p className="text-sm font-semibold text-gray-900 break-all">
+                  {selectedTourist.email}
+                </p>
+              </div>
+              <div>
+                <span className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">
+                  Phone
+                </span>
+                <p className="text-sm font-semibold text-gray-900">
+                  {selectedTourist.phone}
+                </p>
+              </div>
+              <div>
+                <span className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">
+                  ID Proof
+                </span>
+                <p className="text-sm font-semibold text-gray-900">
+                  {selectedTourist.idProof}
+                </p>
+              </div>
+              <div>
+                <span className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">
+                  Nationality
+                </span>
+                <p className="text-sm font-semibold text-gray-900">
+                  {selectedTourist.nationality}
+                </p>
+              </div>
+              <div>
+                <span className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">
+                  Group Size
+                </span>
+                <p className="text-sm font-semibold text-gray-900">
+                  {selectedTourist.groupSize} People
+                </p>
+              </div>
+            </div>
+          </section>
+
+          <section>
+            <div className="flex items-center space-x-2 mb-4">
+              <div className="h-8 w-1 bg-blue-500 rounded-full"></div>
+              <h3 className="text-lg font-bold text-gray-900">
+                Travel Information
+              </h3>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 bg-blue-50/30 p-4 rounded-2xl border border-blue-100/50">
+              <div>
+                <span className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">
+                  Destination
+                </span>
+                <p className="text-sm font-semibold text-gray-900">
+                  {getDestinationName(selectedTourist.destination)}
+                </p>
+              </div>
+              <div>
+                <span className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">
+                  Status
+                </span>
+                <span
+                  className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide ${getStatusColor(
+                    selectedTourist.status
+                  )}`}
+                >
+                  {selectedTourist.status}
+                </span>
+              </div>
+              <div>
+                <span className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">
+                  Check-in Date
+                </span>
+                <div className="flex items-center text-sm font-semibold text-gray-900">
+                  <CalendarDays className="h-4 w-4 mr-2 text-blue-500" />
+                  {new Date(selectedTourist.checkInDate).toLocaleDateString(undefined, {
+                    month: 'long', day: 'numeric', year: 'numeric'
+                  })}
+                </div>
+              </div>
+              <div>
+                <span className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">
+                  Check-out Date
+                </span>
+                <div className="flex items-center text-sm font-semibold text-gray-900">
+                  <CalendarDays className="h-4 w-4 mr-2 text-blue-500" />
+                  {new Date(selectedTourist.checkOutDate).toLocaleDateString(undefined, {
+                    month: 'long', day: 'numeric', year: 'numeric'
+                  })}
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section>
+            <div className="flex items-center space-x-2 mb-4">
+              <div className="h-8 w-1 bg-orange-500 rounded-full"></div>
+              <h3 className="text-lg font-bold text-gray-900">
+                Emergency Contact
+              </h3>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 bg-orange-50/30 p-4 rounded-2xl border border-orange-100/50">
+              <div>
+                <span className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">
+                  Contact Name
+                </span>
+                <p className="text-sm font-semibold text-gray-900">
+                  {selectedTourist.emergencyContact.name}
+                </p>
+              </div>
+              <div>
+                <span className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">
+                  Contact Phone
+                </span>
+                <p className="text-sm font-semibold text-gray-900">
+                  {selectedTourist.emergencyContact.phone}
+                </p>
+              </div>
+              <div className="sm:col-span-2">
+                <span className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">
+                  Relationship
+                </span>
+                <p className="text-sm font-semibold text-gray-900">
+                  {selectedTourist.emergencyContact.relationship}
+                </p>
+              </div>
+            </div>
+          </section>
+        </div>
+
+        {/* Modal Footer */}
+        <div className="p-6 bg-gray-50 border-t border-gray-100 flex flex-col sm:flex-row gap-3 sticky bottom-0 z-20">
+          <button
+            onClick={onClose}
+            className="flex-1 px-6 py-3.5 border border-gray-300 rounded-xl text-gray-700 hover:bg-gray-100 transition-all font-bold text-sm min-h-[44px]"
+          >
+            Close
+          </button>
+          <button
+            onClick={handlePrintReceipt}
+            className="flex-[2] px-6 py-3.5 bg-green-600 text-white rounded-xl hover:bg-green-700 transition-all font-bold text-sm flex items-center justify-center min-h-[44px] shadow-lg shadow-green-200"
+          >
+            <Download className="h-5 w-5 mr-2" aria-hidden="true" />
+            Print Receipt
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};

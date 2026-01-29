@@ -10,7 +10,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import OTPVerification from '@/components/OTPVerification';
 import { validateInput } from '@/lib/validation';
 import { AccountSchema } from '@/lib/validation/schemas';
-import { sanitizeObject, sanitizeForDatabase } from '@/lib/utils';
+import { sanitizeObject } from '@/lib/utils';
 
 type LoginMethod = 'password' | 'otp';
 type LoginStep = 'method' | 'otp';
@@ -72,7 +72,7 @@ function LoginForm() {
       } else {
         router.push('/');
       }
-    } catch (_err) {
+    } catch {
       setError('An unexpected error occurred');
     } finally {
       setLoading(false);
@@ -103,7 +103,7 @@ function LoginForm() {
       } else {
         setStep('otp');
       }
-    } catch (_err) {
+    } catch {
       setError('An unexpected error occurred');
     } finally {
       setLoading(false);
@@ -122,7 +122,7 @@ function LoginForm() {
       }
       
       return { success: true };
-    } catch (_err) {
+    } catch {
       return { 
         success: false, 
         error: 'Verification failed. Please try again.' 
@@ -142,7 +142,7 @@ function LoginForm() {
       }
       
       return { success: true };
-    } catch (_err) {
+    } catch {
       return { 
         success: false, 
         error: 'Failed to resend OTP. Please try again.' 
@@ -161,7 +161,7 @@ function LoginForm() {
         setError(error.message);
         setLoading(false);
       }
-    } catch (err) {
+    } catch {
       setError('An unexpected error occurred');
       setLoading(false);
     }

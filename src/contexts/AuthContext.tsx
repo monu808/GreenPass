@@ -105,8 +105,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         console.log('Auth state changed:', event, session?.user?.email);
         
         if (mountedRef.current) {
-          setSession(session);
-          setUser(session?.user ?? null);
+          if (event === 'SIGNED_OUT' || event === 'TOKEN_REFRESHED') {
+            setSession(session);
+            setUser(session?.user ?? null);
+          } else {
+            setSession(session);
+            setUser(session?.user ?? null);
+          }
           
           if (session?.user) {
             checkAdminStatus(session.user.id, session.user.email);
@@ -189,7 +194,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       });
       
       return { error };
-    } catch (error: any) {
+    } catch (error) {
       return { error: error as AuthError || { message: 'An unknown error occurred' } };
     }
   };
@@ -202,10 +207,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const { error } = await supabase.auth.verifyOtp({
         email,
         token: otp,
-        type: 'email' as any,
+        type: 'email',
       });
       return { error };
-    } catch (error: any) {
+    } catch (error) {
       return { error: error as AuthError || { message: 'An unknown error occurred' } };
     }
   };
@@ -216,12 +221,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     
     try {
       const { error } = await supabase.auth.resend({
-        type: 'email' as any,
-        email: email,
+        type: 'signup',
+        email,
       });
       
       return { error };
-    } catch (error: any) {
+    } catch (error) {
       return { error: error as AuthError || { message: 'An unknown error occurred' } };
     }
   };
@@ -247,7 +252,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const { error } = await supabase.auth.signOut();
       return { error };
-    } catch (error: any) {
+    } catch (error) {
       console.error('Sign out error:', error);
       return { error: error as AuthError || { message: 'An unknown error occurred' } };
     }

@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Wifi, WifiOff, RefreshCw } from 'lucide-react';
+import { WifiOff, RefreshCw } from 'lucide-react';
 import { ConnectionState } from '@/types';
 
 interface ConnectionStatusIndicatorProps {
@@ -60,8 +60,10 @@ export default function ConnectionStatusIndicator({
   return (
     <div
       className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border text-xs font-semibold uppercase tracking-wider transition-all duration-300 ${config.bgColor} ${config.textColor} ${config.borderColor} ${className}`}
+      role="status"
+      aria-live="polite"
     >
-      <Icon className={`h-3.5 w-3.5 ${config.iconClass}`} />
+      <Icon className={`h-3.5 w-3.5 ${config.iconClass}`} aria-hidden="true" />
       <span>{config.text}</span>
       
       {connectionState === 'error' && onRetry && (
@@ -71,10 +73,11 @@ export default function ConnectionStatusIndicator({
             e.stopPropagation();
             onRetry();
           }}
-          className="ml-1 p-1 hover:bg-rose-100 rounded-full transition-colors"
+          className="ml-1 p-1 hover:bg-rose-100 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-rose-500"
+          aria-label="Retry connection"
           title="Retry Connection"
         >
-          <RefreshCw className="h-3 w-3" />
+          <RefreshCw className="h-3 w-3" aria-hidden="true" />
         </button>
       )}
     </div>

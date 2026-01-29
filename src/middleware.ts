@@ -21,7 +21,7 @@ export async function middleware(request: NextRequest) {
         const originHostname = new URL(origin).hostname;
         const requestHostname = host.split(':')[0];
         isValidOrigin = originHostname === requestHostname;
-      } catch (e) {
+      } catch {
         isValidOrigin = false;
       }
     }

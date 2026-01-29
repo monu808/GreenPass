@@ -73,7 +73,7 @@ export function getCapacityStatus(current: number, max: number): {
  * Validates email address
  */
 export function validateEmail(email: string): boolean {
-  const emailRegex = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/;
+  const emailRegex = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)+$/;
   if (!email || email.length > 254) return false;
   return emailRegex.test(email.toLowerCase());
 }
@@ -528,8 +528,8 @@ export function sanitizeObject<T>(obj: T): T {
   }
   
   if (typeof obj === 'object') {
-    const sanitized: any = {};
-    for (const [key, value] of Object.entries(obj)) {
+    const sanitized = {} as Record<string, unknown>;
+    for (const [key, value] of Object.entries(obj as Record<string, unknown>)) {
       sanitized[key] = sanitizeObject(value);
     }
     return sanitized as T;

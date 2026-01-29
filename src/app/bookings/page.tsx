@@ -17,8 +17,9 @@ import {
 import { getDbService } from "@/lib/databaseService";
 import { Tourist, Destination } from "@/types";
 import type { Database } from "@/types/database";
-import { sanitizeSearchTerm, formatPhone } from "@/lib/utils";
-import { SearchFilterSchema } from "@/lib/validation/schemas"; 
+import { sanitizeSearchTerm } from "@/lib/utils";
+import { validateInput, SearchFilterSchema } from "@/lib/validation";
+import { DataFetchErrorBoundary } from "@/components/errors";
 
 type DbDestination = Database['public']['Tables']['destinations']['Row'];
 
@@ -125,10 +126,9 @@ export default function BookingsPage() {
     // Sanitize search term
     const sanitizedSearch = sanitizeSearchTerm(searchTerm);
     
-    // Prepare filter data for validation
-    const filterData = {
-      searchTerm: sanitizedSearch || undefined,
-      status: statusFilter === "all" ? undefined : statusFilter as any,
+    const filterValidation = validateInput(SearchFilterSchema, {
+      searchTerm: sanitizedSearch,
+      status: statusFilter === "all" ? undefined : statusFilter as Tourist["status"],
       destinationId: destinationFilter === "all" ? undefined : destinationFilter,
     };
 
@@ -213,8 +213,9 @@ export default function BookingsPage() {
 
   return (
     <Layout>
-      <div className="space-y-6">
-        {/* Header */}
+      <DataFetchErrorBoundary onRetry={loadData}>
+        <div className="space-y-6">
+          {/* Header */}
         <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
           <div>
             <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">
@@ -226,14 +227,11 @@ export default function BookingsPage() {
           </div>
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
             <div className="flex items-center justify-center sm:justify-start space-x-2 text-sm text-gray-600">
-              <Calendar className="h-4 w-4" />
+              <Calendar className="h-4 w-4" aria-hidden="true" />
               <span>{filteredBookings.length} bookings</span>
             </div>
-            <button 
-              onClick={() => router.push('/register')}
-              className="flex items-center justify-center px-4 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors shadow-sm"
-            >
-              <Plus className="h-4 w-4 mr-2" />
+            <button className="flex items-center justify-center px-4 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors shadow-sm">
+              <Plus className="h-4 w-4 mr-2" aria-hidden="true" />
               <span className="text-sm font-medium">New Booking</span>
             </button>
           </div>
@@ -244,7 +242,7 @@ export default function BookingsPage() {
           <div className="bg-white p-4 sm:p-6 rounded-xl shadow-sm border border-gray-100">
             <div className="flex items-center">
               <div className="p-2 bg-yellow-50 rounded-lg">
-                <Clock className="h-6 w-6 sm:h-8 sm:w-8 text-yellow-600" />
+                <Clock className="h-6 w-6 sm:h-8 sm:w-8 text-yellow-600" aria-hidden="true" />
               </div>
               <div className="ml-3 sm:ml-4">
                 <p className="text-xs sm:text-sm font-medium text-gray-600">Pending</p>
@@ -258,7 +256,7 @@ export default function BookingsPage() {
           <div className="bg-white p-4 sm:p-6 rounded-xl shadow-sm border border-gray-100">
             <div className="flex items-center">
               <div className="p-2 bg-blue-50 rounded-lg">
-                <CheckCircle className="h-6 w-6 sm:h-8 sm:w-8 text-blue-600" />
+                <CheckCircle className="h-6 w-6 sm:h-8 sm:w-8 text-blue-600" aria-hidden="true" />
               </div>
               <div className="ml-3 sm:ml-4">
                 <p className="text-xs sm:text-sm font-medium text-gray-600">Approved</p>
@@ -272,7 +270,7 @@ export default function BookingsPage() {
           <div className="bg-white p-4 sm:p-6 rounded-xl shadow-sm border border-gray-100">
             <div className="flex items-center">
               <div className="p-2 bg-green-50 rounded-lg">
-                <Users className="h-6 w-6 sm:h-8 sm:w-8 text-green-600" />
+                <Users className="h-6 w-6 sm:h-8 sm:w-8 text-green-600" aria-hidden="true" />
               </div>
               <div className="ml-3 sm:ml-4">
                 <p className="text-xs sm:text-sm font-medium text-gray-600">Active</p>
@@ -286,7 +284,7 @@ export default function BookingsPage() {
           <div className="bg-white p-4 sm:p-6 rounded-xl shadow-sm border border-gray-100">
             <div className="flex items-center">
               <div className="p-2 bg-gray-50 rounded-lg">
-                <Calendar className="h-6 w-6 sm:h-8 sm:w-8 text-gray-600" />
+                <Calendar className="h-6 w-6 sm:h-8 sm:w-8 text-gray-600" aria-hidden="true" />
               </div>
               <div className="ml-3 sm:ml-4">
                 <p className="text-xs sm:text-sm font-medium text-gray-600">Completed</p>
@@ -303,8 +301,10 @@ export default function BookingsPage() {
           <div className="flex flex-col lg:flex-row gap-4">
             <div className="flex-1">
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                <label htmlFor="search-bookings" className="sr-only">Search bookings</label>
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" aria-hidden="true" />
                 <input
+                  id="search-bookings"
                   type="text"
                   placeholder="Search by name, email, or phone..."
                   value={searchTerm}
@@ -317,7 +317,9 @@ export default function BookingsPage() {
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:flex gap-4">
               <div className="lg:w-48">
+                <label htmlFor="status-filter" className="sr-only">Filter by status</label>
                 <select
+                  id="status-filter"
                   value={statusFilter}
                   onChange={(e) => setStatusFilter(e.target.value)}
                   className="w-full px-3 py-2.5 sm:py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-sm"
@@ -332,7 +334,9 @@ export default function BookingsPage() {
                 </select>
               </div>
               <div className="lg:w-48">
+                <label htmlFor="destination-filter" className="sr-only">Filter by destination</label>
                 <select
+                  id="destination-filter"
                   value={destinationFilter}
                   onChange={(e) => setDestinationFilter(e.target.value)}
                   className="w-full px-3 py-2.5 sm:py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-sm"
@@ -351,15 +355,15 @@ export default function BookingsPage() {
         </div>
 
         {/* Bookings List/Table */}
-        <div className="bg-white shadow-sm border border-gray-100 rounded-xl overflow-hidden">
+        <div className="bg-white shadow-sm border border-gray-100 rounded-xl overflow-hidden" role="region" aria-label="Bookings list">
           {loading ? (
-            <div className="p-8 text-center">
+            <div className="p-8 text-center" role="status" aria-live="polite">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600 mx-auto"></div>
               <p className="mt-2 text-sm text-gray-600">Loading bookings...</p>
             </div>
           ) : filteredBookings.length === 0 ? (
-            <div className="p-8 text-center">
-              <Calendar className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+            <div className="p-8 text-center" role="status" aria-live="polite">
+              <Calendar className="h-12 w-12 text-gray-400 mx-auto mb-4" aria-hidden="true" />
               <p className="text-gray-600 text-sm">No bookings found</p>
               {(searchTerm || statusFilter !== "all" || destinationFilter !== "all") && (
                 <p className="text-gray-500 text-xs mt-2">
@@ -415,7 +419,7 @@ export default function BookingsPage() {
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="flex items-center text-sm text-gray-600">
-                            <MapPin className="h-4 w-4 text-gray-400 mr-2 flex-shrink-0" />
+                            <MapPin className="h-4 w-4 text-gray-400 mr-2" aria-hidden="true" />
                             {getDestinationName(booking.destination)}
                           </div>
                         </td>
@@ -429,7 +433,7 @@ export default function BookingsPage() {
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="flex items-center text-sm text-gray-600">
-                            <Users className="h-4 w-4 text-gray-400 mr-2" />
+                            <Users className="h-4 w-4 text-gray-400 mr-2" aria-hidden="true" />
                             {booking.groupSize}
                           </div>
                         </td>
@@ -440,32 +444,32 @@ export default function BookingsPage() {
                           {new Date(booking.registrationDate).toLocaleDateString()}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm">
-                          <div className="flex space-x-3">
+                          <div className="flex space-x-2">
                             <button
                               onClick={() => handleViewBooking(booking.id)}
-                              className="text-green-600 hover:text-green-700 transition-colors"
+                              className="text-green-600 hover:text-green-700 transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center rounded-lg hover:bg-green-50"
                               title="View Details"
                               aria-label={`View booking details for ${booking.name}`}
                             >
-                              <Eye className="h-4 w-4" />
+                              <Eye className="h-5 w-5" />
                             </button>
                             {booking.status === "pending" && (
                               <>
                                 <button
                                   onClick={() => handleApproveBooking(booking.id)}
-                                  className="text-blue-600 hover:text-blue-700 transition-colors"
+                                  className="text-blue-600 hover:text-blue-700 transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center rounded-lg hover:bg-blue-50"
                                   title="Approve Booking"
                                   aria-label={`Approve booking for ${booking.name}`}
                                 >
-                                  <CheckCircle className="h-4 w-4" />
+                                  <CheckCircle className="h-5 w-5" />
                                 </button>
                                 <button
                                   onClick={() => handleCancelBooking(booking.id)}
-                                  className="text-red-600 hover:text-red-700 transition-colors"
+                                  className="text-red-600 hover:text-red-700 transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center rounded-lg hover:bg-red-50"
                                   title="Cancel Booking"
                                   aria-label={`Cancel booking for ${booking.name}`}
                                 >
-                                  <XCircle className="h-4 w-4" />
+                                  <XCircle className="h-5 w-5" />
                                 </button>
                               </>
                             )}
@@ -480,60 +484,52 @@ export default function BookingsPage() {
               {/* Mobile View Cards */}
               <div className="lg:hidden divide-y divide-gray-100">
                 {filteredBookings.map((booking) => (
-                  <div key={booking.id} className="p-4 space-y-3">
+                  <div key={booking.id} className="p-4 space-y-4">
                     <div className="flex justify-between items-start">
-                      <div className="flex-1 min-w-0">
-                        <h3 className="text-sm font-semibold text-gray-900 truncate">
-                          {booking.name}
-                        </h3>
-                        <p className="text-xs text-gray-500 truncate">{booking.email}</p>
-                        <p className="text-xs text-gray-500">{formatPhone(booking.phone)}</p>
+                      <div>
+                        <h3 className="text-base font-bold text-gray-900">{booking.name}</h3>
+                        <p className="text-sm text-gray-500 mt-0.5">{booking.email}</p>
                       </div>
                       <StatusBadge status={booking.status} />
                     </div>
                     
-                    <div className="grid grid-cols-2 gap-y-2 text-xs">
+                    <div className="grid grid-cols-2 gap-3 text-sm">
                       <div className="flex items-center text-gray-600">
-                        <MapPin className="h-3.5 w-3.5 mr-1.5 text-gray-400 flex-shrink-0" />
+                        <MapPin className="h-4 w-4 mr-2 text-gray-400" aria-hidden="true" />
                         <span className="truncate">{getDestinationName(booking.destination)}</span>
                       </div>
                       <div className="flex items-center text-gray-600">
-                        <Users className="h-3.5 w-3.5 mr-1.5 text-gray-400" />
+                        <Users className="h-4 w-4 mr-2 text-gray-400" aria-hidden="true" />
                         {booking.groupSize} members
                       </div>
-                      <div className="col-span-2 flex items-start text-gray-600">
-                        <Calendar className="h-3.5 w-3.5 mr-1.5 mt-0.5 text-gray-400 flex-shrink-0" />
-                        <span className="break-words">
-                          {formatDateRange(booking.checkInDate, booking.checkOutDate)}
-                        </span>
+                      <div className="col-span-2 flex items-center text-gray-600">
+                        <Calendar className="h-4 w-4 mr-2 text-gray-400" aria-hidden="true" />
+                        {formatDateRange(booking.checkInDate, booking.checkOutDate)}
                       </div>
                     </div>
 
-                    <div className="flex justify-end items-center pt-2 space-x-2 border-t border-gray-50">
+                    <div className="flex flex-wrap gap-2 pt-2">
                       <button
                         onClick={() => handleViewBooking(booking.id)}
-                        className="flex items-center text-xs font-medium text-green-600 bg-green-50 px-3 py-1.5 rounded-lg hover:bg-green-100 transition-colors"
-                        aria-label={`View details for ${booking.name}`}
+                        className="flex-1 flex items-center justify-center min-h-[44px] text-sm font-semibold text-green-700 bg-green-50 border border-green-100 px-4 py-2 rounded-xl active:bg-green-100 transition-colors"
                       >
-                        <Eye className="h-3.5 w-3.5 mr-1.5" />
+                        <Eye className="h-4 w-4 mr-2" />
                         Details
                       </button>
                       {booking.status === "pending" && (
                         <>
                           <button
                             onClick={() => handleApproveBooking(booking.id)}
-                            className="flex items-center text-xs font-medium text-blue-600 bg-blue-50 px-3 py-1.5 rounded-lg hover:bg-blue-100 transition-colors"
-                            aria-label={`Approve booking for ${booking.name}`}
+                            className="flex-1 flex items-center justify-center min-h-[44px] text-sm font-semibold text-blue-700 bg-blue-50 border border-blue-100 px-4 py-2 rounded-xl active:bg-blue-100 transition-colors"
                           >
-                            <CheckCircle className="h-3.5 w-3.5 mr-1.5" />
+                            <CheckCircle className="h-4 w-4 mr-2" />
                             Approve
                           </button>
                           <button
                             onClick={() => handleCancelBooking(booking.id)}
-                            className="flex items-center text-xs font-medium text-red-600 bg-red-50 px-3 py-1.5 rounded-lg hover:bg-red-100 transition-colors"
-                            aria-label={`Cancel booking for ${booking.name}`}
+                            className="flex-1 flex items-center justify-center min-h-[44px] text-sm font-semibold text-red-700 bg-red-50 border border-red-100 px-4 py-2 rounded-xl active:bg-red-100 transition-colors"
                           >
-                            <XCircle className="h-3.5 w-3.5 mr-1.5" />
+                            <XCircle className="h-4 w-4 mr-2" />
                             Cancel
                           </button>
                         </>
@@ -546,6 +542,7 @@ export default function BookingsPage() {
           )}
         </div>
       </div>
+      </DataFetchErrorBoundary>
     </Layout>
   );
 }

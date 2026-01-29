@@ -3,12 +3,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Layout from '@/components/Layout';
-import { User } from 'lucide-react';
+import { User, CheckCircle } from 'lucide-react';
 import { getDbService } from '@/lib/databaseService';
-import { 
-  sanitizeForDatabase, 
-  sanitizeObject,
-  normalizePhone 
+import { FormErrorBoundary } from '@/components/errors';
+import {
+  sanitizeObject
 } from '@/lib/utils';
 import { 
   TouristRegistrationSchema,
@@ -51,6 +50,8 @@ export default function RegisterTourist() {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitSuccess, setSubmitSuccess] = useState(false);
+  const [currentStep, setCurrentStep] = useState(1);
+  const totalSteps = 3;
   
   const formRef = useRef<HTMLFormElement>(null);
   const successButtonRef = useRef<HTMLButtonElement>(null);
@@ -107,80 +108,89 @@ export default function RegisterTourist() {
     };
   };
 
-  const validateForm = (): boolean => {
+  const validateForm = (step?: number): boolean => {
     const sanitizedData = sanitizeFormData(formData);
-    
-    // Prepare registration data for validation
-    const registrationData = {
-      name: sanitizedData.name,
-      email: sanitizedData.email,
-      phone: sanitizedData.phone,
-      age: parseInt(sanitizedData.age.toString(), 10),
-      address: sanitizedData.address,
-      pinCode: sanitizedData.pinCode,
-      idProof: sanitizedData.idProof,
-      idType: sanitizedData.idProofType as 'aadhaar' | 'pan' | 'passport' | 'driving-license' | 'voter-id',
-    };
-
-    // Prepare booking data for validation
-    const bookingData = {
-      groupSize: sanitizedData.groupSize,
-      checkInDate: sanitizedData.checkInDate,
-      checkOutDate: sanitizedData.checkOutDate,
-      emergencyContact: {
-        name: sanitizedData.emergencyContactName,
-        phone: sanitizedData.emergencyContactPhone,
-        relationship: sanitizedData.emergencyContactRelationship,
-      },
-      transportType: 'other' as const,
-      originLocationId: sanitizedData.nationality === 'Indian' ? 'domestic' : 'international',
-    };
-
     const newErrors: Record<string, string> = {};
-
-    // Validate Tourist Registration
-    const registrationResult = TouristRegistrationSchema.safeParse(registrationData);
-    if (!registrationResult.success) {
-      registrationResult.error.issues.forEach((issue) => {
-        const field = issue.path.join('.');
-        newErrors[field] = issue.message;
+    const targetStep = step || currentStep;
+    
+    // Step 1: Personal Information
+    if (targetStep === 1 || !step) {
+      const registrationResult = validateInput(TouristRegistrationSchema, {
+        name: sanitizedData.name,
+        email: sanitizedData.email,
+        phone: sanitizedData.phone,
+        age: parseInt(sanitizedData.age.toString(), 10),
+        address: sanitizedData.address,
+        pinCode: sanitizedData.pinCode,
+        idProof: sanitizedData.idProof,
+        idType: sanitizedData.idProofType,
       });
+
+      if (!registrationResult.success) {
+        Object.assign(newErrors, registrationResult.errors);
+      }
+      
+      if (!sanitizedData.gender) {
+        newErrors.gender = 'Gender is required';
+      }
     }
 
-    // Validate Booking Data
-    const bookingResult = BookingDataSchema.safeParse(bookingData);
-    if (!bookingResult.success) {
-      bookingResult.error.issues.forEach((issue) => {
-        const path = issue.path.join('.');
-        
-        // Map nested emergency contact errors to flat structure
-        if (path.startsWith('emergencyContact.')) {
-          const field = path.replace('emergencyContact.', 'emergencyContact');
-          const fieldName = field.replace('emergencyContact', 'emergencyContact' + path.split('.')[1].charAt(0).toUpperCase() + path.split('.')[1].slice(1));
-          newErrors[fieldName] = issue.message;
-        } else {
-          newErrors[path] = issue.message;
-        }
+    // Step 2: Travel Information
+    if (targetStep === 2 || !step) {
+      const bookingResult = validateInput(BookingDataSchema, {
+        groupSize: sanitizedData.groupSize,
+        checkInDate: sanitizedData.checkInDate,
+        checkOutDate: sanitizedData.checkOutDate,
+        emergencyContact: {
+          name: 'Temp Name', // Temporary for partial validation
+          phone: '9876543210',
+          relationship: 'Friend',
+        },
+        transportType: 'other',
+        originLocationId: sanitizedData.nationality === 'Indian' ? 'domestic' : 'international',
       });
-    }
 
-    // Custom validations
-    if (!sanitizedData.destination) {
-      newErrors.destination = 'Please select a destination';
-    }
+      if (!bookingResult.success) {
+        if (bookingResult.errors.groupSize) newErrors.groupSize = bookingResult.errors.groupSize;
+        if (bookingResult.errors.checkInDate) newErrors.checkInDate = bookingResult.errors.checkInDate;
+        if (bookingResult.errors.checkOutDate) newErrors.checkOutDate = bookingResult.errors.checkOutDate;
+      }
 
-    if (!sanitizedData.gender) {
-      newErrors.gender = 'Please select a gender';
-    }
+      if (!sanitizedData.destination) {
+        newErrors.destination = 'Please select a destination';
+      }
 
-    // Validate destination capacity
-    if (sanitizedData.destination && !newErrors.groupSize) {
-      const destination = destinations.find(d => d.id === sanitizedData.destination);
-      if (destination) {
-        const availableCapacity = destination.max_capacity - destination.current_occupancy;
-        if (sanitizedData.groupSize > availableCapacity) {
-          newErrors.groupSize = `Only ${availableCapacity} slots available for this destination`;
+      // Custom validation for destination capacity
+      if (sanitizedData.destination && !newErrors.groupSize) {
+        const destination = destinations.find(d => d.id === sanitizedData.destination);
+        if (destination) {
+          const availableCapacity = destination.max_capacity - destination.current_occupancy;
+          if (sanitizedData.groupSize > availableCapacity) {
+            newErrors.groupSize = `Only ${availableCapacity} slots available for this destination`;
+          }
         }
+      }
+    }
+
+    // Step 3: Emergency Contact
+    if (targetStep === 3 || !step) {
+      const bookingResult = validateInput(BookingDataSchema, {
+        groupSize: 1, // Temporary
+        checkInDate: '2025-01-01', // Temporary
+        checkOutDate: '2025-01-02', // Temporary
+        emergencyContact: {
+          name: sanitizedData.emergencyContactName,
+          phone: sanitizedData.emergencyContactPhone,
+          relationship: sanitizedData.emergencyContactRelationship,
+        },
+        transportType: 'other',
+        originLocationId: 'domestic',
+      });
+
+      if (!bookingResult.success) {
+        if (bookingResult.errors['emergencyContact.name']) newErrors.emergencyContactName = bookingResult.errors['emergencyContact.name'];
+        if (bookingResult.errors['emergencyContact.phone']) newErrors.emergencyContactPhone = bookingResult.errors['emergencyContact.phone'];
+        if (bookingResult.errors['emergencyContact.relationship']) newErrors.emergencyContactRelationship = bookingResult.errors['emergencyContact.relationship'];
       }
     }
 
@@ -188,8 +198,47 @@ export default function RegisterTourist() {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+ const handleNextStep = () => {
+  if (validateForm(currentStep)) {
+    setCurrentStep(prev => Math.min(prev + 1, totalSteps));
+    window.scrollTo(0, 0);
+  }
+};
+
+const handlePrevStep = () => {
+  setCurrentStep(prev => Math.max(prev - 1, 1));
+  window.scrollTo(0, 0);
+};
+
+const handleSubmit = async (e: React.FormEvent) => {
+  e.preventDefault();
+  
+  const selectedDestination = destinations.find(d => d.id === formData.destination);
+  
+  if (!validateForm() || !selectedDestination) {
+    // Focus on first error field (from feature/datavalid)
+    const firstErrorField = Object.keys(errors)[0];
+    if (firstErrorField) {
+      const element = document.getElementById(firstErrorField);
+      element?.focus();
+    }
+    alert('Please fill in all required fields and correct any errors');
+    return;
+  }
+  
+  setIsSubmitting(true);
+  
+  try {
+    const sanitizedData = sanitizeFormData(formData);
+    
+    // Normalize phone numbers (from feature/datavalid)
+    const normalizedPhone = normalizePhone(sanitizedData.phone);
+    const normalizedEmergencyPhone = normalizePhone(sanitizedData.emergencyContactPhone);
+    
+    const bookingData = {
+      name: sanitizedData.name,
+      email: sanitizedData.email,
+      phone: normalizedPhone, // Use nor
     
     const selectedDestination = destinations.find(d => d.id === formData.destination);
     
@@ -348,15 +397,59 @@ export default function RegisterTourist() {
         <div className="mb-6">
           <h1 className="text-2xl font-bold text-gray-900">Tourist Registration</h1>
           <p className="text-gray-700">Register for visiting ecologically sensitive areas in Jammu & Himachal Pradesh</p>
+          
+          {/* Step Indicator */}
+          <div className="mt-6 flex items-center justify-between relative">
+            <div className="absolute top-1/2 left-0 w-full h-0.5 bg-gray-200 -translate-y-1/2 z-0"></div>
+            {[1, 2, 3].map((step) => (
+              <div key={step} className="relative z-10 flex flex-col items-center">
+                <div 
+                  className={`w-10 h-10 rounded-full flex items-center justify-center font-bold transition-colors ${
+                    currentStep === step 
+                      ? 'bg-green-600 text-white shadow-lg' 
+                      : currentStep > step 
+                        ? 'bg-green-100 text-green-600' 
+                        : 'bg-white border-2 border-gray-200 text-gray-400'
+                  }`}
+                >
+                  {currentStep > step ? <CheckCircle className="h-6 w-6" /> : step}
+                </div>
+                <span className={`mt-2 text-xs font-bold uppercase tracking-wider ${
+                  currentStep === step ? 'text-green-600' : 'text-gray-400'
+                }`}>
+                  {step === 1 ? 'Personal' : step === 2 ? 'Travel' : 'Emergency'}
+                </span>
+              </div>
+            ))}
+          </div>
         </div>
 
-        <form ref={formRef} onSubmit={handleSubmit} className="space-y-6" noValidate aria-label="Tourist registration form">
-          {/* Personal Information Section */}
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Personal Information</h2>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Name Field */}
+        <FormErrorBoundary formName="Tourist Registration" onReset={() => setFormData({
+          name: '',
+          email: '',
+          phone: '',
+          age: '',
+          gender: '',
+          address: '',
+          pinCode: '',
+          idProofType: '',
+          group_name: '',
+          idProof: '',
+          nationality: 'Indian',
+          groupSize: 1,
+          destination: '',
+          checkInDate: '',
+          checkOutDate: '',
+          emergencyContactName: '',
+          emergencyContactPhone: '',
+          emergencyContactRelationship: ''
+        })}>
+          <form ref={formRef} onSubmit={handleSubmit} className="space-y-6" noValidate aria-label="Tourist registration form">
+          {currentStep === 1 && (
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 animate-in slide-in-from-right duration-300">
+              <h2 className="text-lg font-semibold text-gray-900 mb-4">Personal Information</h2>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label htmlFor="name" className="block text-sm font-medium text-gray-900 mb-1">
                   Full Name *
@@ -367,7 +460,7 @@ export default function RegisterTourist() {
                   name="name"
                   value={formData.name}
                   onChange={handleInputChange}
-                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-green-500 focus:outline-none focus:border-transparent text-gray-900 ${
+                  className={`w-full px-3 py-2 min-h-[52px] border rounded-lg focus:ring-2 focus:ring-green-500 focus:outline-none focus:border-transparent text-gray-900 ${
                     errors.name ? 'border-red-600' : 'border-gray-300'
                   }`}
                   placeholder="Enter your full name"
@@ -393,7 +486,7 @@ export default function RegisterTourist() {
                   autoComplete="email"
                   value={formData.email}
                   onChange={handleInputChange}
-                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-green-500 focus:outline-none focus:border-transparent text-gray-900 ${
+                  className={`w-full px-3 py-2 min-h-[52px] border rounded-lg focus:ring-2 focus:ring-green-500 focus:outline-none focus:border-transparent text-gray-900 ${
                     errors.email ? 'border-red-600' : 'border-gray-300'
                   }`}
                   placeholder="your.email@example.com"
@@ -418,7 +511,7 @@ export default function RegisterTourist() {
                   name="phone"
                   value={formData.phone}
                   onChange={handleInputChange}
-                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-green-500 focus:outline-none focus:border-transparent text-gray-900 ${
+                  className={`w-full px-3 py-2 min-h-[52px] border rounded-lg focus:ring-2 focus:ring-green-500 focus:outline-none focus:border-transparent text-gray-900 ${
                     errors.phone ? 'border-red-600' : 'border-gray-300'
                   }`}
                   placeholder="+91 98765 43210 or 9876543210"
@@ -531,7 +624,7 @@ export default function RegisterTourist() {
                   name="pinCode"
                   value={formData.pinCode}
                   onChange={handleInputChange}
-                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-green-500 focus:outline-none focus:border-transparent text-gray-900 ${
+                  className={`w-full px-3 py-2 min-h-[52px] border rounded-lg focus:ring-2 focus:ring-green-500 focus:outline-none focus:border-transparent text-gray-900 ${
                     errors.pinCode ? 'border-red-600' : 'border-gray-300'
                   }`}
                   placeholder="e.g., 110001"
@@ -556,8 +649,8 @@ export default function RegisterTourist() {
                   name="idProofType"
                   value={formData.idProofType}
                   onChange={handleInputChange}
-                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-green-500 focus:outline-none focus:border-transparent text-gray-900 ${
-                    errors.idType || errors.idProofType ? 'border-red-600' : 'border-gray-300'
+                  className={`w-full px-3 py-2 min-h-[52px] border rounded-lg focus:ring-2 focus:ring-green-500 focus:outline-none focus:border-transparent text-gray-900 ${
+                    errors.idProofType ? 'border-red-600' : 'border-gray-300'
                   }`}
                   aria-label="Government ID type"
                   aria-required="true"
@@ -585,7 +678,7 @@ export default function RegisterTourist() {
                   name="idProof"
                   value={formData.idProof}
                   onChange={handleInputChange}
-                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-green-500 focus:outline-none focus:border-transparent text-gray-900 ${
+                  className={`w-full px-3 py-2 min-h-[52px] border rounded-lg focus:ring-2 focus:ring-green-500 focus:outline-none focus:border-transparent text-gray-900 ${
                     errors.idProof ? 'border-red-600' : 'border-gray-300'
                   }`}
                   placeholder={
@@ -687,9 +780,10 @@ export default function RegisterTourist() {
               </div>
             </div>
           </div>
+          )}
 
-          {/* Travel Information Section */}
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+          {currentStep === 2 && (
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 animate-in slide-in-from-right duration-300">
             <h2 className="text-lg font-semibold text-gray-900 mb-4">Travel Information</h2>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -702,7 +796,7 @@ export default function RegisterTourist() {
                   name="destination"
                   value={formData.destination}
                   onChange={handleInputChange}
-                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-green-500 focus:outline-none focus:border-transparent text-gray-900 ${
+                  className={`w-full px-3 py-2 min-h-[52px] border rounded-lg focus:ring-2 focus:ring-green-500 focus:outline-none focus:border-transparent text-gray-900 ${
                     errors.destination ? 'border-red-600' : 'border-gray-300'
                   }`}
                   aria-label="Select destination"
@@ -740,7 +834,7 @@ export default function RegisterTourist() {
                     maxDate.setMonth(maxDate.getMonth() + 12);
                     return maxDate.toISOString().split('T')[0];
                   })()}
-                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-green-500 focus:outline-none focus:border-transparent text-gray-900 ${
+                  className={`w-full px-3 py-2 min-h-[52px] border rounded-lg focus:ring-2 focus:ring-green-500 focus:outline-none focus:border-transparent text-gray-900 ${
                     errors.checkInDate ? 'border-red-600' : 'border-gray-300'
                   }`}
                   aria-label="Check-in date"
@@ -767,7 +861,12 @@ export default function RegisterTourist() {
                     tomorrow.setDate(tomorrow.getDate() + 1);
                     return tomorrow.toISOString().split('T')[0];
                   })()}
-                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-green-500 focus:outline-none focus:border-transparent text-gray-900 ${
+                  max={formData.checkInDate ? (() => {
+                    const maxDate = new Date(formData.checkInDate);
+                    maxDate.setDate(maxDate.getDate() + 30);
+                    return maxDate.toISOString().split('T')[0];
+                  })() : undefined}
+                  className={`w-full px-3 py-2 min-h-[52px] border rounded-lg focus:ring-2 focus:ring-green-500 focus:outline-none focus:border-transparent text-gray-900 ${
                     errors.checkOutDate ? 'border-red-600' : 'border-gray-300'
                   }`}
                   aria-label="Check-out date"
@@ -799,9 +898,10 @@ export default function RegisterTourist() {
               )}
             </div>
           </div>
+          )}
 
-          {/* Emergency Contact Section */}
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+          {currentStep === 3 && (
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 animate-in slide-in-from-right duration-300">
             <h2 className="text-lg font-semibold text-gray-900 mb-4">Emergency Contact</h2>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -815,7 +915,7 @@ export default function RegisterTourist() {
                   name="emergencyContactName"
                   value={formData.emergencyContactName}
                   onChange={handleInputChange}
-                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-green-500 focus:outline-none focus:border-transparent text-gray-900 ${
+                  className={`w-full px-3 py-2 min-h-[52px] border rounded-lg focus:ring-2 focus:ring-green-500 focus:outline-none focus:border-transparent text-gray-900 ${
                     errors.emergencyContactName ? 'border-red-600' : 'border-gray-300'
                   }`}
                   placeholder="Emergency contact full name"
@@ -839,7 +939,7 @@ export default function RegisterTourist() {
                   name="emergencyContactPhone"
                   value={formData.emergencyContactPhone}
                   onChange={handleInputChange}
-                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-green-500 focus:outline-none focus:border-transparent text-gray-900 ${
+                  className={`w-full px-3 py-2 min-h-[52px] border rounded-lg focus:ring-2 focus:ring-green-500 focus:outline-none focus:border-transparent text-gray-900 ${
                     errors.emergencyContactPhone ? 'border-red-600' : 'border-gray-300'
                   }`}
                   placeholder="+91 98765 43210 or 9876543210"
@@ -861,7 +961,7 @@ export default function RegisterTourist() {
                   name="emergencyContactRelationship"
                   value={formData.emergencyContactRelationship}
                   onChange={handleInputChange}
-                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-green-500 focus:outline-none focus:border-transparent text-gray-900 ${
+                  className={`w-full px-3 py-2 min-h-[52px] border rounded-lg focus:ring-2 focus:ring-green-500 focus:outline-none focus:border-transparent text-gray-900 ${
                     errors.emergencyContactRelationship ? 'border-red-600' : 'border-gray-300'
                   }`}
                   aria-label="Emergency contact relationship"
@@ -880,26 +980,49 @@ export default function RegisterTourist() {
               </div>
             </div>
           </div>
+          )}
 
-          <div className="flex justify-end space-x-4">
+          {/* Form Navigation */}
+          <div className="flex flex-col sm:flex-row justify-between items-center gap-4 pt-6 border-t border-gray-100">
             <button
               type="button"
-              onClick={() => router.back()}
-              className="px-6 py-2 border border-gray-300 rounded-lg text-gray-900 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-colors"
-              aria-label="Cancel registration"
+              onClick={handlePrevStep}
+              disabled={currentStep === 1 || isSubmitting || loading}
+              className={`w-full sm:w-auto px-8 py-3 rounded-xl font-bold text-sm transition-all min-h-[44px] flex items-center justify-center ${
+                currentStep === 1
+                  ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                  : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 active:scale-[0.98]'
+              }`}
             >
-              Cancel
+              Previous Step
             </button>
-            <button
-              type="submit"
-              disabled={isSubmitting}
-              className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              aria-label={isSubmitting ? 'Registering tourist, please wait' : 'Submit tourist registration'}
-            >
-              {isSubmitting ? 'Registering...' : 'Register Tourist'}
-            </button>
+            
+            {currentStep < totalSteps ? (
+              <button
+                type="button"
+                onClick={handleNextStep}
+                disabled={isSubmitting || loading}
+                className="w-full sm:w-auto px-8 py-3 bg-green-600 text-white rounded-xl font-bold text-sm hover:bg-green-700 active:scale-[0.98] transition-all shadow-sm min-h-[44px] flex items-center justify-center"
+              >
+                Next Step
+              </button>
+            ) : (
+              <button
+                type="submit"
+                disabled={isSubmitting || loading}
+                className="w-full sm:w-auto px-10 py-3 bg-green-600 text-white rounded-xl font-bold text-sm hover:bg-green-700 active:scale-[0.98] transition-all shadow-md min-h-[44px] flex items-center justify-center disabled:opacity-50"
+              >
+                {isSubmitting ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-2 border-white/20 border-t-white mr-2"></div>
+                    Processing...
+                  </>
+                ) : 'Complete Registration'}
+              </button>
+            )}
           </div>
         </form>
+        </FormErrorBoundary>
       </div>
     </Layout>
   );

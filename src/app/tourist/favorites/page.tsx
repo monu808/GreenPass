@@ -190,7 +190,7 @@ export default function Favorites() {
               <div className="glass-card p-8">
                 <h2 className="text-2xl font-serif font-bold gradient-text mb-6 flex items-center">
                   <CheckCircle className="h-6 w-6 text-green-500 mr-3" />
-                  Places You've Conquered
+                  Places You&apos;ve Conquered
                 </h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                   {visitedDestinations.map((destination) => (

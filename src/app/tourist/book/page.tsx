@@ -291,7 +291,7 @@ function BookDestinationForm() {
         checkInDate: sanitizedData.checkInDate,
         checkOutDate: sanitizedData.checkOutDate,
         emergencyContact: sanitizedData.emergencyContact,
-        transportType: (sanitizedData.transportType.split('_')[0].toLowerCase()) as z.infer<typeof TransportTypeEnum>,
+        transportType: sanitizedData.transportType.split('_')[0].toLowerCase() as string,
         originLocationId: sanitizedData.originLocation,
       });
 

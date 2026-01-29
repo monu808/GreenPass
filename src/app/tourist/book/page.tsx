@@ -133,25 +133,25 @@ function BookDestinationForm() {
       }
     } catch (error) {
        let msg = 'An unexpected error occurred while submitting your booking. Please try again.';
-+     if (error instanceof Error) {
-+        if (error.message.includes('capacity')) {
-+          msg = 'Booking failed: insufficient available spots for the selected dates.';
-+        } else if (error.message.includes('validation')) {
-+          msg = 'Invalid data: please check all required fields.';
-+        } else if (error.message.includes('payment')) {
-+          msg = 'Payment error: your transaction could not be processed.';
-+        } else if (error.message.includes('network')) {
-+          msg = 'Connection error: please check your internet and try again.';
-+        } else if (error.message.includes('timeout')) {
-+          msg = 'Operation timed out. Please try again.';
-+        } else if (error.message.includes('duplicate')) {
-+          msg = 'You already have a booking for this date.';
-+        } else {
-+          msg = `Reservation failed: ${error.message}`;
-+        }
-+      }
-+      alert(msg);
-+    } finally {
+     if (error instanceof Error) {
+        if (error.message.includes('capacity')) {
+          msg = 'Booking failed: insufficient available spots for the selected dates.';
+       } else if (error.message.includes('validation')) {
+         msg = 'Invalid data: please check all required fields.';
+       } else if (error.message.includes('payment')) {
+          msg = 'Payment error: your transaction could not be processed.';
+        } else if (error.message.includes('network')) {
+          msg = 'Connection error: please check your internet and try again.';
+        } else if (error.message.includes('timeout')) {
+          msg = 'Operation timed out. Please try again.';
+        } else if (error.message.includes('duplicate')) {
+          msg = 'You already have a booking for this date.';
+        } else {
+          msg = `Reservation failed: ${error.message}`;
+        }
+      }
+      alert(msg);
+    } finally {
       setLoading(false);
     }
   }, [destinationId]);

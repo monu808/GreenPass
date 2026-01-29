@@ -1,8 +1,6 @@
 // Test file for Tomorrow.io Weather API integration
-// This file demonstrates how to use the new weather service
-
 import { weatherService } from '@/lib/weatherService';
-import { logger } from '@/lib/logger'; // NEW IMPORT
+import { logger } from '@/lib/logger'; // ✅ NEW IMPORT
 
 async function testTomorrowWeatherAPI() {
   logger.info('🌤️ Testing Tomorrow.io Weather API Integration');
@@ -57,12 +55,8 @@ async function testTomorrowWeatherAPI() {
 
 export { testTomorrowWeatherAPI };
 
-
-/*
-  This function checks if the rain intensity requires a warning.
- */
 function checkRainIntensity(intensity: number) {
-  const ALERT_LIMIT = 10; // Threshold for heavy rain
+  const ALERT_LIMIT = 10; 
 
   if (intensity > ALERT_LIMIT) {
     logger.warn("⚠️  HEAVY RAIN ALERT: Intensity is " + intensity + ". Triggering warning system!");
@@ -70,7 +64,6 @@ function checkRainIntensity(intensity: number) {
     logger.info("✅ Weather is within normal limits. Intensity: " + intensity);
   }
 }
-
 
 export function runWeatherTest() {
   logger.info("--- RUNNING MANUAL WEATHER TEST ---");

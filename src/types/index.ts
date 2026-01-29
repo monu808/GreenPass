@@ -158,6 +158,12 @@ export interface ComplianceReport {
   approvedAt?: Date | null;
   createdAt: Date;
 }
+export interface EcologicalDamageIndicators {
+  soilCompaction: number;
+  vegetationDisturbance: number;
+  wildlifeDisturbance: number;
+  waterSourceImpact: number;
+}
 
 export interface HistoricalOccupancy {
   date: string;

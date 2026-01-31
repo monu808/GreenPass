@@ -8,6 +8,7 @@ import {
 } from '@/types';
 import { getDbService } from './databaseService';
 import { WeatherData } from './weatherService';
+import { logger } from './logger';
 
 export type SensitivityLevel = 'low' | 'medium' | 'high' | 'critical';
 
@@ -192,9 +193,9 @@ export class EcologicalPolicyEngine {
   clearCapacityOverride(destinationId: string) {
     this.overrides.delete(destinationId);
     this.saveOverridesToStorage();
+    logger.info(`Capacity override cleared for destination ${destinationId}`);
   }
 
-  import { logger } from './logger';
 
 /**
    * Evaluates weather data against safety thresholds to generate alerts.

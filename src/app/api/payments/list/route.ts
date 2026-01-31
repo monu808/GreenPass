@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createServerClient } from '@supabase/ssr';
+import { paymentService } from '@/lib/paymentService';
+import { logger } from '@/lib/logger';
 import { cookies } from 'next/headers';
 
 async function createSupabaseClient() {
@@ -113,7 +114,11 @@ export async function GET(request: NextRequest) {
       },
     });
   } catch (error: any) {
-    console.error('Error fetching payments:', error);
+    logger.error(
+      'Error fetching payments',
+      error,
+      { component: 'payments-list-route', operation: 'fetchPayments', metadata: { userId, limit, offset } }
+    );
     return NextResponse.json(
       { error: error.message || 'Failed to fetch payments' },
       { status: 500 }

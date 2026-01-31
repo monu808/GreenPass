@@ -13,6 +13,7 @@ import {
   RazorpayOrderData,
   PaymentMethod,
 } from '@/types/payment';
+import { logger } from './logger';
 
 // Local type definitions for database rows (not yet in generated types)
 // These will be replaced when `supabase gen types` is run after applying payment-schema.sql
@@ -131,7 +132,11 @@ class PaymentService {
         breakdown: this.generatePriceBreakdown(pricing),
       };
     } catch (error) {
-      console.error('Error calculating booking price:', error);
+      logger.error(
+        'Error calculating booking price',
+        error,
+        { component: 'paymentService', operation: 'calculateBookingPrice', metadata: { destinationId, groupSize, checkInDate, carbonFootprint } }
+      );
       throw new Error('Failed to calculate booking price');
     }
   }
@@ -225,7 +230,20 @@ class PaymentService {
         return await this.createStripeIntent(payment as any);
       }
     } catch (error) {
-      console.error('Error creating payment intent:', error);
+      logger.error(
+        'Error creating payment intent',
+        error,
+        { 
+          component: 'paymentService', 
+          operation: 'createPaymentIntent', 
+          metadata: { 
+            bookingId: input.booking_id, 
+            amount: input.amount, 
+            currency: input.currency || 'INR',
+            paymentMethod: input.payment_method
+          } 
+        }
+      );
       throw error;
     }
   }
@@ -265,7 +283,11 @@ class PaymentService {
         .eq('id', payment.id);
 
       if (updateError) {
-        console.error('Failed to update payment with gateway order ID:', updateError);
+        logger.error(
+          'Failed to update payment with gateway order ID',
+          updateError,
+          { component: 'paymentService', operation: 'createRazorpayOrder', metadata: { paymentId: payment.id, orderId: order.id } }
+        );
         // Continue anyway as the order was created
       }
 
@@ -290,7 +312,11 @@ class PaymentService {
         gateway_data: orderData,
       };
     } catch (error) {
-      console.error('Error creating Razorpay order:', error);
+      logger.error(
+        'Error creating Razorpay order',
+        error,
+        { component: 'paymentService', operation: 'createRazorpayOrder', metadata: { paymentId: payment.id, amount: payment.amount } }
+      );
       throw error;
     }
   }
@@ -326,7 +352,11 @@ class PaymentService {
         .eq('id', payment.id);
 
       if (updateError) {
-        console.error('Failed to update payment with gateway payment ID:', updateError);
+        logger.error(
+          'Failed to update payment with gateway payment ID',
+          updateError,
+          { component: 'paymentService', operation: 'createStripeIntent', metadata: { paymentId: payment.id, intentId: intent.id } }
+        );
         // Continue anyway as the intent was created
       }
 
@@ -341,7 +371,11 @@ class PaymentService {
         },
       };
     } catch (error) {
-      console.error('Error creating Stripe intent:', error);
+      logger.error(
+        'Error creating Stripe intent',
+        error,
+        { component: 'paymentService', operation: 'createStripeIntent', metadata: { paymentId: payment.id, amount: payment.amount } }
+      );
       throw error;
     }
   }
@@ -385,7 +419,11 @@ class PaymentService {
       }
 
       if (!payment) {
-        console.error('Payment not found for webhook:', gatewayPaymentId);
+        logger.error(
+          'Payment not found for webhook',
+          null,
+          { component: 'paymentService', operation: 'handlePaymentWebhook', metadata: { gatewayPaymentId, gateway: this.gateway } }
+        );
         return;
       }
 
@@ -441,7 +479,11 @@ class PaymentService {
           .eq('id', payment.booking_id);
       }
     } catch (error) {
-      console.error('Error handling payment webhook:', error);
+      logger.error(
+        'Error handling payment webhook',
+        error,
+        { component: 'paymentService', operation: 'handlePaymentWebhook', metadata: { gateway: this.gateway, gatewayPaymentId } }
+      );
       throw error;
     }
   }
@@ -498,7 +540,11 @@ class PaymentService {
         },
       };
     } catch (error) {
-      console.error('Error generating receipt:', error);
+      logger.error(
+        'Error generating receipt',
+        error,
+        { component: 'paymentService', operation: 'generateReceipt', metadata: { paymentId } }
+      );
       return null;
     }
   }
@@ -599,7 +645,11 @@ class PaymentService {
         throw gatewayError;
       }
     } catch (error) {
-      console.error('Error processing refund:', error);
+      logger.error(
+        'Error processing refund',
+        error,
+        { component: 'paymentService', operation: 'processRefund', metadata: { paymentId: input.payment_id, amount: input.amount, reason: input.reason } }
+      );
       throw error;
     }
   }
@@ -705,7 +755,11 @@ class PaymentService {
         monthly_revenue: [], // Can be enhanced with more detailed query
       };
     } catch (error) {
-      console.error('Error fetching payment statistics:', error);
+      logger.error(
+        'Error fetching payment statistics',
+        error,
+        { component: 'paymentService', operation: 'getPaymentStatistics' }
+      );
       return null;
     }
   }
@@ -727,7 +781,11 @@ class PaymentService {
 
       return data as any;
     } catch (error) {
-      console.error('Error fetching payment:', error);
+      logger.error(
+        'Error fetching payment',
+        error,
+        { component: 'paymentService', operation: 'getPaymentById', metadata: { paymentId } }
+      );
       return null;
     }
   }
@@ -749,7 +807,11 @@ class PaymentService {
 
       return data as any[];
     } catch (error) {
-      console.error('Error fetching payments:', error);
+      logger.error(
+        'Error fetching payments',
+        error,
+        { component: 'paymentService', operation: 'getPaymentsByBooking', metadata: { bookingId } }
+      );
       return [];
     }
   }

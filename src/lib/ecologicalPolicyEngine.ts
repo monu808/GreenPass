@@ -8,6 +8,7 @@ import {
 } from '@/types';
 import { getDbService } from './databaseService';
 import { WeatherData } from './weatherService';
+import { logger } from './logger';
 
 export type SensitivityLevel = 'low' | 'medium' | 'high' | 'critical';
 
@@ -98,7 +99,11 @@ export class EcologicalPolicyEngine {
           this.policies = { ...DEFAULT_POLICIES, ...JSON.parse(saved) };
         }
       } catch (e) {
-        console.error('Failed to load policies from storage', e);
+        logger.error(
+          'Failed to load policies from storage',
+          e,
+          { component: 'ecologicalPolicyEngine', operation: 'loadPolicies' }
+        );
       }
     }
   }
@@ -108,7 +113,11 @@ export class EcologicalPolicyEngine {
       try {
         localStorage.setItem('ecological_policies', JSON.stringify(this.policies));
       } catch (e) {
-        console.error('Failed to save policies to storage', e);
+        logger.error(
+          'Failed to save policies to storage',
+          e,
+          { component: 'ecologicalPolicyEngine', operation: 'savePolicies' }
+        );
       }
     }
   }
@@ -131,7 +140,11 @@ export class EcologicalPolicyEngine {
           }) as [string, CapacityOverride][]);
         }
       } catch (e) {
-        console.error('Failed to load overrides from storage', e);
+        logger.error(
+          'Failed to load overrides from storage',
+          e,
+          { component: 'ecologicalPolicyEngine', operation: 'loadOverrides' }
+        );
       }
     }
   }
@@ -142,7 +155,11 @@ export class EcologicalPolicyEngine {
         const obj = Object.fromEntries(this.overrides.entries());
         localStorage.setItem('capacity_overrides', JSON.stringify(obj));
       } catch (e) {
-        console.error('Failed to save overrides to storage', e);
+        logger.error(
+          'Failed to save overrides to storage',
+          e,
+          { component: 'ecologicalPolicyEngine', operation: 'saveOverrides' }
+        );
       }
     }
   }
@@ -176,9 +193,11 @@ export class EcologicalPolicyEngine {
   clearCapacityOverride(destinationId: string) {
     this.overrides.delete(destinationId);
     this.saveOverridesToStorage();
+    logger.info(`Capacity override cleared for destination ${destinationId}`);
   }
 
-  /**
+
+/**
    * Evaluates weather data against safety thresholds to generate alerts.
    */
   checkWeatherAlerts(destination: Destination, weatherData: WeatherData): AlertCheckResult {

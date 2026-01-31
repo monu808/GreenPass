@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { BookingPricing, PaymentIntent } from '@/types/payment';
 import { CreditCard, Smartphone, Building2, Wallet, AlertCircle } from 'lucide-react';
+import { logger } from '@/lib/logger';
 
 interface PaymentFormProps {
   bookingId: string;
@@ -119,7 +120,11 @@ export default function PaymentForm({ bookingId, onSuccess, onError }: PaymentFo
         }
       }, 100);
     } catch (err: any) {
-      console.error('Failed to setup Stripe:', err);
+      logger.error(
+        'Failed to setup Stripe',
+        err,
+        { component: 'PaymentForm', operation: 'setupStripe' }
+      );
       setError('Failed to load payment form');
     }
   };

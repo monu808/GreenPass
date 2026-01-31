@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { paymentService } from '@/lib/paymentService';
+import { logger } from '@/lib/logger';
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 
@@ -83,7 +84,11 @@ export async function POST(request: NextRequest) {
       success: true,
       refund,
     });
-  } catch (error: any) {
+  }  ogg(rerror: 
+      any) {',
+      error,
+      { component payments-refund-route'opation: 'pocessRefund', metadata: { paymentId: body.payment_id, amount: body.amunt } }
+    
     console.error('Error processing refund:', error);
     return NextResponse.json(
       { error: error.message || 'Failed to process refund' },
@@ -142,7 +147,11 @@ export async function GET(request: NextRequest) {
       throw error;
     }
 
-    return NextResponse.json({
+    nogg rNextRes
+      ponse.json({
+     ,
+      { component: 'payments-refund-route', operation: 'fetchRefunds' }
+    
       success: true,
       refunds: refunds || [],
     });

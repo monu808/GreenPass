@@ -34,6 +34,29 @@ class ConsoleErrorReporter implements ErrorReporter {
 
 /**
  * Production reporter that forwards errors to an external provider or a fallback endpoint.
+ * 
+ * Expected LOGGING_ENDPOINT format:
+ * - Must be a valid HTTPS URL (or HTTP for local development)
+ * - Should accept POST requests with JSON payload
+ * - Expected payload structure:
+ *   {
+ *     "type": "error" | "message",
+ *     "error": { // for error type
+ *       "name": string,
+ *       "message": string,
+ *       "stack": string
+ *     },
+ *     "message": string, // for message type
+ *     "level": "info" | "warning" | "error", // for message type
+ *     "context": {
+ *       "url": string,
+ *       "userAgent": string,
+ *       "timestamp": number,
+ *       ...additionalContext
+ *     }
+ *   }
+ * - Should return appropriate HTTP status codes (200/201 for success, 4xx/5xx for errors)
+ * - May require authentication via X-API-Key header if LOGGING_API_KEY is provided
  */
 class ProductionErrorReporter implements ErrorReporter {
   private loggingEndpoint: string | undefined;

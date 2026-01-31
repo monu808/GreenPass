@@ -4,6 +4,7 @@ import { createContext, useContext, useEffect, useState, useRef } from 'react';
 import { User, Session, AuthError } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
 import ErrorBoundary from '@/components/ErrorBoundary';
+import { logger } from '@/lib/logger';
 
 interface AuthContextType {
   user: User | null;
@@ -43,7 +44,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const session = data?.session;
         
         if (error) {
-          console.error('Error getting session:', error);
+          logger.error(
+            'Error getting session',
+            error,
+            { component: 'AuthContext', operation: 'getSession' }
+          );
           // Clear any invalid session data
           await supabase.auth.signOut();
           if (mountedRef.current) {
@@ -64,7 +69,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           }
         }
       } catch (error) {
-        console.error('Session error:', error);
+        logger.error(
+          'Session error',
+          error,
+          { component: 'AuthContext', operation: 'getSession' }
+        );
         if (mountedRef.current) {
           setSession(null);
           setUser(null);
@@ -89,7 +98,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           if (process.env.NODE_ENV === 'development') {
             console.log('ℹ️ Weather monitor trigger deferred or failed (normal during dev restarts)');
           } else {
-            console.error('Failed to trigger weather monitor:', err);
+            logger.error(
+              'Failed to trigger weather monitor',
+              err,
+              { component: 'AuthContext', operation: 'triggerWeatherMonitor' }
+            );
           }
         });
     }, 2000);
@@ -145,7 +158,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
       
     } catch (error) {
-      console.error('Error checking admin status:', error);
+      logger.error(
+        'Error checking admin status',
+        error,
+        { component: 'AuthContext', operation: 'checkAdminStatus', metadata: { userId: user?.id } }
+      );
       if (mountedRef.current) {
         setIsAdmin(false);
       }
@@ -253,7 +270,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const { error } = await supabase.auth.signOut();
       return { error };
     } catch (error) {
-      console.error('Sign out error:', error);
+      logger.error(
+        'Sign out error',
+        error,
+        { component: 'AuthContext', operation: 'signOut', metadata: { userId: user?.id } }
+      );
       return { error: error as AuthError || { message: 'An unknown error occurred' } };
     }
   };

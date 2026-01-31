@@ -26,6 +26,14 @@ const eslintConfig = [
       "react/no-unescaped-entities": "warn",
       "@next/next/no-img-element": "warn",
       "react/jsx-no-duplicate-props": "warn",
+      // Console usage rule - initially set to warn with exceptions for warn/error
+      // This can be tightened to "error" with fewer exceptions after migration to logger
+      "no-console": [
+        "warn",
+        {
+          "allow": ["warn", "error"]
+        }
+      ]
     },
   },
 ];

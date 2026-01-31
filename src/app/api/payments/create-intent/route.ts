@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { paymentService } from '@/lib/paymentService';
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
+import { logger } from '@/lib/logger';
 
 async function createSupabaseClient() {
   const cookieStore = await cookies();
@@ -128,9 +129,11 @@ export async function POST(request: NextRequest) {
 }
 
 export async function GET(request: NextRequest) {
+  let bookingId: string | null = null;
+  
   try {
     const searchParams = request.nextUrl.searchParams;
-    const bookingId = searchParams.get('booking_id');
+    bookingId = searchParams.get('booking_id');
 
     if (!bookingId) {
       return NextResponse.json(
@@ -181,7 +184,11 @@ export async function GET(request: NextRequest) {
       payments,
     });
   } catch (error: any) {
-    console.error('Error fetching payments:', error);
+    logger.error(
+      'Error fetching payments',
+      error,
+      { component: 'payments-create-intent-route', operation: 'fetchPayments', metadata: { bookingId } }
+    );
     return NextResponse.json(
       { error: error.message || 'Failed to fetch payments' },
       { status: 500 }

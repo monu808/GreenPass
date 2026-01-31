@@ -30,6 +30,7 @@ import { useWeatherDataBatch } from "@/hooks/useWeatherData";
 import { useSSE } from "@/contexts/ConnectionContext";
 import ConnectionStatusIndicator from './ConnectionStatusIndicator';
 import { DataFetchErrorBoundary } from './errors';
+import { logger } from '@/lib/logger';
 
 export default function AdminDashboard() {
   const [stats, setStats] = useState<DashboardStats>({
@@ -141,7 +142,11 @@ export default function AdminDashboard() {
             newWeatherMap[destination.id] = weatherDataForMap;
           }
         } catch (err) {
-          console.error(`Error updating weather for ${destination.name}:`, err);
+          logger.error(
+            `Error updating weather for ${destination.name}`,
+            err,
+            { component: 'AdminDashboard', operation: 'updateWeatherData', metadata: { destinationId: destination.id, destinationName: destination.name } }
+          );
         }
       }
 
@@ -149,7 +154,11 @@ export default function AdminDashboard() {
       // Invalidate React Query cache to reflect new data
       refetchWeather();
     } catch (error) {
-      console.error("Error in batch weather update:", error);
+      logger.error(
+        'Error in batch weather update',
+        error,
+        { component: 'AdminDashboard', operation: 'batchWeatherUpdate' }
+      );
     }
   }, [refetchWeather]);
 
@@ -238,7 +247,11 @@ export default function AdminDashboard() {
       // Update weather data for all destinations
       updateWeatherData(transformedDestinations);
     } catch (error) {
-      console.error("Error loading dashboard data:", error);
+      logger.error(
+        'Error loading dashboard data',
+        error,
+        { component: 'AdminDashboard', operation: 'loadDashboardData' }
+      );
     } finally {
       setLoading(false);
     }
@@ -266,7 +279,11 @@ export default function AdminDashboard() {
           loadDashboardData();
         }
       } catch (err) {
-        console.error("Error parsing real-time data:", err);
+        logger.error(
+          'Error parsing real-time data',
+          err,
+          { component: 'AdminDashboard', operation: 'parseRealTimeData' }
+        );
       }
     }, [loadDashboardData])
   );

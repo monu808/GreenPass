@@ -4,7 +4,7 @@ import { RealtimeChannel } from '@supabase/supabase-js';
 import { validateInput, WeatherMonitorSchema } from '@/lib/validation';
 
 import { createServerComponentClient } from '@/lib/supabase';
-import { broadcast, BroadcastPayload } from '@/lib/messagingService';
+import { distributedBroadcast, BroadcastPayload } from '@/lib/messagingService';
 
 // Local instance state for SSE connections
 const activeWriters = new Set<WritableStreamDefaultWriter>();
@@ -115,7 +115,7 @@ export async function POST(request: NextRequest) {
     await weatherMonitoringService.checkWeatherNow();
     
     // After checking, we broadcast to everyone
-    await broadcast({ 
+    await distributedBroadcast({ 
       type: 'weather_update_available', 
       timestamp: new Date().toISOString(),
       source: 'manual_trigger'

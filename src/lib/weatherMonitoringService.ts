@@ -1,7 +1,7 @@
 import { weatherService, destinationCoordinates, WeatherData } from '@/lib/weatherService';
 import { getDbService } from '@/lib/databaseService';
 import { Destination } from '@/types';
-import { broadcast } from './messagingService';
+import { distributedBroadcast } from './messagingService';
 import { logger } from '@/lib/logger'; // ✅ NEW IMPORT
 
 /**
@@ -209,7 +209,7 @@ class WeatherMonitor implements WeatherMonitoringService {
         });
 
         // After saving, broadcast the update to all connected clients (distributed)
-        await broadcast({
+        await distributedBroadcast({
           type: 'weather_update',
           destinationId: destination.id,
           weather: {

@@ -116,7 +116,7 @@ export default function PaymentDashboard() {
       logger.error(
         'Error processing refund',
         error,
-        { component: 'PaymentDashboard', operation: 'processRefund', metadata: { paymentId: payment.id } }
+        { component: 'PaymentDashboard', operation: 'processRefund', metadata: { paymentId } }
       );
       alert('Failed to process refund');
     }

@@ -184,7 +184,17 @@ class ServerWeatherService {
       console.log('✅ Weather data saved successfully:', data);
       return true;
     } catch (error) {
-      console.error('❌ Exception in saveWeatherData:', error);
+      if (error instanceof Error) {
+        const isDbError = error.message.includes('Database');
+        console.error(
+          isDbError
+            ? 'Database error occurred while saving weather data:'
+            : 'Error saving weather data:',
+          error.message
+       );
+      } else {
+        console.error('Unknown error saving weather data:', error);
+      }
       return false;
     }
   }
@@ -222,11 +232,12 @@ class ServerWeatherService {
       console.log('✅ Alert added successfully:', data);
       return true;
     } catch (error) {
-      console.error('❌ Exception in addAlert:', error);
-      return false;
-    }
+       if (error instanceof Error) {
+         console.error('Failed to add alert:', error.message);
+     } 
+     return false;
   }
-
+}
   async getDestinations(): Promise<DatabaseDestination[]> {
     try {
       console.log('📍 Fetching destinations from database...');

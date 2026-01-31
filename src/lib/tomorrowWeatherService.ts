@@ -1,3 +1,5 @@
+import { logger } from '@/lib/logger'; // ✅ NEW IMPORT
+
 /**
  * Normalized weather data structure used across the application.
  */
@@ -164,8 +166,7 @@ class TomorrowWeatherService {
 
   /**
    * Fetches real-time weather data for a specific location.
-   * 
-   * @param {number} lat - Latitude of the location.
+   * * @param {number} lat - Latitude of the location.
    * @param {number} lon - Longitude of the location.
    * @param {string} [cityName='Unknown Location'] - Name of the city/location for logging.
    * @param {AbortSignal} [signal] - Optional signal to abort the fetch request.
@@ -189,29 +190,29 @@ class TomorrowWeatherService {
 
       const url = `${this.baseUrl}/realtime?location=${lat},${lon}&fields=${fields}&units=metric&apikey=${this.apiKey}`;
 
-      console.log(`🌐 Requesting weather data for ${cityName}...`);
+      logger.debug(`🌐 Requesting weather data for ${cityName}...`);
       const response = await fetch(url, { signal });
 
       if (response.status === 429) {
-        console.warn(`⚠️ Rate limit exceeded for ${cityName}, using fallback weather data`);
+        logger.warn(`⚠️ Rate limit exceeded for ${cityName}, using fallback weather data`);
         return this.getFallbackWeatherData(lat, lon, cityName);
       }
 
       if (!response.ok) {
-        console.warn(`⚠️ API error ${response.status} for ${cityName}, using fallback weather data`);
+        logger.warn(`⚠️ API error ${response.status} for ${cityName}, using fallback weather data`);
         return this.getFallbackWeatherData(lat, lon, cityName);
       }
 
       const data = await response.json();
-      console.log(`✅ Successfully fetched weather data for ${cityName}`);
+      logger.debug(`✅ Successfully fetched weather data for ${cityName}`);
       return this.transformWeatherData(data, cityName);
     } catch (error) {
       if ((error as { name?: string })?.name === 'AbortError') {
-        console.log(`⏹️ Weather fetch aborted for ${cityName}`);
+        logger.debug(`⏹️ Weather fetch aborted for ${cityName}`);
         return null;
       }
-      console.error('Error fetching weather data from Tomorrow.io:', error);
-      console.log(`📋 Generating fallback weather data for ${cityName}`);
+      logger.error('Error fetching weather data from Tomorrow.io:', error);
+      logger.warn(`📋 Generating fallback weather data for ${cityName}`);
       return this.getFallbackWeatherData(lat, lon, cityName);
     }
   }
@@ -264,8 +265,7 @@ class TomorrowWeatherService {
 
   /**
    * Fetches weather forecast for a specific location.
-   * 
-   * @param {number} lat - Latitude of the location.
+   * * @param {number} lat - Latitude of the location.
    * @param {number} lon - Longitude of the location.
    * @param {number} [days=5] - Number of days to forecast.
    * @returns {Promise<TomorrowApiResponse | null>} Forecast data or null if fetch fails.
@@ -298,7 +298,7 @@ class TomorrowWeatherService {
 
       return await response.json();
     } catch (error) {
-      console.error('Error fetching forecast data from Tomorrow.io:', error);
+      logger.error('Error fetching forecast data from Tomorrow.io:', error);
       return null;
     }
   }
@@ -357,8 +357,7 @@ class TomorrowWeatherService {
 
   /**
    * Evaluates weather data against safety thresholds to generate alerts.
-   * 
-   * @param {WeatherData} weatherData - The weather data to evaluate.
+   * * @param {WeatherData} weatherData - The weather data to evaluate.
    * @returns {{ shouldAlert: boolean; reason: string }} Alert status and reason.
    */
   shouldGenerateAlert(weatherData: WeatherData): { shouldAlert: boolean; reason: string } {
@@ -406,8 +405,7 @@ class TomorrowWeatherService {
 
   /**
    * Retrieves the appropriate icon code for a given weather condition.
-   * 
-   * @param {number} weatherCode - The Tomorrow.io weather code.
+   * * @param {number} weatherCode - The Tomorrow.io weather code.
    * @param {boolean} [isDay=true] - Whether it is currently daytime.
    * @returns {string} The icon code (e.g., '01d').
    */

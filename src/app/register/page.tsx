@@ -255,95 +255,28 @@ const handleSubmit = async (e: React.FormEvent) => {
     
     setIsSubmitting(true);
     
-    try {
-      const sanitizedData = sanitizeFormData(formData);
-      
-      // Normalize phone numbers for database storage
-      const normalizedPhone = normalizePhone(sanitizedData.phone);
-      const normalizedEmergencyPhone = normalizePhone(sanitizedData.emergencyContactPhone);
-      
-      const bookingData = {
-        name: sanitizedData.name,
-        email: sanitizedData.email,
-        phone: normalizedPhone, // Store in E.164 format
-        id_proof: sanitizedData.idProof,
-        nationality: sanitizedData.nationality,
-        group_size: parseInt(sanitizedData.groupSize.toString(), 10),
-        destination_id: selectedDestination.id,
-        check_in_date: sanitizedData.checkInDate,
-        check_out_date: sanitizedData.checkOutDate,
-        status: 'pending' as const,
-        emergency_contact_name: sanitizedData.emergencyContactName,
-        emergency_contact_phone: normalizedEmergencyPhone, // Store in E.164 format
-        emergency_contact_relationship: sanitizedData.emergencyContactRelationship,
-        user_id: null,
-        registration_date: new Date().toISOString(),
-        age: parseInt(sanitizedData.age.toString(), 10),
-        gender: sanitizedData.gender as Gender,
-        address: sanitizedData.address,
-        pin_code: sanitizedData.pinCode,
-        id_proof_type: sanitizedData.idProofType as IdProofType,
-        group_name: sanitizedData.group_name || null,
-      };
-      
-      console.log('Submitting booking data:', bookingData);
-      console.log('Destination:', selectedDestination);
-      
-      const dbService = getDbService();
-      const result = await dbService.addTourist(bookingData);
-      
-      if (!result) {
-        throw new Error('Failed to create booking - no result returned');
-      }
-      
-      setSubmitSuccess(true);
-      
-      // Reset form
-      setFormData({
-        name: '',
-        email: '',
-        phone: '',
-        age: '',
-        gender: '',
-        address: '',
-        pinCode: '',
-        idProofType: '',
-        group_name: '',
-        idProof: '',
-        nationality: 'Indian',
-        groupSize: 1,
-        destination: '',
-        checkInDate: '',
-        checkOutDate: '',
-        emergencyContactName: '',
-        emergencyContactPhone: '',
-        emergencyContactRelationship: ''
-      });
-      
-      // Redirect after 3 seconds
-      setTimeout(() => {
-        router.push('/tourist/bookings');
-      }, 3000);
-      
-    } catch (error) {
-      console.error('Error submitting booking:', error);
-      
-      // Handle specific Zod validation errors that might come from the server
-      if (error instanceof z.ZodError) {
-        const newErrors: Record<string, string> = {};
-        error.issues.forEach((issue) => {
-          const field = issue.path.join('.');
-          newErrors[field] = issue.message;
-        });
-        setErrors(newErrors);
-        alert('Please correct the validation errors and try again.');
-      } else {
-        alert('Failed to submit booking. Please try again.');
-      }
-    } finally {
-      setIsSubmitting(false);
+  }catch (error) {
+  let msg = 'booking failed';
+  if (error instanceof Error) {
+    if (error.message.includes('validation')) {
+      msg = 'Validation failed: please check your input.';
+    } else if (error.message.includes('email')) {
+      msg = 'E-mail already registered. Use another email.';
+    } else if (error.message.includes('password')) {
+      msg = 'Password does not meet security requirements.';
+    } else if (error.message.includes('network')) {
+      msg = 'Connection failed: check your  internet.';
+    } else if (error.message.includes('duplicate')) {
+      msg = 'Duplicate entry: some information is already registered.';
+    } else {
+      msg = ` Registry failed: ${error.message}`;
     }
-  };
+  }
+  alert(msg);
+}finally {
+    setIsSubmitting(false);
+  }
+};
 
   const selectedDestination = destinations.find(d => d.id === formData.destination);
   const availableCapacity = formData.destination && selectedDestination ?

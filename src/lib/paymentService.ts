@@ -233,7 +233,16 @@ class PaymentService {
       logger.error(
         'Error creating payment intent',
         error,
-        { component: 'paymentService', operation: 'createPaymentIntent', metadata: { input } }
+        { 
+          component: 'paymentService', 
+          operation: 'createPaymentIntent', 
+          metadata: { 
+            bookingId: input.booking_id, 
+            amount: input.amount, 
+            currency: input.currency || 'INR',
+            paymentMethod: input.payment_method
+          } 
+        }
       );
       throw error;
     }

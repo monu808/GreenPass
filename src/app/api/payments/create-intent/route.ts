@@ -128,9 +128,11 @@ export async function POST(request: NextRequest) {
 }
 
 export async function GET(request: NextRequest) {
+  let bookingId: string | null = null;
+  
   try {
     const searchParams = request.nextUrl.searchParams;
-    const bookingId = searchParams.get('booking_id');
+    bookingId = searchParams.get('booking_id');
 
     if (!bookingId) {
       return NextResponse.json(

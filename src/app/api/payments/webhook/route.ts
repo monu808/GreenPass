@@ -92,7 +92,7 @@ async function handleRazorpayWebhook(body: string, signature: string) {
       logger.error(
         'Invalid Razorpay webhook signature',
         null,
-        { component: 'payments-webhook-route', operation: 'razorpayWebhook', metadata: { providedSignature: signature } }
+        { component: 'payments-webhook-route', operation: 'razorpayWebhook', metadata: { signaturePresent: true, signatureLength: signature?.length || 0 } }
       );
       return NextResponse.json(
         { error: 'Invalid signature' },

@@ -37,7 +37,6 @@ import { getDbService } from "@/lib/databaseService";
 import { getPolicyEngine } from "@/lib/ecologicalPolicyEngine";
 import { logger } from '@/lib/logger';
 import { Alert, HistoricalOccupancy, EcologicalMetrics, WasteMetricsSummary, CleanupActivity } from "@/types";
-import { getPolicyEngine } from "@/lib/ecologicalPolicyEngine";
 import { formatDateTime } from "@/lib/utils";
 import { 
   estimateCarbonFootprint, 

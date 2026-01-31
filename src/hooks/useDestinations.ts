@@ -4,7 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { getDbService } from '@/lib/databaseService';
 
 export function useDestinations() {
-  return useQuery({
+   return useQuery<Destination[]>({
     queryKey: ['destinations'],
     queryFn: async () => {
       const dbService = getDbService();

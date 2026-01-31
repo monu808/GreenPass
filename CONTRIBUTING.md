@@ -283,6 +283,130 @@ npm run lint
 - Add semicolons
 - Max line length: 100 characters
 
+### Error Handling and Logging
+
+**🚨 IMPORTANT: Always use the centralized logger instead of direct console calls**
+
+#### Log Level Usage Guidelines
+
+- **`debug`**: Development debugging information (suppressed in production)
+- **`info`**: General informational messages about application flow
+- **`warn`**: Warning conditions that don't prevent operation but need attention
+- **`error`**: Error conditions that need attention and may affect functionality
+
+#### Logger Usage
+
+**Import the logger:**
+```typescript
+import { logger } from '@/lib/logger';
+```
+
+**Basic logging with context:**
+```typescript
+// ✅ Good - with structured context
+logger.error(
+  'Failed to process payment',
+  error,
+  {
+    component: 'PaymentForm',
+    operation: 'processPayment',
+    metadata: { paymentId: 'pay_123', amount: 5000 }
+  }
+);
+
+// ✅ Good - simple info log
+logger.info('User logged in successfully', null, {
+  component: 'AuthContext',
+  operation: 'login',
+  metadata: { userId: 'user_456' }
+});
+
+// ❌ Bad - direct console call
+console.error('Payment failed:', error);
+```
+
+**Context Structure:**
+```typescript
+interface LogContext {
+  component?: string;        // Component or service name
+  operation?: string;        // Specific operation being performed
+  userId?: string;           // User identifier if available
+  requestId?: string;       // Request correlation ID
+  metadata?: Record<string, unknown>; // Additional context data
+}
+```
+
+**Component Examples:**
+```typescript
+// React Component
+try {
+  const result = await apiCall();
+  setData(result);
+} catch (error) {
+  logger.error(
+    'API call failed',
+    error,
+    {
+      component: 'WeatherDashboard',
+      operation: 'fetchWeatherData',
+      metadata: { destinationId, endpoint: '/api/weather' }
+    }
+  );
+}
+
+// Service/Utility
+try {
+  const payment = await paymentService.createPayment(data);
+  return payment;
+} catch (error) {
+  logger.error(
+    'Payment creation failed',
+    error,
+    {
+      component: 'paymentService',
+      operation: 'createPayment',
+      metadata: { amount: data.amount, currency: data.currency }
+    }
+  );
+  throw error; // Re-throw if needed
+}
+```
+
+#### Error Boundary Integration
+
+For React Error Boundaries, integrate with the error reporting service:
+
+```typescript
+import { errorReporter } from '@/lib/errors/errorReportingService';
+
+componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+  console.error('Error boundary caught an error:', error, errorInfo);
+  
+  // Report to error monitoring service
+  try {
+    const componentName = errorInfo.componentStack?.split('\n')[1]?.trim() || 'Unknown';
+    errorReporter.captureError(error, {
+      type: ErrorType.UNKNOWN,
+      message: error.message,
+      timestamp: Date.now(),
+      componentStack: errorInfo.componentStack,
+      component: componentName,
+      operation: 'render'
+    });
+  } catch (reportingError) {
+    console.error('Failed to report error to monitoring service:', reportingError);
+  }
+}
+```
+
+#### ESLint Enforcement
+
+The ESLint `no-console` rule is configured as a **warning** with exceptions for:
+- `console.warn` (for development warnings)
+- `console.error` (kept for ErrorBoundary development visibility)
+
+**Note**: The rule will be tightened in future versions. Always prefer the structured logger.
+
 ---
 
 ## 📝 Commit Message Guidelines

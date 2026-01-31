@@ -72,7 +72,7 @@ export async function middleware(request: NextRequest) {
       );
     }
   } catch (error) {
-    console.error('Rate limiting error:', error);
+    logger.error('Rate limiting error', error, { component: 'middleware', operation: 'rate-limit', metadata: { ip, pathname } });
     // Fallback: allow request if rate limiting fails
     return NextResponse.next();
   }

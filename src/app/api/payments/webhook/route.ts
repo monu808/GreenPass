@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { paymentService } from '@/lib/paymentService';
+import { headers } from 'next/headers';
 import crypto from 'crypto';
+import { paymentService } from '@/lib/paymentService';
+import { logger } from '@/lib/logger';
 
 /**
  * Webhook handler for payment gateway callbacks
@@ -28,7 +30,11 @@ export async function POST(request: NextRequest) {
       );
     }
   } catch (error: any) {
-    console.error('Webhook error:', error);
+    logger.error(
+      'Webhook error',
+      error,
+      { component: 'payments-webhook-route', operation: 'handleWebhook' }
+    );
     return NextResponse.json(
       { error: 'Webhook processing failed' },
       { status: 500 }
@@ -65,7 +71,11 @@ async function handleRazorpayWebhook(body: string, signature: string) {
     const webhookSecret = process.env.RAZORPAY_WEBHOOK_SECRET;
 
     if (!webhookSecret) {
-      console.error('Razorpay webhook secret not configured');
+      logger.error(
+        'Razorpay webhook secret not configured',
+        null,
+        { component: 'payments-webhook-route', operation: 'razorpayWebhook' }
+      );
       return NextResponse.json(
         { error: 'Webhook not configured' },
         { status: 500 }
@@ -79,7 +89,11 @@ async function handleRazorpayWebhook(body: string, signature: string) {
       .digest('hex');
 
     if (!timingSafeEqual(signature, expectedSignature)) {
-      console.error('Invalid Razorpay webhook signature');
+      logger.error(
+        'Invalid Razorpay webhook signature',
+        null,
+        { component: 'payments-webhook-route', operation: 'razorpayWebhook', metadata: { providedSignature: signature } }
+      );
       return NextResponse.json(
         { error: 'Invalid signature' },
         { status: 401 }
@@ -122,7 +136,11 @@ async function handleRazorpayWebhook(body: string, signature: string) {
 
     return NextResponse.json({ success: true });
   } catch (error: any) {
-    console.error('Razorpay webhook error:', error);
+    logger.error(
+      'Razorpay webhook error',
+      error,
+      { component: 'payments-webhook-route', operation: 'razorpayWebhook' }
+    );
     return NextResponse.json(
       { error: 'Webhook processing failed' },
       { status: 500 }
@@ -139,7 +157,11 @@ async function handleStripeWebhook(body: string, signature: string) {
     const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
 
     if (!webhookSecret) {
-      console.error('Stripe webhook secret not configured');
+      logger.error(
+        'Stripe webhook secret not configured',
+        null,
+        { component: 'payments-webhook-route', operation: 'stripeWebhook' }
+      );
       return NextResponse.json(
         { error: 'Webhook not configured' },
         { status: 500 }
@@ -147,7 +169,11 @@ async function handleStripeWebhook(body: string, signature: string) {
     }
 
     if (!stripeSecretKey) {
-      console.error('Stripe secret key not configured');
+      logger.error(
+        'Stripe secret key not configured',
+        null,
+        { component: 'payments-webhook-route', operation: 'stripeWebhook' }
+      );
       return NextResponse.json(
         { error: 'Stripe not configured' },
         { status: 500 }
@@ -164,7 +190,11 @@ async function handleStripeWebhook(body: string, signature: string) {
     try {
       event = stripe.webhooks.constructEvent(body, signature, webhookSecret);
     } catch (err: any) {
-      console.error('Invalid Stripe signature:', err.message);
+      logger.error(
+        'Invalid Stripe signature',
+        new Error(err.message),
+        { component: 'payments-webhook-route', operation: 'stripeWebhook', metadata: { errorMessage: err.message } }
+      );
       return NextResponse.json(
         { error: 'Invalid signature' },
         { status: 401 }
@@ -220,7 +250,11 @@ async function handleStripeWebhook(body: string, signature: string) {
 
     return NextResponse.json({ received: true });
   } catch (error: any) {
-    console.error('Stripe webhook error:', error);
+    logger.error(
+      'Stripe webhook error',
+      error,
+      { component: 'payments-webhook-route', operation: 'stripeWebhook' }
+    );
     return NextResponse.json(
       { error: 'Webhook processing failed' },
       { status: 500 }

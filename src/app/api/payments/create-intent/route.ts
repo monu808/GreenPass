@@ -181,7 +181,11 @@ export async function GET(request: NextRequest) {
       payments,
     });
   } catch (error: any) {
-    console.error('Error fetching payments:', error);
+    logger.error(
+      'Error fetching payments',
+      error,
+      { component: 'payments-create-intent-route', operation: 'fetchPayments', metadata: { bookingId } }
+    );
     return NextResponse.json(
       { error: error.message || 'Failed to fetch payments' },
       { status: 500 }

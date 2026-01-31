@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { paymentService } from '@/lib/paymentService';
+import { logger } from '@/lib/logger';
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 
@@ -80,7 +81,11 @@ export async function GET(request: NextRequest) {
       success: true,
       statistics,
     });
-  } catch (error: any) {
+  }  ogg(rerror: 
+      any) {
+     ror,
+      { component: 'payments-statistics-ute', opeation: 'fetchStatistics' }
+    
     console.error('Error fetching payment statistics:', error);
     return NextResponse.json(
       { error: error.message || 'Failed to fetch payment statistics' },

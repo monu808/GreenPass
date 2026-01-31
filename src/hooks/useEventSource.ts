@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { ConnectionState, EventSourceOptions, UseEventSourceReturn } from '@/types';
+import { logger } from '@/lib/logger';
 
 const INITIAL_RETRY_DELAY = 1000;
 const MAX_RETRY_DELAY = 30000;
@@ -96,11 +97,11 @@ export function useEventSource(
 
       es.onerror = (err) => {
         // EventSource error objects are often empty, so we log more context
-        console.error('❌ EventSource error:', {
-          state: es.readyState === 0 ? 'connecting' : es.readyState === 2 ? 'closed' : 'unknown',
-          url: es.url,
-          error: err
-        });
+        logger.error(
+          'EventSource error',
+          new Error(`EventSource connection failed - state: ${es.readyState === 0 ? 'connecting' : es.readyState === 2 ? 'closed' : 'unknown'}, url: ${es.url}`),
+          { component: 'useEventSource', operation: 'connect', metadata: { state: es.readyState === 0 ? 'connecting' : es.readyState === 2 ? 'closed' : 'unknown', url: es.url, error: err } }
+        );
         updateState('error');
         setError(new Error('EventSource connection failed'));
         
@@ -124,7 +125,11 @@ export function useEventSource(
         }
       };
     } catch (err) {
-      console.error('❌ Failed to create EventSource:', err);
+      logger.error(
+        'Failed to create EventSource',
+        err,
+        { component: 'useEventSource', operation: 'connect', metadata: { url } }
+      );
       updateState('error');
       setError(err instanceof Error ? err : new Error('Failed to create EventSource'));
     }

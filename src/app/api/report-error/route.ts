@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { logger } from '@/lib/logger';
 
 export async function POST(req: NextRequest) {
   try {
@@ -7,7 +8,11 @@ export async function POST(req: NextRequest) {
     const apiKey = process.env.LOGGING_API_KEY;
 
     if (!loggingEndpoint) {
-      console.error('LOGGING_ENDPOINT is not configured on the server');
+      logger.error(
+        'LOGGING_ENDPOINT is not configured on the server',
+        null,
+        { component: 'report-error-route', operation: 'forwardError' }
+      );
       return NextResponse.json({ error: 'Reporting service unavailable' }, { status: 503 });
     }
 
@@ -22,13 +27,21 @@ export async function POST(req: NextRequest) {
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error(`Error reporting service returned status ${response.status}: ${errorText}`);
+      logger.error(
+        `Error reporting service returned status ${response.status}`,
+        null,
+        { component: 'report-error-route', operation: 'forwardError', metadata: { status: response.status, errorText } }
+      );
       return NextResponse.json({ error: 'Failed to forward error report' }, { status: response.status });
     }
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error('Internal error in report-error API route:', error);
+    logger.error(
+      'Internal error in report-error API route',
+      error,
+      { component: 'report-error-route', operation: 'forwardError' }
+    );
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

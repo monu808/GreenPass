@@ -18,18 +18,24 @@ import {
 import {
   BarChart,
   Bar,
+  LineChart,
+  Line,
+  PieChart,
+  Pie,
+  Cell,
   XAxis,
   YAxis,
   CartesianGrid,
   Tooltip,
+  Legend,
   ResponsiveContainer,
-  LineChart,
-  Line,
-  Cell,
-  Legend
+  Area,
+  AreaChart
 } from "recharts";
 import { ChartErrorBoundary } from './errors';
 import { getDbService } from "@/lib/databaseService";
+import { getPolicyEngine } from "@/lib/ecologicalPolicyEngine";
+import { logger } from '@/lib/logger';
 import { Alert, HistoricalOccupancy, EcologicalMetrics, WasteMetricsSummary, CleanupActivity } from "@/types";
 import { getPolicyEngine } from "@/lib/ecologicalPolicyEngine";
 import { formatDateTime } from "@/lib/utils";
@@ -172,7 +178,11 @@ export default function EcologicalDashboard() {
       
       setWasteDistributionData(distribution);
     } catch (err) {
-      console.error("Error loading waste trend:", err);
+      logger.error(
+        'Error loading waste trend',
+        err,
+        { component: 'EcologicalDashboard', operation: 'loadWasteTrend', metadata: { timeRange: wasteTimeRange } }
+      );
     }
   }, [wasteTimeRange]);
 
@@ -324,7 +334,11 @@ export default function EcologicalDashboard() {
 
       setAlerts(allAlerts);
     } catch (err) {
-      console.error("Error loading ecological data:", err);
+      logger.error(
+        'Error loading ecological data',
+        err,
+        { component: 'EcologicalDashboard', operation: 'loadEcologicalData' }
+      );
       setError("Failed to load ecological dashboard data. Please try again later.");
     } finally {
       setLoading(false);

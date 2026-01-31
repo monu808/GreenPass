@@ -8,6 +8,7 @@ import { getPolicyEngine } from "@/lib/ecologicalPolicyEngine";
 import { getEcoFriendlyAlternatives } from "@/lib/recommendationEngine";
 import EcoSensitivityBadge from "./EcoSensitivityBadge";
 import EcoCapacityAlert from "./EcoCapacityAlert";
+import { logger } from '@/lib/logger';
 import { Destination } from "@/types";
 import { DataFetchErrorBoundary } from "@/components/errors";
 import {
@@ -359,7 +360,11 @@ const WeatherDashboard: React.FC = () => {
 
         setDestinations(transformedData);
       } catch (err) {
-        console.error("Error fetching destinations:", err);
+        logger.error(
+          'Error fetching destinations',
+          err,
+          { component: 'WeatherDashboard', operation: 'fetchDestinations' }
+        );
         setError("Failed to load environmental data. Please try again later.");
       } finally {
         setLoading(false);

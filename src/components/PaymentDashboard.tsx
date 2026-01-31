@@ -12,6 +12,7 @@ import {
   Filter
 } from 'lucide-react';
 import { format } from 'date-fns';
+import { logger } from '@/lib/logger';
 
 /**
  * Escape CSV field to handle special characters
@@ -55,7 +56,11 @@ export default function PaymentDashboard() {
         setStatistics(data.statistics);
       }
     } catch (error) {
-      console.error('Error fetching statistics:', error);
+      logger.error(
+        'Error fetching statistics',
+        error,
+        { component: 'PaymentDashboard', operation: 'fetchStatistics' }
+      );
     } finally {
       setLoading(false);
     }
@@ -71,7 +76,11 @@ export default function PaymentDashboard() {
         setPayments(data.payments);
       }
     } catch (error) {
-      console.error('Error fetching payments:', error);
+      logger.error(
+        'Error fetching payments',
+        error,
+        { component: 'PaymentDashboard', operation: 'fetchPayments' }
+      );
     }
   }, []);
 
@@ -104,7 +113,11 @@ export default function PaymentDashboard() {
         alert(`Refund failed: ${data.error}`);
       }
     } catch (error) {
-      console.error('Error processing refund:', error);
+      logger.error(
+        'Error processing refund',
+        error,
+        { component: 'PaymentDashboard', operation: 'processRefund', metadata: { paymentId: payment.id } }
+      );
       alert('Failed to process refund');
     }
   };

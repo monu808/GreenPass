@@ -1,21 +1,71 @@
 'use client';
 
 import { useSearchParams, useRouter } from 'next/navigation';
-import { Suspense } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import PaymentForm from '@/components/PaymentForm';
 import ProtectedRoute from '@/components/ProtectedRoute';
 
 function PaymentPageContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
-  const bookingId = searchParams.get('booking_id');
+  const bookingId = searchParams?.get('booking_id') ?? null;
+  const [resolvedBookingId, setResolvedBookingId] = useState<string | null>(bookingId);
+  const [loadingBooking, setLoadingBooking] = useState<boolean>(!bookingId);
+  const [bookingError, setBookingError] = useState<string | null>(null);
 
-  if (!bookingId) {
+  useEffect(() => {
+    if (bookingId) return;
+
+    const stored = sessionStorage.getItem('pendingBookingPayload');
+    if (!stored) {
+      setBookingError('No booking data found. Please start your booking again.');
+      setLoadingBooking(false);
+      return;
+    }
+
+    const createBooking = async () => {
+      try {
+        setLoadingBooking(true);
+        setBookingError(null);
+
+        const response = await fetch('/api/bookings/create-from-form', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: stored,
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.error || 'Failed to create booking');
+        }
+
+        setResolvedBookingId(data.booking_id);
+        sessionStorage.removeItem('pendingBookingPayload');
+      } catch (error: any) {
+        setBookingError(error.message || 'Failed to create booking');
+      } finally {
+        setLoadingBooking(false);
+      }
+    };
+
+    createBooking();
+  }, [bookingId]);
+
+  if (loadingBooking) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600"></div>
+      </div>
+    );
+  }
+
+  if (bookingError || !resolvedBookingId) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <h1 className="text-2xl font-bold text-red-600 mb-4">Invalid Request</h1>
-          <p className="text-gray-600 mb-4">No booking ID provided.</p>
+          <p className="text-gray-600 mb-4">{bookingError || 'No booking ID provided.'}</p>
           <button
             onClick={() => router.push('/tourist/book')}
             className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700"
@@ -42,7 +92,7 @@ function PaymentPageContent() {
 
         {/* Payment Form */}
         <PaymentForm
-          bookingId={bookingId}
+          bookingId={resolvedBookingId}
           onSuccess={(paymentId) => {
             // Redirect to booking confirmation
             router.push(`/tourist/bookings?payment_success=true&payment_id=${paymentId}`);

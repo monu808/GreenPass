@@ -13,6 +13,8 @@ export interface ErrorInfo {
   originalError?: Error | unknown;
   timestamp: number;
   componentStack?: string;
+  component?: string;
+  operation?: string;
 }
 
 export interface ErrorRecoveryAction {

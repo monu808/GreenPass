@@ -89,7 +89,9 @@ class WeatherAggregator implements WeatherAggregationService {
       const apiData = await weatherService.getWeatherByCoordinates(
         coordinates.lat,
         coordinates.lon,
-        coordinates.name || destinationId
+        coordinates.name || destinationId,
+        undefined, // No AbortSignal
+        destinationId // Pass destinationId as cacheKey
       );
 
       if (apiData) {
@@ -174,7 +176,9 @@ class WeatherAggregator implements WeatherAggregationService {
       const apiData = await weatherService.getWeatherByCoordinates(
         coordinates.lat,
         coordinates.lon,
-        coordinates.name || destinationId
+        coordinates.name || destinationId,
+        undefined, // No AbortSignal
+        destinationId // Pass destinationId as cacheKey
       );
 
       if (apiData) {

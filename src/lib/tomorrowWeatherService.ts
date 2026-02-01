@@ -171,11 +171,12 @@ class TomorrowWeatherService {
    * @param {number} lon - Longitude of the location.
    * @param {string} [cityName='Unknown Location'] - Name of the city/location for logging.
    * @param {AbortSignal} [signal] - Optional signal to abort the fetch request.
+   * @param {string} [cacheKey] - Optional cache key to override coordinate-based key.
    * @returns {Promise<WeatherData | null>} Weather data or null if fetch fails.
    */
-  async getWeatherByCoordinates(lat: number, lon: number, cityName: string = 'Unknown Location', signal?: AbortSignal): Promise<WeatherData | null> {
-    // Create a destination ID for caching (use coordinates as unique identifier)
-    const destinationId = `${lat.toFixed(4)}_${lon.toFixed(4)}`;
+  async getWeatherByCoordinates(lat: number, lon: number, cityName: string = 'Unknown Location', signal?: AbortSignal, cacheKey?: string): Promise<WeatherData | null> {
+    // Use provided cacheKey or generate coordinate-based destination ID
+    const destinationId = cacheKey || `${lat.toFixed(4)}_${lon.toFixed(4)}`;
     
     try {
       // 1. Check Redis cache first

@@ -1,3 +1,5 @@
+// File: src/app/api/payments/create-intent/route.ts
+
 import { NextRequest, NextResponse } from 'next/server';
 import { paymentService } from '@/lib/paymentService';
 import { createServerClient } from '@supabase/ssr';
@@ -30,6 +32,17 @@ async function createSupabaseClient() {
   );
 }
 
+// ---------------------------------------------------------------------------
+// POST — create (or retry) a payment intent
+// ---------------------------------------------------------------------------
+// Idempotency logic:
+//   • If the booking already has a SUCCEEDED payment  → reject (400).
+//   • If the booking has only FAILED / CANCELLED payments → allow a new intent.
+//   • If the booking has a PENDING / PROCESSING payment that is still within
+//     the gateway's window → reject to avoid duplicate charges (400).
+//   • Otherwise (first attempt, or all previous attempts are terminal) → proceed.
+// ---------------------------------------------------------------------------
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
@@ -42,10 +55,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Create authenticated Supabase client for route handler
     const supabase = await createSupabaseClient();
-
-    // Get authenticated user
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) {
@@ -55,7 +65,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Get booking details to calculate price
+    // Fetch booking with destination details
     const { data: booking, error: bookingError } = await supabase
       .from('tourists')
       .select('*, destinations(*)')
@@ -69,7 +79,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Verify the booking belongs to the authenticated user
     if (booking.user_id !== user.id) {
       return NextResponse.json(
         { error: 'Forbidden' },
@@ -77,10 +86,23 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Check if payment already exists for this booking
-    const existingPayments = await paymentService.getPaymentsByBooking(booking_id);
-    const successfulPayment = existingPayments.find(p => p.status === 'succeeded');
+    // Guard: booking already cancelled (e.g. by the stale-booking cleanup job)
+    if (booking.status === 'cancelled') {
+      return NextResponse.json(
+        { error: 'This booking has been cancelled. Please create a new booking.' },
+        { status: 400 }
+      );
+    }
 
+    // ---------------------------------------------------------------------------
+    // Idempotency: inspect all existing payments for this booking
+    // ---------------------------------------------------------------------------
+    const existingPayments = await paymentService.getPaymentsByBooking(booking_id);
+
+    // Already successfully paid → hard stop
+    const successfulPayment = existingPayments.find(
+      (p: { status: string }) => p.status === 'succeeded'
+    );
     if (successfulPayment) {
       return NextResponse.json(
         { error: 'Payment already completed for this booking' },
@@ -88,7 +110,31 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Calculate pricing
+    // Active (non-terminal) payment in flight → don't create a duplicate
+    const activePayment = existingPayments.find(
+      (p: { status: string }) =>
+        p.status === 'pending' ||
+        p.status === 'processing' ||
+        p.status === 'requires_action'
+    );
+    if (activePayment) {
+      return NextResponse.json(
+        { error: 'A payment is already in progress for this booking. Please wait or refresh the page.' },
+        { status: 400 }
+      );
+    }
+
+    // All previous payments are terminal (failed / cancelled) — safe to retry.
+    if (existingPayments.length > 0) {
+      logger.info(
+        'Retrying payment intent after previous terminal payment(s)',
+        { component: 'payments-create-intent-route', operation: 'retryIntent', metadata: { booking_id, previousAttempts: existingPayments.length } }
+      );
+    }
+
+    // ---------------------------------------------------------------------------
+    // Calculate pricing & create intent
+    // ---------------------------------------------------------------------------
     const pricing = await paymentService.calculateBookingPrice(
       booking.destination_id,
       booking.group_size,
@@ -96,12 +142,11 @@ export async function POST(request: NextRequest) {
       booking.carbon_footprint || 0
     );
 
-    // Create payment intent with payment method preference
     const paymentIntent = await paymentService.createPaymentIntent({
       booking_id,
       amount: pricing.total_amount,
       currency: pricing.currency,
-      payment_method: payment_method, // Pass selected payment method
+      payment_method: payment_method,
       metadata: {
         ...metadata,
         destination_name: booking.destinations?.name,
@@ -120,7 +165,11 @@ export async function POST(request: NextRequest) {
       pricing,
     });
   } catch (error: any) {
-    console.error('Error creating payment intent:', error);
+    logger.error(
+      'Error creating payment intent',
+      error,
+      { component: 'payments-create-intent-route', operation: 'createIntent' }
+    );
     return NextResponse.json(
       { error: error.message || 'Failed to create payment intent' },
       { status: 500 }
@@ -128,9 +177,13 @@ export async function POST(request: NextRequest) {
   }
 }
 
+// ---------------------------------------------------------------------------
+// GET — fetch existing payments for a booking (used by payment page recovery)
+// ---------------------------------------------------------------------------
+
 export async function GET(request: NextRequest) {
   let bookingId: string | null = null;
-  
+
   try {
     const searchParams = request.nextUrl.searchParams;
     bookingId = searchParams.get('booking_id');
@@ -142,10 +195,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Create authenticated Supabase client for route handler
     const supabase = await createSupabaseClient();
-
-    // Get authenticated user
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) {
@@ -155,7 +205,6 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Get booking to verify ownership
     const { data: booking, error: bookingError } = await supabase
       .from('tourists')
       .select('user_id')
@@ -169,7 +218,6 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Verify the booking belongs to the authenticated user
     if (booking.user_id !== user.id) {
       return NextResponse.json(
         { error: 'Forbidden' },

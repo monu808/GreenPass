@@ -4,7 +4,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { Suspense } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import PaymentForm from '@/components/PaymentForm';
 import ProtectedRoute from '@/components/ProtectedRoute';
 
@@ -159,7 +159,10 @@ function BookingRecoverySummary({ booking }: { booking: BookingRecoveryData }) {
 function PaymentPageContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
-  const bookingId = searchParams.get('booking_id');
+  const bookingId = searchParams?.get('booking_id') ?? null;
+  const [resolvedBookingId, setResolvedBookingId] = useState<string | null>(bookingId);
+  const [loadingBooking, setLoadingBooking] = useState<boolean>(!bookingId);
+  const [bookingError, setBookingError] = useState<string | null>(null);
 
   const [booking, setBooking] = useState<BookingRecoveryData | null>(null);
   const [loadingState, setLoadingState] = useState<'idle' | 'fetching' | 'ready' | 'error'>('idle');
@@ -357,7 +360,7 @@ function PaymentPageContent() {
 
         {/* Payment Form */}
         <PaymentForm
-          bookingId={bookingId}
+          bookingId={resolvedBookingId}
           onSuccess={(paymentId) => {
             router.push(`/tourist/bookings?payment_success=true&payment_id=${paymentId}`);
           }}

@@ -191,27 +191,28 @@ export async function POST(request: Request) {
   } catch (error) {
     let errorMsg = 'Failed to generate receipt.';
     let statusCode = 500;
-  
-  if (error instanceof Error) {
-    if (error.message.includes('validation')) {
-      errorMsg = 'Invalid data provided.';
-      statusCode = 400;
-    } else if (error.message.includes('booking not found')) {
-      errorMsg = 'Booking not found.';
-      statusCode = 404;
-    } else if (error.message.includes('database')) {
-      errorMsg = 'Database error occurred.';
-      statusCode = 500;
-    } else if (error.message.includes('pdf generation')) {
-      errorMsg = 'Failed to generate PDF receipt.';
-      statusCode = 500;
-    } else {
-      errorMsg = `Error: ${error.message}`;
+
+    if (error instanceof Error) {
+      if (error.message.includes('validation')) {
+        errorMsg = 'Invalid data provided.';
+        statusCode = 400;
+      } else if (error.message.includes('booking not found')) {
+        errorMsg = 'Booking not found.';
+        statusCode = 404;
+      } else if (error.message.includes('database')) {
+        errorMsg = 'Database error occurred.';
+        statusCode = 500;
+      } else if (error.message.includes('pdf generation')) {
+        errorMsg = 'Failed to generate PDF receipt.';
+        statusCode = 500;
+      } else {
+        errorMsg = `Error: ${error.message}`;
+      }
     }
+
+    return NextResponse.json(
+      { error: errorMsg, details: error instanceof Error ? error.message : 'Unknown' },
+      { status: statusCode }
+    );
   }
-  
-  return NextResponse.json(
-    { error: errorMsg, details: error instanceof Error ? error.message : 'Unknown' },
-    { status: statusCode }
-  );
 }

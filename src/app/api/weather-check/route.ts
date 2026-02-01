@@ -180,7 +180,7 @@ class ServerWeatherService {
         logger.error(
           'Error saving weather data',
           error,
-          { component: 'weather-check-route', operation: 'saveWeatherData', metadata: { destinationId: weatherData.destination_id, location: weatherData.location } }
+          { component: 'weather-check-route', operation: 'saveWeatherData', metadata: { destinationId: destinationId, location: weatherData.cityName } }
         );
         logger.error(
           'Error details',
@@ -198,10 +198,10 @@ class ServerWeatherService {
         logger.error(
           error.message.includes('Database') ? 'Database error occurred while saving weather data' : 'Error saving weather data',
           error,
-          { component: 'weather-check-route', operation: 'saveWeatherData', metadata: { destinationId: weatherData.destination_id, isDbError: error.message.includes('Database') } }
+          { component: 'weather-check-route', operation: 'saveWeatherData', metadata: { destinationId: destinationId, isDbError: error.message.includes('Database') } }
         );
       } else {
-        logger.error('Unknown error saving weather data', error, { component: 'weather-check-route', operation: 'saveWeatherData', metadata: { destinationId: weatherData.destination_id } });
+        logger.error('Unknown error saving weather data', error, { component: 'weather-check-route', operation: 'saveWeatherData', metadata: { destinationId: destinationId } });
       }
       return false;
     }

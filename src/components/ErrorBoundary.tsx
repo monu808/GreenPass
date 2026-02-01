@@ -33,7 +33,7 @@ class ErrorBoundary extends React.Component<
         type: ErrorType.UNKNOWN,
         message: error.message,
         timestamp: Date.now(),
-        componentStack: errorInfo.componentStack,
+        componentStack: errorInfo.componentStack || undefined,
         component: componentName,
         operation: 'render'
       });

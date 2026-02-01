@@ -1,6 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { paymentService } from '@/lib/paymentService';
-import { logger } from '@/lib/logger';
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 
@@ -30,12 +28,19 @@ async function createSupabaseClient() {
   );
 }
 
-export async function GET(request: NextRequest) {
+export async function POST(request: NextRequest) {
   try {
-    // Create authenticated Supabase client for route handler
-    const supabase = await createSupabaseClient();
+    const body = await request.json();
+    const { bookingData } = body || {};
 
-    // Get authenticated user
+    if (!bookingData) {
+      return NextResponse.json(
+        { error: 'Booking data is required' },
+        { status: 400 }
+      );
+    }
+
+    const supabase = await createSupabaseClient();
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) {
@@ -45,46 +50,35 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Check if user is admin
-    const { data: userProfile } = await supabase
-      .from('users')
-      .select('is_admin')
-      .eq('id', user.id)
+    const insertPayload = {
+      ...bookingData,
+      user_id: user.id,
+      status: 'pending',
+      payment_status: 'pending',
+      registration_date: new Date().toISOString(),
+    };
+
+    const { data, error } = await supabase
+      .from('tourists')
+      .insert(insertPayload)
+      .select()
       .single();
 
-    if (!userProfile?.is_admin) {
+    if (error || !data) {
       return NextResponse.json(
-        { error: 'Admin access required' },
-        { status: 403 }
-      );
-    }
-
-    // Get query parameters
-    const searchParams = request.nextUrl.searchParams;
-    const startDateStr = searchParams.get('start_date');
-    const endDateStr = searchParams.get('end_date');
-
-    const startDate = startDateStr ? new Date(startDateStr) : undefined;
-    const endDate = endDateStr ? new Date(endDateStr) : undefined;
-
-    // Fetch statistics
-    const statistics = await paymentService.getPaymentStatistics(startDate, endDate);
-
-    if (!statistics) {
-      return NextResponse.json(
-        { error: 'Failed to fetch statistics' },
+        { error: error?.message || 'Failed to create booking' },
         { status: 500 }
       );
     }
 
     return NextResponse.json({
       success: true,
-      statistics,
+      booking_id: data.id,
     });
   } catch (error: any) {
-    console.error('Error fetching payment statistics:', error);
+    console.error('Error creating booking from form:', error);
     return NextResponse.json(
-      { error: error.message || 'Failed to fetch payment statistics' },
+      { error: error.message || 'Failed to create booking' },
       { status: 500 }
     );
   }

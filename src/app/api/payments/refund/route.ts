@@ -84,11 +84,7 @@ export async function POST(request: NextRequest) {
       success: true,
       refund,
     });
-  }  ogg(rerror: 
-      any) {',
-      error,
-      { component payments-refund-route'opation: 'pocessRefund', metadata: { paymentId: body.payment_id, amount: body.amunt } }
-    
+  } catch (error: any) {
     console.error('Error processing refund:', error);
     return NextResponse.json(
       { error: error.message || 'Failed to process refund' },
@@ -147,11 +143,7 @@ export async function GET(request: NextRequest) {
       throw error;
     }
 
-    nogg rNextRes
-      ponse.json({
-     ,
-      { component: 'payments-refund-route', operation: 'fetchRefunds' }
-    
+    return NextResponse.json({
       success: true,
       refunds: refunds || [],
     });

@@ -33,7 +33,7 @@ function LoginForm() {
       router.push('/');
     }
 
-    const errorParam = searchParams.get('error');
+    const errorParam = searchParams?.get('error');
     if (errorParam) {
       switch (errorParam) {
         case 'auth_callback_failed':
@@ -73,25 +73,25 @@ function LoginForm() {
         router.push('/');
       }
     } catch (_err) {
-       let msg = 'Login failed.';
-+      if (_err instanceof Error) {
-+        const message = _err.message.toLowerCase();
-+        if (message.includes('invalid credentials')) {
-+          msg = 'Email or password is incorrect. Check your credentials and try again.';
-+        } else if (message.includes('network')) {
-+          msg = 'Network connection error: verify your internet and try again.';
-+        } else if (message.includes('user not found')) {
-+          msg = 'User not found. Verify the email.';
-+        } else if (message.includes('timeout')) {
-+          msg = 'Request timed out. Try again.';
-+        } else {
-+          msg = `Login failed: ${_err.message}`;
-+        }
-+      }
-+      setError(msg);
-+      alert(msg);
-  }
-    } finally {
+      let msg = 'Login failed.';
+      if (_err instanceof Error) {
+        const message = _err.message.toLowerCase();
+        if (message.includes('invalid credentials')) {
+          msg = 'Email or password is incorrect. Check your credentials and try again.';
+        } else if (message.includes('network')) {
+          msg = 'Network connection error: verify your internet and try again.';
+        } else if (message.includes('user not found')) {
+          msg = 'User not found. Verify the email.';
+        } else if (message.includes('timeout')) {
+          msg = 'Request timed out. Try again.';
+        } else {
+          msg = `Login failed: ${_err.message}`;
+        }
+      }
+      setError(msg);
+      alert(msg);
+    }
+    finally {
       setLoading(false);
     }
   };

@@ -22,7 +22,8 @@ BEGIN
   END IF;
 
   -- 🔒 LOCKING STEP
-  SELECT current_occupancy, max_capacity
+  -- FIX #1: Use COALESCE to handle NULL occupancy safely (treats NULL as 0)
+  SELECT COALESCE(current_occupancy, 0), max_capacity
   INTO v_current, v_max
   FROM destinations
   WHERE id = v_dest_id
@@ -31,6 +32,11 @@ BEGIN
   -- Validation: Destination must exist
   IF NOT FOUND THEN
     RETURN jsonb_build_object('success', false, 'error', 'Destination not found');
+  END IF;
+
+  -- FIX #1: Defensive guard against unconfigured capacity
+  IF v_max IS NULL THEN
+    RETURN jsonb_build_object('success', false, 'error', 'Destination capacity not configured');
   END IF;
 
   -- 🛡️ CAPACITY CHECK
@@ -47,16 +53,19 @@ BEGIN
   RETURNING to_jsonb(tourists.*) INTO v_new_tourist;
 
   -- 🔄 UPDATE OCCUPANCY (Conditional)
-  -- Only increment if the user is counted as "occupying" (checked-in or approved)
   IF (v_status = 'checked-in' OR v_status = 'approved') THEN
     UPDATE destinations
-    SET current_occupancy = current_occupancy + v_group_size
+    -- FIX #1: Ensure atomic increment works even if previous value was NULL
+    SET current_occupancy = COALESCE(current_occupancy, 0) + v_group_size
     WHERE id = v_dest_id;
   END IF;
 
   RETURN jsonb_build_object('success', true, 'data', v_new_tourist);
 
 EXCEPTION WHEN OTHERS THEN
-   RETURN jsonb_build_object('success', false, 'error', SQLERRM);
+   -- FIX #2: Log the real error internally for admins...
+   RAISE WARNING 'Booking Error: %', SQLERRM;
+   -- ...but return a generic, safe message to the user to prevent info leakage
+   RETURN jsonb_build_object('success', false, 'error', 'Internal server error processing booking');
 END;
 $$ LANGUAGE plpgsql;

@@ -303,6 +303,7 @@ class DatabaseService {
 
       // 3. Atomic RPC Call (Layer 2 - The Fix)
       // Instead of standard .insert(), we call the RPC that locks and verifies capacity
+      // @ts-ignore
       const { data: rpcResult, error: rpcError } = await db.rpc('create_tourist_booking', {
         p_tourist_data: touristToInsert
       });

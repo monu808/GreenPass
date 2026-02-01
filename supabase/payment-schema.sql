@@ -1,3 +1,4 @@
+-- File: supabase/payment-schema.sql
 -- Payment System Database Schema
 -- Add these tables to your existing Supabase database
 
@@ -140,6 +141,12 @@ ALTER TABLE tourists ADD COLUMN IF NOT EXISTS payment_id UUID REFERENCES payment
 
 CREATE INDEX IF NOT EXISTS idx_tourists_payment_status ON tourists(payment_status);
 CREATE INDEX IF NOT EXISTS idx_tourists_payment_id ON tourists(payment_id);
+
+-- Index specifically for the stale-booking cleanup query: finds unpaid bookings
+-- ordered by creation time so the cleanup function can efficiently locate candidates.
+CREATE INDEX IF NOT EXISTS idx_tourists_unpaid_created_at
+  ON tourists(created_at)
+  WHERE payment_status = 'unpaid' AND status = 'pending';
 
 -- =============================================
 -- TRIGGERS
@@ -289,6 +296,59 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- =============================================
+-- STALE BOOKING CLEANUP FUNCTION
+-- =============================================
+-- Cancels bookings that have been sitting in (status = 'pending', payment_status = 'unpaid')
+-- for longer than the given expiry window.  This runs server-side (e.g. via a cron job or
+-- Supabase Edge Function on a schedule) so that even if the client never returns, orphaned
+-- bookings don't hold capacity indefinitely.
+--
+-- Default expiry: 30 minutes, matching the "held for 30 minutes" promise shown to users.
+--
+-- Returns the number of bookings that were cancelled.
+-- =============================================
+CREATE OR REPLACE FUNCTION cleanup_stale_bookings(
+  p_expiry_minutes INTEGER DEFAULT 30
+)
+RETURNS INTEGER AS $$
+DECLARE
+  v_cancelled_count INTEGER;
+  v_cutoff TIMESTAMPTZ;
+BEGIN
+  v_cutoff := NOW() - (p_expiry_minutes || ' minutes')::INTERVAL;
+
+  -- Cancel the stale bookings and set payment_status to 'failed' so the
+  -- payment page can distinguish "expired & auto-cancelled" from "user cancelled".
+  WITH cancelled AS (
+    UPDATE tourists
+    SET
+      status           = 'cancelled',
+      payment_status   = 'failed',
+      updated_at       = NOW()
+    WHERE
+      status           = 'pending'
+      AND payment_status = 'unpaid'
+      AND created_at   < v_cutoff
+      -- Safety: only cancel if there is genuinely no succeeded payment
+      AND NOT EXISTS (
+        SELECT 1 FROM payments
+        WHERE payments.booking_id = tourists.id
+          AND payments.status = 'succeeded'
+      )
+    RETURNING id
+  )
+  SELECT COUNT(*) INTO v_cancelled_count FROM cancelled;
+
+  RETURN v_cancelled_count;
+END;
+$$ LANGUAGE plpgsql
+SECURITY DEFINER;  -- Must run as the defining role so RLS doesn't block the bulk update
+
+-- Grant execute to the service role so it can be called from a cron / Edge Function.
+-- Adjust the role name if your Supabase setup uses a different convention.
+GRANT EXECUTE ON FUNCTION cleanup_stale_bookings(INTEGER) TO service_role;
+
+-- =============================================
 -- ROW LEVEL SECURITY (RLS)
 -- =============================================
 
@@ -422,3 +482,18 @@ JOIN tourists t ON p.booking_id = t.id
 JOIN destinations d ON t.destination_id = d.id;
 
 COMMENT ON VIEW payment_summary IS 'Comprehensive view of payments with booking and customer details';
+
+-- =============================================
+-- USAGE: Scheduling the cleanup
+-- =============================================
+-- Run this function on a schedule (every 5–10 minutes is sufficient).
+-- Option A — Supabase Edge Function + cron:
+--   SELECT cleanup_stale_bookings();   -- uses default 30-min window
+--
+-- Option B — pg_cron (if enabled on your Supabase instance):
+--   SELECT cron.schedule(
+--     'cleanup-stale-bookings',
+--     '*/10 * * * *',                          -- every 10 minutes
+--     $$ SELECT cleanup_stale_bookings(); $$
+--   );
+-- =============================================

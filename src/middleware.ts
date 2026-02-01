@@ -48,6 +48,11 @@ export async function middleware(request: NextRequest) {
   
   const ratelimit = isWeatherRoute ? weatherRatelimit : generalRatelimit;
   
+  // Skip rate limiting if Redis is not configured
+  if (!ratelimit) {
+    return NextResponse.next();
+  }
+  
   try {
     const { success, limit, reset, remaining } = await ratelimit.limit(ip);
 

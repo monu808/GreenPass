@@ -1,18 +1,19 @@
 'use client';
 
-import React, { useState, useEffect, useCallback, ChangeEvent } from 'react';
+import React, { useState, useEffect, useCallback, useRef, ChangeEvent } from 'react';
+import Image from 'next/image';
 import { 
-  MapPin, Users, Navigation, Search, RefreshCw, Leaf, Heart, 
-  Filter, ArrowRight, ShieldCheck, Compass, Thermometer, Calendar,
-  Award, Zap, Scale, Trash2, X, Info
+  Users, RefreshCw, Leaf, Heart, 
+  ArrowRight, Compass, Thermometer,
+  Award, Zap, Scale, Trash2, X, Search, Calendar
 } from 'lucide-react';
+import { DataFetchErrorBoundary } from '@/components/errors';
 import TouristLayout from '@/components/TouristLayout';
 import EcoSensitivityBadge from '@/components/EcoSensitivityBadge';
 import EcoCapacityAlert from '@/components/EcoCapacityAlert';
+import ConnectionStatusIndicator from '@/components/ConnectionStatusIndicator';
 import { getDbService } from '@/lib/databaseService';
 import { getPolicyEngine } from '@/lib/ecologicalPolicyEngine';
-import { getEcoFriendlyAlternatives } from '@/lib/recommendationEngine';
-import { destinations as allDestinations } from '@/data/mockData';
 import { 
   calculateSustainabilityScore, 
   calculateCarbonOffset, 
@@ -22,9 +23,13 @@ import {
 } from '@/lib/sustainabilityScoring';
 import { 
   isValidEcologicalSensitivity, 
-  isValidWasteManagementLevel 
 } from '@/lib/typeGuards';
-import { Destination, DynamicCapacityResult, EcoImpactCategory } from '@/types';
+import { getEcoFriendlyAlternatives } from '@/lib/recommendationEngine';
+import { Destination, DynamicCapacityResult } from '@/types';
+import { sanitizeSearchTerm } from '@/lib/utils';
+import { validateInput, SearchFilterSchema } from '@/lib/validation';
+import { useSSE } from '@/contexts/ConnectionContext';
+import { useModalAccessibility } from '@/lib/accessibility';
 
 export default function TouristDestinations() {
   // 1. STATE MANAGEMENT
@@ -36,10 +41,20 @@ export default function TouristDestinations() {
   const [selectedFilter, setSelectedFilter] = useState<'all' | 'available' | 'popular' | 'high-sensitivity' | 'low-carbon' | 'community-friendly' | 'wildlife-safe' | 'eco-friendly'>('all');
   const [comparisonList, setComparisonList] = useState<Destination[]>([]);
   const [isComparisonOpen, setIsComparisonOpen] = useState(false);
+  const [isSearching, setIsSearching] = useState(false);
   const [expandedAlternatives, setExpandedAlternatives] = useState<Record<string, boolean>>({});
 
+  const comparisonModalRef = useRef<HTMLDivElement>(null);
+
+  // Modal accessibility for comparison
+  useModalAccessibility({
+    modalRef: comparisonModalRef,
+    isOpen: isComparisonOpen,
+    onClose: () => setIsComparisonOpen(false)
+  });
+
   // 2. DATA LOADING LOGIC (Direct Database Sync)
-  const loadData = async (): Promise<void> => {
+  const loadData = useCallback(async (): Promise<void> => {
     try {
       const dbService = getDbService();
       const data = await dbService.getDestinations();
@@ -73,17 +88,39 @@ export default function TouristDestinations() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  const { connectionState, reconnect } = useSSE(
+    useCallback((event: MessageEvent) => {
+      try {
+        const data = JSON.parse(event.data);
+        if (data.type === 'weather_update_available' || 
+            data.type === 'capacity_update' || 
+            data.type === 'weather_update') {
+          loadData();
+        }
+      } catch (err) {
+        console.error('Error parsing SSE message:', err);
+      }
+    }, [loadData])
+  );
 
   // 3. FILTERING ENGINE (Using Policy Engine for dynamic capacity)
   const filterData = useCallback((): void => {
-    let result = [...destinations];
-    const policy = getPolicyEngine();
+    const sanitizedSearch = sanitizeSearchTerm(searchTerm);
+    
+    const filterValidation = validateInput(SearchFilterSchema, {
+      searchTerm: sanitizedSearch,
+    });
 
-    if (searchTerm) {
+    const validFilters = filterValidation.success ? filterValidation.data : { searchTerm: "" };
+    
+    let result = [...destinations];
+
+    if (validFilters.searchTerm) {
       result = result.filter(d => 
-        d.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        d.location.toLowerCase().includes(searchTerm.toLowerCase())
+        d.name.toLowerCase().includes(validFilters.searchTerm!.toLowerCase()) ||
+        d.location.toLowerCase().includes(validFilters.searchTerm!.toLowerCase())
       );
     }
 
@@ -114,35 +151,19 @@ export default function TouristDestinations() {
     });
 
     setFilteredDestinations(result);
-  }, [destinations, searchTerm, selectedFilter]);
+  }, [destinations, searchTerm, selectedFilter, capacityResults]);
 
   useEffect(() => { 
     loadData(); 
-
-    // Set up real-time SSE connection
-    const eventSource = new EventSource('/api/weather-monitor');
-    
-    eventSource.onmessage = (event) => {
-      try {
-        const data = JSON.parse(event.data);
-        console.log('🔔 Real-time update received:', data.type);
-        
-        // Refresh data on any relevant update
-        if (data.type === 'weather_update_available' || 
-            data.type === 'capacity_update' || 
-            data.type === 'weather_update') {
-          loadData();
-        }
-      } catch (err) {
-        console.error('Error parsing SSE message:', err);
-      }
-    };
-
-    return () => {
-      eventSource.close();
-    };
-  }, []);
-  useEffect(() => { filterData(); }, [filterData]);
+  }, [loadData]);
+ useEffect(() => {
+    setIsSearching(true);
+    const timer = setTimeout(() => {
+      filterData();
+      setIsSearching(false);
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [filterData]);
 
   // 4. ACTION HANDLERS
   const handleAction = (type: string, id: string): void => {
@@ -173,7 +194,8 @@ export default function TouristDestinations() {
 
   return (
     <TouristLayout>
-      <div className="max-w-7xl mx-auto space-y-12 pb-20 px-6">
+      <DataFetchErrorBoundary onRetry={loadData}>
+        <div className="max-w-7xl mx-auto space-y-12 pb-20 px-6">
         
         {/* HEADER */}
         <div className="pt-10 flex flex-col md:flex-row justify-between items-end gap-6 border-b border-gray-100 pb-12">
@@ -181,6 +203,11 @@ export default function TouristDestinations() {
             <div className="flex items-center gap-2 text-emerald-600">
               <Compass className="h-5 w-5" />
               <span className="text-[9px] font-bold tracking-[0.3em] uppercase opacity-70">Managed Eco-Trails</span>
+              <ConnectionStatusIndicator 
+                connectionState={connectionState} 
+                onRetry={reconnect} 
+                className="ml-4"
+              />
             </div>
             <h1 className="text-6xl font-black text-gray-900 tracking-tighter leading-none">
               Explore <span className="text-emerald-600">Nature</span>
@@ -197,24 +224,31 @@ export default function TouristDestinations() {
         <div className="bg-white rounded-[2.5rem] p-4 shadow-sm border border-gray-100 space-y-4">
           <div className="flex flex-col lg:flex-row gap-4">
             <div className="flex-1 relative group">
-              <label htmlFor="dest-search-input" className="sr-only">Search valley destinations</label>
-              <Search className="absolute left-6 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400 group-focus-within:text-emerald-500 transition-colors" />
-              <input
-                id="dest-search-input"
-                type="text"
-                placeholder="Search by valley, town, or state..."
-                value={searchTerm}
-                onChange={(e: ChangeEvent<HTMLInputElement>) => setSearchTerm(e.target.value)}
-                className="w-full pl-16 pr-8 py-5 bg-gray-50 border-none rounded-[1.8rem] font-bold text-gray-700 outline-none focus:ring-4 focus:ring-emerald-500/5 transition-all"
-              />
-            </div>
+  <label htmlFor="dest-search-input" className="sr-only">Search valley destinations</label>
+  {isSearching ? (
+    <RefreshCw className="absolute left-6 top-1/2 -translate-y-1/2 h-5 w-5 text-emerald-500 animate-spin" aria-hidden="true" />
+  ) : (
+    <Search className="absolute left-6 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400 group-focus-within:text-emerald-500 transition-colors" aria-hidden="true" />
+  )}
+  <input
+    id="dest-search-input"
+    type="text"
+    placeholder="Search by valley, town, or state..."
+    value={searchTerm}
+    onChange={(e: ChangeEvent<HTMLInputElement>) => setSearchTerm(e.target.value)}
+    className="w-full pl-16 pr-8 py-5 bg-gray-50 border-none rounded-[1.8rem] font-bold text-gray-700 outline-none focus:ring-4 focus:ring-emerald-500/5 transition-all"
+    aria-controls="destinations-results"
+  />
+</div>
 
-            <div className="flex bg-gray-100 p-1.5 rounded-[1.8rem] border border-gray-100 overflow-x-auto scrollbar-hide">
+            <div className="flex bg-gray-100 p-1.5 rounded-[1.8rem] border border-gray-100 overflow-x-auto scrollbar-hide" role="tablist" aria-label="Destination filters">
               {(['all', 'available', 'popular', 'high-sensitivity', 'low-carbon', 'community-friendly', 'wildlife-safe', 'eco-friendly'] as const).map((filter) => (
                 <button
                   key={filter}
                   type="button"
                   onClick={() => setSelectedFilter(filter)}
+                  role="tab"
+                  aria-selected={selectedFilter === filter}
                   className={`px-6 py-3 rounded-[1.5rem] text-[9px] font-bold uppercase tracking-wider transition-all whitespace-nowrap ${
                     selectedFilter === filter ? "bg-white text-emerald-600 shadow-sm" : "text-gray-400 hover:text-gray-600"
                   }`}
@@ -227,14 +261,22 @@ export default function TouristDestinations() {
         </div>
 
         {/* DESTINATIONS LIST */}
+        <div id="destinations-results" aria-live="polite" className="sr-only">
+          {loading ? 'Loading trail data...' : `Found ${filteredDestinations.length} destinations.`}
+        </div>
+
         {loading ? (
           <div className="flex flex-col items-center justify-center py-32 space-y-4">
-            <RefreshCw className="h-12 w-12 text-emerald-500 animate-spin" />
+            <RefreshCw className="h-12 w-12 text-emerald-500 animate-spin" aria-hidden="true" />
             <p className="text-emerald-600 font-black text-[10px] uppercase tracking-widest">Updating Trail Data...</p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10">
-            {filteredDestinations.map((d) => {
+          <div 
+            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10"
+            aria-live="polite"
+            aria-atomic="true"
+          >
+            {filteredDestinations.map((d, index) => {
               const dynResult = capacityResults[d.id];
               const adjustedCap = dynResult?.adjustedCapacity ?? d.maxCapacity;
               const occupancyRate = adjustedCap > 0 ? (d.currentOccupancy / adjustedCap) * 100 : 0;
@@ -249,19 +291,24 @@ export default function TouristDestinations() {
                   {/* COMPARISON TOGGLE */}
                   <button 
                     onClick={() => handleCompareToggle(d)}
+                    aria-label={isComparing ? `Remove ${d.name} from comparison` : `Add ${d.name} to comparison`}
+                    aria-pressed={isComparing}
                     className={`absolute top-6 left-8 z-10 p-3 rounded-2xl backdrop-blur-md transition-all ${
                       isComparing ? 'bg-emerald-600 text-white shadow-lg' : 'bg-white/20 text-white hover:bg-white/40'
                     }`}
                     title={isComparing ? "Remove from comparison" : "Add to comparison"}
                   >
-                    <Scale className="h-5 w-5" />
+                    <Scale className="h-5 w-5" aria-hidden="true" />
                   </button>
 
-                  <div className="h-56 relative overflow-hidden bg-emerald-900">
-                    <img 
+                  <div className="h-56 relative overflow-hidden bg-slate-100 shimmer">
+                    <Image 
                       src="https://images.unsplash.com/photo-1596394516093-501ba68a0ba6?w=800"
                       className="w-full h-full object-cover opacity-60 group-hover:scale-110 transition-transform duration-700"
                       alt={d.name}
+                      fill
+                      sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                      priority={index < 3}
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-emerald-950/90 via-transparent to-transparent" />
                     
@@ -363,17 +410,19 @@ export default function TouristDestinations() {
                       <div className="pt-4 border-t border-gray-100 space-y-3">
                         <button
                           onClick={() => setExpandedAlternatives(prev => ({ ...prev, [d.id]: !prev[d.id] }))}
+                          aria-expanded={expandedAlternatives[d.id] || false}
+                          aria-controls={`alternatives-${d.id}`}
                           className="w-full flex items-center justify-between text-[9px] font-bold text-emerald-600 uppercase tracking-wider hover:text-emerald-700 transition-colors"
                         >
                           <span className="flex items-center gap-2">
-                            <Leaf className="h-3.5 w-3.5" />
+                            <Leaf className="h-3.5 w-3.5" aria-hidden="true" />
                             {expandedAlternatives[d.id] ? 'Hide Alternatives' : 'See Eco-Friendly Alternatives'}
                           </span>
-                          <ArrowRight className={`h-3.5 w-3.5 transition-transform duration-300 ${expandedAlternatives[d.id] ? 'rotate-90' : ''}`} />
+                          <ArrowRight className={`h-3.5 w-3.5 transition-transform duration-300 ${expandedAlternatives[d.id] ? 'rotate-90' : ''}`} aria-hidden="true" />
                         </button>
 
                         {expandedAlternatives[d.id] && (
-                          <div className="space-y-3 animate-in fade-in slide-in-from-top-2 duration-300">
+                          <div id={`alternatives-${d.id}`} className="space-y-3 animate-in fade-in slide-in-from-top-2 duration-300">
                             <p className="text-[10px] text-gray-400 font-bold italic">
                               High occupancy detected. Consider these lower-impact valleys:
                             </p>
@@ -433,12 +482,18 @@ export default function TouristDestinations() {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-              {findLowImpactAlternatives(allDestinations, filteredDestinations[0]).map((alt) => {
+              {findLowImpactAlternatives(destinations, filteredDestinations[0]).map((alt) => {
                 const score = calculateSustainabilityScore(alt);
                 return (
                   <div key={alt.id} className="bg-white p-6 rounded-[2.5rem] border border-emerald-100 flex gap-6 items-center group hover:shadow-xl transition-all">
-                    <div className="h-24 w-24 rounded-[1.8rem] bg-emerald-100 overflow-hidden flex-shrink-0">
-                      <img src="https://images.unsplash.com/photo-1501785888041-af3ef285b470?w=400" className="w-full h-full object-cover group-hover:scale-110 transition-transform" alt={alt.name} />
+                    <div className="h-24 w-24 rounded-[1.8rem] bg-slate-100 shimmer overflow-hidden flex-shrink-0 relative">
+                      <Image 
+                        src="https://images.unsplash.com/photo-1501785888041-af3ef285b470?w=400" 
+                        className="w-full h-full object-cover group-hover:scale-110 transition-transform" 
+                        alt={alt.name}
+                        fill
+                        sizes="96px"
+                      />
                     </div>
                     <div className="flex-1 space-y-2">
                       <div className="flex justify-between items-start">
@@ -477,38 +532,43 @@ export default function TouristDestinations() {
 
         {/* COMPARISON MODAL */}
         {isComparisonOpen && (
-          <div className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-xl flex items-center justify-center p-6">
-            <div className="bg-white w-full max-w-6xl rounded-[4rem] overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
-              <div className="p-10 border-b border-gray-100 flex justify-between items-center">
-                <div className="flex items-center gap-4">
-                  <div className="p-4 bg-emerald-50 rounded-2xl text-emerald-600">
-                    <Scale className="h-6 w-6" />
+          <div className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-xl flex items-end sm:items-center justify-center p-0 sm:p-6" role="dialog" aria-modal="true" aria-labelledby="comparison-title">
+            <div 
+              ref={comparisonModalRef}
+              className="bg-white w-full max-w-6xl rounded-t-[2.5rem] sm:rounded-[3rem] overflow-hidden shadow-2xl flex flex-col h-[95vh] sm:max-h-[90vh] animate-in slide-in-from-bottom duration-300"
+            >
+              <div className="p-6 sm:p-10 border-b border-gray-100 flex justify-between items-center bg-white sticky top-0 z-20">
+                <div className="flex items-center gap-3 sm:gap-4">
+                  <div className="p-2 sm:p-4 bg-emerald-50 rounded-xl sm:rounded-2xl text-emerald-600">
+                    <Scale className="h-5 w-5 sm:h-6 sm:w-6" aria-hidden="true" />
                   </div>
                   <div>
-                    <h2 className="text-3xl font-black text-gray-900 tracking-tighter leading-none">Sustainability Comparison</h2>
-                    <p className="text-gray-400 font-bold text-xs mt-2 uppercase tracking-widest">Side-by-side impact analysis</p>
+                    <h2 id="comparison-title" className="text-xl sm:text-3xl font-black text-gray-900 tracking-tighter leading-none">Sustainability Comparison</h2>
+                    <p className="text-gray-400 font-bold text-[10px] sm:text-xs mt-1 sm:mt-2 uppercase tracking-widest">Side-by-side impact analysis</p>
                   </div>
                 </div>
-                <div className="flex gap-4">
+                <div className="flex gap-2 sm:gap-4">
                   <button 
                     onClick={() => setComparisonList([])}
-                    className="px-6 py-3 rounded-2xl bg-gray-50 text-gray-400 font-black text-[10px] uppercase tracking-widest hover:bg-gray-100 transition-all flex items-center gap-2"
+                    className="px-3 sm:px-6 py-2 sm:py-3 rounded-xl sm:rounded-2xl bg-gray-50 text-gray-400 font-black text-[9px] sm:text-[10px] uppercase tracking-widest hover:bg-gray-100 transition-all flex items-center gap-2 focus:outline-none focus:ring-2 focus:ring-gray-300 min-h-[44px]"
+                    aria-label="Clear all compared destinations"
                   >
-                    <Trash2 className="h-4 w-4" /> Clear All
+                    <Trash2 className="h-3 w-3 sm:h-4 sm:w-4" aria-hidden="true" /> <span className="hidden sm:inline">Clear All</span>
                   </button>
                   <button 
                     onClick={() => setIsComparisonOpen(false)}
-                    className="p-3 rounded-2xl bg-gray-900 text-white hover:bg-gray-800 transition-all"
+                    className="p-3 rounded-xl sm:rounded-2xl bg-gray-900 text-white hover:bg-gray-800 transition-all focus:outline-none focus:ring-4 focus:ring-emerald-500/20 min-h-[44px] min-w-[44px] flex items-center justify-center"
+                    aria-label="Close comparison modal"
                   >
-                    <X className="h-6 w-6" />
+                    <X className="h-5 w-5 sm:h-6 sm:w-6" aria-hidden="true" />
                   </button>
                 </div>
               </div>
 
-              <div className="flex-1 overflow-x-auto p-10">
-                <div className="grid grid-cols-4 gap-8 min-w-[1000px]">
+              <div className="flex-1 overflow-auto p-6 sm:p-10 no-scrollbar">
+                <div className="grid grid-cols-4 gap-4 sm:gap-8 min-w-[800px] lg:min-w-0">
                   {/* Labels Column */}
-                  <div className="space-y-12 pt-40">
+                  <div className="space-y-12 pt-40 hidden sm:block">
                     <div className="h-10 flex items-center text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Sustainability Score</div>
                     <div className="h-10 flex items-center text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Carbon Footprint</div>
                     <div className="h-10 flex items-center text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Eco Certifications</div>
@@ -523,56 +583,79 @@ export default function TouristDestinations() {
                     const community = getCommunityBenefitMetrics(dest);
                     
                     return (
-                      <div key={dest.id} className="space-y-12">
+                      <div key={dest.id} className="space-y-8 sm:space-y-12 col-span-4 sm:col-span-1 border sm:border-none p-6 sm:p-0 rounded-3xl bg-gray-50/50 sm:bg-transparent">
                         <div className="space-y-4">
-                          <div className="h-32 rounded-[2rem] bg-gray-100 overflow-hidden">
-                            <img src="https://images.unsplash.com/photo-1596394516093-501ba68a0ba6?w=400" className="w-full h-full object-cover" alt={dest.name} />
+                          <div className="h-32 sm:h-40 rounded-[1.5rem] sm:rounded-[2rem] bg-slate-100 shimmer overflow-hidden relative">
+                            <Image 
+                              src="https://images.unsplash.com/photo-1596394516093-501ba68a0ba6?w=400" 
+                              className="w-full h-full object-cover" 
+                              alt={dest.name}
+                              fill
+                              sizes="(max-width: 1024px) 100vw, 25vw"
+                            />
                           </div>
                           <h3 className="text-xl font-black text-gray-900 tracking-tight leading-tight">{dest.name}</h3>
                           <p className="text-xs text-gray-400 font-bold uppercase tracking-widest">{dest.location}</p>
                         </div>
 
-                        <div className="h-10 flex items-center">
-                          <div className={`px-4 py-2 rounded-xl font-black text-sm border-2 ${getScoreColor(score.overallScore)}`}>
-                            {score.overallScore}/100
+                        <div className="space-y-6 sm:space-y-12">
+                          <div className="flex sm:block justify-between items-center">
+                            <span className="sm:hidden text-[9px] font-black text-gray-400 uppercase tracking-widest">Sustainability Score</span>
+                            <div className="h-10 flex items-center">
+                              <div className={`px-4 py-2 rounded-xl font-black text-sm border-2 ${getScoreColor(score.overallScore)}`}>
+                                {score.overallScore}/100
+                              </div>
+                            </div>
                           </div>
-                        </div>
 
-                        <div className="h-10 flex items-center gap-3">
-                          <div className="p-2 bg-amber-50 rounded-lg text-amber-600">
-                            <Zap className="h-4 w-4" />
+                          <div className="flex sm:block justify-between items-center">
+                            <span className="sm:hidden text-[9px] font-black text-gray-400 uppercase tracking-widest">Carbon Footprint</span>
+                            <div className="h-10 flex items-center gap-3">
+                              <div className="p-2 bg-amber-50 rounded-lg text-amber-600">
+                                <Zap className="h-4 w-4" />
+                              </div>
+                              <span className="font-black text-gray-900 text-sm">{carbon.estimatedCO2}kg CO₂e</span>
+                            </div>
                           </div>
-                          <span className="font-black text-gray-900 text-sm">{carbon.estimatedCO2}kg CO₂e</span>
-                        </div>
 
-                        <div className="h-10 flex items-center gap-3">
-                          <div className="p-2 bg-emerald-50 rounded-lg text-emerald-600">
-                            <Award className="h-4 w-4" />
+                          <div className="flex sm:block justify-between items-center">
+                            <span className="sm:hidden text-[9px] font-black text-gray-400 uppercase tracking-widest">Eco Certifications</span>
+                            <div className="h-10 flex items-center gap-3">
+                              <div className="p-2 bg-emerald-50 rounded-lg text-emerald-600">
+                                <Award className="h-4 w-4" />
+                              </div>
+                              <span className="font-bold text-gray-600 text-sm">
+                                {dest.sustainabilityFeatures?.wasteManagementLevel === 'certified' ? 'ISO 14001' : 'Eco-Verified'}
+                              </span>
+                            </div>
                           </div>
-                          <span className="font-bold text-gray-600 text-sm">
-                            {dest.sustainabilityFeatures?.wasteManagementLevel === 'certified' ? 'ISO 14001' : 'Eco-Verified'}
-                          </span>
-                        </div>
 
-                        <div className="h-10 flex items-center gap-3">
-                          <div className="p-2 bg-blue-50 rounded-lg text-blue-600">
-                            <Users className="h-4 w-4" />
+                          <div className="flex sm:block justify-between items-center">
+                            <span className="sm:hidden text-[9px] font-black text-gray-400 uppercase tracking-widest">Community Benefit</span>
+                            <div className="h-10 flex items-center gap-3">
+                              <div className="p-2 bg-blue-50 rounded-lg text-blue-600">
+                                <Users className="h-4 w-4" />
+                              </div>
+                              <span className="font-black text-gray-900 text-sm">{community.localEmploymentRate}% Employment</span>
+                            </div>
                           </div>
-                          <span className="font-black text-gray-900 text-sm">{community.localEmploymentRate}% Employment</span>
-                        </div>
 
-                        <div className="h-10 flex items-center gap-3">
-                          <div className="p-2 bg-rose-50 rounded-lg text-rose-600">
-                            <Heart className="h-4 w-4" />
+                          <div className="flex sm:block justify-between items-center">
+                            <span className="sm:hidden text-[9px] font-black text-gray-400 uppercase tracking-widest">Wildlife Safety</span>
+                            <div className="h-10 flex items-center gap-3">
+                              <div className="p-2 bg-rose-50 rounded-lg text-rose-600">
+                                <Heart className="h-4 w-4" />
+                              </div>
+                              <span className="font-bold text-gray-600 text-sm">
+                                {dest.sustainabilityFeatures?.wildlifeProtectionProgram ? 'Advanced' : 'Standard'}
+                              </span>
+                            </div>
                           </div>
-                          <span className="font-bold text-gray-600 text-sm">
-                            {dest.sustainabilityFeatures?.wildlifeProtectionProgram ? 'Advanced' : 'Standard'}
-                          </span>
                         </div>
 
                         <button 
                           onClick={() => handleAction('book', dest.id)}
-                          className="w-full py-4 bg-emerald-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-emerald-700 transition-all"
+                          className="w-full py-5 bg-emerald-600 text-white rounded-2xl font-black text-[11px] uppercase tracking-widest hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-600/20 min-h-[56px]"
                         >
                           Book this path
                         </button>
@@ -581,8 +664,8 @@ export default function TouristDestinations() {
                   })}
 
                   {/* Empty Slots */}
-                  {Array.from({ length: 3 - comparisonList.length }).map((_, i) => (
-                    <div key={`empty-${i}`} className="border-2 border-dashed border-gray-100 rounded-[3rem] flex flex-col items-center justify-center p-10 text-center space-y-4 opacity-50">
+                  {comparisonList.length < 3 && Array.from({ length: 3 - comparisonList.length }).map((_, i) => (
+                    <div key={`empty-${i}`} className="hidden sm:flex border-2 border-dashed border-gray-100 rounded-[3rem] flex-col items-center justify-center p-10 text-center space-y-4 opacity-50">
                       <div className="p-6 bg-gray-50 rounded-full text-gray-300">
                         <Scale className="h-10 w-10" />
                       </div>
@@ -594,7 +677,8 @@ export default function TouristDestinations() {
             </div>
           </div>
         )}
-      </div>
+        </div>
+      </DataFetchErrorBoundary>
     </TouristLayout>
   );
 }

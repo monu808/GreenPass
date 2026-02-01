@@ -1,9 +1,13 @@
 'use client';
 
-import React, { useState, ChangeEvent } from 'react';
+import React, { useState, ChangeEvent, useRef } from 'react';
+import Image from 'next/image';
 import TouristLayout from '@/components/TouristLayout';
+import { sanitizeSearchTerm } from '@/lib/utils';
+import { validateInput, SearchFilterSchema } from '@/lib/validation';
+import { useModalAccessibility } from '@/lib/accessibility';
 import { 
-  Camera, MapPin, Download, Heart, Share2, 
+  MapPin, Download, Heart, Share2, 
   Eye, Search, Upload, X, Sparkles 
 } from 'lucide-react';
 
@@ -23,6 +27,13 @@ export default function PhotoGallery() {
   const [selectedPhoto, setSelectedPhoto] = useState<Photo | null>(null);
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [selectedTag, setSelectedTag] = useState<string>('all');
+  const modalRef = useRef<HTMLDivElement>(null);
+
+  useModalAccessibility({
+    modalRef,
+    isOpen: !!selectedPhoto,
+    onClose: () => setSelectedPhoto(null)
+  });
   
   // Full Dataset with 9 high-quality entries
   const [photos] = useState<Photo[]>([
@@ -41,10 +52,18 @@ export default function PhotoGallery() {
     alert(`${type} initiated for photo ID: ${id}`);
   };
 
-  const filteredPhotos = photos.filter(p => 
-    (selectedTag === 'all' || p.tags.includes(selectedTag)) &&
-    (p.title.toLowerCase().includes(searchTerm.toLowerCase()) || p.location.toLowerCase().includes(searchTerm.toLowerCase()))
-  );
+  const filteredPhotos = photos.filter(p => {
+    const sanitizedSearch = sanitizeSearchTerm(searchTerm);
+    
+    const filterValidation = validateInput(SearchFilterSchema, {
+      searchTerm: sanitizedSearch,
+    });
+
+    const validFilters = filterValidation.success ? filterValidation.data : { searchTerm: "" };
+
+    return (selectedTag === 'all' || p.tags.includes(selectedTag)) &&
+    (p.title.toLowerCase().includes(validFilters.searchTerm?.toLowerCase() || "") || p.location.toLowerCase().includes(validFilters.searchTerm?.toLowerCase() || ""));
+  });
 
   return (
     <TouristLayout>
@@ -54,7 +73,7 @@ export default function PhotoGallery() {
         <div className="pt-10 flex flex-col md:flex-row justify-between items-center gap-8">
           <div className="space-y-2">
             <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-emerald-50 rounded-full border border-emerald-100">
-               <Sparkles className="h-3.5 w-3.5 text-emerald-600" />
+               <Sparkles className="h-3.5 w-3.5 text-emerald-600" aria-hidden="true" />
                <span className="text-[10px] font-black uppercase tracking-widest text-emerald-600">Visual Archives</span>
             </div>
             <h1 className="text-6xl font-black text-gray-900 tracking-tighter leading-none">The <span className="text-emerald-600">Gallery</span></h1>
@@ -62,17 +81,18 @@ export default function PhotoGallery() {
           <button 
             type="button" 
             onClick={() => handleAction('Upload', 'new')} 
-            className="bg-gray-900 text-white px-10 py-5 rounded-[2rem] font-black text-xs uppercase tracking-widest hover:bg-emerald-600 transition-all flex items-center gap-3 shadow-2xl active:scale-95"
+            className="bg-gray-900 text-white px-10 py-5 rounded-[2rem] font-black text-xs uppercase tracking-widest hover:bg-emerald-600 transition-all flex items-center gap-3 shadow-2xl active:scale-95 focus:outline-none focus:ring-4 focus:ring-emerald-500/20"
+            aria-label="Contribute a photo"
           >
-            <Upload className="h-4 w-4" /> Contribute
+            <Upload className="h-4 w-4" aria-hidden="true" /> Contribute
           </button>
         </div>
 
         {/* SEARCH & FILTER */}
-        <div className="flex flex-col md:flex-row gap-4 bg-white p-4 rounded-[2.5rem] border border-gray-100 shadow-sm">
+        <div className="flex flex-col md:flex-row gap-4 bg-white p-4 rounded-[2.5rem] border border-gray-100 shadow-sm" role="search" aria-label="Gallery search and filters">
           <div className="flex-1 relative group">
             <label htmlFor="gallery-search" className="sr-only">Search landscape or valley</label>
-            <Search className="absolute left-6 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400 group-focus-within:text-emerald-500" />
+            <Search className="absolute left-6 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400 group-focus-within:text-emerald-500" aria-hidden="true" />
             <input
               id="gallery-search"
               type="text"
@@ -82,13 +102,14 @@ export default function PhotoGallery() {
               className="w-full pl-16 pr-8 py-4 bg-gray-50 border-none rounded-[1.8rem] font-bold text-gray-700 outline-none focus:ring-4 focus:ring-emerald-500/5 transition-all"
             />
           </div>
-          <div className="flex bg-gray-50 p-1.5 rounded-[1.8rem] border border-gray-100 overflow-x-auto">
+          <div className="flex bg-gray-50 p-1.5 rounded-[1.8rem] border border-gray-100 overflow-x-auto" role="group" aria-label="Filter by category">
             {['all', 'Mountain', 'Lake', 'Adventure', 'Valley'].map((tag) => (
               <button
                 key={tag}
                 type="button"
                 onClick={() => setSelectedTag(tag)}
-                className={`px-6 py-2.5 rounded-[1.5rem] text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${
+                aria-pressed={selectedTag === tag}
+                className={`px-6 py-2.5 rounded-[1.5rem] text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap focus:outline-none focus:ring-2 focus:ring-emerald-500 ${
                   selectedTag === tag ? "bg-white text-emerald-600 shadow-sm" : "text-gray-400 hover:text-gray-600"
                 }`}
               >
@@ -99,53 +120,64 @@ export default function PhotoGallery() {
         </div>
 
         {/* PHOTO GRID */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-          {filteredPhotos.map((photo) => (
+        <div 
+          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8"
+          role="region"
+          aria-label="Photo gallery results"
+          aria-live="polite"
+        >
+          {filteredPhotos.map((photo, index) => (
             <div key={photo.id} className="group relative bg-white rounded-[3rem] overflow-hidden border border-gray-50 shadow-sm hover:shadow-2xl transition-all duration-700">
               <div 
-  className="h-60 relative overflow-hidden cursor-pointer" 
-  onClick={() => setSelectedPhoto(photo)}
-  role="button"
-  tabIndex={0}
-  aria-label={`Open ${photo.title}`} // Added label for screen readers
-  onKeyDown={(e) => {
-    // Added support for Spacebar and Enter
-    if (e.key === 'Enter' || e.key === ' ') {
-      e.preventDefault();
-      setSelectedPhoto(photo);
-    }
-  }}
->
-  <img src={photo.url} className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-110" alt={photo.title} />
-  <div className="absolute inset-0 bg-emerald-950/20 group-hover:bg-transparent transition-all" />
-  <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-      <div className="p-4 bg-white/20 backdrop-blur-xl rounded-full border border-white/30 text-white shadow-2xl"><Eye className="h-6 w-6" /></div>
-  </div>
-</div>
-<div className="p-8 flex items-center justify-between">
-  <div>
-    <h3 className="text-xl font-black text-gray-900 tracking-tight">{photo.title}</h3>
-    <p className="text-gray-400 font-bold text-[10px] flex items-center gap-1 uppercase tracking-widest"><MapPin className="h-3 w-3 text-emerald-500" /> {photo.location}</p>
-  </div>
-  <div className="flex gap-2">
-    <button 
-      type="button" 
-      aria-label={`Like ${photo.title}`} // Added unique label
-      aria-pressed={photo.isLiked} // Communicates if liked or not
-      onClick={() => handleAction('Like', photo.id)} 
-      className={`p-3 rounded-2xl border transition-all ${photo.isLiked ? 'bg-rose-50 border-rose-100 text-rose-500' : 'bg-gray-50 border-gray-100 text-gray-400 hover:text-emerald-600'}`}
-    >
-      <Heart className="h-4 w-4" />
-    </button>
-    <button 
-      type="button" 
-      aria-label={`Share ${photo.title}`} // Added unique label
-      onClick={() => handleAction('Share', photo.id)} 
-      className="p-3 bg-gray-50 border border-gray-100 text-gray-400 rounded-2xl hover:text-emerald-600 transition-all"
-    >
-      <Share2 className="h-4 w-4" />
-    </button>
-  </div>
+                className="h-60 relative overflow-hidden cursor-pointer bg-slate-100 shimmer focus-within:ring-4 focus-within:ring-emerald-500/20" 
+                onClick={() => setSelectedPhoto(photo)}
+                role="button"
+                tabIndex={0}
+                aria-label={`View larger version of ${photo.title} in ${photo.location}`}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    setSelectedPhoto(photo);
+                  }
+                }}
+              >
+                <Image 
+                  src={photo.url} 
+                  className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-110" 
+                  alt={photo.title}
+                  fill
+                  sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                  priority={index < 3}
+                />
+                <div className="absolute inset-0 bg-emerald-950/20 group-hover:bg-transparent transition-all" aria-hidden="true" />
+                <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity" aria-hidden="true">
+                    <div className="p-4 bg-white/20 backdrop-blur-xl rounded-full border border-white/30 text-white shadow-2xl"><Eye className="h-6 w-6" /></div>
+                </div>
+              </div>
+              <div className="p-8 flex items-center justify-between">
+                <div>
+                  <h3 className="text-xl font-black text-gray-900 tracking-tight">{photo.title}</h3>
+                  <p className="text-gray-400 font-bold text-[10px] flex items-center gap-1 uppercase tracking-widest"><MapPin className="h-3 w-3 text-emerald-500" aria-hidden="true" /> {photo.location}</p>
+                </div>
+                <div className="flex gap-2">
+                  <button 
+                    type="button" 
+                    aria-label={`Like ${photo.title}`}
+                    aria-pressed={photo.isLiked}
+                    onClick={() => handleAction('Like', photo.id)} 
+                    className={`p-3 rounded-2xl border transition-all focus:outline-none focus:ring-2 focus:ring-rose-500 ${photo.isLiked ? 'bg-rose-50 border-rose-100 text-rose-500' : 'bg-gray-50 border-gray-100 text-gray-400 hover:text-emerald-600'}`}
+                  >
+                    <Heart className="h-4 w-4" aria-hidden="true" />
+                  </button>
+                  <button 
+                    type="button" 
+                    aria-label={`Share ${photo.title}`}
+                    onClick={() => handleAction('Share', photo.id)} 
+                    className="p-3 bg-gray-50 border border-gray-100 text-gray-400 rounded-2xl hover:text-emerald-600 transition-all focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  >
+                    <Share2 className="h-4 w-4" aria-hidden="true" />
+                  </button>
+                </div>
               </div>
             </div>
           ))}
@@ -153,18 +185,33 @@ export default function PhotoGallery() {
 
         {/* LIGHTBOX MODAL */}
         {selectedPhoto && (
-          <div className="fixed inset-0 bg-emerald-950/95 backdrop-blur-2xl z-[100] flex items-center justify-center p-6 animate-in fade-in duration-300">
-            <div className="relative w-full max-w-5xl bg-white rounded-[4rem] overflow-hidden shadow-2xl flex flex-col lg:flex-row">
+          <div 
+            className="fixed inset-0 bg-emerald-950/95 backdrop-blur-2xl z-[100] flex items-center justify-center p-6 animate-in fade-in duration-300"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="lightbox-title"
+          >
+            <div 
+              ref={modalRef}
+              className="relative w-full max-w-5xl bg-white rounded-[4rem] overflow-hidden shadow-2xl flex flex-col lg:flex-row"
+            >
               <button 
                 type="button"
                 onClick={() => setSelectedPhoto(null)} 
-                className="absolute top-8 right-8 p-3 bg-gray-50 text-gray-400 rounded-full hover:bg-rose-50 hover:text-rose-500 transition-all z-20 active:scale-90"
+                aria-label="Close photo preview"
+                className="absolute top-8 right-8 p-3 bg-gray-50 text-gray-400 rounded-full hover:bg-rose-50 hover:text-rose-500 transition-all z-20 active:scale-90 focus:outline-none focus:ring-2 focus:ring-rose-500"
               >
-                <X className="h-7 w-7" />
+                <X className="h-7 w-7" aria-hidden="true" />
               </button>
               
-              <div className="lg:w-2/3 h-[400px] lg:h-[600px] bg-gray-100">
-                <img src={selectedPhoto.url} className="w-full h-full object-cover" alt={selectedPhoto.title} />
+              <div className="lg:w-2/3 h-[400px] lg:h-[600px] bg-slate-100 shimmer relative">
+                <Image 
+                  src={selectedPhoto.url} 
+                  className="w-full h-full object-cover" 
+                  alt={selectedPhoto.title} 
+                  fill
+                  sizes="(max-width: 1024px) 100vw, 66vw"
+                />
               </div>
 
               <div className="lg:w-1/3 p-12 space-y-10 flex flex-col justify-center bg-white">
@@ -174,9 +221,9 @@ export default function PhotoGallery() {
                        <span key={t} className="px-4 py-1.5 bg-emerald-50 text-emerald-600 rounded-full text-[9px] font-black uppercase tracking-widest border border-emerald-100">{t}</span>
                      ))}
                    </div>
-                   <h2 className="text-5xl font-black text-gray-900 tracking-tighter leading-tight">{selectedPhoto.title}</h2>
+                   <h2 id="lightbox-title" className="text-5xl font-black text-gray-900 tracking-tighter leading-tight">{selectedPhoto.title}</h2>
                    <p className="text-gray-400 font-bold flex items-center gap-2">
-                     <MapPin className="h-4 w-4 text-emerald-500" /> {selectedPhoto.location}
+                     <MapPin className="h-4 w-4 text-emerald-500" aria-hidden="true" /> {selectedPhoto.location}
                    </p>
                 </div>
 
@@ -184,9 +231,10 @@ export default function PhotoGallery() {
                    <button 
                      type="button"
                      onClick={() => handleAction('Download', selectedPhoto.id)} 
-                     className="w-full py-5 bg-gray-900 text-white rounded-[2rem] font-black text-xs uppercase tracking-widest hover:bg-emerald-600 transition-all flex items-center justify-center gap-3 shadow-xl active:scale-95"
+                     className="w-full py-5 bg-gray-900 text-white rounded-[2rem] font-black text-xs uppercase tracking-widest hover:bg-emerald-600 transition-all flex items-center justify-center gap-3 shadow-xl active:scale-95 focus:outline-none focus:ring-4 focus:ring-emerald-500/20"
+                     aria-label={`Save high resolution version of ${selectedPhoto.title}`}
                    >
-                      <Download className="h-4 w-4" /> Save High-Res
+                      <Download className="h-4 w-4" aria-hidden="true" /> Save High-Res
                    </button>
                 </div>
               </div>

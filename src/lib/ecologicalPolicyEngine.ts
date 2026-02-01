@@ -3,10 +3,12 @@ import {
   Alert, 
   DynamicCapacityResult, 
   DynamicCapacityFactors, 
-  CapacityOverride 
+  CapacityOverride,
+  EcologicalDamageIndicators 
 } from '@/types';
 import { getDbService } from './databaseService';
 import { WeatherData } from './weatherService';
+import { logger } from './logger';
 
 export type SensitivityLevel = 'low' | 'medium' | 'high' | 'critical';
 
@@ -97,7 +99,11 @@ export class EcologicalPolicyEngine {
           this.policies = { ...DEFAULT_POLICIES, ...JSON.parse(saved) };
         }
       } catch (e) {
-        console.error('Failed to load policies from storage', e);
+        logger.error(
+          'Failed to load policies from storage',
+          e,
+          { component: 'ecologicalPolicyEngine', operation: 'loadPolicies' }
+        );
       }
     }
   }
@@ -107,7 +113,11 @@ export class EcologicalPolicyEngine {
       try {
         localStorage.setItem('ecological_policies', JSON.stringify(this.policies));
       } catch (e) {
-        console.error('Failed to save policies to storage', e);
+        logger.error(
+          'Failed to save policies to storage',
+          e,
+          { component: 'ecologicalPolicyEngine', operation: 'savePolicies' }
+        );
       }
     }
   }
@@ -130,7 +140,11 @@ export class EcologicalPolicyEngine {
           }) as [string, CapacityOverride][]);
         }
       } catch (e) {
-        console.error('Failed to load overrides from storage', e);
+        logger.error(
+          'Failed to load overrides from storage',
+          e,
+          { component: 'ecologicalPolicyEngine', operation: 'loadOverrides' }
+        );
       }
     }
   }
@@ -141,7 +155,11 @@ export class EcologicalPolicyEngine {
         const obj = Object.fromEntries(this.overrides.entries());
         localStorage.setItem('capacity_overrides', JSON.stringify(obj));
       } catch (e) {
-        console.error('Failed to save overrides to storage', e);
+        logger.error(
+          'Failed to save overrides to storage',
+          e,
+          { component: 'ecologicalPolicyEngine', operation: 'saveOverrides' }
+        );
       }
     }
   }
@@ -175,9 +193,11 @@ export class EcologicalPolicyEngine {
   clearCapacityOverride(destinationId: string) {
     this.overrides.delete(destinationId);
     this.saveOverridesToStorage();
+    logger.info(`Capacity override cleared for destination ${destinationId}`);
   }
 
-  /**
+
+/**
    * Evaluates weather data against safety thresholds to generate alerts.
    */
   checkWeatherAlerts(destination: Destination, weatherData: WeatherData): AlertCheckResult {
@@ -239,7 +259,18 @@ export class EcologicalPolicyEngine {
     };
   }
 
-  async getWeatherFactor(destinationId: string): Promise<number> {
+  async getWeatherFactor(destinationId: string, weatherData?: WeatherConditions): Promise<number> {
+    if (weatherData && weatherData.alert_level) {
+      const multipliers: Record<string, number> = {
+        none: 1.0,
+        low: 0.90,
+        medium: 0.85,
+        high: 0.80,
+        critical: 0.75
+      };
+      return multipliers[weatherData.alert_level] || 1.0;
+    }
+
     const dbService = getDbService();
     const weather = await dbService.getLatestWeatherData(destinationId);
     
@@ -272,40 +303,43 @@ export class EcologicalPolicyEngine {
     return utilization > 0.85 ? 0.90 : 1.0;
   }
 
-  async getEcologicalIndicatorFactor(destinationId: string): Promise<number> {
-    const dbService = getDbService();
-    const indicators = await dbService.getLatestEcologicalIndicators(destinationId);
+  async getEcologicalIndicatorFactor(destinationId: string, indicators?: EcologicalDamageIndicators): Promise<number> {
+    if (!indicators) {
+      const dbService = getDbService();
+      indicators = (await dbService.getLatestEcologicalIndicators(destinationId)) || undefined;
+    }
     
     if (!indicators) return 1.0;
 
     // Calculate a combined strain factor from 0 to 1
     // Higher values (approaching 1) mean more damage/strain
-    const { soil_compaction, vegetation_disturbance, wildlife_disturbance, water_source_impact } = indicators;
-    const avgStrain = (soil_compaction + vegetation_disturbance + wildlife_disturbance + water_source_impact) / 400; // Assuming each is 0-100
+    // Handle both snake_case (DB) and camelCase (input)
+    const soil = indicators.soil_compaction ?? indicators.soilCompaction ?? 0;
+    const veg = indicators.vegetation_disturbance ?? indicators.vegetationDisturbance ?? 0;
+    const wildlife = indicators.wildlife_disturbance ?? indicators.wildlifeDisturbance ?? 0;
+    const water = indicators.water_source_impact ?? indicators.waterSourceImpact ?? 0;
+    
+    const avgStrain = (soil + veg + wildlife + water) / 400; // Assuming each is 0-100
 
     if (avgStrain > 0.7) return 0.80; // High strain
     if (avgStrain > 0.4) return 0.90; // Medium strain
     return 1.0;
   }
 
-  async getDynamicCapacity(destination: Destination, weatherData?: WeatherConditions): Promise<DynamicCapacityResult> {
+  async getDynamicCapacity(
+    destination: Destination, 
+    weatherData?: WeatherConditions, 
+    indicators?: EcologicalDamageIndicators
+  ): Promise<DynamicCapacityResult> {
     const policy = this.getPolicy(destination.ecologicalSensitivity);
     const ecologicalMultiplier = policy.capacityMultiplier;
     
     // Get weather factor - use provided data if available, otherwise fetch
-    let weatherMultiplier = 1.0;
-    if (weatherData && weatherData.alert_level) {
-      const multipliers: Record<string, number> = {
-        none: 1.0, low: 0.90, medium: 0.85, high: 0.80, critical: 0.75
-      };
-      weatherMultiplier = multipliers[weatherData.alert_level] || 1.0;
-    } else {
-      weatherMultiplier = await this.getWeatherFactor(destination.id);
-    }
+    const weatherMultiplier = await this.getWeatherFactor(destination.id, weatherData);
 
     const seasonMultiplier = this.getSeasonFactor();
     const utilizationMultiplier = this.getUtilizationFactor(destination);
-    const ecologicalIndicatorMultiplier = await this.getEcologicalIndicatorFactor(destination.id);
+    const ecologicalIndicatorMultiplier = await this.getEcologicalIndicatorFactor(destination.id, indicators);
     
     const override = this.getCapacityOverride(destination.id);
     const overrideMultiplier = override ? override.multiplier : 1.0;
@@ -396,9 +430,38 @@ export class EcologicalPolicyEngine {
     }
   }
 
-  async getAdjustedCapacity(destination: Destination): Promise<number> {
-    const result = await this.getDynamicCapacity(destination);
+  async getAdjustedCapacity(
+    destination: Destination, 
+    weatherData?: WeatherConditions, 
+    indicators?: EcologicalDamageIndicators
+  ): Promise<number> {
+    const result = await this.getDynamicCapacity(destination, weatherData, indicators);
     return result.adjustedCapacity;
+  }
+
+  async getBatchAdjustedCapacities(
+    destinations: Destination[], 
+    weatherMap: Map<string, WeatherConditions>, 
+    indicatorsMap: Map<string, EcologicalDamageIndicators>
+  ): Promise<Map<string, number>> {
+    const resultMap = new Map<string, number>();
+    
+    const results = await Promise.all(destinations.map(async (dest) => {
+      const weather = weatherMap.get(dest.id);
+      const indicators = indicatorsMap.get(dest.id);
+      
+      const weatherConditions: WeatherConditions | undefined = weather ? {
+        alert_level: weather.alert_level || 'none',
+        temperature: weather.temperature,
+        humidity: weather.humidity
+      } : undefined;
+
+      const capacity = await this.getAdjustedCapacity(dest, weatherConditions, indicators);
+      return { id: dest.id, capacity };
+    }));
+
+    results.forEach(res => resultMap.set(res.id, res.capacity));
+    return resultMap;
   }
 
   async getAvailableSpots(destination: Destination): Promise<number> {

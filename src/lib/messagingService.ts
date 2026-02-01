@@ -1,4 +1,5 @@
-import { createServerComponentClient } from './supabase';
+import { createServerComponentClient } from '@/lib/supabase';
+import { logger } from './logger';
 
 export type BroadcastPayload = 
   | { 
@@ -24,7 +25,7 @@ export type BroadcastPayload =
  * broadcast publishes a message to the SHARED channel (Supabase Realtime),
  * which will then be received by ALL server instances and flushed to their local SSE clients.
  */
-export const broadcast = async (data: BroadcastPayload) => {
+export const distributedBroadcast = async (data: BroadcastPayload) => {
   try {
     const supabase = createServerComponentClient();
     if (!supabase) {
@@ -42,6 +43,10 @@ export const broadcast = async (data: BroadcastPayload) => {
     
     console.log('📡 Distributed broadcast sent to shared channel');
   } catch (error) {
-    console.error('❌ Failed to send distributed broadcast:', error);
+    logger.error(
+      'Failed to send distributed broadcast',
+      error,
+      { component: 'messagingService', operation: 'distributedBroadcast' }
+    );
   }
 };

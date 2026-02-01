@@ -2,6 +2,8 @@
 
 import React from 'react';
 import { AlertTriangle, RefreshCw } from 'lucide-react';
+import { errorReporter } from '@/lib/errors/errorReportingService';
+import { ErrorType } from '@/lib/errors/types';
 
 interface ErrorBoundaryState {
   hasError: boolean;
@@ -23,6 +25,22 @@ class ErrorBoundary extends React.Component<
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
     console.error('Error boundary caught an error:', error, errorInfo);
+    
+    // Report to error monitoring service
+    try {
+      const componentName = errorInfo.componentStack?.split('\n')[1]?.trim() || 'Unknown';
+      errorReporter.captureError(error, {
+        type: ErrorType.UNKNOWN,
+        message: error.message,
+        timestamp: Date.now(),
+        componentStack: errorInfo.componentStack,
+        component: componentName,
+        operation: 'render'
+      });
+    } catch (reportingError) {
+      // Fallback if error reporting fails
+      console.error('Failed to report error to monitoring service:', reportingError);
+    }
   }
 
   render() {

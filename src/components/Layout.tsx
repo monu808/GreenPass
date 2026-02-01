@@ -27,9 +27,12 @@ export default function Layout({ children, requireAdmin = false, forceAdminLayou
   return (
     <ProtectedRoute requireAdmin={requireAdmin}>
       <div className="min-h-screen bg-gray-50">
+        <a href="#main-content" className="skip-link">
+          Skip to main content
+        </a>
         <Sidebar isOpen={isSidebarOpen} setIsOpen={setIsSidebarOpen} />
         <Header onMenuClick={() => setIsSidebarOpen(true)} />
-        <main className="lg:ml-64 pt-16 transition-all duration-300">
+        <main id="main-content" aria-label="Main content" className="lg:ml-64 pt-16 transition-all duration-300">
           <DatabaseStatusBanner />
           <div className="p-4 lg:p-6">
             {children}

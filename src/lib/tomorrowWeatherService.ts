@@ -1,3 +1,5 @@
+import { logger } from '@/lib/logger'; // ✅ NEW IMPORT
+
 /**
  * Normalized weather data structure used across the application.
  */
@@ -164,8 +166,7 @@ class TomorrowWeatherService {
 
   /**
    * Fetches real-time weather data for a specific location.
-   * 
-   * @param {number} lat - Latitude of the location.
+   * * @param {number} lat - Latitude of the location.
    * @param {number} lon - Longitude of the location.
    * @param {string} [cityName='Unknown Location'] - Name of the city/location for logging.
    * @param {AbortSignal} [signal] - Optional signal to abort the fetch request.
@@ -189,29 +190,29 @@ class TomorrowWeatherService {
 
       const url = `${this.baseUrl}/realtime?location=${lat},${lon}&fields=${fields}&units=metric&apikey=${this.apiKey}`;
 
-      console.log(`🌐 Requesting weather data for ${cityName}...`);
+      logger.debug(`🌐 Requesting weather data for ${cityName}...`);
       const response = await fetch(url, { signal });
 
       if (response.status === 429) {
-        console.warn(`⚠️ Rate limit exceeded for ${cityName}, using fallback weather data`);
+        logger.warn(`⚠️ Rate limit exceeded for ${cityName}, using fallback weather data`);
         return this.getFallbackWeatherData(lat, lon, cityName);
       }
 
       if (!response.ok) {
-        console.warn(`⚠️ API error ${response.status} for ${cityName}, using fallback weather data`);
+        logger.warn(`⚠️ API error ${response.status} for ${cityName}, using fallback weather data`);
         return this.getFallbackWeatherData(lat, lon, cityName);
       }
 
       const data = await response.json();
-      console.log(`✅ Successfully fetched weather data for ${cityName}`);
+      logger.debug(`✅ Successfully fetched weather data for ${cityName}`);
       return this.transformWeatherData(data, cityName);
     } catch (error) {
       if ((error as { name?: string })?.name === 'AbortError') {
-        console.log(`⏹️ Weather fetch aborted for ${cityName}`);
+        logger.debug(`⏹️ Weather fetch aborted for ${cityName}`);
         return null;
       }
-      console.error('Error fetching weather data from Tomorrow.io:', error);
-      console.log(`📋 Generating fallback weather data for ${cityName}`);
+      logger.error('Error fetching weather data from Tomorrow.io:', error);
+      logger.warn(`📋 Generating fallback weather data for ${cityName}`);
       return this.getFallbackWeatherData(lat, lon, cityName);
     }
   }
@@ -264,8 +265,7 @@ class TomorrowWeatherService {
 
   /**
    * Fetches weather forecast for a specific location.
-   * 
-   * @param {number} lat - Latitude of the location.
+   * * @param {number} lat - Latitude of the location.
    * @param {number} lon - Longitude of the location.
    * @param {number} [days=5] - Number of days to forecast.
    * @returns {Promise<TomorrowApiResponse | null>} Forecast data or null if fetch fails.
@@ -298,31 +298,43 @@ class TomorrowWeatherService {
 
       return await response.json();
     } catch (error) {
-      console.error('Error fetching forecast data from Tomorrow.io:', error);
+      logger.error('Error fetching forecast data from Tomorrow.io:', error);
       return null;
     }
   }
 
   private transformWeatherData(data: TomorrowRealtimeResponse, cityName: string): WeatherData {
-    const values = data.data?.values || {};
-    const weatherCode = values.weatherCode || 0;
+    const values = data.data?.values || {
+      temperature: 0,
+      humidity: 0,
+      pressureSeaLevel: 0,
+      windSpeed: 0,
+      windDirection: 0,
+      visibility: 0,
+      uvIndex: 0,
+      cloudCover: 0,
+      precipitationProbability: 0,
+      precipitationType: 0,
+      weatherCode: 0
+    };
+    const weatherCode = values.weatherCode;
     const weatherInfo = this.weatherCodeMap[weatherCode] || this.weatherCodeMap[0];
 
     return {
-      temperature: values.temperature || 0,
-      humidity: values.humidity || 0,
-      pressure: values.pressureSeaLevel || 0,
+      temperature: values.temperature,
+      humidity: values.humidity,
+      pressure: values.pressureSeaLevel,
       weatherMain: weatherInfo.main,
       weatherDescription: weatherInfo.description,
-      windSpeed: values.windSpeed || 0,
-      windDirection: values.windDirection || 0,
-      visibility: values.visibility || 0,
+      windSpeed: values.windSpeed,
+      windDirection: values.windDirection,
+      visibility: values.visibility,
       cityName,
       icon: weatherInfo.icon,
-      uvIndex: values.uvIndex || 0,
-      cloudCover: values.cloudCover || 0,
-      precipitationProbability: values.precipitationProbability || 0,
-      precipitationType: this.getPrecipitationType(values.precipitationType || 0)
+      uvIndex: values.uvIndex,
+      cloudCover: values.cloudCover,
+      precipitationProbability: values.precipitationProbability,
+      precipitationType: this.getPrecipitationType(values.precipitationType)
     };
   }
 
@@ -345,8 +357,7 @@ class TomorrowWeatherService {
 
   /**
    * Evaluates weather data against safety thresholds to generate alerts.
-   * 
-   * @param {WeatherData} weatherData - The weather data to evaluate.
+   * * @param {WeatherData} weatherData - The weather data to evaluate.
    * @returns {{ shouldAlert: boolean; reason: string }} Alert status and reason.
    */
   shouldGenerateAlert(weatherData: WeatherData): { shouldAlert: boolean; reason: string } {
@@ -394,8 +405,7 @@ class TomorrowWeatherService {
 
   /**
    * Retrieves the appropriate icon code for a given weather condition.
-   * 
-   * @param {number} weatherCode - The Tomorrow.io weather code.
+   * * @param {number} weatherCode - The Tomorrow.io weather code.
    * @param {boolean} [isDay=true] - Whether it is currently daytime.
    * @returns {string} The icon code (e.g., '01d').
    */

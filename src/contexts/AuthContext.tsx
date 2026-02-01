@@ -1,9 +1,10 @@
 'use client';
 
-import { createContext, useContext, useEffect, useState } from 'react';
+import { createContext, useContext, useEffect, useState, useRef } from 'react';
 import { User, Session, AuthError } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
 import ErrorBoundary from '@/components/ErrorBoundary';
+import { logger } from '@/lib/logger';
 
 interface AuthContextType {
   user: User | null;
@@ -26,13 +27,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
+  const mountedRef = useRef(true);
 
   useEffect(() => {
+    mountedRef.current = true;
+    
     // Get initial session
     const getSession = async () => {
       try {
         if (!supabase) {
-          setLoading(false);
+          if (mountedRef.current) setLoading(false);
           return;
         }
         
@@ -40,30 +44,44 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const session = data?.session;
         
         if (error) {
-          console.error('Error getting session:', error);
+          logger.error(
+            'Error getting session',
+            error,
+            { component: 'AuthContext', operation: 'getSession' }
+          );
           // Clear any invalid session data
           await supabase.auth.signOut();
-          setSession(null);
-          setUser(null);
-          setIsAdmin(false);
-        } else {
-          setSession(session || null);
-          setUser(session?.user ?? null);
-          
-          if (session?.user) {
-            checkAdminStatus(session.user.id, session.user.email);
-          } else {
+          if (mountedRef.current) {
+            setSession(null);
+            setUser(null);
             setIsAdmin(false);
+          }
+        } else {
+          if (mountedRef.current) {
+            setSession(session || null);
+            setUser(session?.user ?? null);
+            
+            if (session?.user) {
+              checkAdminStatus(session.user.id, session.user.email);
+            } else {
+              setIsAdmin(false);
+            }
           }
         }
       } catch (error) {
-        console.error('Session error:', error);
-        setSession(null);
-        setUser(null);
-        setIsAdmin(false);
+        logger.error(
+          'Session error',
+          error,
+          { component: 'AuthContext', operation: 'getSession' }
+        );
+        if (mountedRef.current) {
+          setSession(null);
+          setUser(null);
+          setIsAdmin(false);
+        }
       }
       
-      setLoading(false);
+      if (mountedRef.current) setLoading(false);
     };
 
     getSession();
@@ -80,7 +98,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           if (process.env.NODE_ENV === 'development') {
             console.log('ℹ️ Weather monitor trigger deferred or failed (normal during dev restarts)');
           } else {
-            console.error('Failed to trigger weather monitor:', err);
+            logger.error(
+              'Failed to trigger weather monitor',
+              err,
+              { component: 'AuthContext', operation: 'triggerWeatherMonitor' }
+            );
           }
         });
     }, 2000);
@@ -95,25 +117,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       async (event, session) => {
         console.log('Auth state changed:', event, session?.user?.email);
         
-        if (event === 'SIGNED_OUT' || event === 'TOKEN_REFRESHED') {
-          setSession(session);
-          setUser(session?.user ?? null);
-        } else {
-          setSession(session);
-          setUser(session?.user ?? null);
+        if (mountedRef.current) {
+          if (event === 'SIGNED_OUT' || event === 'TOKEN_REFRESHED') {
+            setSession(session);
+            setUser(session?.user ?? null);
+          } else {
+            setSession(session);
+            setUser(session?.user ?? null);
+          }
+          
+          if (session?.user) {
+            checkAdminStatus(session.user.id, session.user.email);
+          } else {
+            setIsAdmin(false);
+          }
+          
+          setLoading(false);
         }
-        
-        if (session?.user) {
-          checkAdminStatus(session.user.id, session.user.email);
-        } else {
-          setIsAdmin(false);
-        }
-        
-        setLoading(false);
       }
     );
 
     return () => {
+      mountedRef.current = false;
       clearTimeout(triggerMonitor);
       subscription.unsubscribe();
     };
@@ -128,11 +153,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const isEmailAdmin = email && adminEmails.includes(email.toLowerCase());
       
       console.log('Email-based admin check result:', isEmailAdmin);
-      setIsAdmin(isEmailAdmin || false);
+      if (mountedRef.current) {
+        setIsAdmin(isEmailAdmin || false);
+      }
       
     } catch (error) {
-      console.error('Error checking admin status:', error);
-      setIsAdmin(false);
+      logger.error(
+        'Error checking admin status',
+        error,
+        { component: 'AuthContext', operation: 'checkAdminStatus', metadata: { userId: user?.id } }
+      );
+      if (mountedRef.current) {
+        setIsAdmin(false);
+      }
     }
   };
 
@@ -178,7 +211,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       });
       
       return { error };
-    } catch (error: any) {
+    } catch (error) {
       return { error: error as AuthError || { message: 'An unknown error occurred' } };
     }
   };
@@ -191,10 +224,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const { error } = await supabase.auth.verifyOtp({
         email,
         token: otp,
-        type: 'email' as any,
+        type: 'email',
       });
       return { error };
-    } catch (error: any) {
+    } catch (error) {
       return { error: error as AuthError || { message: 'An unknown error occurred' } };
     }
   };
@@ -205,12 +238,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     
     try {
       const { error } = await supabase.auth.resend({
-        type: 'email' as any,
-        email: email,
+        type: 'signup',
+        email,
       });
       
       return { error };
-    } catch (error: any) {
+    } catch (error) {
       return { error: error as AuthError || { message: 'An unknown error occurred' } };
     }
   };
@@ -236,8 +269,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const { error } = await supabase.auth.signOut();
       return { error };
-    } catch (error: any) {
-      console.error('Sign out error:', error);
+    } catch (error) {
+      logger.error(
+        'Sign out error',
+        error,
+        { component: 'AuthContext', operation: 'signOut', metadata: { userId: user?.id } }
+      );
       return { error: error as AuthError || { message: 'An unknown error occurred' } };
     }
   };

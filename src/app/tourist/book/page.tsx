@@ -7,6 +7,7 @@ import TouristLayout from '@/components/TouristLayout';
 import { getDbService } from '@/lib/databaseService';
 import { getPolicyEngine } from '@/lib/ecologicalPolicyEngine';
 import { getCarbonCalculator } from '@/lib/carbonFootprintCalculator';
+import { logger } from '@/lib/logger'; // ✅ NEW IMPORT
 import { 
   calculateSustainabilityScore, 
   findLowImpactAlternatives 
@@ -131,7 +132,25 @@ function BookDestinationForm() {
         setEcoAlert(alert);
       }
     } catch (error) {
-      console.error("Error loading destination:", error);
+       let msg = 'An unexpected error occurred while loading the destination. Please try again.';
+     if (error instanceof Error) {
+        if (error.message.includes('capacity')) {
+           msg = 'Destination load failed: capacity data is unavailable for the selected dates.';
+       } else if (error.message.includes('validation')) {
+         msg = 'Invalid data received while loading the destination.';
+       } else if (error.message.includes('payment')) {
+          msg = 'Destination load failed due to a payment configuration error.';
+        } else if (error.message.includes('network')) {
+          msg = 'Connection error while loading the destination. Please check your internet and try again.';
+        } else if (error.message.includes('timeout')) {
+          msg = 'Destination load timed out. Please try again.';
+        } else if (error.message.includes('duplicate')) {
+          msg = 'Duplicate destination data detected.';
+        } else {
+          msg = `Failed to load destination: ${error.message}`;
+        }
+      }
+      alert(msg);
     } finally {
       setLoading(false);
     }
@@ -317,7 +336,8 @@ function BookDestinationForm() {
         id_proof_type: "aadhaar" as const,
       };
       
-      console.log('Submitting booking data:', bookingData);
+      // ✅ LOGGING FIX: Replaced sensitive object dump with safe message
+      logger.debug('Submitting booking data for destination:', destination.id);
       
       const result = await dbService.addTourist(bookingData);
       
@@ -337,8 +357,25 @@ function BookDestinationForm() {
       }, 3000);
       
     } catch (error) {
-      console.error("Error submitting booking:", error);
-      alert("Failed to submit booking. Please try again.");
+    let msg = 'An unexpected error occurred while submitting your booking. Please try again.';
+  if (error instanceof Error) {
+    if (error.message.includes('capacity')) {
+      msg = 'Booking failed: insufficient available spots for the selected dates.';
+    } else if (error.message.includes('validation')) {
+      msg = 'invalid data: please check all required fields.';
+    } else if (error.message.includes('payment')) {
+      msg = 'Payment error: your transaction could not be processed.';
+    } else if (error.message.includes('network')) {
+      msg = 'connection error: please check your internet and try again.';
+    } else if (error.message.includes('timeout')) {
+      msg = 'Operation timed out. Please try again.';
+    } else if (error.message.includes('duplicate')) {
+      msg = 'You already have a booking for this date.';
+    } else {
+      msg = `Reserve failed: ${error.message}`;
+    }
+    alert(msg);
+  }
     } finally {
       setSubmitting(false);
     }

@@ -443,7 +443,7 @@ class DatabaseService {
         logger.error(
           'Error updating tourist status',
           error,
-          { component: 'databaseService', operation: 'updateTouristStatus', metadata: { touristId, newStatus } }
+          { component: 'databaseService', operation: 'updateTouristStatus', metadata: { touristId, status } }
         );
         return false;
       }

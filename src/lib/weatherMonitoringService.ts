@@ -38,7 +38,7 @@ class WeatherMonitor implements WeatherMonitoringService {
     this.isScanning = true;
 
     try {
-      logger.info('🔍 Checking weather conditions...', new Date().toLocaleTimeString());
+      logger.info('🔍 Checking weather conditions at ' + new Date().toLocaleTimeString());
 
       const dbService = getDbService();
       // Get all destinations

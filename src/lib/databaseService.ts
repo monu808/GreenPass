@@ -263,7 +263,10 @@ class DatabaseService {
         return null;
       }
 
-      console.log('Attempting to insert tourist atomically:', tourist);
+      console.log('Attempting to insert tourist atomically:', { 
+        destination_id: tourist.destination_id, 
+        group_size: tourist.group_size 
+      });
       
       if (!db) {
         console.error('Database client not initialized');

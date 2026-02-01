@@ -3,6 +3,15 @@ import { render, screen } from '@testing-library/react';
 import EcoSensitivityBadge from '@/components/EcoSensitivityBadge';
 import EcoCapacityAlert from '@/components/EcoCapacityAlert';
 import ErrorBoundary from '@/components/ErrorBoundary';
+import { errorReporter } from '@/lib/errors/errorReportingService';
+
+jest.mock('@/lib/errors/errorReportingService', () => ({
+  errorReporter: {
+    captureError: jest.fn().mockResolvedValue(undefined),
+    captureMessage: jest.fn().mockResolvedValue(undefined),
+    setUser: jest.fn(),
+  },
+}));
 
 describe('EcoSensitivityBadge Component', () => {
   it('renders correct label and variant for each sensitivity level', () => {

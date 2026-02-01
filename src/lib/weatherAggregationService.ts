@@ -159,10 +159,10 @@ class WeatherAggregator implements WeatherAggregationService {
     logger.debug(`🔄 Forcing refresh for ${destinationId}`);
     
     try {
-      // Invalidate existing cache first
+      // 1. Invalidate destination-level cache first
       await invalidateWeatherCache(destinationId);
       
-      // Get coordinates
+      // 2. Get coordinates for the destination
       const coordinates = destinationCoordinates[destinationId] ||
         destinationCoordinates[destinationId.toLowerCase().replace(/\s+/g, '')] ||
         destinationCoordinates[destinationId.toLowerCase()];
@@ -172,18 +172,28 @@ class WeatherAggregator implements WeatherAggregationService {
         return null;
       }
 
-      // Force fresh API call by bypassing cache
+      // 3. Compute and invalidate coordinate-based cache key (for any remaining coordinate caches)
+      const coordinateKey = `${coordinates.lat.toFixed(4)}_${coordinates.lon.toFixed(4)}`;
+      await invalidateWeatherCache(coordinateKey);
+      logger.debug(`🗑️ Invalidated coordinate cache key: ${coordinateKey}`);
+
+      // 4. Force fresh API call with forceRefresh=true to bypass any remaining caches
       const apiData = await weatherService.getWeatherByCoordinates(
         coordinates.lat,
         coordinates.lon,
         coordinates.name || destinationId,
         undefined, // No AbortSignal
-        destinationId // Pass destinationId as cacheKey
+        destinationId, // Pass destinationId as cacheKey
+        true // Force refresh to bypass any coordinate-based caching
       );
 
       if (apiData) {
         logger.debug(`✅ Fresh data obtained for ${destinationId} - caching result`);
+        
+        // 5. Store fresh data in both cache keys to ensure consistency
         await setWeatherToCache(destinationId, apiData);
+        await setWeatherToCache(coordinateKey, apiData);
+        
         return apiData;
       }
 

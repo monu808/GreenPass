@@ -172,14 +172,16 @@ class TomorrowWeatherService {
    * @param {string} [cityName='Unknown Location'] - Name of the city/location for logging.
    * @param {AbortSignal} [signal] - Optional signal to abort the fetch request.
    * @param {string} [cacheKey] - Optional cache key (unused - caching handled by aggregation layer).
+   * @param {boolean} [forceRefresh] - If true, bypass any coordinate-based caching and force fresh API call.
    * @returns {Promise<WeatherData | null>} Weather data or null if fetch fails.
    */
-  async getWeatherByCoordinates(lat: number, lon: number, cityName: string = 'Unknown Location', signal?: AbortSignal, cacheKey?: string): Promise<WeatherData | null> {
+  async getWeatherByCoordinates(lat: number, lon: number, cityName: string = 'Unknown Location', signal?: AbortSignal, cacheKey?: string, forceRefresh: boolean = false): Promise<WeatherData | null> {
     // Note: Caching is now handled by the weather aggregation service layer
     // This method only handles rate limiting and API calls
+    // forceRefresh parameter ensures fresh data when needed (bypasses any remaining caches)
     
     try {
-      logger.debug(`🌐 Requesting weather data for ${cityName}...`);
+      logger.debug(`🌐 Requesting weather data for ${cityName}${forceRefresh ? ' (forced refresh)' : ''}...`);
 
       // Check rate limit before making API call
       const rateLimitKey = cacheKey || `${lat.toFixed(4)}_${lon.toFixed(4)}`;
@@ -207,7 +209,8 @@ class TomorrowWeatherService {
         'weatherCode'
       ].join(',');
 
-      const url = `${this.baseUrl}/realtime?location=${lat},${lon}&fields=${fields}&units=metric&apikey=${this.apiKey}`;
+      // Add timestamp parameter to force fresh data when forceRefresh is true
+      const url = `${this.baseUrl}/realtime?location=${lat},${lon}&fields=${fields}&units=metric&apikey=${this.apiKey}${forceRefresh ? '&_t=' + Date.now() : ''}`;
 
       const response = await fetch(url, { signal });
 

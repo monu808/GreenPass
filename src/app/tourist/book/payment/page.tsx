@@ -178,88 +178,57 @@ function PaymentPageContent() {
     setErrorMessage(null);
 
     try {
-      // Fetch both the booking data and existing payments
-      const [bookingRes, paymentsRes] = await Promise.all([
-        // Fetch the actual booking row to get status, created_at, payment_status
-        fetch(`/api/bookings/${bookingId}`),
-        // Fetch payment history
-        fetch(`/api/payments/create-intent?booking_id=${bookingId}`),
-      ]);
+      // Fetch the booking data first
+      const bookingRes = await fetch(`/api/bookings/${bookingId}`);
 
-      // If booking endpoint doesn't exist yet, fall back to using payment endpoint
-      // and construct booking data from payment metadata (with caveats noted below)
-      let bookingData;
-      if (bookingRes.status === 404 && bookingRes.url.includes('/api/bookings/')) {
-        // Booking endpoint not implemented - use payment metadata as fallback
-        // NOTE: This fallback has limitations - see explanation below
-        if (!paymentsRes.ok) {
-          if (paymentsRes.status === 404) {
-            setLoadingState('error');
-            setErrorMessage('This booking no longer exists. Please create a new one.');
-            return;
-          }
-          if (paymentsRes.status === 401) {
-            router.push('/login');
-            return;
-          }
-          throw new Error('Failed to verify booking');
-        }
-
-        const paymentsData = await paymentsRes.json();
-
-        // FALLBACK MODE: Reconstruct booking from payment metadata
-        // CAVEAT: If no payments exist yet, we have no metadata, so we can't know
-        // the real created_at or status. This means a truly expired/cancelled booking
-        // might slip through. Implement /api/bookings/:id endpoint to fix this properly.
-        const hasSucceededPayment = paymentsData.payments?.some(
-          (p: { status: string }) => p.status === 'succeeded'
-        );
-
-        bookingData = {
-          id: bookingId,
-          status: 'pending',  // Assumption - may be wrong if booking was cancelled
-          payment_status: hasSucceededPayment ? 'paid' : 'unpaid',
-          destination_name: paymentsData.payments?.[0]?.metadata?.destination_name ?? 'Your Destination',
-          check_in_date: paymentsData.payments?.[0]?.metadata?.check_in_date ?? '',
-          check_out_date: paymentsData.payments?.[0]?.metadata?.check_out_date ?? '',
-          group_size: paymentsData.payments?.[0]?.metadata?.group_size ?? 1,
-          name: paymentsData.payments?.[0]?.metadata?.customer_name ?? 'Guest',
-          created_at: paymentsData.payments?.[0]?.created_at ?? new Date().toISOString(),
-        };
-      } else {
-        // Booking endpoint exists and returned data
-        if (!bookingRes.ok) {
-          if (bookingRes.status === 404) {
-            setLoadingState('error');
-            setErrorMessage('This booking no longer exists. Please create a new one.');
-            return;
-          }
-          if (bookingRes.status === 401) {
-            router.push('/login');
-            return;
-          }
-          throw new Error('Failed to fetch booking');
-        }
-
-        const booking = await bookingRes.json();
-        const paymentsData = paymentsRes.ok ? await paymentsRes.json() : { payments: [] };
-
-        const hasSucceededPayment = paymentsData.payments?.some(
-          (p: { status: string }) => p.status === 'succeeded'
-        );
-
-        bookingData = {
-          id: booking.id,
-          status: booking.status,
-          payment_status: hasSucceededPayment ? 'paid' : (booking.payment_status || 'unpaid'),
-          destination_name: booking.destination?.name ?? booking.destination_name ?? 'Your Destination',
-          check_in_date: booking.check_in_date,
-          check_out_date: booking.check_out_date,
-          group_size: booking.group_size,
-          name: booking.name,
-          created_at: booking.created_at,
-        };
+      // Handle booking not found (404) - treat as missing booking
+      if (bookingRes.status === 404) {
+        setLoadingState('error');
+        setErrorMessage('This booking no longer exists. Please create a new one.');
+        return;
       }
+
+      // Handle unauthorized - redirect to login
+      if (bookingRes.status === 401) {
+        router.push('/login');
+        return;
+      }
+
+      // Handle other booking errors
+      if (!bookingRes.ok) {
+        throw new Error('Failed to fetch booking');
+      }
+
+      const booking = await bookingRes.json();
+
+      // Fetch payment history for payment_status determination
+      let paymentsData = { payments: [] };
+      try {
+        const paymentsRes = await fetch(`/api/payments/create-intent?booking_id=${bookingId}`);
+        if (paymentsRes.ok) {
+          paymentsData = await paymentsRes.json();
+        }
+      } catch {
+        // Payment fetch failure is non-fatal - continue with booking data
+      }
+
+      // Determine if payment has succeeded based on payment history
+      const hasSucceededPayment = paymentsData.payments?.some(
+        (p: { status: string }) => p.status === 'succeeded'
+      );
+
+      // Build booking data from the real booking API response only
+      const bookingData: BookingRecoveryData = {
+        id: booking.id,
+        status: booking.status,
+        payment_status: hasSucceededPayment ? 'paid' : (booking.payment_status || 'unpaid'),
+        destination_name: booking.destination?.name ?? booking.destination_name ?? 'Your Destination',
+        check_in_date: booking.check_in_date,
+        check_out_date: booking.check_out_date,
+        group_size: booking.group_size,
+        name: booking.name,
+        created_at: booking.created_at,
+      };
 
       setBooking(bookingData);
       setLoadingState('ready');

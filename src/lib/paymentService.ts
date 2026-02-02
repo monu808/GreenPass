@@ -249,6 +249,63 @@ class PaymentService {
   }
 
   /**
+   * Create gateway-specific order for an existing payment record.
+   * Used by the atomic payment flow where the payment record is already created by the DB function.
+   */
+  async createGatewayOrder(
+    paymentId: string,
+    amount: number,
+    currency: string,
+    booking: any
+  ): Promise<PaymentIntent> {
+    if (!supabase) {
+      throw new Error('Payment service unavailable');
+    }
+
+    if (!this.isConfigured()) {
+      throw new Error('Payment gateway not properly configured');
+    }
+
+    try {
+      // Create the payment record object with the information we have
+      const paymentRecord: DbPayment = {
+        id: paymentId,
+        booking_id: booking.id,
+        user_id: booking.user_id,
+        amount: amount,
+        currency: currency,
+        status: 'pending' as PaymentStatus,
+        gateway: this.gateway,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
+
+      // Create gateway-specific order
+      if (this.gateway === 'razorpay') {
+        return await this.createRazorpayOrder(paymentRecord, booking);
+      } else {
+        return await this.createStripeIntent(paymentRecord);
+      }
+    } catch (error) {
+      logger.error(
+        'Error creating gateway order',
+        error,
+        {
+          component: 'paymentService',
+          operation: 'createGatewayOrder',
+          metadata: {
+            paymentId,
+            amount,
+            currency,
+            bookingId: booking.id
+          }
+        }
+      );
+      throw error;
+    }
+  }
+
+  /**
    * Create Razorpay order
    */
   private async createRazorpayOrder(payment: DbPayment, booking: any): Promise<PaymentIntent> {

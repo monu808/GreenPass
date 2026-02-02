@@ -296,11 +296,140 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- =============================================
--- ADVISORY LOCK HELPERS (for payment intent idempotency)
+-- ATOMIC PAYMENT INTENT CREATION
 -- =============================================
--- Wrapper functions to expose PostgreSQL advisory locks via Supabase RPC.
--- Used by the payment intent creation endpoint to prevent concurrent duplicate intents.
+-- This function atomically checks for existing payments and creates a new payment
+-- record if appropriate. It uses pg_advisory_xact_lock for transaction-level
+-- serialization, ensuring proper concurrency control even with connection pooling.
+--
+-- Returns a JSONB result with:
+--   - status: 'success' | 'already_paid' | 'active_payment' | 'lock_contention' | 'error'
+--   - payment_id: UUID of the created payment (only when status = 'success')
+--   - message: Human-readable description
+--   - retry_allowed: Boolean indicating if a retry can be attempted
+-- =============================================
 
+CREATE OR REPLACE FUNCTION create_payment_intent_atomic(
+  p_booking_id UUID,
+  p_user_id UUID,
+  p_amount INTEGER,
+  p_currency VARCHAR(3) DEFAULT 'INR',
+  p_gateway VARCHAR(20) DEFAULT 'razorpay',
+  p_payment_method VARCHAR(20) DEFAULT NULL,
+  p_metadata JSONB DEFAULT '{}'::JSONB
+)
+RETURNS JSONB AS $$
+DECLARE
+  v_booking_hash INTEGER;
+  v_existing_succeeded RECORD;
+  v_existing_active RECORD;
+  v_previous_count INTEGER;
+  v_new_payment_id UUID;
+  v_lock_acquired BOOLEAN;
+BEGIN
+  -- Compute a hash of the booking_id for the advisory lock
+  v_booking_hash := ('x' || substr(md5(p_booking_id::TEXT), 1, 8))::BIT(32)::INTEGER;
+
+  -- Try to acquire transaction-level advisory lock (non-blocking)
+  v_lock_acquired := pg_try_advisory_xact_lock(v_booking_hash);
+  
+  IF NOT v_lock_acquired THEN
+    -- Another transaction is creating a payment intent for this booking
+    RETURN jsonb_build_object(
+      'status', 'lock_contention',
+      'message', 'Payment intent creation already in progress. Please wait a moment and try again.',
+      'retry_allowed', true
+    );
+  END IF;
+
+  -- Check for already succeeded payment
+  SELECT id, status INTO v_existing_succeeded
+  FROM payments
+  WHERE booking_id = p_booking_id AND status = 'succeeded'
+  LIMIT 1;
+
+  IF v_existing_succeeded.id IS NOT NULL THEN
+    RETURN jsonb_build_object(
+      'status', 'already_paid',
+      'message', 'Payment already completed for this booking',
+      'retry_allowed', false,
+      'existing_payment_id', v_existing_succeeded.id
+    );
+  END IF;
+
+  -- Check for active (non-terminal) payment
+  SELECT id, status INTO v_existing_active
+  FROM payments
+  WHERE booking_id = p_booking_id 
+    AND status IN ('pending', 'processing', 'requires_action')
+  ORDER BY created_at DESC
+  LIMIT 1;
+
+  IF v_existing_active.id IS NOT NULL THEN
+    RETURN jsonb_build_object(
+      'status', 'active_payment',
+      'message', 'A payment is already in progress for this booking. Please wait or refresh the page.',
+      'retry_allowed', false,
+      'existing_payment_id', v_existing_active.id
+    );
+  END IF;
+
+  -- Count previous terminal payments for logging
+  SELECT COUNT(*) INTO v_previous_count
+  FROM payments
+  WHERE booking_id = p_booking_id;
+
+  -- All previous payments are terminal (failed/cancelled) or none exist - safe to create new intent
+  INSERT INTO payments (
+    booking_id,
+    user_id,
+    amount,
+    currency,
+    status,
+    gateway,
+    payment_method,
+    metadata
+  ) VALUES (
+    p_booking_id,
+    p_user_id,
+    p_amount,
+    p_currency,
+    'pending',
+    p_gateway,
+    p_payment_method,
+    p_metadata
+  )
+  RETURNING id INTO v_new_payment_id;
+
+  RETURN jsonb_build_object(
+    'status', 'success',
+    'message', CASE 
+      WHEN v_previous_count > 0 THEN 'Payment intent created (retry after ' || v_previous_count || ' previous attempt(s))'
+      ELSE 'Payment intent created'
+    END,
+    'payment_id', v_new_payment_id,
+    'retry_allowed', false,
+    'previous_attempts', v_previous_count
+  );
+
+EXCEPTION WHEN OTHERS THEN
+  RETURN jsonb_build_object(
+    'status', 'error',
+    'message', 'Failed to create payment intent: ' || SQLERRM,
+    'retry_allowed', true,
+    'error_code', SQLSTATE
+  );
+END;
+$$ LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp;
+
+-- Grant execute permissions
+GRANT EXECUTE ON FUNCTION create_payment_intent_atomic(UUID, UUID, INTEGER, VARCHAR, VARCHAR, VARCHAR, JSONB) TO authenticated;
+GRANT EXECUTE ON FUNCTION create_payment_intent_atomic(UUID, UUID, INTEGER, VARCHAR, VARCHAR, VARCHAR, JSONB) TO service_role;
+
+-- Keep the old advisory lock helpers for backwards compatibility during migration
+-- They can be removed after verifying the new function works correctly.
 CREATE OR REPLACE FUNCTION pg_try_advisory_lock(key INTEGER)
 RETURNS BOOLEAN AS $$
 BEGIN

@@ -3,9 +3,7 @@ import path from "path";
 
 const nextConfig: NextConfig = {
   /* config options here */
-  turbopack: {
-    root: path.resolve(__dirname),
-  },
+  staticPageGenerationTimeout: 120,
   images: {
     remotePatterns: [
       {

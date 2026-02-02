@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { generalRatelimit, weatherRatelimit } from '@/lib/redis';
+import { logger } from '@/lib/logger';
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -46,6 +47,11 @@ export async function middleware(request: NextRequest) {
                          pathname.includes('/auto-weather');
   
   const ratelimit = isWeatherRoute ? weatherRatelimit : generalRatelimit;
+  
+  // Skip rate limiting if Redis is not configured
+  if (!ratelimit) {
+    return NextResponse.next();
+  }
   
   try {
     const { success, limit, reset, remaining } = await ratelimit.limit(ip);

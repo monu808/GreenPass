@@ -1,3 +1,5 @@
+// File: src/hooks/mutations/useBookingMutation.ts
+
 'use client';
 
 import { useMutation, useQueryClient } from '@tanstack/react-query';
@@ -6,6 +8,7 @@ import { Database } from '@/types/database';
 import { queryKeys } from '@/lib/queryClient';
 import { generateOptimisticId } from '@/lib/optimisticUpdates';
 import { useToast } from '@/components/providers/ToastProvider';
+import { useRouter } from 'next/navigation';
 import { Tourist } from '@/types';
 
 type TouristInsert = Database['public']['Tables']['tourists']['Insert'];
@@ -55,13 +58,14 @@ export function useBookingMutation(options?: UseBookingMutationOptions) {
     return useMutation<TouristRow, Error, TouristInsert, BookingMutationContext>({
         mutationFn: async (bookingData: TouristInsert): Promise<TouristRow> => {
             const dbService = getDbService();
-            
-            // Create booking with payment_status = 'unpaid' by default
-            const bookingWithPaymentStatus = {
+
+            // Explicitly type payment_status so TypeScript validates against the
+            // tourists Insert type (which now includes payment_status).
+            const bookingWithPaymentStatus: TouristInsert = {
                 ...bookingData,
                 payment_status: 'unpaid',
             };
-            
+
             const result = await dbService.addTourist(bookingWithPaymentStatus);
             if (!result) {
                 throw new Error('Booking rejected by server');
@@ -132,7 +136,6 @@ export function useBookingMutation(options?: UseBookingMutationOptions) {
             // Replace the optimistic item with the real one
             if (context?.optimisticId) {
                 queryClient.setQueryData<Tourist[]>(queryKeys.tourists, (old: Tourist[] | undefined = []) => {
-                    // Transform DB row to Tourist type
                     const dbService = getDbService();
                     const realTourist = dbService.transformDbTouristToTourist(data);
                     return old.map((t: Tourist) => t.id === context.optimisticId ? realTourist : t);
@@ -153,14 +156,24 @@ export function useBookingMutation(options?: UseBookingMutationOptions) {
 }
 
 /**
- * Hook for payment-aware booking flow
- * Automatically redirects to payment after successful booking creation
+ * Hook for payment-aware booking flow.
+ *
+ * Uses Next.js router.push() instead of window.location.href so that:
+ *   1. The SPA navigation preserves React state / query-client cache.
+ *   2. The payment page can recover the booking from the DB on any subsequent
+ *      refresh or back-navigation without relying on sessionStorage.
+ *
+ * The booking_id in the URL is the source of truth — it references a real row
+ * in the `tourists` table with payment_status = 'unpaid'.  The payment page
+ * fetches that row on mount, so a page refresh loses nothing.
  */
 export function useBookingWithPayment() {
+    const router = useRouter();
+
     const bookingMutation = useBookingMutation({
-        onSuccess: (data, bookingId) => {
-            // Redirect to payment page
-            window.location.href = `/tourist/book/payment?booking_id=${bookingId}`;
+        onSuccess: (_data, bookingId) => {
+            // Client-side navigation — no full page reload needed.
+            router.push(`/tourist/book/payment?booking_id=${bookingId}`);
         },
     });
 

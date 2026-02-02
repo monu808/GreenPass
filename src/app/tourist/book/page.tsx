@@ -4,10 +4,12 @@ import React, { useState, useEffect, Suspense, useCallback } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { Calendar, Users, MapPin, Clock, Star, AlertTriangle, CheckCircle, Leaf, ShieldAlert, XCircle, RefreshCw, Globe, TreePine, Zap, Flame, Info } from 'lucide-react';
 import TouristLayout from '@/components/TouristLayout';
+import { FormErrorBoundary } from '@/components/errors';
 import { getDbService } from '@/lib/databaseService';
 import { getPolicyEngine } from '@/lib/ecologicalPolicyEngine';
 import { getCarbonCalculator } from '@/lib/carbonFootprintCalculator';
 import { logger } from '@/lib/logger'; // ✅ NEW IMPORT
+import { sanitizeObject } from '@/lib/utils';
 import { 
   calculateSustainabilityScore, 
   findLowImpactAlternatives 
@@ -31,7 +33,7 @@ function BookDestinationForm() {
   const { user } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const destinationId = searchParams.get('destination');
+  const destinationId = searchParams?.get('destination');
   
   const [destination, setDestination] = useState<Destination | null>(null);
   const [allDestinationsState, setAllDestinationsState] = useState<Destination[]>([]);
@@ -66,6 +68,16 @@ function BookDestinationForm() {
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [carbonFootprint, setCarbonFootprint] = useState<CarbonFootprintResult | null>(null);
+  const [currentStep, setCurrentStep] = useState(1);
+  const totalSteps = 4;
+
+  const nextStep = () => {
+    setCurrentStep((step) => Math.min(totalSteps, step + 1));
+  };
+
+  const prevStep = () => {
+    setCurrentStep((step) => Math.max(1, step - 1));
+  };
 
   const loadDestination = useCallback(async () => {
     try {
@@ -297,85 +309,76 @@ function BookDestinationForm() {
     setSubmitting(true);
     
     try {
-      const dbService = getDbService();
-      
+      const sanitizedData = sanitizeObject(formData);
+
       // Calculate up-to-date footprint for persistence
       const currentFootprint = computeBookingFootprint();
-      
+
       // Validate and convert group size
-      const groupSize = parseInt(String(formData.groupSize), 10);
+      const groupSize = parseInt(String(sanitizedData.groupSize), 10);
       if (isNaN(groupSize) || groupSize <= 0) {
-        throw new Error("Invalid group size provided");
+        throw new Error('Invalid group size provided');
       }
-      
+
       const bookingData = {
-        name: formData.name,
-        email: formData.email,
-        phone: formData.phone,
-        id_proof: formData.idProof,
-        nationality: formData.nationality,
+        name: sanitizedData.name,
+        email: sanitizedData.email,
+        phone: sanitizedData.phone,
+        id_proof: sanitizedData.idProof,
+        nationality: sanitizedData.nationality,
         group_size: groupSize,
         destination_id: destination.id,
-        check_in_date: formData.checkInDate,
-        check_out_date: formData.checkOutDate,
-        status: "pending" as const,
-        emergency_contact_name: formData.emergencyContact.name,
-        emergency_contact_phone: formData.emergencyContact.phone,
-        emergency_contact_relationship: formData.emergencyContact.relationship,
+        check_in_date: sanitizedData.checkInDate,
+        check_out_date: sanitizedData.checkOutDate,
+        status: 'pending' as const,
+        emergency_contact_name: sanitizedData.emergencyContact.name,
+        emergency_contact_phone: sanitizedData.emergencyContact.phone,
+        emergency_contact_relationship: sanitizedData.emergencyContact.relationship,
         user_id: user?.id || null,
         registration_date: new Date().toISOString(),
         // Environmental fields
-        origin_location_id: formData.originLocation,
-        transport_type: formData.transportType,
+        origin_location_id: sanitizedData.originLocation,
+        transport_type: sanitizedData.transportType,
         carbon_footprint: currentFootprint?.totalEmissions || 0,
         // Add missing required fields with defaults
         age: 0,
-        gender: "prefer-not-to-say" as const,
-        address: "",
-        pin_code: "",
-        id_proof_type: "aadhaar" as const,
+        gender: 'prefer-not-to-say' as const,
+        address: '',
+        pin_code: '',
+        id_proof_type: 'aadhaar' as const,
       };
-      
-      // ✅ LOGGING FIX: Replaced sensitive object dump with safe message
-      logger.debug('Submitting booking data for destination:', destination.id);
-      
-      const result = await dbService.addTourist(bookingData);
-      
-      if (!result) {
-        throw new Error("Failed to create booking - no result returned");
-      }
 
-      // Update user eco-points if they are logged in
-      if (user?.id && currentFootprint) {
-        const pointsToAdd = currentFootprint.ecoPointsReward;
-        await dbService.updateUserEcoPoints(user.id, pointsToAdd, 0);
-      }
-      
-      setShowSuccess(true);
-      setTimeout(() => {
-        router.push("/tourist/bookings");
-      }, 3000);
-      
+      // Persist payload for payment step (booking will be created after payment initialization)
+      sessionStorage.setItem(
+        'pendingBookingPayload',
+        JSON.stringify({
+          bookingData,
+          ecoPointsReward: currentFootprint?.ecoPointsReward || 0,
+        })
+      );
+
+      // Redirect to payment page (booking will be created there)
+      router.push('/tourist/book/payment');
     } catch (error) {
-    let msg = 'An unexpected error occurred while submitting your booking. Please try again.';
-  if (error instanceof Error) {
-    if (error.message.includes('capacity')) {
-      msg = 'Booking failed: insufficient available spots for the selected dates.';
-    } else if (error.message.includes('validation')) {
-      msg = 'invalid data: please check all required fields.';
-    } else if (error.message.includes('payment')) {
-      msg = 'Payment error: your transaction could not be processed.';
-    } else if (error.message.includes('network')) {
-      msg = 'connection error: please check your internet and try again.';
-    } else if (error.message.includes('timeout')) {
-      msg = 'Operation timed out. Please try again.';
-    } else if (error.message.includes('duplicate')) {
-      msg = 'You already have a booking for this date.';
-    } else {
-      msg = `Reserve failed: ${error.message}`;
-    }
-    alert(msg);
-  }
+      let msg = 'An unexpected error occurred while submitting your booking. Please try again.';
+      if (error instanceof Error) {
+        if (error.message.includes('capacity')) {
+          msg = 'Booking failed: insufficient available spots for the selected dates.';
+        } else if (error.message.includes('validation')) {
+          msg = 'invalid data: please check all required fields.';
+        } else if (error.message.includes('payment')) {
+          msg = 'Payment error: your transaction could not be processed.';
+        } else if (error.message.includes('network')) {
+          msg = 'connection error: please check your internet and try again.';
+        } else if (error.message.includes('timeout')) {
+          msg = 'Operation timed out. Please try again.';
+        } else if (error.message.includes('duplicate')) {
+          msg = 'You already have a booking for this date.';
+        } else {
+          msg = `Reserve failed: ${error.message}`;
+        }
+      }
+      alert(msg);
     } finally {
       setSubmitting(false);
     }
@@ -561,6 +564,490 @@ function BookDestinationForm() {
               </div>
             </div>
           </div>
+
+          {/* Policy Section */}
+          {destination && (destination.ecologicalSensitivity !== 'low' || policy?.bookingRestrictionMessage) && (
+            <div className={`${destination.ecologicalSensitivity === 'critical' ? 'bg-red-50 border-red-400' :
+                destination.ecologicalSensitivity === 'high' ? 'bg-orange-50 border-orange-400' :
+                  'bg-yellow-50 border-yellow-400'
+              } border-2 rounded-2xl p-6 sm:p-8 relative overflow-hidden`}>
+              <div className="flex items-start space-x-4">
+                <div className={`${destination.ecologicalSensitivity === 'critical' ? 'bg-red-100' :
+                    destination.ecologicalSensitivity === 'high' ? 'bg-orange-100' :
+                      'bg-yellow-100'
+                  } p-2 sm:p-3 rounded-xl border flex-shrink-0`}>
+                  <ShieldAlert className={`${destination.ecologicalSensitivity === 'critical' ? 'text-red-700' :
+                      destination.ecologicalSensitivity === 'high' ? 'text-orange-700' :
+                        'text-yellow-700'
+                    } h-6 w-6 sm:h-8 sm:w-8`} aria-hidden="true" />
+                </div>
+                <div className="space-y-4">
+                  <div>
+                    <h3 className={`${destination.ecologicalSensitivity === 'critical' ? 'text-red-900' :
+                        destination.ecologicalSensitivity === 'high' ? 'text-orange-900' :
+                          'text-yellow-900'
+                      } text-lg sm:text-xl font-black uppercase tracking-tight`}>
+                      {destination.ecologicalSensitivity} Sensitivity Policy
+                    </h3>
+                    <p className={`${destination.ecologicalSensitivity === 'critical' ? 'text-red-800' :
+                        destination.ecologicalSensitivity === 'high' ? 'text-orange-800' :
+                          'text-yellow-800'
+                      } font-bold mt-1 text-sm sm:text-base`}>
+                      {policy?.bookingRestrictionMessage || `This is a ${destination.ecologicalSensitivity}-sensitivity area. Please follow the guidelines.`}
+                    </p>
+                  </div>
+
+                  <div className="flex flex-wrap gap-2">
+                    {policy?.requiresPermit && (
+                      <div className={`px-3 py-1.5 border rounded-full text-[10px] font-black uppercase shadow-sm ${destination.ecologicalSensitivity === 'critical' ? 'bg-red-100 text-red-900 border-red-200' :
+                          destination.ecologicalSensitivity === 'high' ? 'bg-orange-100 text-orange-900 border-orange-200' :
+                            'bg-yellow-100 text-yellow-900 border-yellow-200'
+                        }`}>
+                        Permit Required
+                      </div>
+                    )}
+                    {policy?.requiresEcoBriefing && (
+                      <div className={`px-3 py-1.5 border rounded-full text-[10px] font-black uppercase shadow-sm ${destination.ecologicalSensitivity === 'critical' ? 'bg-red-100 text-red-900 border-red-200' :
+                          destination.ecologicalSensitivity === 'high' ? 'bg-orange-100 text-orange-900 border-orange-200' :
+                            'bg-yellow-100 text-yellow-900 border-yellow-200'
+                        }`}>
+                        Eco-Briefing Mandatory
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Step Indicator */}
+          <div className="mb-6 px-2 sm:px-0">
+            <div className="flex items-center justify-between mb-4 relative">
+              {/* Absolute background line */}
+              <div className="absolute top-5 left-[10%] right-[10%] h-[2px] bg-gray-100 -z-0" />
+
+              {[...Array(totalSteps)].map((_, i) => (
+                <div key={i} className="flex flex-col items-center flex-1 relative z-10">
+                  <div className={`w-10 h-10 rounded-full flex items-center justify-center border-2 transition-all duration-500 ${currentStep > i + 1 ? 'bg-green-600 border-green-600 text-white shadow-lg' :
+                      currentStep === i + 1 ? 'border-green-600 bg-white text-green-600 font-black shadow-md ring-4 ring-green-50' :
+                        'border-gray-200 bg-white text-gray-400'
+                    }`}>
+                    {currentStep > i + 1 ? <CheckCircle className="h-6 w-6" /> : i + 1}
+                  </div>
+                  <span className={`text-[10px] mt-2 font-black uppercase tracking-tighter transition-all duration-300 ${currentStep >= i + 1 ? 'text-green-700' : 'text-gray-400'
+                    } ${currentStep === i + 1 ? 'scale-110 opacity-100' : 'opacity-60'}`}>
+                    {i === 0 ? 'Personal' : i === 1 ? 'Trip' : i === 2 ? 'Details' : 'Eco'}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <FormErrorBoundary
+            formName="Destination Booking"
+            onReset={() => setFormData({
+              ...formData,
+              phone: '',
+              nationality: '',
+              idProof: '',
+              originLocation: '',
+              transportType: 'CAR_PER_KM',
+              ecoPermitNumber: '',
+              groupSize: 1,
+              checkInDate: "",
+              checkOutDate: "",
+              emergencyContact: {
+                name: "",
+                phone: "",
+                relationship: "",
+              },
+              specialRequests: '',
+              acknowledged: false
+            })}
+          >
+            <form onSubmit={handleSubmit} className="space-y-6 sm:space-y-8">
+              {/* Step 1: Personal Information */}
+              {currentStep === 1 && (
+                <div className="bg-white rounded-2xl p-6 sm:p-8 shadow-sm border border-gray-100 animate-in fade-in slide-in-from-right-4 duration-300">
+                  <h3 className="text-xl sm:text-2xl font-bold text-gray-900 mb-6">Personal Information</h3>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-5">
+                    <div className="space-y-1.5">
+                      <label htmlFor="book-name" className="text-xs font-black text-gray-400 uppercase tracking-wider">Full Name *</label>
+                      <input
+                        id="book-name"
+                        type="text"
+                        name="name"
+                        value={formData.name}
+                        onChange={handleInputChange}
+                        required
+                        className={`w-full px-4 py-3 min-h-[52px] bg-white border ${errors.name ? 'border-red-500 ring-1 ring-red-100' : 'border-gray-200'} rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all outline-none text-gray-900 font-medium`}
+                      />
+                      {errors.name && <p className="text-[10px] text-red-500 font-bold mt-1 uppercase">{errors.name}</p>}
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label htmlFor="book-email" className="text-xs font-black text-gray-400 uppercase tracking-wider">Email Address *</label>
+                      <input
+                        id="book-email"
+                        type="email"
+                        name="email"
+                        autoComplete="email"
+                        value={formData.email}
+                        onChange={handleInputChange}
+                        required
+                        className={`w-full px-4 py-3 min-h-[52px] bg-white border ${errors.email ? 'border-red-500 ring-1 ring-red-100' : 'border-gray-200'} rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all outline-none text-gray-900 font-medium`}
+                      />
+                      {errors.email && <p className="text-[10px] text-red-500 font-bold mt-1 uppercase">{errors.email}</p>}
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label htmlFor="book-phone" className="text-xs font-black text-gray-400 uppercase tracking-wider">Phone Number *</label>
+                      <input
+                        id="book-phone"
+                        type="tel"
+                        autoComplete="tel"
+                        name="phone"
+                        value={formData.phone}
+                        onChange={handleInputChange}
+                        required
+                        className={`w-full px-4 py-3 min-h-[52px] bg-white border ${errors.phone ? 'border-red-500 ring-1 ring-red-100' : 'border-gray-200'} rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all outline-none text-gray-900 font-medium`}
+                      />
+                      {errors.phone && <p className="text-[10px] text-red-500 font-bold mt-1 uppercase">{errors.phone}</p>}
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label htmlFor="book-nationality" className="text-xs font-black text-gray-400 uppercase tracking-wider">Nationality *</label>
+                      <input
+                        id="book-nationality"
+                        type="text"
+                        name="nationality"
+                        value={formData.nationality}
+                        onChange={handleInputChange}
+                        required
+                        className={`w-full px-4 py-3 min-h-[52px] bg-white border ${errors.nationality ? 'border-red-500 ring-1 ring-red-100' : 'border-gray-200'} rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all outline-none text-gray-900 font-medium`}
+                      />
+                      {errors.nationality && <p className="text-[10px] text-red-500 font-bold mt-1 uppercase">{errors.nationality}</p>}
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label htmlFor="book-idProof" className="text-xs font-black text-gray-400 uppercase tracking-wider">ID Proof Number *</label>
+                      <input
+                        id="book-idProof"
+                        type="text"
+                        name="idProof"
+                        value={formData.idProof}
+                        onChange={handleInputChange}
+                        required
+                        placeholder="Passport/Aadhar/Driving License"
+                        className={`w-full px-4 py-3 min-h-[52px] bg-white border ${errors.idProof ? 'border-red-500 ring-1 ring-red-100' : 'border-gray-200'} rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all outline-none placeholder:text-gray-300 text-gray-900 font-medium`}
+                      />
+                      {errors.idProof && <p className="text-[10px] text-red-500 font-bold mt-1 uppercase">{errors.idProof}</p>}
+                    </div>
+                  </div>
+                </div>
+              )}
+              {currentStep === 2 && (
+                <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
+                  <div className="bg-white rounded-2xl p-6 sm:p-8 shadow-sm border border-gray-100">
+                    <h3 className="text-xl sm:text-2xl font-bold text-gray-900 mb-6">Trip Details</h3>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-5">
+                      <div className="space-y-1.5">
+                        <label htmlFor="book-originLocation" className="text-xs font-black text-gray-400 uppercase tracking-wider">Origin Location *</label>
+                        <select
+                          id="book-originLocation"
+                          name="originLocation"
+                          value={formData.originLocation}
+                          onChange={handleInputChange}
+                          required
+                          className={`w-full px-4 py-3 min-h-[52px] bg-white border ${errors.originLocation ? 'border-red-500 ring-1 ring-red-100' : 'border-gray-200'} rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all outline-none text-gray-900 font-medium`}
+                        >
+                          <option value="">Select your origin state/region</option>
+                          {ORIGIN_LOCATIONS.map(location => (
+                            <option key={location.id} value={location.id}>
+                              {location.name}
+                            </option>
+                          ))}
+                        </select>
+                        {errors.originLocation && <p className="text-[10px] text-red-500 font-bold mt-1 uppercase">{errors.originLocation}</p>}
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <label htmlFor="book-transportType" className="text-xs font-black text-gray-400 uppercase tracking-wider">Transport Type *</label>
+                        <select
+                          id="book-transportType"
+                          name="transportType"
+                          value={formData.transportType}
+                          onChange={handleInputChange}
+                          required
+                          className="w-full px-4 py-3 min-h-[52px] bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all outline-none appearance-none text-gray-900 font-medium"
+                        >
+                          <option value="TRAIN_PER_KM">Train (Eco-Friendly)</option>
+                          <option value="BUS_PER_KM">Public Bus (Eco-Friendly)</option>
+                          <option value="CAR_PER_KM">Car / Private Vehicle</option>
+                          <option value="FLIGHT_PER_KM">Flight</option>
+                        </select>
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <label htmlFor="book-groupSize" className="text-xs font-black text-gray-400 uppercase tracking-wider">Group Size *</label>
+                        <select
+                          id="book-groupSize"
+                          name="groupSize"
+                          value={formData.groupSize}
+                          onChange={handleInputChange}
+                          required
+                          className="w-full px-4 py-3 min-h-[52px] bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all outline-none appearance-none text-gray-900 font-medium"
+                        >
+                          {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((size) => (
+                            <option key={size} value={size}>
+                              {size} {size === 1 ? "Person" : "People"}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-5 mt-5">
+                      <div className="space-y-1.5">
+                        <label htmlFor="book-checkInDate" className="text-xs font-black text-gray-400 uppercase tracking-wider">Check-in Date *</label>
+                        <input
+                          id="book-checkInDate"
+                          type="date"
+                          name="checkInDate"
+                          value={formData.checkInDate}
+                          onChange={handleInputChange}
+                          required
+                          min={new Date().toISOString().split('T')[0]}
+                          className={`w-full px-4 py-3 min-h-[52px] bg-white border ${errors.checkInDate ? 'border-red-500 ring-1 ring-red-100' : 'border-gray-200'} rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all outline-none text-gray-900 font-medium`}
+                        />
+                        {errors.checkInDate && <p className="text-[10px] text-red-500 font-bold mt-1 uppercase">{errors.checkInDate}</p>}
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <label htmlFor="book-checkOutDate" className="text-xs font-black text-gray-400 uppercase tracking-wider">Check-out Date *</label>
+                        <input
+                          id="book-checkOutDate"
+                          type="date"
+                          name="checkOutDate"
+                          value={formData.checkOutDate}
+                          onChange={handleInputChange}
+                          required
+                          min={formData.checkInDate || new Date().toISOString().split('T')[0]}
+                          className={`w-full px-4 py-3 min-h-[52px] bg-white border ${errors.checkOutDate ? 'border-red-500 ring-1 ring-red-100' : 'border-gray-200'} rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all outline-none text-gray-900 font-medium`}
+                        />
+                        {errors.checkOutDate && <p className="text-[10px] text-red-500 font-bold mt-1 uppercase">{errors.checkOutDate}</p>}
+                      </div>
+                    </div>
+                  </div>
+
+                  {carbonFootprint && (
+                    <div className="bg-green-50 rounded-2xl p-6 border border-green-100 animate-in zoom-in-95 duration-300">
+                      <div className="flex items-center justify-between mb-4">
+                        <h4 className="font-bold text-green-900">Estimated Impact</h4>
+                        <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase ${carbonFootprint.impactLevel === 'low' ? 'bg-green-200 text-green-800' :
+                            carbonFootprint.impactLevel === 'medium' ? 'bg-yellow-200 text-yellow-800' :
+                              'bg-red-200 text-red-800'
+                          }`}>
+                          {carbonFootprint.impactLevel} Impact
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="bg-white p-3 rounded-xl border border-green-50">
+                          <div className="text-lg font-black text-green-700">{carbonFootprint.totalEmissions.toFixed(1)}kg</div>
+                          <div className="text-[10px] font-bold text-gray-400 uppercase">CO2 Total</div>
+                        </div>
+                        <div className="bg-white p-3 rounded-xl border border-green-50">
+                          <div className="text-lg font-black text-green-700">+{carbonFootprint.ecoPointsReward}</div>
+                          <div className="text-[10px] font-bold text-gray-400 uppercase">Eco-Points</div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {currentStep === 3 && (
+                <div className="bg-white rounded-2xl p-6 sm:p-8 shadow-sm border border-gray-100 animate-in fade-in slide-in-from-right-4 duration-300">
+                  <h3 className="text-xl sm:text-2xl font-bold text-gray-900 mb-6">Emergency Contact</h3>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-5">
+                    <div className="space-y-1.5">
+                      <label htmlFor="emergency-contact-name" className="text-xs font-black text-gray-400 uppercase tracking-wider">Contact Name *</label>
+                      <input
+                        id="emergency-contact-name"
+                        type="text"
+                        name="emergencyContact.name"
+                        value={formData.emergencyContact.name}
+                        onChange={handleInputChange}
+                        required
+                        className={`w-full px-4 py-3 min-h-[52px] bg-white border ${errors['emergencyContact.name'] ? 'border-red-500 ring-1 ring-red-100' : 'border-gray-200'} rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all outline-none text-gray-900 font-medium`}
+                      />
+                      {errors['emergencyContact.name'] && <p className="text-[10px] text-red-500 font-bold mt-1 uppercase">{errors['emergencyContact.name']}</p>}
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label htmlFor="emergency-contact-phone" className="text-xs font-black text-gray-400 uppercase tracking-wider">Contact Phone *</label>
+                      <input
+                        id="emergency-contact-phone"
+                        type="tel"
+                        name="emergencyContact.phone"
+                        value={formData.emergencyContact.phone}
+                        onChange={handleInputChange}
+                        required
+                        className={`w-full px-4 py-3 min-h-[52px] bg-white border ${errors['emergencyContact.phone'] ? 'border-red-500 ring-1 ring-red-100' : 'border-gray-200'} rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all outline-none text-gray-900 font-medium`}
+                      />
+                      {errors['emergencyContact.phone'] && <p className="text-[10px] text-red-500 font-bold mt-1 uppercase">{errors['emergencyContact.phone']}</p>}
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label htmlFor="emergency-contact-relationship" className="text-xs font-black text-gray-400 uppercase tracking-wider">Relationship *</label>
+                      <select
+                        id="emergency-contact-relationship"
+                        name="emergencyContact.relationship"
+                        value={formData.emergencyContact.relationship}
+                        onChange={handleInputChange}
+                        required
+                        className={`w-full px-4 py-3 min-h-[52px] bg-white border ${errors['emergencyContact.relationship'] ? 'border-red-500 ring-1 ring-red-100' : 'border-gray-200'} rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all outline-none text-gray-900 font-medium`}
+                      >
+                        <option value="">Select Relationship</option>
+                        <option value="parent">Parent</option>
+                        <option value="spouse">Spouse</option>
+                        <option value="sibling">Sibling</option>
+                        <option value="friend">Friend</option>
+                        <option value="other">Other</option>
+                      </select>
+                      {errors['emergencyContact.relationship'] && <p className="text-[10px] text-red-500 font-bold mt-1 uppercase">{errors['emergencyContact.relationship']}</p>}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {currentStep === 4 && (
+                <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
+                  <div className="bg-white rounded-2xl p-6 sm:p-8 shadow-sm border border-gray-100">
+                    <h3 className="text-xl sm:text-2xl font-bold text-gray-900 mb-6">Eco & Confirmation</h3>
+
+                    <div className="space-y-6">
+                      {(destination.ecologicalSensitivity === 'high' || destination.ecologicalSensitivity === 'critical') && policy?.requiresPermit && (
+                        <div className="space-y-1.5">
+                          <label htmlFor="book-ecoPermitNumber" className="text-xs font-black text-gray-400 uppercase tracking-wider">Ecological Permit Number *</label>
+                          <input
+                            id="book-ecoPermitNumber"
+                            type="text"
+                            name="ecoPermitNumber"
+                            value={formData.ecoPermitNumber}
+                            onChange={handleInputChange}
+                            required
+                            placeholder="ECO-YYYY-XXXXXX"
+                            className={`w-full px-4 py-3 min-h-[52px] bg-orange-50/30 border ${errors.ecoPermitNumber ? 'border-red-500 ring-1 ring-red-100' : 'border-orange-200'} rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all outline-none text-gray-900 font-medium`}
+                          />
+                          {errors.ecoPermitNumber && <p className="text-[10px] text-red-500 font-bold mt-1 uppercase">{errors.ecoPermitNumber}</p>}
+                        </div>
+                      )}
+
+                      {policy?.requiresEcoBriefing && (
+                        <div className="bg-green-50/50 border border-green-200 rounded-xl p-5">
+                          <label htmlFor="acknowledged" className="flex items-start space-x-4 cursor-pointer">
+                            <div className="mt-1">
+                              <input
+                                id="acknowledged"
+                                type="checkbox"
+                                name="acknowledged"
+                                checked={formData.acknowledged}
+                                onChange={handleInputChange}
+                                required
+                                className="h-6 w-6 text-green-600 border-gray-300 rounded focus:ring-green-500 transition-all cursor-pointer"
+                              />
+                            </div>
+                            <span className="text-sm font-bold text-green-800 leading-relaxed">
+                              I acknowledge that this is a {destination.ecologicalSensitivity} sensitivity area and I agree to undergo the mandatory ecological briefing. *
+                            </span>
+                          </label>
+                          {errors.acknowledged && <p className="text-[10px] text-red-500 font-bold mt-1 uppercase">{errors.acknowledged}</p>}
+                        </div>
+                      )}
+
+                      <div className="space-y-1.5">
+                        <label htmlFor="special-requests" className="text-xs font-black text-gray-400 uppercase tracking-wider">Special Requests (Optional)</label>
+                        <textarea
+                          id="special-requests"
+                          name="specialRequests"
+                          value={formData.specialRequests}
+                          onChange={handleInputChange}
+                          rows={4}
+                          className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all outline-none resize-none text-gray-900 font-medium"
+                          placeholder="Any dietary requirements or accessibility needs?"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Final Impact Summary */}
+                  <div className="bg-emerald-900 rounded-2xl p-6 text-white">
+                    <div className="flex items-center space-x-3 mb-4">
+                      <Leaf className="h-5 w-5 text-emerald-300" />
+                      <h4 className="font-bold">Sustainability Commitment</h4>
+                    </div>
+                    <p className="text-xs text-emerald-100 mb-4">By booking, you agree to follow all ecological guidelines for {destination.name}.</p>
+                    {carbonFootprint && (
+                      <div className="flex items-center justify-between pt-4 border-t border-emerald-800">
+                        <div className="text-xs font-bold text-emerald-400 uppercase tracking-wider">Estimated Reward</div>
+                        <div className="text-lg font-black text-emerald-300">+{carbonFootprint.ecoPointsReward} Eco-Points</div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              <div className="flex flex-col sm:flex-row items-center gap-4 pt-4">
+                {currentStep > 1 && (
+                  <button
+                    type="button"
+                    onClick={prevStep}
+                    className="w-full sm:w-auto px-8 py-4 bg-white border border-gray-200 text-gray-700 font-bold rounded-xl hover:bg-gray-50 transition-all flex items-center justify-center gap-2"
+                  >
+                    Back
+                  </button>
+                )}
+
+                {currentStep < totalSteps ? (
+                  <button
+                    type="button"
+                    onClick={nextStep}
+                    className="w-full sm:flex-1 py-4 bg-green-600 text-white font-bold rounded-xl hover:bg-green-700 transition-all shadow-lg hover:shadow-xl"
+                  >
+                    Continue
+                  </button>
+                ) : (
+                  <div className="w-full sm:flex-1 space-y-3">
+                    <div className="text-center text-xs text-gray-500">
+                      You’ll be redirected to payment to complete your booking.
+                    </div>
+                    <button
+                      type="submit"
+                      disabled={submitting || !eligibility.allowed}
+                      className={`w-full py-4 rounded-xl font-bold text-lg transition-all shadow-lg hover:shadow-xl
+                    ${submitting || !eligibility.allowed
+                          ? 'bg-gray-400 cursor-not-allowed'
+                          : 'bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white'
+                        }`}
+                    >
+                      {submitting ? (
+                        <span className="flex items-center justify-center gap-2">
+                          <RefreshCw className="h-5 w-5 animate-spin" />
+                          Processing...
+                        </span>
+                      ) : (
+                        'Pay & Complete Booking'
+                      )}
+                    </button>
+                  </div>
+                )}
+              </div>
+            </form>
+          </FormErrorBoundary>
         </div>
 
         {/* Policy Section */}

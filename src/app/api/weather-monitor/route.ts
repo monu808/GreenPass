@@ -150,11 +150,12 @@ export async function POST(request: NextRequest) {
         errorMsg = `Error monitoring weather: ${error.message}`;
       }
     }
-  
-  return NextResponse.json(
-    { error: errorMsg, destinations: [] },
-    { status: statusCode }
-  );
+
+    return NextResponse.json(
+      { error: errorMsg, destinations: [] },
+      { status: statusCode }
+    );
+  }
 }
 export async function GET(_request: NextRequest) {
   const responseStream = new TransformStream();

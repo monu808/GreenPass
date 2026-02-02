@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { createServerClient } from '@supabase/ssr';
 import { paymentService } from '@/lib/paymentService';
 import { logger } from '@/lib/logger';
 import { cookies } from 'next/headers';
@@ -30,12 +31,17 @@ async function createSupabaseClient() {
 }
 
 export async function GET(request: NextRequest) {
+  let user: any = null;
+  let limit = 100;
+  let offset = 0;
+  
   try {
     // Create authenticated Supabase client for route handler
     const supabase = await createSupabaseClient();
 
     // Get authenticated user
-    const { data: { user } } = await supabase.auth.getUser();
+    const { data: { user: authUser } } = await supabase.auth.getUser();
+    user = authUser;
 
     if (!user) {
       return NextResponse.json(
@@ -63,8 +69,8 @@ export async function GET(request: NextRequest) {
     const status = searchParams.get('status');
     const startDate = searchParams.get('start_date');
     const endDate = searchParams.get('end_date');
-    const limit = parseInt(searchParams.get('limit') || '100');
-    const offset = parseInt(searchParams.get('offset') || '0');
+    limit = parseInt(searchParams.get('limit') || '100');
+    offset = parseInt(searchParams.get('offset') || '0');
 
     // Build query
     let query = supabase
@@ -117,7 +123,7 @@ export async function GET(request: NextRequest) {
     logger.error(
       'Error fetching payments',
       error,
-      { component: 'payments-list-route', operation: 'fetchPayments', metadata: { userId, limit, offset } }
+      { component: 'payments-list-route', operation: 'fetchPayments', metadata: { userId: user.id, limit, offset } }
     );
     return NextResponse.json(
       { error: error.message || 'Failed to fetch payments' },

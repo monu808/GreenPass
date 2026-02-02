@@ -95,97 +95,144 @@ export async function POST(request: NextRequest) {
     }
 
     // ---------------------------------------------------------------------------
-    // Idempotency: use advisory lock to prevent concurrent duplicate intents
+    // Atomic idempotency: create payment record via DB function
     // ---------------------------------------------------------------------------
-    // Acquire an advisory lock based on booking_id hash to serialize payment
-    // intent creation for this booking across concurrent requests.
-    const bookingHash = Buffer.from(booking_id, 'utf-8')
-      .reduce((acc, byte) => (acc * 31 + byte) & 0x7fffffff, 0);
+    // This uses a stored procedure with pg_advisory_xact_lock to atomically:
+    // 1. Check for existing successful/active payments
+    // 2. Create a new payment record if appropriate
+    // The lock is transaction-scoped, so no manual unlock is needed.
 
-    const { data: lockAcquired } = await supabase.rpc('pg_try_advisory_lock', {
-      key: bookingHash,
-    });
+    // First, calculate pricing
+    const pricing = await paymentService.calculateBookingPrice(
+      booking.destination_id,
+      booking.group_size,
+      booking.check_in_date,
+      booking.carbon_footprint || 0
+    );
 
-    if (!lockAcquired) {
-      // Another request is already creating a payment intent for this booking
+    // Determine gateway
+    const gateway = process.env.RAZORPAY_KEY_SECRET ? 'razorpay' : 'stripe';
+
+    // Build metadata for the payment record
+    const paymentMetadata = {
+      ...metadata,
+      destination_name: booking.destinations?.name,
+      check_in_date: booking.check_in_date,
+      check_out_date: booking.check_out_date,
+      group_size: booking.group_size,
+      customer_name: booking.name,
+      customer_email: booking.email,
+      customer_phone: booking.phone,
+    };
+
+    // Call the atomic function
+    const { data: atomicResult, error: atomicError } = await (supabase.rpc as any)(
+      'create_payment_intent_atomic',
+      {
+        p_booking_id: booking_id,
+        p_user_id: user.id,
+        p_amount: pricing.total_amount,
+        p_currency: 'INR',
+        p_gateway: gateway,
+        p_payment_method: payment_method || null,
+        p_metadata: paymentMetadata,
+      }
+    );
+
+    if (atomicError) {
+      logger.error(
+        'Error calling create_payment_intent_atomic',
+        atomicError,
+        { component: 'payments-create-intent-route', operation: 'createIntentAtomic', metadata: { booking_id } }
+      );
       return NextResponse.json(
-        { error: 'Payment intent creation already in progress. Please wait a moment and try again.' },
-        { status: 409 }
+        { error: 'Failed to create payment intent' },
+        { status: 500 }
       );
     }
 
-    try {
-      // Now that we hold the lock, inspect existing payments
-      const existingPayments = await paymentService.getPaymentsByBooking(booking_id);
+    // Handle the result status from the atomic function
+    const result = atomicResult as {
+      status: string;
+      message: string;
+      payment_id?: string;
+      existing_payment_id?: string;
+      retry_allowed?: boolean;
+      previous_attempts?: number;
+      error_code?: string;
+    };
 
-      // Already successfully paid → hard stop
-      const successfulPayment = existingPayments.find(
-        (p: { status: string }) => p.status === 'succeeded'
-      );
-      if (successfulPayment) {
+    switch (result.status) {
+      case 'lock_contention':
+        // Another request is creating a payment intent - return 409 Conflict
         return NextResponse.json(
-          { error: 'Payment already completed for this booking' },
+          { error: result.message },
+          { status: 409 }
+        );
+
+      case 'already_paid':
+        // Booking already has a successful payment
+        return NextResponse.json(
+          { error: result.message },
           { status: 400 }
         );
-      }
 
-      // Active (non-terminal) payment in flight → don't create a duplicate
-      const activePayment = existingPayments.find(
-        (p: { status: string }) =>
-          p.status === 'pending' ||
-          p.status === 'processing' ||
-          p.status === 'requires_action'
-      );
-      if (activePayment) {
+      case 'active_payment':
+        // An active (non-terminal) payment exists
         return NextResponse.json(
-          { error: 'A payment is already in progress for this booking. Please wait or refresh the page.' },
+          { error: result.message },
           { status: 400 }
         );
-      }
 
-      // All previous payments are terminal (failed / cancelled) — safe to retry.
-      if (existingPayments.length > 0) {
-        logger.info(
-          'Retrying payment intent after previous terminal payment(s)',
-          { component: 'payments-create-intent-route', operation: 'retryIntent', metadata: { booking_id, previousAttempts: existingPayments.length } }
+      case 'error':
+        // Database error during creation
+        logger.error(
+          'Database error in create_payment_intent_atomic',
+          null,
+          {
+            component: 'payments-create-intent-route',
+            operation: 'createIntentAtomic',
+            metadata: { booking_id, errorMessage: result.message, errorCode: result.error_code }
+          }
         );
-      }
+        return NextResponse.json(
+          { error: 'Failed to create payment intent' },
+          { status: 500 }
+        );
 
-      // ---------------------------------------------------------------------------
-      // Calculate pricing & create intent
-      // ---------------------------------------------------------------------------
-      const pricing = await paymentService.calculateBookingPrice(
-        booking.destination_id,
-        booking.group_size,
-        booking.check_in_date,
-        booking.carbon_footprint || 0
-      );
+      case 'success':
+        // Payment record created successfully - now create the gateway order
+        if (result.previous_attempts && result.previous_attempts > 0) {
+          logger.info(
+            'Retrying payment intent after previous terminal payment(s)',
+            { component: 'payments-create-intent-route', operation: 'retryIntent', metadata: { booking_id, previousAttempts: result.previous_attempts } }
+          );
+        }
 
-      const paymentIntent = await paymentService.createPaymentIntent({
-        booking_id,
-        amount: pricing.total_amount,
-        currency: pricing.currency,
-        payment_method: payment_method,
-        metadata: {
-          ...metadata,
-          destination_name: booking.destinations?.name,
-          check_in_date: booking.check_in_date,
-          check_out_date: booking.check_out_date,
-          group_size: booking.group_size,
-          customer_name: booking.name,
-          customer_email: booking.email,
-          customer_phone: booking.phone,
-        },
-      });
+        // Create gateway-specific order/intent
+        const paymentIntent = await paymentService.createGatewayOrder(
+          result.payment_id!,
+          pricing.total_amount,
+          'INR',
+          booking
+        );
 
-      return NextResponse.json({
-        success: true,
-        payment_intent: paymentIntent,
-        pricing,
-      });
-    } finally {
-      // Always release the advisory lock
-      await supabase.rpc('pg_advisory_unlock', { key: bookingHash });
+        return NextResponse.json({
+          success: true,
+          payment_intent: paymentIntent,
+          pricing,
+        });
+
+      default:
+        logger.error(
+          'Unexpected status from create_payment_intent_atomic',
+          null,
+          { component: 'payments-create-intent-route', operation: 'createIntentAtomic', metadata: { booking_id, status: result.status } }
+        );
+        return NextResponse.json(
+          { error: 'Unexpected error creating payment intent' },
+          { status: 500 }
+        );
     }
   } catch (error: any) {
     logger.error(

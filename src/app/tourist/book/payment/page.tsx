@@ -391,7 +391,7 @@ function PaymentPageContent() {
 
         {/* Payment Form */}
         <PaymentForm
-          bookingId={resolvedBookingId}
+          bookingId={bookingId}
           onSuccess={(paymentId) => {
             router.push(`/tourist/bookings?payment_success=true&payment_id=${paymentId}`);
           }}

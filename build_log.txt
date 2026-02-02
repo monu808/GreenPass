@@ -1,0 +1,265 @@
+
+> tourist-measure@0.1.0 build
+> next build --turbopack
+
+   ▲ Next.js 15.5.9 (Turbopack)
+   - Environments: .env.local
+
+   Creating an optimized production build ...
+ ✓ Finished writing to disk in 233ms
+ ✓ Compiled successfully in 18.4s
+   Linting and checking validity of types ...
+
+Failed to compile.
+
+./src/app/alerts/page.tsx
+96:9  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
+132:7  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
+145:9  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
+
+./src/app/api/payments/create-intent/route.ts
+167:19  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+234:19  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+
+./src/app/api/payments/list/route.ts
+2:10  Warning: 'paymentService' is defined but never used.  @typescript-eslint/no-unused-vars
+116:19  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+
+./src/app/api/payments/refund/route.ts
+3:10  Warning: 'logger' is defined but never used.  @typescript-eslint/no-unused-vars
+87:19  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+150:19  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+
+./src/app/api/payments/statistics/route.ts
+3:10  Warning: 'logger' is defined but never used.  @typescript-eslint/no-unused-vars
+84:19  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+
+./src/app/api/payments/webhook/route.ts
+2:10  Warning: 'headers' is defined but never used.  @typescript-eslint/no-unused-vars
+32:19  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+107:5  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
+130:9  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
+134:9  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
+138:19  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+192:19  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+204:5  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
+244:9  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
+248:9  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
+252:19  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+
+./src/app/api/print-receipt/route.ts
+Error: Parsing error: '}' expected.
+
+./src/app/api/test-weather/route.ts
+38:5  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
+68:5  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
+
+./src/app/api/weather-check/route.ts
+151:7  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
+152:7  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
+193:7  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
+197:15  Warning: 'isDbError' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+212:7  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
+213:7  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
+248:7  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
+263:7  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
+279:7  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
+294:7  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
+348:9  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
+367:9  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
+433:5  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
+494:5  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
+502:9  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
+507:9  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
+516:11  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
+520:9  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
+531:11  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
+564:13  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
+566:13  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
+569:11  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
+585:5  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
+
+./src/app/api/weather-monitor/route.ts
+50:3  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
+53:7  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
+58:9  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
+83:5  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
+91:5  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
+177:5  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
+
+./src/app/management/compliance-reports/page.tsx
+58:9  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
+
+./src/app/register/page.tsx
+249:5  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
+250:5  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
+
+./src/app/tourist/activities/page.tsx
+104:5  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
+
+./src/app/tourist/book/page.tsx
+5:35  Warning: 'Clock' is defined but never used.  @typescript-eslint/no-unused-vars
+5:137  Warning: 'Flame' is defined but never used.  @typescript-eslint/no-unused-vars
+19:28  Warning: 'getOriginLocationById' is defined but never used.  @typescript-eslint/no-unused-vars
+26:3  Warning: 'CarbonOffsetOption' is defined but never used.  @typescript-eslint/no-unused-vars
+42:10  Warning: 'ecoAlert' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+916:30  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+961:25  Warning: Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+./src/app/tourist/book/payment/page.tsx
+120:80  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+182:27  Warning: 'bookingRes' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+375:22  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+
+./src/app/tourist/reviews/page.tsx
+226:5  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
+230:5  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
+249:5  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
+
+./src/components/AdminDashboard.tsx
+124:13  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
+
+./src/components/EcologicalDashboard.tsx
+23:3  Warning: 'PieChart' is defined but never used.  @typescript-eslint/no-unused-vars
+24:3  Warning: 'Pie' is defined but never used.  @typescript-eslint/no-unused-vars
+32:3  Warning: 'Area' is defined but never used.  @typescript-eslint/no-unused-vars
+33:3  Warning: 'AreaChart' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./src/components/PaymentDashboard.tsx
+12:3  Warning: 'Filter' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./src/components/PaymentForm.tsx
+15:34  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+17:20  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+18:26  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+25:22  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+26:28  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+42:56  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+43:56  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+76:19  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+90:51  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+122:19  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+147:19  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+155:51  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+179:40  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+180:13  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
+193:36  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+194:54  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+
+./src/contexts/AuthContext.tsx
+99:13  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
+118:9  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
+145:6  Warning: React Hook useEffect has a missing dependency: 'checkAdminStatus'. Either include it or remove the dependency array.  react-hooks/exhaustive-deps
+149:7  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
+155:7  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
+
+./src/hooks/useEventSource.ts
+78:5  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
+86:9  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
+117:11  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
+
+./src/lib/databaseService.ts
+133:9  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
+195:9  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
+252:7  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
+335:9  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
+484:9  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
+495:9  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
+550:7  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
+649:9  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
+1933:9  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
+1954:7  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
+1975:7  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
+2078:9  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
+2405:7  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
+
+./src/lib/errors/errorReportingService.ts
+17:5  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
+20:7  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
+22:5  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
+27:5  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
+31:5  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
+115:7  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
+144:7  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
+
+./src/lib/logger.ts
+27:15  Warning: '_' is defined but never used.  @typescript-eslint/no-unused-vars
+53:57  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+53:73  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+57:7  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
+63:56  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+63:72  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+67:7  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
+73:56  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+73:72  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+81:45  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+83:22  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+
+./src/lib/messagingService.ts
+44:5  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
+
+./src/lib/paymentService.ts
+38:6  Warning: 'DbRefund' is defined but never used.  @typescript-eslint/no-unused-vars
+55:7  Warning: 'paymentsTable' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+55:42  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+56:7  Warning: 'refundsTable' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+56:41  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+57:7  Warning: 'paymentReceiptsTable' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+57:49  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+58:7  Warning: 'paymentSummaryView' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+58:47  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+108:54  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+147:43  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+196:73  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+207:73  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+228:58  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+230:57  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+254:66  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+280:57  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+349:57  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+400:48  Warning: 'fetchError1' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+400:83  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+410:48  Warning: 'fetchError2' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+410:83  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+432:28  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+439:22  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+452:57  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+463:28  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+476:28  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+498:50  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+511:26  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+562:73  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+588:71  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+611:55  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+613:53  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+617:28  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+626:28  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+632:28  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+637:26  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+640:28  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+716:54  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+724:55  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+754:54  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+774:50  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+782:22  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+800:50  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+808:22  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+
+./src/types/database.ts
+540:21  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+557:22  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+574:22  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+660:36  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+661:33  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+662:28  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+676:37  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+677:34  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+678:29  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+692:37  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+693:34  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+694:29  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+
+./src/types/payment.ts
+163:29  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+
+info  - Need to disable some ESLint rules? Learn more here: https://nextjs.org/docs/app/api-reference/config/eslint#disabling-rules

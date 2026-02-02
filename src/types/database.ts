@@ -1,3 +1,5 @@
+// File: src/types/database.ts
+
 import { SustainabilityFeatures } from './index';
 
 export type Database = {
@@ -30,6 +32,10 @@ export type Database = {
           carbon_footprint: number | null;
           origin_location_id: string | null;
           transport_type: string | null;
+          // Payment-related fields (added via payment-schema.sql ALTER TABLE)
+          payment_status: 'unpaid' | 'pending' | 'paid' | 'refunded' | 'failed' | null;
+          payment_amount: number | null;
+          payment_id: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -59,6 +65,10 @@ export type Database = {
           carbon_footprint?: number | null;
           origin_location_id?: string | null;
           transport_type?: string | null;
+          // Payment-related fields
+          payment_status?: 'unpaid' | 'pending' | 'paid' | 'refunded' | 'failed' | null;
+          payment_amount?: number | null;
+          payment_id?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -87,6 +97,10 @@ export type Database = {
           carbon_footprint?: number | null;
           origin_location_id?: string | null;
           transport_type?: string | null;
+          // Payment-related fields
+          payment_status?: 'unpaid' | 'pending' | 'paid' | 'refunded' | 'failed' | null;
+          payment_amount?: number | null;
+          payment_id?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -225,7 +239,6 @@ export type Database = {
           visibility: number;
           recorded_at: string;
           created_at: string;
-          // Alert fields
           alert_level: 'none' | 'low' | 'medium' | 'high' | 'critical';
           alert_message: string | null;
           alert_reason: string | null;
@@ -243,7 +256,6 @@ export type Database = {
           visibility: number;
           recorded_at: string;
           created_at?: string;
-          // Alert fields
           alert_level?: 'none' | 'low' | 'medium' | 'high' | 'critical';
           alert_message?: string | null;
           alert_reason?: string | null;
@@ -261,7 +273,6 @@ export type Database = {
           visibility?: number;
           recorded_at?: string;
           created_at?: string;
-          // Alert fields
           alert_level?: 'none' | 'low' | 'medium' | 'high' | 'critical';
           alert_message?: string | null;
           alert_reason?: string | null;
@@ -781,6 +792,13 @@ export type Database = {
           refund_amount: number;
           average_transaction_value: number;
         }>;
+      };
+      // Cleanup function for stale unpaid bookings (added via migration)
+      cleanup_stale_bookings: {
+        Args: {
+          p_expiry_minutes?: number;
+        };
+        Returns: number; // returns count of cancelled bookings
       };
     };
     Enums: {

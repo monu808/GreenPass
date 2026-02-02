@@ -1,3 +1,4 @@
+-- File: supabase/payment-schema.sql
 -- Payment System Database Schema
 -- Add these tables to your existing Supabase database
 
@@ -140,6 +141,12 @@ ALTER TABLE tourists ADD COLUMN IF NOT EXISTS payment_id UUID REFERENCES payment
 
 CREATE INDEX IF NOT EXISTS idx_tourists_payment_status ON tourists(payment_status);
 CREATE INDEX IF NOT EXISTS idx_tourists_payment_id ON tourists(payment_id);
+
+-- Index specifically for the stale-booking cleanup query: finds unpaid bookings
+-- ordered by creation time so the cleanup function can efficiently locate candidates.
+CREATE INDEX IF NOT EXISTS idx_tourists_unpaid_created_at
+  ON tourists(created_at)
+  WHERE payment_status = 'unpaid' AND status = 'pending';
 
 -- =============================================
 -- TRIGGERS
@@ -289,6 +296,216 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- =============================================
+-- ATOMIC PAYMENT INTENT CREATION
+-- =============================================
+-- This function atomically checks for existing payments and creates a new payment
+-- record if appropriate. It uses pg_advisory_xact_lock for transaction-level
+-- serialization, ensuring proper concurrency control even with connection pooling.
+--
+-- Returns a JSONB result with:
+--   - status: 'success' | 'already_paid' | 'active_payment' | 'lock_contention' | 'error'
+--   - payment_id: UUID of the created payment (only when status = 'success')
+--   - message: Human-readable description
+--   - retry_allowed: Boolean indicating if a retry can be attempted
+-- =============================================
+
+CREATE OR REPLACE FUNCTION create_payment_intent_atomic(
+  p_booking_id UUID,
+  p_user_id UUID,
+  p_amount INTEGER,
+  p_currency VARCHAR(3) DEFAULT 'INR',
+  p_gateway VARCHAR(20) DEFAULT 'razorpay',
+  p_payment_method VARCHAR(20) DEFAULT NULL,
+  p_metadata JSONB DEFAULT '{}'::JSONB
+)
+RETURNS JSONB AS $$
+DECLARE
+  v_booking_hash INTEGER;
+  v_existing_succeeded RECORD;
+  v_existing_active RECORD;
+  v_previous_count INTEGER;
+  v_new_payment_id UUID;
+  v_lock_acquired BOOLEAN;
+BEGIN
+  -- Compute a hash of the booking_id for the advisory lock
+  v_booking_hash := ('x' || substr(md5(p_booking_id::TEXT), 1, 8))::BIT(32)::INTEGER;
+
+  -- Try to acquire transaction-level advisory lock (non-blocking)
+  v_lock_acquired := pg_try_advisory_xact_lock(v_booking_hash);
+  
+  IF NOT v_lock_acquired THEN
+    -- Another transaction is creating a payment intent for this booking
+    RETURN jsonb_build_object(
+      'status', 'lock_contention',
+      'message', 'Payment intent creation already in progress. Please wait a moment and try again.',
+      'retry_allowed', true
+    );
+  END IF;
+
+  -- Check for already succeeded payment
+  SELECT id, status INTO v_existing_succeeded
+  FROM payments
+  WHERE booking_id = p_booking_id AND status = 'succeeded'
+  LIMIT 1;
+
+  IF v_existing_succeeded.id IS NOT NULL THEN
+    RETURN jsonb_build_object(
+      'status', 'already_paid',
+      'message', 'Payment already completed for this booking',
+      'retry_allowed', false,
+      'existing_payment_id', v_existing_succeeded.id
+    );
+  END IF;
+
+  -- Check for active (non-terminal) payment
+  SELECT id, status INTO v_existing_active
+  FROM payments
+  WHERE booking_id = p_booking_id 
+    AND status IN ('pending', 'processing', 'requires_action')
+  ORDER BY created_at DESC
+  LIMIT 1;
+
+  IF v_existing_active.id IS NOT NULL THEN
+    RETURN jsonb_build_object(
+      'status', 'active_payment',
+      'message', 'A payment is already in progress for this booking. Please wait or refresh the page.',
+      'retry_allowed', false,
+      'existing_payment_id', v_existing_active.id
+    );
+  END IF;
+
+  -- Count previous terminal payments for logging
+  SELECT COUNT(*) INTO v_previous_count
+  FROM payments
+  WHERE booking_id = p_booking_id;
+
+  -- All previous payments are terminal (failed/cancelled) or none exist - safe to create new intent
+  INSERT INTO payments (
+    booking_id,
+    user_id,
+    amount,
+    currency,
+    status,
+    gateway,
+    payment_method,
+    metadata
+  ) VALUES (
+    p_booking_id,
+    p_user_id,
+    p_amount,
+    p_currency,
+    'pending',
+    p_gateway,
+    p_payment_method,
+    p_metadata
+  )
+  RETURNING id INTO v_new_payment_id;
+
+  RETURN jsonb_build_object(
+    'status', 'success',
+    'message', CASE 
+      WHEN v_previous_count > 0 THEN 'Payment intent created (retry after ' || v_previous_count || ' previous attempt(s))'
+      ELSE 'Payment intent created'
+    END,
+    'payment_id', v_new_payment_id,
+    'retry_allowed', false,
+    'previous_attempts', v_previous_count
+  );
+
+EXCEPTION WHEN OTHERS THEN
+  RETURN jsonb_build_object(
+    'status', 'error',
+    'message', 'Failed to create payment intent: ' || SQLERRM,
+    'retry_allowed', true,
+    'error_code', SQLSTATE
+  );
+END;
+$$ LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp;
+
+-- Grant execute permissions
+GRANT EXECUTE ON FUNCTION create_payment_intent_atomic(UUID, UUID, INTEGER, VARCHAR, VARCHAR, VARCHAR, JSONB) TO authenticated;
+GRANT EXECUTE ON FUNCTION create_payment_intent_atomic(UUID, UUID, INTEGER, VARCHAR, VARCHAR, VARCHAR, JSONB) TO service_role;
+
+-- Keep the old advisory lock helpers for backwards compatibility during migration
+-- They can be removed after verifying the new function works correctly.
+CREATE OR REPLACE FUNCTION pg_try_advisory_lock(key INTEGER)
+RETURNS BOOLEAN AS $$
+BEGIN
+  RETURN pg_try_advisory_lock(key);
+END;
+$$ LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp;
+
+CREATE OR REPLACE FUNCTION pg_advisory_unlock(key INTEGER)
+RETURNS BOOLEAN AS $$
+BEGIN
+  RETURN pg_advisory_unlock(key);
+END;
+$$ LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp;
+
+GRANT EXECUTE ON FUNCTION pg_try_advisory_lock(INTEGER) TO authenticated;
+GRANT EXECUTE ON FUNCTION pg_advisory_unlock(INTEGER) TO authenticated;
+
+-- =============================================
+-- STALE BOOKING CLEANUP FUNCTION
+-- =============================================
+-- Cancels bookings that have been sitting in (status = 'pending', payment_status = 'unpaid')
+-- for longer than the given expiry window.  This runs server-side (e.g. via a cron job or
+-- Supabase Edge Function on a schedule) so that even if the client never returns, orphaned
+-- bookings don't hold capacity indefinitely.
+--
+-- Default expiry: 30 minutes, matching the "held for 30 minutes" promise shown to users.
+--
+-- Returns the number of bookings that were cancelled.
+-- =============================================
+CREATE OR REPLACE FUNCTION cleanup_stale_bookings(
+  p_expiry_minutes INTEGER DEFAULT 30
+)
+RETURNS INTEGER AS $$
+DECLARE
+  v_cancelled_count INTEGER;
+  v_cutoff TIMESTAMPTZ;
+BEGIN
+  v_cutoff := NOW() - (p_expiry_minutes || ' minutes')::INTERVAL;
+
+  -- Cancel the stale bookings and set payment_status to 'failed' so the
+  -- payment page can distinguish "expired & auto-cancelled" from "user cancelled".
+  WITH cancelled AS (
+    UPDATE tourists
+    SET
+      status           = 'cancelled',
+      payment_status   = 'failed',
+      updated_at       = NOW()
+    WHERE
+      status           = 'pending'
+      AND payment_status = 'unpaid'
+      AND created_at   < v_cutoff
+      -- Safety: only cancel if there is genuinely no succeeded payment
+      AND NOT EXISTS (
+        SELECT 1 FROM payments
+        WHERE payments.booking_id = tourists.id
+          AND payments.status = 'succeeded'
+      )
+    RETURNING id
+  )
+  SELECT COUNT(*) INTO v_cancelled_count FROM cancelled;
+
+  RETURN v_cancelled_count;
+END;
+$$ LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp;  -- Prevent search_path hijacking by explicitly setting trusted schemas
+
+-- Grant execute to the service role so it can be called from a cron / Edge Function.
+-- Adjust the role name if your Supabase setup uses a different convention.
+GRANT EXECUTE ON FUNCTION cleanup_stale_bookings(INTEGER) TO service_role;
+
+-- =============================================
 -- ROW LEVEL SECURITY (RLS)
 -- =============================================
 
@@ -422,3 +639,18 @@ JOIN tourists t ON p.booking_id = t.id
 JOIN destinations d ON t.destination_id = d.id;
 
 COMMENT ON VIEW payment_summary IS 'Comprehensive view of payments with booking and customer details';
+
+-- =============================================
+-- USAGE: Scheduling the cleanup
+-- =============================================
+-- Run this function on a schedule (every 5–10 minutes is sufficient).
+-- Option A — Supabase Edge Function + cron:
+--   SELECT cleanup_stale_bookings();   -- uses default 30-min window
+--
+-- Option B — pg_cron (if enabled on your Supabase instance):
+--   SELECT cron.schedule(
+--     'cleanup-stale-bookings',
+--     '*/10 * * * *',                          -- every 10 minutes
+--     $$ SELECT cleanup_stale_bookings(); $$
+--   );
+-- =============================================

@@ -1,4 +1,3 @@
-import { fetch, Request, Response, Headers } from 'undici';
 import { TextEncoder, TextDecoder } from 'util';
 import { MessageChannel, MessagePort } from 'worker_threads';
 
@@ -13,8 +12,11 @@ if (typeof global.MessagePort === 'undefined') {
   global.MessagePort = MessagePort as any;
 }
 
+// Now import undici after polyfills are set
+const { fetch, Request, Response, Headers } = require('undici');
+
 // Polyfill fetch, Request, Response, Headers for MSW 2.0+
-if (typeof global.fetch === 'undefined') {
+if (typeof global.fetch === 'undefined' || (global.fetch as any)._isMock) {
   global.fetch = fetch as any;
   global.Request = Request as any;
   global.Response = Response as any;

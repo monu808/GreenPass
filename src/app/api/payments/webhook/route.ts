@@ -182,7 +182,7 @@ async function handleStripeWebhook(body: string, signature: string) {
 
     const Stripe = await import('stripe').then(m => m.default);
     const stripe = new Stripe(stripeSecretKey, {
-      apiVersion: '2025-12-15.clover',
+      apiVersion: '2026-01-28.clover',
     });
 
     // Verify webhook signature

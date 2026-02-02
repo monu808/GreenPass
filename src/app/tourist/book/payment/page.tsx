@@ -2,9 +2,8 @@
 
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { Suspense, useCallback, useEffect, useState } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { Suspense, useEffect, useState } from 'react';
 import PaymentForm from '@/components/PaymentForm';
 import ProtectedRoute from '@/components/ProtectedRoute';
 
@@ -179,58 +178,90 @@ function PaymentPageContent() {
     setErrorMessage(null);
 
     try {
-      // Reuse the existing GET endpoint on create-intent which already verifies
-      // ownership via auth and returns payments for the booking.  We also fetch
-      // the booking row itself so we can read payment_status, dates, etc.
-      const [paymentsRes, bookingRes] = await Promise.all([
-        fetch(`/api/payments/create-intent?booking_id=${bookingId}`),
-        // Direct Supabase fetch for the booking row (via a lightweight inline
-        // endpoint would be ideal, but here we use the existing payments GET
-        // as a proxy to confirm the booking exists, then read the booking
-        // details from the same response's implied existence).
-        // NOTE: If you have a dedicated /api/bookings/:id endpoint, use that instead.
+      // Fetch both the booking data and existing payments
+      const [bookingRes, paymentsRes] = await Promise.all([
+        // Fetch the actual booking row to get status, created_at, payment_status
+        fetch(`/api/bookings/${bookingId}`),
+        // Fetch payment history
         fetch(`/api/payments/create-intent?booking_id=${bookingId}`),
       ]);
 
-      if (!paymentsRes.ok) {
-        // 404 = booking row was deleted or never existed
-        if (paymentsRes.status === 404) {
-          setLoadingState('error');
-          setErrorMessage('This booking no longer exists. Please create a new one.');
-          return;
+      // If booking endpoint doesn't exist yet, fall back to using payment endpoint
+      // and construct booking data from payment metadata (with caveats noted below)
+      let bookingData;
+      if (bookingRes.status === 404 && bookingRes.url.includes('/api/bookings/')) {
+        // Booking endpoint not implemented - use payment metadata as fallback
+        // NOTE: This fallback has limitations - see explanation below
+        if (!paymentsRes.ok) {
+          if (paymentsRes.status === 404) {
+            setLoadingState('error');
+            setErrorMessage('This booking no longer exists. Please create a new one.');
+            return;
+          }
+          if (paymentsRes.status === 401) {
+            router.push('/login');
+            return;
+          }
+          throw new Error('Failed to verify booking');
         }
-        // 401 = session expired
-        if (paymentsRes.status === 401) {
-          router.push('/login');
-          return;
+
+        const paymentsData = await paymentsRes.json();
+
+        // FALLBACK MODE: Reconstruct booking from payment metadata
+        // CAVEAT: If no payments exist yet, we have no metadata, so we can't know
+        // the real created_at or status. This means a truly expired/cancelled booking
+        // might slip through. Implement /api/bookings/:id endpoint to fix this properly.
+        const hasSucceededPayment = paymentsData.payments?.some(
+          (p: { status: string }) => p.status === 'succeeded'
+        );
+
+        bookingData = {
+          id: bookingId,
+          status: 'pending',  // Assumption - may be wrong if booking was cancelled
+          payment_status: hasSucceededPayment ? 'paid' : 'unpaid',
+          destination_name: paymentsData.payments?.[0]?.metadata?.destination_name ?? 'Your Destination',
+          check_in_date: paymentsData.payments?.[0]?.metadata?.check_in_date ?? '',
+          check_out_date: paymentsData.payments?.[0]?.metadata?.check_out_date ?? '',
+          group_size: paymentsData.payments?.[0]?.metadata?.group_size ?? 1,
+          name: paymentsData.payments?.[0]?.metadata?.customer_name ?? 'Guest',
+          created_at: paymentsData.payments?.[0]?.created_at ?? new Date().toISOString(),
+        };
+      } else {
+        // Booking endpoint exists and returned data
+        if (!bookingRes.ok) {
+          if (bookingRes.status === 404) {
+            setLoadingState('error');
+            setErrorMessage('This booking no longer exists. Please create a new one.');
+            return;
+          }
+          if (bookingRes.status === 401) {
+            router.push('/login');
+            return;
+          }
+          throw new Error('Failed to fetch booking');
         }
-        throw new Error('Failed to verify booking');
+
+        const booking = await bookingRes.json();
+        const paymentsData = paymentsRes.ok ? await paymentsRes.json() : { payments: [] };
+
+        const hasSucceededPayment = paymentsData.payments?.some(
+          (p: { status: string }) => p.status === 'succeeded'
+        );
+
+        bookingData = {
+          id: booking.id,
+          status: booking.status,
+          payment_status: hasSucceededPayment ? 'paid' : (booking.payment_status || 'unpaid'),
+          destination_name: booking.destination?.name ?? booking.destination_name ?? 'Your Destination',
+          check_in_date: booking.check_in_date,
+          check_out_date: booking.check_out_date,
+          group_size: booking.group_size,
+          name: booking.name,
+          created_at: booking.created_at,
+        };
       }
 
-      const paymentsData = await paymentsRes.json();
-
-      // Check if any payment already succeeded for this booking
-      const hasSucceededPayment = paymentsData.payments?.some(
-        (p: { status: string }) => p.status === 'succeeded'
-      );
-
-      // Build a minimal recovery object.  The full booking details come through
-      // the PaymentForm component which already fetches them when creating the
-      // intent.  We only need enough here to drive recovery UI decisions.
-      // We store succeeded-payment flag as a synthetic payment_status.
-      const recoveryData: BookingRecoveryData = {
-        id: bookingId,
-        status: 'pending',                       // booking row status
-        payment_status: hasSucceededPayment ? 'paid' : 'unpaid',
-        destination_name: paymentsData.payments?.[0]?.metadata?.destination_name ?? 'Your Destination',
-        check_in_date: paymentsData.payments?.[0]?.metadata?.check_in_date ?? '',
-        check_out_date: paymentsData.payments?.[0]?.metadata?.check_out_date ?? '',
-        group_size: paymentsData.payments?.[0]?.metadata?.group_size ?? 1,
-        name: paymentsData.payments?.[0]?.metadata?.customer_name ?? 'Guest',
-        created_at: paymentsData.payments?.[0]?.created_at ?? new Date().toISOString(),
-      };
-
-      setBooking(recoveryData);
+      setBooking(bookingData);
       setLoadingState('ready');
     } catch (err) {
       setLoadingState('error');

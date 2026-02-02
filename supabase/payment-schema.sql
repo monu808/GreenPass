@@ -296,6 +296,33 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- =============================================
+-- ADVISORY LOCK HELPERS (for payment intent idempotency)
+-- =============================================
+-- Wrapper functions to expose PostgreSQL advisory locks via Supabase RPC.
+-- Used by the payment intent creation endpoint to prevent concurrent duplicate intents.
+
+CREATE OR REPLACE FUNCTION pg_try_advisory_lock(key INTEGER)
+RETURNS BOOLEAN AS $$
+BEGIN
+  RETURN pg_try_advisory_lock(key);
+END;
+$$ LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp;
+
+CREATE OR REPLACE FUNCTION pg_advisory_unlock(key INTEGER)
+RETURNS BOOLEAN AS $$
+BEGIN
+  RETURN pg_advisory_unlock(key);
+END;
+$$ LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp;
+
+GRANT EXECUTE ON FUNCTION pg_try_advisory_lock(INTEGER) TO authenticated;
+GRANT EXECUTE ON FUNCTION pg_advisory_unlock(INTEGER) TO authenticated;
+
+-- =============================================
 -- STALE BOOKING CLEANUP FUNCTION
 -- =============================================
 -- Cancels bookings that have been sitting in (status = 'pending', payment_status = 'unpaid')
@@ -342,7 +369,8 @@ BEGIN
   RETURN v_cancelled_count;
 END;
 $$ LANGUAGE plpgsql
-SECURITY DEFINER;  -- Must run as the defining role so RLS doesn't block the bulk update
+SECURITY DEFINER
+SET search_path = public, pg_temp;  -- Prevent search_path hijacking by explicitly setting trusted schemas
 
 -- Grant execute to the service role so it can be called from a cron / Edge Function.
 -- Adjust the role name if your Supabase setup uses a different convention.

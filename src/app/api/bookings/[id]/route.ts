@@ -84,10 +84,53 @@ export async function GET(
             .eq('id', bookingId)
             .single();
 
-        if (bookingError || !booking) {
+        // Handle database errors
+        if (bookingError) {
+            // Cast to access potential runtime properties
+            const errorObj = bookingError as any;
+
+            // Check if this is a "not found" error (PGRST116 code or 406 status)
+            const isNotFoundError =
+                errorObj.code === 'PGRST116' ||
+                errorObj.status === 406;
+
+            if (isNotFoundError) {
+                logger.warn(
+                    'Booking not found',
+                    { component: 'bookings-route', operation: 'getBooking', metadata: { bookingId, errorCode: errorObj.code, errorStatus: errorObj.status } }
+                );
+                return NextResponse.json(
+                    { error: 'Booking not found' },
+                    { status: 404 }
+                );
+            }
+
+            // All other database errors are internal server errors
             logger.error(
-                'Booking not found',
+                'Database error fetching booking',
                 bookingError,
+                {
+                    component: 'bookings-route',
+                    operation: 'getBooking',
+                    metadata: {
+                        bookingId,
+                        errorCode: errorObj.code,
+                        errorMessage: errorObj.message,
+                        errorDetails: errorObj.details,
+                        errorHint: errorObj.hint
+                    }
+                }
+            );
+            return NextResponse.json(
+                { error: 'Internal server error' },
+                { status: 500 }
+            );
+        }
+
+        // Handle case where no error but also no booking
+        if (!booking) {
+            logger.warn(
+                'Booking not found',
                 { component: 'bookings-route', operation: 'getBooking', metadata: { bookingId } }
             );
             return NextResponse.json(

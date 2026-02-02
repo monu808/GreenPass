@@ -1,12 +1,12 @@
 import { createClient } from '@supabase/supabase-js';
 import { Database } from '../types/database';
-import { logger } from '@/lib/logger'; // ✅ NEW IMPORT
+import { logger } from '@/lib/logger';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
 export const supabase = createClient<Database>(
-  supabaseUrl || 'https://placeholder.supabase.co', 
+  supabaseUrl || 'https://placeholder.supabase.co',
   supabaseAnonKey || 'placeholder'
 );
 

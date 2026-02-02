@@ -233,15 +233,15 @@ class PaymentService {
       logger.error(
         'Error creating payment intent',
         error,
-        { 
-          component: 'paymentService', 
-          operation: 'createPaymentIntent', 
-          metadata: { 
-            bookingId: input.booking_id, 
-            amount: input.amount, 
+        {
+          component: 'paymentService',
+          operation: 'createPaymentIntent',
+          metadata: {
+            bookingId: input.booking_id,
+            amount: input.amount,
             currency: input.currency || 'INR',
             paymentMethod: input.payment_method
-          } 
+          }
         }
       );
       throw error;
@@ -333,7 +333,7 @@ class PaymentService {
       }
 
       const stripe = new Stripe(STRIPE_SECRET_KEY, {
-        apiVersion: '2026-01-28.clover',
+        apiVersion: '2025-12-15.clover',
       });
 
       const intent = await stripe.paymentIntents.create({
@@ -689,7 +689,7 @@ class PaymentService {
     }
 
     const stripe = new Stripe(STRIPE_SECRET_KEY, {
-      apiVersion: '2026-01-28.clover',
+      apiVersion: '2025-12-15.clover',
     });
 
     if (!payment.gateway_payment_id) {

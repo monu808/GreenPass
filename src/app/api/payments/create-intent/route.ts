@@ -95,75 +95,98 @@ export async function POST(request: NextRequest) {
     }
 
     // ---------------------------------------------------------------------------
-    // Idempotency: inspect all existing payments for this booking
+    // Idempotency: use advisory lock to prevent concurrent duplicate intents
     // ---------------------------------------------------------------------------
-    const existingPayments = await paymentService.getPaymentsByBooking(booking_id);
+    // Acquire an advisory lock based on booking_id hash to serialize payment
+    // intent creation for this booking across concurrent requests.
+    const bookingHash = Buffer.from(booking_id, 'utf-8')
+      .reduce((acc, byte) => (acc * 31 + byte) & 0x7fffffff, 0);
 
-    // Already successfully paid → hard stop
-    const successfulPayment = existingPayments.find(
-      (p: { status: string }) => p.status === 'succeeded'
-    );
-    if (successfulPayment) {
-      return NextResponse.json(
-        { error: 'Payment already completed for this booking' },
-        { status: 400 }
-      );
-    }
-
-    // Active (non-terminal) payment in flight → don't create a duplicate
-    const activePayment = existingPayments.find(
-      (p: { status: string }) =>
-        p.status === 'pending' ||
-        p.status === 'processing' ||
-        p.status === 'requires_action'
-    );
-    if (activePayment) {
-      return NextResponse.json(
-        { error: 'A payment is already in progress for this booking. Please wait or refresh the page.' },
-        { status: 400 }
-      );
-    }
-
-    // All previous payments are terminal (failed / cancelled) — safe to retry.
-    if (existingPayments.length > 0) {
-      logger.info(
-        'Retrying payment intent after previous terminal payment(s)',
-        { component: 'payments-create-intent-route', operation: 'retryIntent', metadata: { booking_id, previousAttempts: existingPayments.length } }
-      );
-    }
-
-    // ---------------------------------------------------------------------------
-    // Calculate pricing & create intent
-    // ---------------------------------------------------------------------------
-    const pricing = await paymentService.calculateBookingPrice(
-      booking.destination_id,
-      booking.group_size,
-      booking.check_in_date,
-      booking.carbon_footprint || 0
-    );
-
-    const paymentIntent = await paymentService.createPaymentIntent({
-      booking_id,
-      amount: pricing.total_amount,
-      currency: pricing.currency,
-      payment_method: payment_method,
-      metadata: {
-        ...metadata,
-        destination_name: booking.destinations?.name,
-        check_in_date: booking.check_in_date,
-        check_out_date: booking.check_out_date,
-        group_size: booking.group_size,
-        customer_name: booking.name,
-        customer_email: booking.email,
-        customer_phone: booking.phone,
-      },
+    const { data: lockAcquired } = await supabase.rpc('pg_try_advisory_lock', {
+      key: bookingHash,
     });
 
-    return NextResponse.json({
-      success: true,
-      payment_intent: paymentIntent,
-      pricing,
-    });
+    if (!lockAcquired) {
+      // Another request is already creating a payment intent for this booking
+      return NextResponse.json(
+        { error: 'Payment intent creation already in progress. Please wait a moment and try again.' },
+        { status: 409 }
+      );
+    }
+
+    try {
+      // Now that we hold the lock, inspect existing payments
+      const existingPayments = await paymentService.getPaymentsByBooking(booking_id);
+
+      // Already successfully paid → hard stop
+      const successfulPayment = existingPayments.find(
+        (p: { status: string }) => p.status === 'succeeded'
+      );
+      if (successfulPayment) {
+        return NextResponse.json(
+          { error: 'Payment already completed for this booking' },
+          { status: 400 }
+        );
+      }
+
+      // Active (non-terminal) payment in flight → don't create a duplicate
+      const activePayment = existingPayments.find(
+        (p: { status: string }) =>
+          p.status === 'pending' ||
+          p.status === 'processing' ||
+          p.status === 'requires_action'
+      );
+      if (activePayment) {
+        return NextResponse.json(
+          { error: 'A payment is already in progress for this booking. Please wait or refresh the page.' },
+          { status: 400 }
+        );
+      }
+
+      // All previous payments are terminal (failed / cancelled) — safe to retry.
+      if (existingPayments.length > 0) {
+        logger.info(
+          'Retrying payment intent after previous terminal payment(s)',
+          { component: 'payments-create-intent-route', operation: 'retryIntent', metadata: { booking_id, previousAttempts: existingPayments.length } }
+        );
+      }
+
+      // ---------------------------------------------------------------------------
+      // Calculate pricing & create intent
+      // ---------------------------------------------------------------------------
+      const pricing = await paymentService.calculateBookingPrice(
+        booking.destination_id,
+        booking.group_size,
+        booking.check_in_date,
+        booking.carbon_footprint || 0
+      );
+
+      const paymentIntent = await paymentService.createPaymentIntent({
+        booking_id,
+        amount: pricing.total_amount,
+        currency: pricing.currency,
+        payment_method: payment_method,
+        metadata: {
+          ...metadata,
+          destination_name: booking.destinations?.name,
+          check_in_date: booking.check_in_date,
+          check_out_date: booking.check_out_date,
+          group_size: booking.group_size,
+          customer_name: booking.name,
+          customer_email: booking.email,
+          customer_phone: booking.phone,
+        },
+      });
+
+      return NextResponse.json({
+        success: true,
+        payment_intent: paymentIntent,
+        pricing,
+      });
+    } finally {
+      // Always release the advisory lock
+      await supabase.rpc('pg_advisory_unlock', { key: bookingHash });
+    }
   } catch (error: any) {
     logger.error(
       'Error creating payment intent',

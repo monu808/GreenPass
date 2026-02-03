@@ -175,8 +175,11 @@ function BookDestinationForm() {
     setEligibility(result);
   }, [destination]);
 
-  const computeBookingFootprint = useCallback((): CarbonFootprintResult | null => {
-    if (!destination || !formData.originLocation) return null;
+  const calculateCarbonFootprint = useCallback(() => {
+    if (!destination || !formData.originLocation) {
+      setCarbonFootprint(null);
+      return;
+    }
 
     // Calculate actual stay nights from dates
     let stayNights = 2; // Default fallback
@@ -194,7 +197,7 @@ function BookDestinationForm() {
     }
 
     const calculator = getCarbonCalculator();
-    return calculator.calculateBookingFootprint(
+    const result = calculator.calculateBookingFootprint(
       formData.originLocation,
       destination.id,
       formData.groupSize,
@@ -203,12 +206,8 @@ function BookDestinationForm() {
       destination.coordinates.latitude,
       destination.coordinates.longitude
     );
-  }, [destination, formData.originLocation, formData.groupSize, formData.transportType, formData.checkInDate, formData.checkOutDate]);
-
-  const calculateCarbonFootprint = useCallback(() => {
-    const result = computeBookingFootprint();
     setCarbonFootprint(result);
-  }, [computeBookingFootprint]);
+  }, [destination, formData.originLocation, formData.groupSize, formData.transportType, formData.checkInDate, formData.checkOutDate]);
 
   useEffect(() => {
     if (destinationId) {
@@ -333,7 +332,28 @@ function BookDestinationForm() {
       const sanitizedData = sanitizeObject(formData);
 
       // Calculate up-to-date footprint for persistence
-      const currentFootprint = computeBookingFootprint();
+      let stayNights = 2; // Default fallback
+      if (formData.checkInDate && formData.checkOutDate) {
+        const start = new Date(formData.checkInDate);
+        const end = new Date(formData.checkOutDate);
+
+        if (!isNaN(start.getTime()) && !isNaN(end.getTime())) {
+          const diffTime = end.getTime() - start.getTime();
+          const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+          stayNights = Math.max(0, diffDays);
+        }
+      }
+
+      const calculator = getCarbonCalculator();
+      const currentFootprint = (destination && formData.originLocation) ? calculator.calculateBookingFootprint(
+        formData.originLocation,
+        destination.id,
+        formData.groupSize,
+        formData.transportType,
+        stayNights,
+        destination.coordinates.latitude,
+        destination.coordinates.longitude
+      ) : null;
 
       // Validate and convert group size
       const groupSize = parseInt(String(sanitizedData.groupSize), 10);

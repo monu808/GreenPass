@@ -276,6 +276,27 @@ function BookDestinationForm() {
     if (!formData.emergencyContact.phone) newErrors['emergencyContact.phone'] = 'Phone is required';
     if (!formData.emergencyContact.relationship) newErrors['emergencyContact.relationship'] = 'Relationship is required';
 
+    // Date Validation
+    if (formData.checkInDate) {
+      const [year, month, day] = formData.checkInDate.split('-').map(Number);
+      const checkInLocal = new Date(year, month - 1, day);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      if (checkInLocal < today) {
+        newErrors['checkInDate'] = 'Check-in date cannot be in the past';
+      }
+    }
+
+    if (formData.checkInDate && formData.checkOutDate) {
+      const checkIn = new Date(formData.checkInDate);
+      const checkOut = new Date(formData.checkOutDate);
+
+      if (checkOut <= checkIn) {
+        newErrors['checkOutDate'] = 'Check-out date must be after check-in date';
+      }
+    }
+
     // Sensitivity-specific validation
     const policyEngine = getPolicyEngine();
     const policy = destination ? policyEngine.getPolicy(destination.ecologicalSensitivity) : null;

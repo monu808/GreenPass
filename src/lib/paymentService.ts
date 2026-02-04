@@ -189,7 +189,7 @@ class PaymentService {
         .insert({
           booking_id: input.booking_id,
           user_id: booking.user_id,
-          amount: booking.total_amount * 100, // Convert to cents
+          amount: booking.payment_amount * 100, // Convert to cents
           currency: 'INR',
           status: 'pending',
           gateway: this.gateway,

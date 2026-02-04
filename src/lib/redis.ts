@@ -47,7 +47,29 @@ export const weatherRatelimit = redis ? new Ratelimit({
 });
 
 // Weather caching configuration
-const WEATHER_CACHE_TTL = parseInt(process.env.WEATHER_CACHE_TTL_SECONDS || '1800'); // 30 minutes default
+const DEFAULT_WEATHER_CACHE_TTL = 1800; // 30 minutes default
+const WEATHER_CACHE_TTL_SECONDS = process.env.WEATHER_CACHE_TTL_SECONDS;
+
+// Validate and parse TTL with proper fallback
+const WEATHER_CACHE_TTL = (() => {
+  if (!WEATHER_CACHE_TTL_SECONDS) {
+    return DEFAULT_WEATHER_CACHE_TTL;
+  }
+  
+  const parsed = parseInt(WEATHER_CACHE_TTL_SECONDS, 10);
+  
+  // Check if parsed value is a valid positive integer
+  if (Number.isFinite(parsed) && parsed > 0) {
+    return parsed;
+  }
+  
+  console.warn(
+    `Invalid WEATHER_CACHE_TTL_SECONDS: "${WEATHER_CACHE_TTL_SECONDS}". ` +
+    `Using default TTL of ${DEFAULT_WEATHER_CACHE_TTL} seconds.`
+  );
+  
+  return DEFAULT_WEATHER_CACHE_TTL;
+})();
 const WEATHER_CACHE_KEY_PREFIX = 'weather';
 
 /**

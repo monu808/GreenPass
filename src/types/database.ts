@@ -537,7 +537,7 @@ export type Database = {
           gateway: 'razorpay' | 'stripe';
           gateway_payment_id: string | null;
           gateway_order_id: string | null;
-          metadata: any | null;
+          metadata: Record<string, unknown> | null;
           failure_reason: string | null;
           created_at: string;
           updated_at: string;
@@ -554,7 +554,7 @@ export type Database = {
           gateway: 'razorpay' | 'stripe';
           gateway_payment_id?: string | null;
           gateway_order_id?: string | null;
-          metadata?: any | null;
+          metadata?: Record<string, unknown> | null;
           failure_reason?: string | null;
           created_at?: string;
           updated_at?: string;
@@ -571,7 +571,7 @@ export type Database = {
           gateway?: 'razorpay' | 'stripe';
           gateway_payment_id?: string | null;
           gateway_order_id?: string | null;
-          metadata?: any | null;
+          metadata?: Record<string, unknown> | null;
           failure_reason?: string | null;
           created_at?: string;
           updated_at?: string;
@@ -657,9 +657,9 @@ export type Database = {
           base_fee_per_person: number;
           processing_fee_percentage: number;
           tax_percentage: number;
-          destination_multipliers: any;
-          seasonal_multipliers: any;
-          group_discounts: any;
+          destination_multipliers: Record<string, unknown> | null;
+          seasonal_multipliers: Record<string, unknown> | null;
+          group_discounts: Record<string, unknown> | null;
           carbon_offset_fee_per_kg: number;
           version: number;
           is_active: boolean;
@@ -673,9 +673,9 @@ export type Database = {
           base_fee_per_person?: number;
           processing_fee_percentage?: number;
           tax_percentage?: number;
-          destination_multipliers?: any;
-          seasonal_multipliers?: any;
-          group_discounts?: any;
+          destination_multipliers?: Record<string, unknown> | null;
+          seasonal_multipliers?: Record<string, unknown> | null;
+          group_discounts?: Record<string, unknown> | null;
           carbon_offset_fee_per_kg?: number;
           version?: number;
           is_active?: boolean;
@@ -689,9 +689,9 @@ export type Database = {
           base_fee_per_person?: number;
           processing_fee_percentage?: number;
           tax_percentage?: number;
-          destination_multipliers?: any;
-          seasonal_multipliers?: any;
-          group_discounts?: any;
+          destination_multipliers?: Record<string, unknown> | null;
+          seasonal_multipliers?: Record<string, unknown> | null;
+          group_discounts?: Record<string, unknown> | null;
           carbon_offset_fee_per_kg?: number;
           version?: number;
           is_active?: boolean;

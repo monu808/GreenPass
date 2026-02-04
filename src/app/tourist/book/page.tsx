@@ -2,7 +2,8 @@
 
 import React, { useState, useEffect, Suspense, useCallback } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { Calendar, Users, MapPin, Clock, Star, AlertTriangle, CheckCircle, Leaf, ShieldAlert, XCircle, RefreshCw, Globe, TreePine, Zap, Flame, Info } from 'lucide-react';
+import Image from 'next/image';
+import { Calendar, Users, MapPin, Clock, Star, AlertTriangle, CheckCircle, Leaf, ShieldAlert, XCircle, RefreshCw, Globe, TreePine, Zap, Info } from 'lucide-react';
 import TouristLayout from '@/components/TouristLayout';
 import { FormErrorBoundary } from '@/components/errors';
 import { getDbService } from '@/lib/databaseService';
@@ -18,7 +19,7 @@ import {
   isValidEcologicalSensitivity,
   isValidWasteManagementLevel
 } from '@/lib/typeGuards';
-import { ORIGIN_LOCATIONS, getOriginLocationById } from '@/data/originLocations';
+import { ORIGIN_LOCATIONS } from '@/data/originLocations';
 import { useAuth } from '@/contexts/AuthContext';
 import {
   Destination,
@@ -594,9 +595,9 @@ function BookDestinationForm() {
               </div>
 
               <div className={`flex items-center px-4 py-2 rounded-full border shadow-sm ${destination.ecologicalSensitivity === 'critical' ? 'bg-red-50 border-red-100 text-red-600' :
-                  destination.ecologicalSensitivity === 'high' ? 'bg-orange-50 border-orange-100 text-orange-600' :
-                    destination.ecologicalSensitivity === 'medium' ? 'bg-yellow-50 border-yellow-100 text-yellow-600' :
-                      'bg-green-50 border-green-100 text-green-600'
+                destination.ecologicalSensitivity === 'high' ? 'bg-orange-50 border-orange-100 text-orange-600' :
+                  destination.ecologicalSensitivity === 'medium' ? 'bg-yellow-50 border-yellow-100 text-yellow-600' :
+                    'bg-green-50 border-green-100 text-green-600'
                 }`}>
                 <RefreshCw className="h-4 w-4 mr-2" />
                 <span className="text-sm font-bold capitalize">{destination.ecologicalSensitivity} Sensitivity</span>
@@ -1062,7 +1063,7 @@ function BookDestinationForm() {
                 ) : (
                   <div className="w-full sm:flex-1 space-y-3">
                     <div className="text-center text-xs text-gray-500">
-                      You’ll be redirected to payment to complete your booking.
+                      You&apos;ll be redirected to payment to complete your booking.
                     </div>
                     <button
                       type="submit"
@@ -1092,30 +1093,30 @@ function BookDestinationForm() {
         {/* Policy Section */}
         {destination && (destination.ecologicalSensitivity !== 'low' || policy?.bookingRestrictionMessage) && (
           <div className={`${destination.ecologicalSensitivity === 'critical' ? 'bg-red-50 border-red-400' :
-              destination.ecologicalSensitivity === 'high' ? 'bg-orange-50 border-orange-400' :
-                'bg-yellow-50 border-yellow-400'
+            destination.ecologicalSensitivity === 'high' ? 'bg-orange-50 border-orange-400' :
+              'bg-yellow-50 border-yellow-400'
             } border-2 rounded-2xl p-8 relative overflow-hidden`}>
             <div className="flex items-start space-x-4">
               <div className={`${destination.ecologicalSensitivity === 'critical' ? 'bg-red-100' :
-                  destination.ecologicalSensitivity === 'high' ? 'bg-orange-100' :
-                    'bg-yellow-100'
+                destination.ecologicalSensitivity === 'high' ? 'bg-orange-100' :
+                  'bg-yellow-100'
                 } p-3 rounded-xl border`}>
                 <ShieldAlert className={`${destination.ecologicalSensitivity === 'critical' ? 'text-red-700' :
-                    destination.ecologicalSensitivity === 'high' ? 'text-orange-700' :
-                      'text-yellow-700'
+                  destination.ecologicalSensitivity === 'high' ? 'text-orange-700' :
+                    'text-yellow-700'
                   } h-8 w-8`} />
               </div>
               <div className="space-y-4">
                 <div>
                   <h3 className={`${destination.ecologicalSensitivity === 'critical' ? 'text-red-900' :
-                      destination.ecologicalSensitivity === 'high' ? 'text-orange-900' :
-                        'text-yellow-900'
+                    destination.ecologicalSensitivity === 'high' ? 'text-orange-900' :
+                      'text-yellow-900'
                     } text-xl font-black uppercase tracking-tight`}>
                     {destination.ecologicalSensitivity} Sensitivity Policy
                   </h3>
                   <p className={`${destination.ecologicalSensitivity === 'critical' ? 'text-red-800' :
-                      destination.ecologicalSensitivity === 'high' ? 'text-orange-800' :
-                        'text-yellow-800'
+                    destination.ecologicalSensitivity === 'high' ? 'text-orange-800' :
+                      'text-yellow-800'
                     } font-bold mt-1`}>
                     {policy?.bookingRestrictionMessage || `This is a ${destination.ecologicalSensitivity}-sensitivity area. Please follow the guidelines.`}
                   </p>
@@ -1124,16 +1125,16 @@ function BookDestinationForm() {
                 <div className="flex flex-wrap gap-3">
                   {policy?.requiresPermit && (
                     <div className={`px-4 py-2 border rounded-full text-xs font-black uppercase shadow-sm ${destination.ecologicalSensitivity === 'critical' ? 'bg-red-100 text-red-900 border-red-200' :
-                        destination.ecologicalSensitivity === 'high' ? 'bg-orange-100 text-orange-900 border-orange-200' :
-                          'bg-yellow-100 text-yellow-900 border-yellow-200'
+                      destination.ecologicalSensitivity === 'high' ? 'bg-orange-100 text-orange-900 border-orange-200' :
+                        'bg-yellow-100 text-yellow-900 border-yellow-200'
                       }`}>
                       Permit Required
                     </div>
                   )}
                   {policy?.requiresEcoBriefing && (
                     <div className={`px-4 py-2 border rounded-full text-xs font-black uppercase shadow-sm ${destination.ecologicalSensitivity === 'critical' ? 'bg-red-100 text-red-900 border-red-200' :
-                        destination.ecologicalSensitivity === 'high' ? 'bg-orange-100 text-orange-900 border-orange-200' :
-                          'bg-yellow-100 text-yellow-900 border-yellow-200'
+                      destination.ecologicalSensitivity === 'high' ? 'bg-orange-100 text-orange-900 border-orange-200' :
+                        'bg-yellow-100 text-yellow-900 border-yellow-200'
                       }`}>
                       Eco-Briefing Mandatory
                     </div>
@@ -1395,8 +1396,8 @@ function BookDestinationForm() {
                 <div className="flex items-center justify-between mb-8">
                   <h3 className="text-2xl font-bold text-gray-900">Environmental Impact</h3>
                   <div className={`px-4 py-1 rounded-full text-xs font-bold uppercase tracking-wider ${carbonFootprint.impactLevel === 'low' ? 'bg-green-100 text-green-700' :
-                      carbonFootprint.impactLevel === 'medium' ? 'bg-yellow-100 text-yellow-700' :
-                        'bg-red-100 text-red-700'
+                    carbonFootprint.impactLevel === 'medium' ? 'bg-yellow-100 text-yellow-700' :
+                      'bg-red-100 text-red-700'
                     }`}>
                     {carbonFootprint.impactLevel} Impact
                   </div>
@@ -1431,7 +1432,7 @@ function BookDestinationForm() {
                 <div className="mt-8 p-4 bg-blue-50/50 rounded-xl border border-blue-100 flex items-start space-x-3">
                   <Info className="h-5 w-5 text-blue-600 mt-0.5" />
                   <p className="text-sm text-blue-800 leading-relaxed">
-                    This trip's emissions are equivalent to <strong>{carbonFootprint.comparison.trees_equivalent}</strong> trees absorbing CO2 for a year, or <strong>{carbonFootprint.comparison.car_miles_equivalent}</strong> miles driven in an average car.
+                    This trip&apos;s emissions are equivalent to <strong>{carbonFootprint.comparison.trees_equivalent}</strong> trees absorbing CO2 for a year, or <strong>{carbonFootprint.comparison.car_miles_equivalent}</strong> miles driven in an average car.
                   </p>
                 </div>
               </div>
@@ -1475,8 +1476,14 @@ function BookDestinationForm() {
                   const score = calculateSustainabilityScore(alt);
                   return (
                     <div key={alt.id} className="bg-white p-4 rounded-xl border border-emerald-100 flex gap-4 items-center group hover:shadow-md transition-all">
-                      <div className="h-16 w-16 rounded-lg bg-emerald-50 overflow-hidden flex-shrink-0">
-                        <img src="https://images.unsplash.com/photo-1501785888041-af3ef285b470?w=200" className="w-full h-full object-cover group-hover:scale-110 transition-transform" alt={alt.name} />
+                      <div className="h-16 w-16 rounded-lg bg-emerald-50 overflow-hidden flex-shrink-0 relative">
+                        <Image
+                          src="https://images.unsplash.com/photo-1501785888041-af3ef285b470?w=200"
+                          fill
+                          className="object-cover group-hover:scale-110 transition-transform"
+                          alt={alt.name}
+                          sizes="64px"
+                        />
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex justify-between items-start">
@@ -1553,8 +1560,8 @@ function BookDestinationForm() {
               type="submit"
               disabled={submitting || !eligibility.allowed}
               className={`px-12 py-4 rounded-xl font-bold text-white shadow-lg transition-all transform active:scale-95 ${submitting || !eligibility.allowed
-                  ? 'bg-gray-400 cursor-not-allowed'
-                  : 'bg-green-600 hover:bg-green-700 shadow-green-200'
+                ? 'bg-gray-400 cursor-not-allowed'
+                : 'bg-green-600 hover:bg-green-700 shadow-green-200'
                 }`}
             >
               {submitting ? 'Processing...' : 'Confirm Booking'}

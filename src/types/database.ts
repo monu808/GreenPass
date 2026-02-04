@@ -701,6 +701,141 @@ export type Database = {
           updated_at?: string;
         };
       };
+      // Reviews table for user destination reviews
+      reviews: {
+        Row: {
+          id: string;
+          user_id: string;
+          destination_id: string;
+          rating: number;
+          title: string;
+          content: string;
+          photos: string[];
+          tags: string[];
+          trip_type: 'solo' | 'couple' | 'family' | 'friends' | 'business';
+          user_name: string;
+          user_avatar: string | null;
+          helpful_count: number;
+          likes_count: number;
+          is_verified: boolean;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          destination_id: string;
+          rating: number;
+          title: string;
+          content: string;
+          photos?: string[];
+          tags?: string[];
+          trip_type: 'solo' | 'couple' | 'family' | 'friends' | 'business';
+          user_name: string;
+          user_avatar?: string | null;
+          helpful_count?: number;
+          likes_count?: number;
+          is_verified?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          destination_id?: string;
+          rating?: number;
+          title?: string;
+          content?: string;
+          photos?: string[];
+          tags?: string[];
+          trip_type?: 'solo' | 'couple' | 'family' | 'friends' | 'business';
+          user_name?: string;
+          user_avatar?: string | null;
+          helpful_count?: number;
+          likes_count?: number;
+          is_verified?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+      };
+      // Review likes table
+      review_likes: {
+        Row: {
+          id: string;
+          review_id: string;
+          user_id: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          review_id: string;
+          user_id: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          review_id?: string;
+          user_id?: string;
+          created_at?: string;
+        };
+      };
+      // Review helpful votes table
+      review_helpful: {
+        Row: {
+          id: string;
+          review_id: string;
+          user_id: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          review_id: string;
+          user_id: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          review_id?: string;
+          user_id?: string;
+          created_at?: string;
+        };
+      };
+      // Favorites table for saved destinations/activities
+      favorites: {
+        Row: {
+          id: string;
+          user_id: string;
+          item_type: 'destination' | 'activity';
+          item_id: string;
+          notes: string | null;
+          is_bucket_list: boolean;
+          visited_date: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          item_type: 'destination' | 'activity';
+          item_id: string;
+          notes?: string | null;
+          is_bucket_list?: boolean;
+          visited_date?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          item_type?: 'destination' | 'activity';
+          item_id?: string;
+          notes?: string | null;
+          is_bucket_list?: boolean;
+          visited_date?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+      };
     };
     Views: {
       payment_summary: {

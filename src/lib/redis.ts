@@ -44,7 +44,7 @@ export const weatherRatelimit = redis ? new Ratelimit({
   limiter: Ratelimit.slidingWindow(10, '60 s'),
   analytics: true,
   prefix: '@upstash/ratelimit/weather',
-});
+}) : null;
 
 // Weather caching configuration
 const DEFAULT_WEATHER_CACHE_TTL = 1800; // 30 minutes default

@@ -2,37 +2,45 @@ import { Redis } from '@upstash/redis';
 import { Ratelimit } from '@upstash/ratelimit';
 import { WeatherData } from './weatherService';
 
-// Validate environment variables
+// Initialize Redis client - gracefully handle missing credentials
+let redis: Redis | null = null;
+
 const url = process.env.UPSTASH_REDIS_REST_URL;
 const token = process.env.UPSTASH_REDIS_REST_TOKEN;
 
-const hasRedisCredentials = !!(url && token);
-
-if (!hasRedisCredentials) {
+if (url && token) {
+  try {
+    redis = new Redis({
+      url,
+      token,
+    });
+  } catch (error) {
+    console.warn('Failed to initialize Redis client:', error);
+    redis = null;
+  }
+} else {
+  const missing = [];
+  if (!url) missing.push('UPSTASH_REDIS_REST_URL');
+  if (!token) missing.push('UPSTASH_REDIS_REST_TOKEN');
+  
   console.warn(
-    'Warning: Upstash Redis credentials not configured. Rate limiting will be disabled. ' +
-    'Set UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN in your .env file to enable rate limiting.'
+    `Missing Upstash Redis credentials: ${missing.join(', ')}. ` +
+    'Redis caching will be disabled. Please set these environment variables to enable caching.'
   );
 }
 
-// Initialize Redis client only if credentials are available
-export const redis = hasRedisCredentials ? new Redis({
-  url: url!,
-  token: token!,
-}) : null;
-
 // Create rate limiter instances for different route types
 // 100 requests per minute for general routes
-export const generalRatelimit = hasRedisCredentials ? new Ratelimit({
-  redis: redis!,
+export const generalRatelimit = redis ? new Ratelimit({
+  redis,
   limiter: Ratelimit.slidingWindow(100, '60 s'),
   analytics: true,
   prefix: '@upstash/ratelimit/general',
 }) : null;
 
 // 10 requests per minute for weather routes
-export const weatherRatelimit = hasRedisCredentials ? new Ratelimit({
-  redis: redis!,
+export const weatherRatelimit = redis ? new Ratelimit({
+  redis,
   limiter: Ratelimit.slidingWindow(10, '60 s'),
   analytics: true,
   prefix: '@upstash/ratelimit/weather',
@@ -48,6 +56,12 @@ const WEATHER_CACHE_KEY_PREFIX = 'weather';
  * @returns Promise<WeatherData | null> - Cached weather data or null if not found/error
  */
 export async function getWeatherFromCache(destinationId: string): Promise<WeatherData | null> {
+  // Check if Redis is available
+  if (!redis) {
+    console.warn('Redis client not available - weather cache disabled');
+    return null;
+  }
+
   try {
     const cacheKey = `${WEATHER_CACHE_KEY_PREFIX}:${destinationId}`;
     const cachedData = await redis.get(cacheKey);
@@ -79,6 +93,12 @@ export async function getWeatherFromCache(destinationId: string): Promise<Weathe
  * @returns Promise<boolean> - True if successfully cached, false on error
  */
 export async function setWeatherToCache(destinationId: string, weatherData: WeatherData): Promise<boolean> {
+  // Check if Redis is available
+  if (!redis) {
+    console.warn('Redis client not available - weather cache disabled');
+    return false;
+  }
+
   try {
     const cacheKey = `${WEATHER_CACHE_KEY_PREFIX}:${destinationId}`;
     const serializedData = JSON.stringify(weatherData);
@@ -98,6 +118,12 @@ export async function setWeatherToCache(destinationId: string, weatherData: Weat
  * @returns Promise<boolean> - True if successfully invalidated, false on error
  */
 export async function invalidateWeatherCache(destinationId: string): Promise<boolean> {
+  // Check if Redis is available
+  if (!redis) {
+    console.warn('Redis client not available - weather cache disabled');
+    return false;
+  }
+
   try {
     const cacheKey = `${WEATHER_CACHE_KEY_PREFIX}:${destinationId}`;
     await redis.del(cacheKey);
@@ -113,6 +139,12 @@ export async function invalidateWeatherCache(destinationId: string): Promise<boo
  * @returns Promise<boolean> - True if successfully invalidated, false on error
  */
 export async function invalidateAllWeatherCache(): Promise<boolean> {
+  // Check if Redis is available
+  if (!redis) {
+    console.warn('Redis client not available - weather cache disabled');
+    return false;
+  }
+
   try {
     const pattern = `${WEATHER_CACHE_KEY_PREFIX}:*`;
     const keys = await redis.keys(pattern);

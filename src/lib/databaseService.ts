@@ -191,10 +191,10 @@ class DatabaseService {
 
   async addTourist(tourist: Database['public']['Tables']['tourists']['Insert']): Promise<Database['public']['Tables']['tourists']['Row'] | null> {
     try {
+      // --- MOCK MODE HANDLING (Unchanged) ---
       if (this.isPlaceholderMode() || !db) {
         console.log('Using mock addTourist');
-
-        // Check ecological eligibility before adding (consistent with real DB path)
+        
         const eligibility = await this.checkBookingEligibility(tourist.destination_id, tourist.group_size);
         if (!eligibility.allowed) {
           logger.error(
@@ -236,12 +236,15 @@ class DatabaseService {
           payment_amount: 0,
           payment_id: null
         };
-
-        // Add to mock data array
+        
         mockData.addTourist(this.transformDbTouristToTourist(newTourist));
         return newTourist;
       }
-      // Check ecological eligibility before adding
+
+      // --- REAL DATABASE PATH (Fixed for Race Conditions) ---
+
+      // 1. Policy Check (Layer 1)
+      // We still run this for complex rules (holidays, ecological status, etc.)
       const eligibility = await this.checkBookingEligibility(tourist.destination_id, tourist.group_size);
       if (!eligibility.allowed) {
         logger.error(
@@ -252,8 +255,11 @@ class DatabaseService {
         return null;
       }
 
-      console.log('Attempting to insert tourist:', tourist);
-
+      console.log('Attempting to insert tourist atomically:', { 
+        destination_id: tourist.destination_id, 
+        group_size: tourist.group_size 
+      });
+      
       if (!db) {
         logger.error(
           'Database client not initialized',
@@ -263,7 +269,7 @@ class DatabaseService {
         return null;
       }
 
-      // 1. Prepare and validate the record
+      // 2. Prepare the record
       const touristToInsert: Database['public']['Tables']['tourists']['Insert'] = {
         name: tourist.name,
         email: tourist.email,
@@ -277,7 +283,6 @@ class DatabaseService {
         emergency_contact_name: tourist.emergency_contact_name,
         emergency_contact_phone: tourist.emergency_contact_phone,
         emergency_contact_relationship: tourist.emergency_contact_relationship,
-        // Optional fields with proper handling
         id: tourist.id,
         age: tourist.age,
         gender: tourist.gender,
@@ -299,33 +304,30 @@ class DatabaseService {
         return null;
       }
 
-      // 2. Perform insert operation
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { data, error } = await (db.from('tourists') as any)
-        .insert([touristToInsert])
-        .select()
-        .single();
+      // 3. Atomic RPC Call (Layer 2 - The Fix)
+      // Instead of standard .insert(), we call the RPC that locks and verifies capacity
+      // @ts-ignore
+      const { data: rpcResult, error: rpcError } = await db.rpc('create_tourist_booking', {
+        p_tourist_data: touristToInsert
+      });
 
-      if (error) {
-        logger.error(
-          'Database error adding tourist',
-          error,
-          { component: 'databaseService', operation: 'addTourist', metadata: { touristData: tourist } }
-        );
+      if (rpcError) {
+        console.error('Database error adding tourist (RPC):', rpcError);
         return null;
       }
 
-      if (!data) {
+      // 4. Handle RPC Result
+      // The RPC returns a JSON object: { success: boolean, data?: row, error?: string }
+      if (!rpcResult || !rpcResult.success) {
+        console.error('Booking failed:', rpcResult?.error || 'Unknown error');
         return null;
       }
 
-      // Update occupancy if the tourist is immediately checked-in or approved
-      const touristData = data as DbTourist;
-      if (touristData.status === 'checked-in' || touristData.status === 'approved') {
-        await this.updateDestinationOccupancy(touristData.destination_id);
-      }
+      // Success! Extract the data
+      // Note: The data comes back as a JSON object, cast it to DbTourist
+      const finalData = rpcResult.data as DbTourist;
+      return finalData;
 
-      return data as DbTourist;
     } catch (error) {
       logger.error('Error in addTourist', error, { component: 'databaseService', operation: 'addTourist', metadata: { touristData: tourist } });
       return null;

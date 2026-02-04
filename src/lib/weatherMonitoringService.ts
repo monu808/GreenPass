@@ -2,6 +2,7 @@ import { weatherService, destinationCoordinates, WeatherData } from '@/lib/weath
 import { getDbService } from '@/lib/databaseService';
 import { Destination } from '@/types';
 import { distributedBroadcast } from './messagingService';
+import { weatherAggregationService } from './weatherAggregationService';
 import { logger } from '@/lib/logger'; // ✅ NEW IMPORT
 
 /**
@@ -18,16 +19,14 @@ interface WeatherMonitoringService {
  */
 class WeatherMonitor implements WeatherMonitoringService {
   private lastCheckedData: Map<string, WeatherData & { timestamp: number }> = new Map();
-  private lastApiCall: number = 0;
-  private apiCallDelay: number = 10000; // 10 seconds between API calls
   private checkInterval: number = 21600000; // 6 hours threshold for freshness
   public readonly isRunning: boolean = true; // Service is always active (handled by app-load or external cron)
   private isScanning: boolean = false;
 
   /**
    * Triggers an immediate check of weather conditions for all destinations.
-   * Respects rate limiting and cache freshness to minimize API usage.
-   * * @returns {Promise<void>} Resolves when the monitoring cycle is complete.
+   * Uses the weather aggregation service for efficient data retrieval with caching.
+   * @returns {Promise<void>} Resolves when the monitoring cycle is complete.
    */
   async checkWeatherNow(): Promise<void> {
     if (this.isScanning) {
@@ -38,7 +37,11 @@ class WeatherMonitor implements WeatherMonitoringService {
     this.isScanning = true;
 
     try {
-      logger.info('🔍 Checking weather conditions at ' + new Date().toLocaleTimeString());
+      logger.info('🔍 Checking weather conditions...', { 
+        component: 'WeatherMonitor', 
+        operation: 'checkWeatherNow',
+        metadata: { timestamp: new Date().toLocaleTimeString() }
+      });
 
       const dbService = getDbService();
       // Get all destinations
@@ -49,75 +52,27 @@ class WeatherMonitor implements WeatherMonitoringService {
         return;
       }
 
-      // Check weather for each destination with rate limiting
+      // Extract destination IDs for batch processing
+      const destinationIds = destinations.map(dest => dest.id);
+      
+      logger.info(`🌐 Batch fetching weather data for ${destinations.length} destinations via aggregation service...`);
+      
+      // Use aggregation service for batch processing
+      const weatherResults = await weatherAggregationService.getWeatherForMultipleDestinations(destinationIds);
+      
+      // Process results for each destination
       for (const dbDestination of destinations) {
         try {
           const destination = dbService.transformDbDestinationToDestination(dbDestination);
-          // Always check the database first to have some data (even if old)
-          const latestWeather = await dbService.getLatestWeatherData(destination.id);
-
-          if (latestWeather && latestWeather.recorded_at) {
-            const recordedAt = new Date(latestWeather.recorded_at).getTime();
-
-            // Update local cache immediately with DB data as a baseline
-            this.lastCheckedData.set(destination.id, {
-              temperature: latestWeather.temperature,
-              humidity: latestWeather.humidity,
-              pressure: latestWeather.pressure,
-              weatherMain: latestWeather.weather_main,
-              weatherDescription: latestWeather.weather_description,
-              windSpeed: latestWeather.wind_speed,
-              windDirection: latestWeather.wind_direction,
-              visibility: latestWeather.visibility,
-              cityName: destination.name,
-              icon: '01d', // Default icon for DB records
-              timestamp: recordedAt
-            });
-
-            // Check if this data is fresh enough (6 hours)
-            const sixHoursAgo = Date.now() - this.checkInterval;
-            if (recordedAt > sixHoursAgo) {
-              const minutesOld = Math.round((Date.now() - recordedAt) / 60000);
-              logger.debug(`✅ Weather for ${destination.name} is fresh (${minutesOld} min old). Skipping external API call.`);
-              continue;
-            }
-          }
-
-          const coordinates = destinationCoordinates[destination.id] ||
-            destinationCoordinates[destination.name?.toLowerCase().replace(/\s+/g, '')] ||
-            destinationCoordinates[destination.name?.toLowerCase()];
-
-          if (!coordinates) {
-            logger.warn(`⚠️ No coordinates found for ${destination.name}. Skipping.`);
-            continue;
-          }
-
-          logger.info(`🌐 FETCHING fresh weather data from Tomorrow.io for ${destination.name}...`);
-
-          // Rate limiting: ensure minimum delay between API calls
-          const now = Date.now();
-          if (now - this.lastApiCall < this.apiCallDelay) {
-            const waitTime = this.apiCallDelay - (now - this.lastApiCall);
-            logger.debug(`⏱️ Rate limiting: waiting ${waitTime}ms before API call...`);
-            await new Promise(resolve => setTimeout(resolve, waitTime));
-          }
-
-          this.lastApiCall = Date.now();
-
-          const weatherData = await weatherService.getWeatherByCoordinates(
-            coordinates.lat,
-            coordinates.lon,
-            coordinates.name || destination.name
-          );
+          const weatherData = weatherResults.get(destination.id);
 
           if (!weatherData) {
-            logger.error(`❌ Failed to get weather data for ${destination.name} - using last available data`);
-
-            // Try to use cached data for alerts if API fails
+            logger.error(`❌ Failed to get weather data for ${destination.name} via aggregation service`);
+            
+            // Try to use cached data for alerts if available
             const cachedData = this.lastCheckedData.get(destination.id);
             if (cachedData) {
               logger.warn(`📋 Using last available weather data for ${destination.name} (from ${new Date(cachedData.timestamp).toLocaleTimeString()})`);
-              // Process cached data for alerts but don't save to database again
               this.processWeatherAlerts(destination, cachedData, false);
             } else {
               logger.warn(`❌ No data available for ${destination.name}, skipping...`);
@@ -125,7 +80,7 @@ class WeatherMonitor implements WeatherMonitoringService {
             continue;
           }
 
-          // Cache the successful data
+          // Cache the successful data locally
           this.lastCheckedData.set(destination.id, {
             ...weatherData,
             timestamp: Date.now()
@@ -135,9 +90,16 @@ class WeatherMonitor implements WeatherMonitoringService {
           await this.processWeatherAlerts(destination, weatherData, true);
 
         } catch (error) {
-          logger.error(`❌ Error checking weather for ${dbDestination.name}:`, error);
+          logger.error(`❌ Error processing weather for ${dbDestination.name}:`, error);
         }
       }
+
+      // Log cache statistics for monitoring
+      const cacheStats = weatherAggregationService.getCacheStatus();
+      const hitRate = cacheStats.totalRequests > 0 
+        ? (cacheStats.hits / cacheStats.totalRequests * 100).toFixed(2)
+        : '0.00';
+      logger.info(`📊 Cache performance: ${hitRate}% hit rate (${cacheStats.hits}/${cacheStats.totalRequests} requests)`);
 
       logger.info('✅ Weather monitoring cycle completed');
 
@@ -208,7 +170,10 @@ class WeatherMonitor implements WeatherMonitoringService {
           alert_reason: alertReason || undefined
         });
 
-        // After saving, broadcast the update to all connected clients (distributed)
+        // After saving, invalidate cache for this destination to ensure fresh data on next request
+        await weatherAggregationService.invalidateByDestination(destination.id);
+        
+        // Broadcast the update to all connected clients (distributed)
         await distributedBroadcast({
           type: 'weather_update',
           destinationId: destination.id,

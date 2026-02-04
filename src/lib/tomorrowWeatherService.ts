@@ -1,4 +1,5 @@
 import { logger } from '@/lib/logger'; // ✅ NEW IMPORT
+import { weatherRatelimit } from '@/lib/redis';
 
 /**
  * Normalized weather data structure used across the application.
@@ -166,14 +167,34 @@ class TomorrowWeatherService {
 
   /**
    * Fetches real-time weather data for a specific location.
-   * * @param {number} lat - Latitude of the location.
+   * @param {number} lat - Latitude of the location.
    * @param {number} lon - Longitude of the location.
    * @param {string} [cityName='Unknown Location'] - Name of the city/location for logging.
    * @param {AbortSignal} [signal] - Optional signal to abort the fetch request.
+   * @param {string} [cacheKey] - Optional cache key (unused - caching handled by aggregation layer).
+   * @param {boolean} [forceRefresh] - If true, bypass any coordinate-based caching and force fresh API call.
    * @returns {Promise<WeatherData | null>} Weather data or null if fetch fails.
    */
-  async getWeatherByCoordinates(lat: number, lon: number, cityName: string = 'Unknown Location', signal?: AbortSignal): Promise<WeatherData | null> {
+  async getWeatherByCoordinates(lat: number, lon: number, cityName: string = 'Unknown Location', signal?: AbortSignal, cacheKey?: string, forceRefresh: boolean = false): Promise<WeatherData | null> {
+    // Note: Caching is now handled by the weather aggregation service layer
+    // This method only handles rate limiting and API calls
+    // forceRefresh parameter ensures fresh data when needed (bypasses any remaining caches)
+    
     try {
+      logger.debug(`🌐 Requesting weather data for ${cityName}${forceRefresh ? ' (forced refresh)' : ''}...`);
+
+      // Check rate limit before making API call
+      const rateLimitKey = cacheKey || `${lat.toFixed(4)}_${lon.toFixed(4)}`;
+      const { success, limit, remaining, reset } = await weatherRatelimit.limit(rateLimitKey);
+      
+      if (!success) {
+        logger.warn(`⚠️ Rate limit exceeded for ${cityName} (${remaining}/${limit} requests remaining). Reset at ${new Date(reset).toLocaleTimeString()}`);
+        return null; // Let aggregation layer handle fallback
+      }
+
+      logger.debug(`✅ Rate limit check passed for ${cityName} (${remaining}/${limit} requests remaining)`);
+
+      // Proceed with API call
       const fields = [
         'temperature',
         'humidity',
@@ -188,32 +209,34 @@ class TomorrowWeatherService {
         'weatherCode'
       ].join(',');
 
-      const url = `${this.baseUrl}/realtime?location=${lat},${lon}&fields=${fields}&units=metric&apikey=${this.apiKey}`;
+      // Add timestamp parameter to force fresh data when forceRefresh is true
+      const url = `${this.baseUrl}/realtime?location=${lat},${lon}&fields=${fields}&units=metric&apikey=${this.apiKey}${forceRefresh ? '&_t=' + Date.now() : ''}`;
 
-      logger.debug(`🌐 Requesting weather data for ${cityName}...`);
       const response = await fetch(url, { signal });
 
       if (response.status === 429) {
-        logger.warn(`⚠️ Rate limit exceeded for ${cityName}, using fallback weather data`);
-        return this.getFallbackWeatherData(lat, lon, cityName);
+        logger.warn(`⚠️ API rate limit exceeded for ${cityName}`);
+        return null; // Let aggregation layer handle fallback
       }
 
       if (!response.ok) {
-        logger.warn(`⚠️ API error ${response.status} for ${cityName}, using fallback weather data`);
-        return this.getFallbackWeatherData(lat, lon, cityName);
+        logger.warn(`⚠️ API error ${response.status} for ${cityName}`);
+        return null; // Let aggregation layer handle fallback
       }
 
       const data = await response.json();
       logger.debug(`✅ Successfully fetched weather data for ${cityName}`);
+      
+      // Return the transformed data (aggregation layer will handle caching)
       return this.transformWeatherData(data, cityName);
+      
     } catch (error) {
       if ((error as { name?: string })?.name === 'AbortError') {
         logger.debug(`⏹️ Weather fetch aborted for ${cityName}`);
         return null;
       }
       logger.error('Error fetching weather data from Tomorrow.io:', error);
-      logger.warn(`📋 Generating fallback weather data for ${cityName}`);
-      return this.getFallbackWeatherData(lat, lon, cityName);
+      return null; // Let aggregation layer handle fallback
     }
   }
 

@@ -12,18 +12,52 @@ interface PaymentFormProps {
 }
 
 // Load Stripe.js dynamically
+declare global {
+  interface Window {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    Stripe?: any;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    Razorpay?: any;
+  }
+}
+
+interface RazorpayOrderData {
+  key_id: string;
+  amount: number;
+  currency: string;
+  name: string;
+  description: string;
+  order_id: string;
+  prefill: {
+    name?: string;
+    email?: string;
+    contact?: string;
+  };
+}
+
+interface RazorpayResponse {
+  razorpay_payment_id: string;
+  razorpay_order_id?: string;
+  razorpay_signature?: string;
+}
+
+interface StripeGatewayData {
+  publishable_key: string;
+  client_secret: string;
+}
+
 const loadStripeJs = (): Promise<any> => {
   return new Promise((resolve, reject) => {
-    if ((window as any).Stripe) {
-      resolve((window as any).Stripe);
+    if (window.Stripe) {
+      resolve(window.Stripe);
       return;
     }
 
     const script = document.createElement('script');
     script.src = 'https://js.stripe.com/v3/';
     script.onload = () => {
-      if ((window as any).Stripe) {
-        resolve((window as any).Stripe);
+      if (window.Stripe) {
+        resolve(window.Stripe);
       } else {
         reject(new Error('Failed to load Stripe.js'));
       }
@@ -39,7 +73,9 @@ export default function PaymentForm({ bookingId, onSuccess, onError }: PaymentFo
   const [paymentIntent, setPaymentIntent] = useState<PaymentIntent | null>(null);
   const [selectedMethod, setSelectedMethod] = useState<'card' | 'upi' | 'netbanking' | 'wallet'>('card');
   const [error, setError] = useState<string | null>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [stripeElements, setStripeElements] = useState<any>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [stripeInstance, setStripeInstance] = useState<any>(null);
   const [isStripeGateway, setIsStripeGateway] = useState(false);
 
@@ -73,8 +109,8 @@ export default function PaymentForm({ bookingId, onSuccess, onError }: PaymentFo
       } else {
         setIsStripeGateway(false);
       }
-    } catch (err: any) {
-      const errorMsg = err.message || 'Failed to initialize payment';
+    } catch (err: unknown) {
+      const errorMsg = err instanceof Error ? err.message : 'Failed to initialize payment';
       setError(errorMsg);
       onError?.(errorMsg);
     } finally {
@@ -87,7 +123,7 @@ export default function PaymentForm({ bookingId, onSuccess, onError }: PaymentFo
     initializePayment();
   }, [initializePayment]);
 
-  const setupStripeElements = async (gatewayData: any) => {
+  const setupStripeElements = async (gatewayData: StripeGatewayData) => {
     try {
       const StripeConstructor = await loadStripeJs();
       const stripe = StripeConstructor(gatewayData.publishable_key);
@@ -119,7 +155,7 @@ export default function PaymentForm({ bookingId, onSuccess, onError }: PaymentFo
           paymentElement.mount('#stripe-payment-element');
         }
       }, 100);
-    } catch (err: any) {
+    } catch (err: unknown) {
       logger.error(
         'Failed to setup Stripe',
         err,
@@ -144,15 +180,15 @@ export default function PaymentForm({ bookingId, onSuccess, onError }: PaymentFo
         // Stripe payment
         await handleStripePayment();
       }
-    } catch (err: any) {
-      const errorMsg = err.message || 'Payment failed';
+    } catch (err: unknown) {
+      const errorMsg = err instanceof Error ? err.message : 'Payment failed';
       setError(errorMsg);
       onError?.(errorMsg);
       setLoading(false);
     }
   };
 
-  const handleRazorpayPayment = async (orderData: any) => {
+  const handleRazorpayPayment = async (orderData: RazorpayOrderData) => {
     return new Promise((resolve, reject) => {
       // Load Razorpay script
       const script = document.createElement('script');
@@ -176,7 +212,7 @@ export default function PaymentForm({ bookingId, onSuccess, onError }: PaymentFo
           theme: {
             color: '#16a34a', // Green theme
           },
-          handler: function (response: any) {
+          handler: function (response: RazorpayResponse) {
             console.log('Payment successful:', response);
             setLoading(false);
             onSuccess?.(response.razorpay_payment_id);
@@ -190,7 +226,9 @@ export default function PaymentForm({ bookingId, onSuccess, onError }: PaymentFo
           },
         };
 
-        const rzp = new (window as any).Razorpay(options);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const rzp = new window.Razorpay(options);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         rzp.on('payment.failed', function (response: any) {
           setLoading(false);
           reject(new Error(response.error.description || 'Payment failed'));
@@ -287,8 +325,8 @@ export default function PaymentForm({ bookingId, onSuccess, onError }: PaymentFo
             <button
               onClick={() => setSelectedMethod('card')}
               className={`p-4 border-2 rounded-lg flex flex-col items-center space-y-2 transition-colors ${selectedMethod === 'card'
-                  ? 'border-green-600 bg-green-50'
-                  : 'border-gray-200 hover:border-gray-300'
+                ? 'border-green-600 bg-green-50'
+                : 'border-gray-200 hover:border-gray-300'
                 }`}
             >
               <CreditCard className="w-8 h-8" />
@@ -298,8 +336,8 @@ export default function PaymentForm({ bookingId, onSuccess, onError }: PaymentFo
             <button
               onClick={() => setSelectedMethod('upi')}
               className={`p-4 border-2 rounded-lg flex flex-col items-center space-y-2 transition-colors ${selectedMethod === 'upi'
-                  ? 'border-green-600 bg-green-50'
-                  : 'border-gray-200 hover:border-gray-300'
+                ? 'border-green-600 bg-green-50'
+                : 'border-gray-200 hover:border-gray-300'
                 }`}
             >
               <Smartphone className="w-8 h-8" />
@@ -309,8 +347,8 @@ export default function PaymentForm({ bookingId, onSuccess, onError }: PaymentFo
             <button
               onClick={() => setSelectedMethod('netbanking')}
               className={`p-4 border-2 rounded-lg flex flex-col items-center space-y-2 transition-colors ${selectedMethod === 'netbanking'
-                  ? 'border-green-600 bg-green-50'
-                  : 'border-gray-200 hover:border-gray-300'
+                ? 'border-green-600 bg-green-50'
+                : 'border-gray-200 hover:border-gray-300'
                 }`}
             >
               <Building2 className="w-8 h-8" />
@@ -320,8 +358,8 @@ export default function PaymentForm({ bookingId, onSuccess, onError }: PaymentFo
             <button
               onClick={() => setSelectedMethod('wallet')}
               className={`p-4 border-2 rounded-lg flex flex-col items-center space-y-2 transition-colors ${selectedMethod === 'wallet'
-                  ? 'border-green-600 bg-green-50'
-                  : 'border-gray-200 hover:border-gray-300'
+                ? 'border-green-600 bg-green-50'
+                : 'border-gray-200 hover:border-gray-300'
                 }`}
             >
               <Wallet className="w-8 h-8" />

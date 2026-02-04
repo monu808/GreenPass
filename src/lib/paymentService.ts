@@ -15,47 +15,19 @@ import {
 } from '@/types/payment';
 import { logger } from './logger';
 
-// Local type definitions for database rows (not yet in generated types)
-// These will be replaced when `supabase gen types` is run after applying payment-schema.sql
-type DbPayment = {
-  id: string;
-  booking_id: string;
-  user_id: string;
-  amount: number;
-  currency: string;
-  status: PaymentStatus;
-  payment_method?: PaymentMethod;
-  gateway: PaymentGateway;
-  gateway_payment_id?: string | null;
-  gateway_order_id?: string | null;
-  metadata?: Record<string, unknown> | null;
-  failure_reason?: string | null;
-  created_at: string;
-  updated_at: string;
-  paid_at?: string | null;
-};
+import { Database } from '@/types/database';
 
-type DbRefund = {
-  id: string;
-  payment_id: string;
-  booking_id: string;
-  amount: number;
-  reason: string;
-  status: string;
-  gateway_refund_id?: string | null;
-  processed_by?: string | null;
-  notes?: string | null;
-  created_at: string;
-  updated_at: string;
-  processed_at?: string | null;
-};
+type DbPayment = Database['public']['Tables']['payments']['Row'];
+type DbRefund = Database['public']['Tables']['refunds']['Row'];
 
 // Helper to get a typed supabase client for payment tables
-// This bypasses TypeScript's strict checking for tables not in the generated schema
-const paymentsTable = () => (supabase as any)?.from('payments');
-const refundsTable = () => (supabase as any)?.from('refunds');
-const paymentReceiptsTable = () => (supabase as any)?.from('payment_receipts');
-const paymentSummaryView = () => (supabase as any)?.from('payment_summary');
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const db = supabase as any;
+
+const paymentsTable = () => db.from('payments');
+const refundsTable = () => db.from('refunds');
+const paymentReceiptsTable = () => db.from('payment_receipts');
+const paymentSummaryView = () => db.from('payment_summary');
 
 const RAZORPAY_KEY_ID = process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID;
 const RAZORPAY_KEY_SECRET = process.env.RAZORPAY_KEY_SECRET;
@@ -104,8 +76,7 @@ class PaymentService {
 
     try {
       // Call database function to calculate price
-      // Using type assertion because the function types aren't in generated schema yet
-      const { data, error } = await (supabase.rpc as any)('calculate_booking_price', {
+      const { data, error } = await db.rpc('calculate_booking_price', {
         p_destination_id: destinationId,
         p_group_size: groupSize,
         p_check_in_date: checkInDate,
@@ -144,7 +115,16 @@ class PaymentService {
   /**
    * Generate human-readable price breakdown
    */
-  private generatePriceBreakdown(pricing: any): string[] {
+  private generatePriceBreakdown(pricing: {
+    base_amount: number;
+    destination_fee: number;
+    seasonal_adjustment: number;
+    group_discount: number;
+    carbon_offset_fee: number;
+    processing_fee: number;
+    tax_amount: number;
+    total_amount: number;
+  }): string[] {
     const breakdown: string[] = [];
     const formatAmount = (amount: number) => `₹${(amount / 100).toFixed(2)}`;
 
@@ -193,7 +173,7 @@ class PaymentService {
 
     try {
       // Get booking details
-      const { data: booking, error: bookingError } = await (supabase as any)
+      const { data: booking, error: bookingError } = await db
         .from('tourists')
         .select('*, destinations(*)')
         .eq('id', input.booking_id)
@@ -204,30 +184,31 @@ class PaymentService {
       }
 
       // Create payment record
-      const { data: payment, error: paymentError } = await (supabase as any)
+      const { data: paymentData, error: paymentError } = await db
         .from('payments')
         .insert({
           booking_id: input.booking_id,
           user_id: booking.user_id,
-          amount: input.amount,
-          currency: input.currency || 'INR',
+          amount: booking.total_amount * 100, // Convert to cents
+          currency: 'INR',
           status: 'pending',
           gateway: this.gateway,
-          payment_method: input.payment_method,
-          metadata: input.metadata || {},
+          metadata: input.metadata || null,
         })
         .select()
         .single();
 
-      if (paymentError || !payment) {
-        throw new Error('Failed to create payment record');
-      }
+      if (paymentError) throw new Error(`Payment creation failed: ${paymentError.message}`);
+
+      // We need to cast the result to DbPayment or ensure we have a valid object
+      // The insert result 'paymentData' has the correct shape from the DB
+      const payment: DbPayment = paymentData as DbPayment;
 
       // Create gateway-specific order
       if (this.gateway === 'razorpay') {
-        return await this.createRazorpayOrder(payment as any, booking);
+        return await this.createRazorpayOrder(payment, booking);
       } else {
-        return await this.createStripeIntent(payment as any);
+        return await this.createStripeIntent(payment);
       }
     } catch (error) {
       logger.error(
@@ -276,6 +257,12 @@ class PaymentService {
         currency: currency,
         status: 'pending' as PaymentStatus,
         gateway: this.gateway,
+        payment_method: null,
+        gateway_payment_id: null,
+        gateway_order_id: null,
+        metadata: null,
+        failure_reason: null,
+        paid_at: null,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       };
@@ -334,9 +321,9 @@ class PaymentService {
       });
 
       // Update payment with gateway order ID
-      const { error: updateError } = await (supabase as any)
+      const { error: updateError } = await db
         .from('payments')
-        .update({ gateway_order_id: order.id })
+        .update({ gateway_order_id: order.id }) // Partial update
         .eq('id', payment.id);
 
       if (updateError) {
@@ -403,7 +390,7 @@ class PaymentService {
       });
 
       // Update payment with gateway payment ID
-      const { error: updateError } = await (supabase as any)
+      const { error: updateError } = await db
         .from('payments')
         .update({ gateway_payment_id: intent.id })
         .eq('id', payment.id);
@@ -454,7 +441,7 @@ class PaymentService {
       let payment: DbPayment | null = null;
 
       // First try by gateway_payment_id
-      const { data: paymentByPaymentId, error: fetchError1 } = await (supabase as any)
+      const { data: paymentByPaymentId, error: fetchError1 } = await db
         .from('payments')
         .select('*')
         .eq('gateway_payment_id', gatewayPaymentId)
@@ -464,7 +451,7 @@ class PaymentService {
         payment = paymentByPaymentId;
       } else {
         // Fallback to gateway_order_id (for Razorpay)
-        const { data: paymentByOrderId, error: fetchError2 } = await (supabase as any)
+        const { data: paymentByOrderId, error: fetchError2 } = await db
           .from('payments')
           .select('*')
           .eq('gateway_order_id', gatewayPaymentId)
@@ -486,7 +473,7 @@ class PaymentService {
 
       // Update gateway_payment_id if we found it by order_id and have the payment ID
       if (!payment.gateway_payment_id && gatewayPaymentId.startsWith('pay_')) {
-        await (supabase as any)
+        await db
           .from('payments')
           .update({ gateway_payment_id: gatewayPaymentId })
           .eq('id', payment.id);
@@ -517,7 +504,7 @@ class PaymentService {
 
       // Update booking status based on payment
       if (status === 'succeeded') {
-        await (supabase as any)
+        await db
           .from('tourists')
           .update({
             payment_status: 'paid',
@@ -552,7 +539,7 @@ class PaymentService {
     if (!supabase) return null;
 
     try {
-      const { data, error } = await (supabase as any)
+      const { data, error } = await db
         .from('payment_summary')
         .select('*')
         .eq('id', paymentId)
@@ -565,7 +552,7 @@ class PaymentService {
       const receiptNumber = `RCP-${Date.now()}-${paymentId.slice(0, 8)}`;
 
       // Create receipt record
-      await (supabase as any).from('payment_receipts').insert({
+      await db.from('payment_receipts').insert({
         payment_id: paymentId,
         booking_id: data.booking_id,
         receipt_number: receiptNumber,
@@ -616,7 +603,7 @@ class PaymentService {
 
     try {
       // Get payment details
-      const { data: payment, error: paymentError } = await (supabase as any)
+      const { data: payment, error: paymentError } = await db
         .from('payments')
         .select('*')
         .eq('id', input.payment_id)
@@ -642,7 +629,8 @@ class PaymentService {
       }
 
       // Create refund record
-      const { data: refund, error: refundError } = await (supabase as any)
+      // Create refund record
+      const { data: refund, error: refundError } = await db
         .from('refunds')
         .insert({
           payment_id: input.payment_id,
@@ -671,7 +659,7 @@ class PaymentService {
         }
 
         // Update refund status
-        await (supabase as any)
+        await db
           .from('refunds')
           .update({
             status: 'succeeded',
@@ -680,21 +668,21 @@ class PaymentService {
           .eq('id', refund.id);
 
         // Update payment status
-        await (supabase as any)
+        await db
           .from('payments')
           .update({ status: 'refunded' })
           .eq('id', input.payment_id);
 
         // Update booking payment status
-        await (supabase as any)
+        await db
           .from('tourists')
           .update({ payment_status: 'refunded', status: 'cancelled' })
           .eq('id', payment.booking_id);
 
-        return refund as any;
+        return refund as Refund;
       } catch (gatewayError) {
         // Update refund status to failed
-        await (supabase as any)
+        await db
           .from('refunds')
           .update({ status: 'failed' })
           .eq('id', refund.id);
@@ -769,8 +757,7 @@ class PaymentService {
     if (!supabase) return null;
 
     try {
-      // Using type assertion because the function types aren't in generated schema yet
-      const { data, error } = await (supabase.rpc as any)('get_payment_statistics', {
+      const { data, error } = await db.rpc('get_payment_statistics', {
         p_start_date: startDate?.toISOString() || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(),
         p_end_date: endDate?.toISOString() || new Date().toISOString(),
       });
@@ -778,7 +765,7 @@ class PaymentService {
       if (error) throw error;
 
       // Get payment method breakdown
-      const { data: methodData } = await (supabase as any)
+      const { data: methodData } = await db
         .from('payments')
         .select('payment_method, amount')
         .eq('status', 'succeeded')
@@ -808,7 +795,7 @@ class PaymentService {
         total_refunds: Number(data[0].total_refunds),
         refund_amount: Number(data[0].refund_amount),
         average_transaction_value: Number(data[0].average_transaction_value),
-        payment_method_breakdown: methodBreakdown as any,
+        payment_method_breakdown: methodBreakdown as unknown as PaymentStatistics['payment_method_breakdown'],
         monthly_revenue: [], // Can be enhanced with more detailed query
       };
     } catch (error) {
@@ -828,7 +815,7 @@ class PaymentService {
     if (!supabase) return null;
 
     try {
-      const { data, error } = await (supabase as any)
+      const { data, error } = await db
         .from('payments')
         .select('*')
         .eq('id', paymentId)
@@ -836,7 +823,7 @@ class PaymentService {
 
       if (error || !data) return null;
 
-      return data as any;
+      return data as Payment;
     } catch (error) {
       logger.error(
         'Error fetching payment',
@@ -854,7 +841,7 @@ class PaymentService {
     if (!supabase) return [];
 
     try {
-      const { data, error } = await (supabase as any)
+      const { data, error } = await db
         .from('payments')
         .select('*')
         .eq('booking_id', bookingId)
@@ -862,7 +849,7 @@ class PaymentService {
 
       if (error || !data) return [];
 
-      return data as any[];
+      return data as Payment[];
     } catch (error) {
       logger.error(
         'Error fetching payments',

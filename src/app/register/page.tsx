@@ -10,11 +10,13 @@ import {
   sanitizeObject
 } from '@/lib/utils';
 import { 
-  validateInput, 
   TouristRegistrationSchema,
-  BookingDataSchema 
-} from '@/lib/validation';
+  BookingDataSchema,
+  type TouristRegistration,
+  type BookingData
+} from '@/lib/validation/schemas';
 import type { Database } from '@/types/database';
+import { z } from 'zod';
 
 type Destination = Database['public']['Tables']['destinations']['Row'];
 
@@ -196,17 +198,17 @@ export default function RegisterTourist() {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleNextStep = () => {
-    if (validateForm(currentStep)) {
-      setCurrentStep(prev => Math.min(prev + 1, totalSteps));
-      window.scrollTo(0, 0);
-    }
-  };
-
-  const handlePrevStep = () => {
-    setCurrentStep(prev => Math.max(prev - 1, 1));
+ const handleNextStep = () => {
+  if (validateForm(currentStep)) {
+    setCurrentStep(prev => Math.min(prev + 1, totalSteps));
     window.scrollTo(0, 0);
-  };
+  }
+};
+
+const handlePrevStep = () => {
+  setCurrentStep(prev => Math.max(prev - 1, 1));
+  window.scrollTo(0, 0);
+};
 
 const handleSubmit = async (e: React.FormEvent) => {
   e.preventDefault();
@@ -214,6 +216,12 @@ const handleSubmit = async (e: React.FormEvent) => {
   const selectedDestination = destinations.find(d => d.id === formData.destination);
   
   if (!validateForm() || !selectedDestination) {
+    // Focus on first error field (from feature/datavalid)
+    const firstErrorField = Object.keys(errors)[0];
+    if (firstErrorField) {
+      const element = document.getElementById(firstErrorField);
+      element?.focus();
+    }
     alert('Please fill in all required fields and correct any errors');
     return;
   }
@@ -223,43 +231,29 @@ const handleSubmit = async (e: React.FormEvent) => {
   try {
     const sanitizedData = sanitizeFormData(formData);
     
+    // Normalize phone numbers (from feature/datavalid)
+    const normalizedPhone = normalizePhone(sanitizedData.phone);
+    const normalizedEmergencyPhone = normalizePhone(sanitizedData.emergencyContactPhone);
+    
     const bookingData = {
       name: sanitizedData.name,
       email: sanitizedData.email,
-      phone: sanitizedData.phone,
-      id_proof: sanitizedData.idProof,
-      nationality: sanitizedData.nationality,
-      group_size: parseInt(sanitizedData.groupSize.toString(), 10),
-      destination_id: selectedDestination.id,
-      check_in_date: sanitizedData.checkInDate,
-      check_out_date: sanitizedData.checkOutDate,
-      status: 'pending' as const,
-      emergency_contact_name: sanitizedData.emergencyContactName,
-      emergency_contact_phone: sanitizedData.emergencyContactPhone,
-      emergency_contact_relationship: sanitizedData.emergencyContactRelationship,
-      user_id: null,
-      registration_date: new Date().toISOString(),
-      age: parseInt(sanitizedData.age.toString(), 10),
-      gender: sanitizedData.gender as Gender,
-      address: sanitizedData.address,
-      pin_code: sanitizedData.pinCode,
-      id_proof_type: sanitizedData.idProofType as IdProofType
-    };
+      phone: normalizedPhone, // Use nor
     
-    console.log('Submitting booking data:', bookingData);
-    console.log('Destination:', selectedDestination);
+    const selectedDestination = destinations.find(d => d.id === formData.destination);
     
-    const dbService = getDbService();
-    const result = await dbService.addTourist(bookingData);
-    
-    if (!result) {
-      throw new Error('Failed to create booking - no result returned');
+    if (!validateForm() || !selectedDestination) {
+      // Find first error field and focus on it
+      const firstErrorField = Object.keys(errors)[0];
+      if (firstErrorField) {
+        const element = document.getElementById(firstErrorField);
+        element?.focus();
+      }
+      alert('Please fill in all required fields and correct any errors');
+      return;
     }
     
-    setSubmitSuccess(true);
-    setTimeout(() => {
-      router.push('/tourist/bookings');
-    }, 3000);
+    setIsSubmitting(true);
     
   }catch (error) {
   let msg = 'booking failed';
@@ -407,16 +401,13 @@ const handleSubmit = async (e: React.FormEvent) => {
                   aria-required="true"
                   aria-invalid={!!errors.name}
                   aria-describedby={errors.name ? 'name-error' : 'name-hint'}
-                  minLength={2}
-                  maxLength={100}
-                  pattern="[a-zA-Z\s.'-]+"
-                  title="Name can only contain letters, spaces, hyphens, apostrophes, and periods"
                   autoComplete="name"
                 />
                 <p id="name-hint" className="text-gray-500 text-xs mt-1">2-100 characters, letters only</p>
                 {errors.name && <p id="name-error" className="text-red-700 text-xs mt-1" role="alert">{errors.name}</p>}
               </div>
 
+              {/* Email Field */}
               <div>
                 <label htmlFor="email" className="block text-sm font-medium text-gray-900 mb-1">
                   Email Address *
@@ -431,17 +422,17 @@ const handleSubmit = async (e: React.FormEvent) => {
                   className={`w-full px-3 py-2 min-h-[52px] border rounded-lg focus:ring-2 focus:ring-green-500 focus:outline-none focus:border-transparent text-gray-900 ${
                     errors.email ? 'border-red-600' : 'border-gray-300'
                   }`}
-                  placeholder="Enter your email (e.g., user@example.com)"
+                  placeholder="your.email@example.com"
                   aria-label="Email address"
                   aria-required="true"
                   aria-invalid={!!errors.email}
                   aria-describedby={errors.email ? 'email-error' : 'email-hint'}
-                  maxLength={254}
                 />
                 <p id="email-hint" className="text-gray-500 text-xs mt-1">We&apos;ll send confirmation to this email</p>
                 {errors.email && <p id="email-error" className="text-red-700 text-xs mt-1" role="alert">{errors.email}</p>}
               </div>
 
+              {/* Phone Field - Enhanced with international support */}
               <div>
                 <label htmlFor="phone" className="block text-sm font-medium text-gray-900 mb-1">
                   Phone Number *
@@ -456,18 +447,17 @@ const handleSubmit = async (e: React.FormEvent) => {
                   className={`w-full px-3 py-2 min-h-[52px] border rounded-lg focus:ring-2 focus:ring-green-500 focus:outline-none focus:border-transparent text-gray-900 ${
                     errors.phone ? 'border-red-600' : 'border-gray-300'
                   }`}
-                  placeholder="e.g., 9876543210 or +91-98765-43210"
+                  placeholder="+91 98765 43210 or 9876543210"
                   aria-label="Phone number"
                   aria-required="true"
                   aria-invalid={!!errors.phone}
                   aria-describedby={errors.phone ? 'phone-error' : 'phone-hint'}
-                  minLength={10}
-                  maxLength={15}
                 />
-                <p id="phone-hint" className="text-gray-500 text-xs mt-1">Indian mobile: 10 digits starting with 6-9</p>
+                <p id="phone-hint" className="text-gray-500 text-xs mt-1">Enter with or without country code</p>
                 {errors.phone && <p id="phone-error" className="text-red-700 text-xs mt-1" role="alert">{errors.phone}</p>}
               </div>
 
+              {/* Age Field */}
               <div>
                 <label htmlFor="age" className="block text-sm font-medium text-gray-900 mb-1">
                   Age *
@@ -499,6 +489,7 @@ const handleSubmit = async (e: React.FormEvent) => {
                 {errors.age && <p id="age-error" className="text-red-700 text-xs mt-1" role="alert">{errors.age}</p>}
               </div>
 
+              {/* Gender Field */}
               <div>
                 <label htmlFor="gender" className="block text-sm font-medium text-gray-900 mb-1">
                   Gender *
@@ -525,6 +516,7 @@ const handleSubmit = async (e: React.FormEvent) => {
                 {errors.gender && <p id="gender-error" className="text-red-700 text-xs mt-1" role="alert">{errors.gender}</p>}
               </div>
 
+              {/* Address Field */}
               <div className="md:col-span-2">
                 <label htmlFor="address" className="block text-sm font-medium text-gray-900 mb-1">
                   Address *
@@ -549,13 +541,12 @@ const handleSubmit = async (e: React.FormEvent) => {
                   aria-invalid={!!errors.address}
                   aria-describedby={errors.address ? 'address-error' : 'address-hint'}
                   rows={3}
-                  minLength={10}
-                  maxLength={500}
                 />
-                <p id="address-hint" className="text-gray-500 text-xs mt-1">Enter complete address including house number, street, city, and state</p>
+                <p id="address-hint" className="text-gray-500 text-xs mt-1">Enter complete address (minimum 10 characters)</p>
                 {errors.address && <p id="address-error" className="text-red-700 text-xs mt-1" role="alert">{errors.address}</p>}
               </div>
 
+              {/* PIN Code Field */}
               <div>
                 <label htmlFor="pinCode" className="block text-sm font-medium text-gray-900 mb-1">
                   PIN Code *
@@ -575,13 +566,13 @@ const handleSubmit = async (e: React.FormEvent) => {
                   aria-invalid={!!errors.pinCode}
                   aria-describedby={errors.pinCode ? 'pinCode-error' : 'pinCode-hint'}
                   maxLength={6}
-                  pattern="[1-9][0-9]{5}"
                   autoComplete="postal-code"
                 />
                 <p id="pinCode-hint" className="text-gray-500 text-xs mt-1">6-digit Indian PIN code</p>
                 {errors.pinCode && <p id="pinCode-error" className="text-red-700 text-xs mt-1" role="alert">{errors.pinCode}</p>}
               </div>
 
+              {/* ID Proof Type Field */}
               <div>
                 <label htmlFor="idProofType" className="block text-sm font-medium text-gray-900 mb-1">
                   Government ID Type *
@@ -596,8 +587,8 @@ const handleSubmit = async (e: React.FormEvent) => {
                   }`}
                   aria-label="Government ID type"
                   aria-required="true"
-                  aria-invalid={!!errors.idProofType}
-                  aria-describedby={errors.idProofType ? 'idProofType-error' : undefined}
+                  aria-invalid={!!(errors.idType || errors.idProofType)}
+                  aria-describedby={(errors.idType || errors.idProofType) ? 'idProofType-error' : undefined}
                 >
                   <option value="">Select ID type</option>
                   <option value="aadhaar">Aadhaar Card</option>
@@ -606,9 +597,10 @@ const handleSubmit = async (e: React.FormEvent) => {
                   <option value="driving-license">Driving License</option>
                   <option value="voter-id">Voter ID</option>
                 </select>
-                {errors.idProofType && <p id="idProofType-error" className="text-red-700 text-xs mt-1" role="alert">{errors.idProofType}</p>}
+                {(errors.idType || errors.idProofType) && <p id="idProofType-error" className="text-red-700 text-xs mt-1" role="alert">{errors.idType || errors.idProofType}</p>}
               </div>
 
+              {/* ID Proof Number Field - Enhanced with better validation hints */}
               <div>
                 <label htmlFor="idProof" className="block text-sm font-medium text-gray-900 mb-1">
                   Government ID Number *
@@ -623,10 +615,10 @@ const handleSubmit = async (e: React.FormEvent) => {
                     errors.idProof ? 'border-red-600' : 'border-gray-300'
                   }`}
                   placeholder={
-                    formData.idProofType === 'aadhaar' ? '123456789012' :
+                    formData.idProofType === 'aadhaar' ? '1234 5678 9012' :
                     formData.idProofType === 'pan' ? 'ABCDE1234F' :
                     formData.idProofType === 'passport' ? 'A1234567' :
-                    formData.idProofType === 'driving-license' ? 'DL-1420110012345' :
+                    formData.idProofType === 'driving-license' ? 'HR0619850034761' :
                     formData.idProofType === 'voter-id' ? 'ABC1234567' :
                     'Select ID type first'
                   }
@@ -634,22 +626,21 @@ const handleSubmit = async (e: React.FormEvent) => {
                   aria-required="true"
                   aria-invalid={!!errors.idProof}
                   aria-describedby={errors.idProof ? 'idProof-error' : 'idProof-hint'}
-                  minLength={8}
-                  maxLength={20}
                   autoComplete="off"
                   disabled={!formData.idProofType}
                 />
                 <p id="idProof-hint" className="text-gray-500 text-xs mt-1">
-                  {formData.idProofType === 'aadhaar' ? 'Enter 12-digit Aadhaar number' :
-                   formData.idProofType === 'pan' ? 'Enter PAN in format ABCDE1234F' :
-                   formData.idProofType === 'passport' ? 'Enter passport number (e.g., A1234567)' :
-                   formData.idProofType === 'driving-license' ? 'Enter DL number with state code' :
-                   formData.idProofType === 'voter-id' ? 'Enter Voter ID (3 letters + 7 digits)' :
+                  {formData.idProofType === 'aadhaar' ? '12-digit Aadhaar with valid checksum' :
+                   formData.idProofType === 'pan' ? 'Format: ABCDE1234F (5 letters + 4 digits + 1 letter)' :
+                   formData.idProofType === 'passport' ? '1 letter + 7 digits (e.g., A1234567)' :
+                   formData.idProofType === 'driving-license' ? 'Format: HR0619850034761' :
+                   formData.idProofType === 'voter-id' ? '3 letters + 7 digits (e.g., ABC1234567)' :
                    'Select ID type to see format'}
                 </p>
                 {errors.idProof && <p id="idProof-error" className="text-red-700 text-xs mt-1" role="alert">{errors.idProof}</p>}
               </div>
 
+              {/* Nationality Field */}
               <div>
                 <label htmlFor="nationality" className="block text-sm font-medium text-gray-900 mb-1">
                   Nationality *
@@ -668,6 +659,7 @@ const handleSubmit = async (e: React.FormEvent) => {
                 </select>
               </div>
 
+              {/* Group Name Field */}
               <div>
                 <label htmlFor="group_name" className="block text-sm font-medium text-gray-900 mb-1">
                   Group Name (Optional)
@@ -678,16 +670,18 @@ const handleSubmit = async (e: React.FormEvent) => {
                   name="group_name"
                   value={formData.group_name}
                   onChange={handleInputChange}
-                  className={`w-full px-3 py-2 border rounded-lg ${
+                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-green-500 focus:outline-none focus:border-transparent text-gray-900 ${
                   errors.group_name ? 'border-red-600' : 'border-gray-300'
                   }`}
                   placeholder="e.g., Family Trip, Office Tour"
+                  aria-label="Group name (optional)"
+                  aria-describedby="group_name-hint"
                 />
-
                 <p id="group_name-hint" className="text-gray-500 text-xs mt-1">Optional: Give your group a name for easy identification</p>
                 {errors.group_name && <p id="group_name-error" className="text-red-700 text-xs mt-1" role="alert">{errors.group_name}</p>}
               </div>
 
+              {/* Group Size Field - Updated max to 50 */}
               <div>
                 <label htmlFor="groupSize" className="block text-sm font-medium text-gray-900 mb-1">
                   Group Size *
@@ -697,25 +691,24 @@ const handleSubmit = async (e: React.FormEvent) => {
                   id="groupSize"
                   name="groupSize"
                   min="1"
-                  max="10"
+                  max="50"
                   step="1"
                   value={formData.groupSize}
                   onChange={handleInputChange}
                   className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-green-500 focus:outline-none focus:border-transparent text-gray-900 ${
                     errors.groupSize ? 'border-red-600' : 'border-gray-300'
                   }`}
-                  aria-label="Group size (1 to 10 people)"
+                  aria-label="Group size (1 to 50 people)"
                   aria-required="true"
                   aria-invalid={!!errors.groupSize}
                   aria-describedby={errors.groupSize ? 'groupSize-error' : 'groupSize-hint'}
                   onKeyDown={(e) => {
-                    // Prevent decimal points and non-numeric input
                     if (e.key === '.' || e.key === '-' || e.key === 'e' || e.key === 'E') {
                       e.preventDefault();
                     }
                   }}
                 />
-                <p id="groupSize-hint" className="text-gray-500 text-xs mt-1">Maximum 10 people per booking</p>
+                <p id="groupSize-hint" className="text-gray-500 text-xs mt-1">Maximum 50 people per booking</p>
                 {errors.groupSize && <p id="groupSize-error" className="text-red-700 text-xs mt-1" role="alert">{errors.groupSize}</p>}
               </div>
             </div>
@@ -765,13 +758,13 @@ const handleSubmit = async (e: React.FormEvent) => {
                   value={formData.checkInDate}
                   onChange={handleInputChange}
                   min={(() => {
-                    const tomorrow = new Date();
-                    tomorrow.setDate(tomorrow.getDate() + 1);
-                    return tomorrow.toISOString().split('T')[0];
+                    const today = new Date();
+                    today.setHours(0, 0, 0, 0);
+                    return today.toISOString().split('T')[0];
                   })()}
                   max={(() => {
                     const maxDate = new Date();
-                    maxDate.setFullYear(maxDate.getFullYear() + 1);
+                    maxDate.setMonth(maxDate.getMonth() + 12);
                     return maxDate.toISOString().split('T')[0];
                   })()}
                   className={`w-full px-3 py-2 min-h-[52px] border rounded-lg focus:ring-2 focus:ring-green-500 focus:outline-none focus:border-transparent text-gray-900 ${
@@ -782,7 +775,7 @@ const handleSubmit = async (e: React.FormEvent) => {
                   aria-invalid={!!errors.checkInDate}
                   aria-describedby={errors.checkInDate ? 'checkInDate-error' : 'checkInDate-hint'}
                 />
-                <p id="checkInDate-hint" className="text-gray-500 text-xs mt-1">Must be at least 1 day from today</p>
+                <p id="checkInDate-hint" className="text-gray-500 text-xs mt-1">Cannot book more than 12 months in advance</p>
                 {errors.checkInDate && <p id="checkInDate-error" className="text-red-700 text-xs mt-1" role="alert">{errors.checkInDate}</p>}
               </div>
 
@@ -814,7 +807,7 @@ const handleSubmit = async (e: React.FormEvent) => {
                   aria-invalid={!!errors.checkOutDate}
                   aria-describedby={errors.checkOutDate ? 'checkOutDate-error' : 'checkOutDate-hint'}
                 />
-                <p id="checkOutDate-hint" className="text-gray-500 text-xs mt-1">Maximum stay: 30 days</p>
+                <p id="checkOutDate-hint" className="text-gray-500 text-xs mt-1">Must be after check-in date</p>
                 {errors.checkOutDate && <p id="checkOutDate-error" className="text-red-700 text-xs mt-1" role="alert">{errors.checkOutDate}</p>}
               </div>
 
@@ -863,9 +856,6 @@ const handleSubmit = async (e: React.FormEvent) => {
                   aria-required="true"
                   aria-invalid={!!errors.emergencyContactName}
                   aria-describedby={errors.emergencyContactName ? 'emergencyContactName-error' : undefined}
-                  minLength={2}
-                  maxLength={100}
-                  pattern="[a-zA-Z\s.'-]+"
                   autoComplete="off"
                 />
                 {errors.emergencyContactName && <p id="emergencyContactName-error" className="text-red-700 text-xs mt-1" role="alert">{errors.emergencyContactName}</p>}
@@ -885,15 +875,13 @@ const handleSubmit = async (e: React.FormEvent) => {
                   className={`w-full px-3 py-2 min-h-[52px] border rounded-lg focus:ring-2 focus:ring-green-500 focus:outline-none focus:border-transparent text-gray-900 ${
                     errors.emergencyContactPhone ? 'border-red-600' : 'border-gray-300'
                   }`}
-                  placeholder="e.g., 9876543210"
+                  placeholder="+91 98765 43210 or 9876543210"
                   aria-label="Emergency contact phone number"
                   aria-required="true"
                   aria-invalid={!!errors.emergencyContactPhone}
                   aria-describedby={errors.emergencyContactPhone ? 'emergencyContactPhone-error' : 'emergencyContactPhone-hint'}
-                  minLength={10}
-                  maxLength={15}
                 />
-                <p id="emergencyContactPhone-hint" className="text-gray-500 text-xs mt-1">Must be different from your phone number</p>
+                <p id="emergencyContactPhone-hint" className="text-gray-500 text-xs mt-1">Enter with or without country code</p>
                 {errors.emergencyContactPhone && <p id="emergencyContactPhone-error" className="text-red-700 text-xs mt-1" role="alert">{errors.emergencyContactPhone}</p>}
               </div>
 

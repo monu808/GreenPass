@@ -1,5 +1,14 @@
 import { type ClassValue, clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
+import { parsePhoneNumberWithError, type CountryCode } from 'libphonenumber-js';
+import {
+  phoneSchema,
+  aadhaarSchema,
+  panSchema,
+  passportSchema,
+  drivingLicenseSchema,
+  voterIdSchema,
+} from './validation/schemas';
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -56,27 +65,63 @@ export function getCapacityStatus(current: number, max: number): {
   }
 }
 
+// ============================================================================
+// ENHANCED VALIDATION FUNCTIONS (using Zod schemas)
+// ============================================================================
+
+/**
+ * Validates email address
+ */
 export function validateEmail(email: string): boolean {
   const emailRegex = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)+$/;
   if (!email || email.length > 254) return false;
   return emailRegex.test(email.toLowerCase());
 }
 
+/**
+ * Enhanced phone validation with international format support
+ * Uses libphonenumber-js for proper validation
+ */
 export function validatePhone(phone: string): boolean {
-  const cleanedPhone = phone.replace(/[\s\-\(\)]/g, '');
-  const indianMobileRegex = /^(?:\+?91)?[6-9]\d{9}$/;
-  const internationalRegex = /^\+[1-9]\d{6,14}$/;
-  const landlineRegex = /^(?:\+?91)?[0-9]{2,4}[0-9]{6,8}$/;
-  
-  return indianMobileRegex.test(cleanedPhone) || 
-         internationalRegex.test(cleanedPhone) || 
-         landlineRegex.test(cleanedPhone);
+  return phoneSchema.safeParse(phone).success;
 }
 
+/**
+ * Formats phone number to international format
+ * @param phone - Phone number to format
+ * @param countryCode - ISO country code (default: 'IN')
+ * @returns Formatted phone number (e.g., +91 98765 43210)
+ */
+export function formatPhone(phone: string, countryCode: CountryCode = 'IN'): string {
+  try {
+    const phoneNumber = parsePhoneNumberWithError(phone, countryCode);
+    return phoneNumber.formatInternational();
+  } catch {
+    return phone;
+  }
+}
+
+/**
+ * Normalizes phone to E.164 format for database storage
+ * @param phone - Phone number to normalize
+ * @param countryCode - ISO country code (default: 'IN')
+ * @returns Normalized phone number (e.g., +919876543210)
+ */
+export function normalizePhone(phone: string, countryCode: CountryCode  = 'IN'): string {
+  try {
+    const phoneNumber = parsePhoneNumberWithError(phone, countryCode);
+    return phoneNumber.format('E.164');
+  } catch {
+    return phone;
+  }
+}
+
+/**
+ * @deprecated Use validateIdProofByType instead for type-specific validation
+ */
 export function validateIdProof(idProof: string): boolean {
   if (!idProof || idProof.length < 8 || idProof.length > 20) return false;
   
-
   const aadhaarRegex = /^\d{12}$/;
   const panRegex = /^[A-Z]{5}\d{4}[A-Z]$/i;
   const passportRegex = /^[A-Z]{1,2}\d{7}$/i;
@@ -92,7 +137,14 @@ export function validateIdProof(idProof: string): boolean {
          genericRegex.test(idProof);
 }
 
-export function validateIdProofByType(idProof: string, idType: string): { valid: boolean; error?: string } {
+/**
+ * Enhanced ID proof validation with Zod schemas
+ * Includes Aadhaar Verhoeff checksum validation
+ */
+export function validateIdProofByType(
+  idProof: string, 
+  idType: string
+): { valid: boolean; error?: string } {
   if (!idProof || idProof.trim().length === 0) {
     return { valid: false, error: 'ID proof number is required' };
   }
@@ -100,36 +152,82 @@ export function validateIdProofByType(idProof: string, idType: string): { valid:
   const cleanId = idProof.trim().toUpperCase();
 
   switch (idType) {
-    case 'aadhaar':
-      if (!/^\d{12}$/.test(cleanId)) {
-        return { valid: false, error: 'Aadhaar must be exactly 12 digits' };
+    case 'aadhaar': {
+      const result = aadhaarSchema.safeParse(idProof);
+      if (!result.success) {
+        return { 
+          valid: false, 
+          error: 'Invalid Aadhaar number (must be 12 digits with valid checksum)' 
+        };
       }
       break;
-    case 'pan':
-      if (!/^[A-Z]{5}\d{4}[A-Z]$/.test(cleanId)) {
-        return { valid: false, error: 'PAN must be in format ABCDE1234F' };
+    }
+    case 'pan': {
+      const result = panSchema.safeParse(cleanId);
+      if (!result.success) {
+        return { 
+          valid: false, 
+          error: 'PAN must be in format ABCDE1234F' 
+        };
       }
       break;
-    case 'passport':
-      if (!/^[A-Z]{1,2}\d{7}$/.test(cleanId)) {
-        return { valid: false, error: 'Passport must be  followed by 7 digits' };
+    }
+    case 'passport': {
+      const result = passportSchema.safeParse(cleanId);
+      if (!result.success) {
+        return { 
+          valid: false, 
+          error: 'Passport must be 1 letter followed by 7 digits (e.g., A1234567)' 
+        };
       }
       break;
-    case 'driving-license':
-      if (!/^[A-Z]{2}-?\d{2,4}\d{4,11}$/.test(cleanId)) {
-        return { valid: false, error: 'Invalid Driving License format (e.g., DL-1420110012345)' };
+    }
+    case 'driving-license': {
+      const result = drivingLicenseSchema.safeParse(cleanId);
+      if (!result.success) {
+        return { 
+          valid: false, 
+          error: 'Invalid Driving License format (e.g., HR0619850034761)' 
+        };
       }
       break;
-    case 'voter-id':
-      if (!/^[A-Z]{3}\d{7}$/.test(cleanId)) {
-        return { valid: false, error: 'Voter ID must be 3 letters followed by 7 digits' };
+    }
+    case 'voter-id': {
+      const result = voterIdSchema.safeParse(cleanId);
+      if (!result.success) {
+        return { 
+          valid: false, 
+          error: 'Voter ID must be 3 letters followed by 7 digits (e.g., ABC1234567)' 
+        };
       }
       break;
+    }
     default:
       return { valid: false, error: 'Please select a valid ID type' };
   }
 
   return { valid: true };
+}
+
+/**
+ * Formats Aadhaar for display (masks first 8 digits)
+ * @param aadhaar - Aadhaar number
+ * @returns Masked Aadhaar (e.g., XXXX XXXX 1234)
+ */
+export function formatAadhaarDisplay(aadhaar: string): string {
+  const cleaned = aadhaar.replace(/\s/g, '');
+  if (cleaned.length !== 12) return aadhaar;
+  
+  return `XXXX XXXX ${cleaned.slice(-4)}`;
+}
+
+/**
+ * Formats PAN for display
+ * @param pan - PAN card number
+ * @returns Formatted PAN (e.g., ABCDE1234F)
+ */
+export function formatPAN(pan: string): string {
+  return pan.toUpperCase().trim();
 }
 
 export function validateAge(age: number | string): { valid: boolean; error?: string } {
@@ -230,13 +328,11 @@ export function validateGroupName(groupName: string): { valid: boolean; error?: 
     return { valid: false, error: 'Group name cannot exceed 100 characters' };
   }
   
-  // Allow letters, numbers, spaces, hyphens, apostrophes, and periods
   const groupNameRegex = /^[a-zA-Z0-9\s.'-]+$/;
   if (!groupNameRegex.test(trimmedName)) {
     return { valid: false, error: 'Group name can only contain letters, numbers, spaces, hyphens, apostrophes, and periods' };
   }
   
-  // Must contain at least one letter
   if (!/[a-zA-Z]/.test(trimmedName)) {
     return { valid: false, error: 'Group name must contain at least one letter' };
   }
@@ -244,14 +340,15 @@ export function validateGroupName(groupName: string): { valid: boolean; error?: 
   return { valid: true };
 }
 
-
-
+/**
+ * Enhanced date range validation with better edge case handling
+ */
 export function validateDateRange(
   checkInDate: string, 
   checkOutDate: string,
-  options: { minAdvanceDays?: number; maxStayDays?: number } = {}
+  options: { minAdvanceDays?: number; maxStayDays?: number; maxAdvanceMonths?: number } = {}
 ): { valid: boolean; error?: string } {
-  const { minAdvanceDays = 0, maxStayDays = 30 } = options;
+  const { minAdvanceDays = 0, maxStayDays = 30, maxAdvanceMonths = 12 } = options;
   
   if (!checkInDate || !checkOutDate) {
     return { valid: false, error: 'Both check-in and check-out dates are required' };
@@ -261,35 +358,121 @@ export function validateDateRange(
   today.setHours(0, 0, 0, 0);
   
   const checkIn = new Date(checkInDate);
+  checkIn.setHours(0, 0, 0, 0);
+  
   const checkOut = new Date(checkOutDate);
+  checkOut.setHours(0, 0, 0, 0);
   
   // Check if dates are valid
   if (isNaN(checkIn.getTime()) || isNaN(checkOut.getTime())) {
     return { valid: false, error: 'Invalid date format' };
   }
 
+  // Check minimum advance booking
   const minBookingDate = new Date(today);
   minBookingDate.setDate(minBookingDate.getDate() + minAdvanceDays);
   if (checkIn < minBookingDate) {
-    return { valid: false, error: `Check-in date must be at least ${minAdvanceDays} day(s) from today` };
+    const message = minAdvanceDays === 0 
+      ? 'Check-in date cannot be in the past'
+      : `Check-in date must be at least ${minAdvanceDays} day(s) from today`;
+    return { valid: false, error: message };
   }
 
+  // Check if checkout is after checkin
   if (checkOut <= checkIn) {
     return { valid: false, error: 'Check-out date must be after check-in date' };
   }
 
+  // Check maximum stay duration
   const stayDays = calculateDaysBetween(checkIn, checkOut);
   if (stayDays > maxStayDays) {
     return { valid: false, error: `Maximum stay duration is ${maxStayDays} days` };
   }
+  
+  // Check maximum advance booking
   const maxFutureDate = new Date(today);
-  maxFutureDate.setFullYear(maxFutureDate.getFullYear() + 1);
+  maxFutureDate.setMonth(maxFutureDate.getMonth() + maxAdvanceMonths);
   if (checkIn > maxFutureDate) {
-    return { valid: false, error: 'Bookings can only be made up to 1 year in advance' };
+    return { valid: false, error: `Bookings can only be made up to ${maxAdvanceMonths} month(s) in advance` };
   }
 
   return { valid: true };
 }
+
+/**
+ * Enhanced group size validation
+ */
+export function validateGroupSize(
+  size: number | string, 
+  maxAllowed: number = 50
+): { valid: boolean; error?: string } {
+  const numSize = typeof size === 'string' ? parseInt(size, 10) : size;
+  
+  if (isNaN(numSize) || !Number.isInteger(numSize)) {
+    return { valid: false, error: 'Group size must be a whole number' };
+  }
+  if (numSize < 1) {
+    return { valid: false, error: 'Group size must be at least 1' };
+  }
+  if (numSize > maxAllowed) {
+    return { valid: false, error: `Group size cannot exceed ${maxAllowed}` };
+  }
+  return { valid: true };
+}
+
+/**
+ * Validates file uploads
+ */
+export function validateFile(
+  file: File,
+  options: {
+    maxSize?: number;
+    allowedTypes?: string[];
+  } = {}
+): { valid: boolean; error?: string } {
+  const {
+    maxSize = 5 * 1024 * 1024, // 5MB default
+    allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'application/pdf'],
+  } = options;
+
+  if (!file) {
+    return { valid: false, error: 'No file selected' };
+  }
+
+  if (file.size > maxSize) {
+    const maxSizeMB = (maxSize / (1024 * 1024)).toFixed(1);
+    return { valid: false, error: `File size must be less than ${maxSizeMB}MB` };
+  }
+
+  if (!allowedTypes.includes(file.type)) {
+    const allowedExtensions = allowedTypes
+      .map(type => type.split('/')[1].toUpperCase())
+      .join(', ');
+    return { 
+      valid: false, 
+      error: `Only ${allowedExtensions} files are allowed` 
+    };
+  }
+
+  return { valid: true };
+}
+
+/**
+ * Formats file size for display
+ */
+export function formatFileSize(bytes: number): string {
+  if (bytes === 0) return '0 Bytes';
+  
+  const k = 1024;
+  const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  
+  return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
+}
+
+// ============================================================================
+// SANITIZATION FUNCTIONS
+// ============================================================================
 
 /**
  * @deprecated Use sanitizeForDatabase or sanitizeSearchTerm instead
@@ -312,8 +495,7 @@ export function sanitizeInput(input: string | null | undefined): string {
 }
 
 /**
- * Sanitizes input for database storage by combining XSS protection 
- * with whitespace normalization.
+ * Sanitizes input for database storage
  */
 export function sanitizeForDatabase(input: string | null | undefined): string {
   if (!input) return '';
@@ -324,17 +506,15 @@ export function sanitizeForDatabase(input: string | null | undefined): string {
 }
 
 /**
- * Sanitizes search terms by removing regex-special characters to prevent ReDoS 
- * and other injection attacks.
+ * Sanitizes search terms
  */
 export function sanitizeSearchTerm(term: string | null | undefined): string {
   if (!term) return '';
-  // Remove characters that have special meaning in regex
   return term.replace(/[\\^$*+?.()|[\]{}]/g, '').trim();
 }
 
 /**
- * Recursively sanitizes all string properties in an object.
+ * Recursively sanitizes all string properties in an object
  */
 export function sanitizeObject<T>(obj: T): T {
   if (obj === null || obj === undefined) return obj;
@@ -358,20 +538,9 @@ export function sanitizeObject<T>(obj: T): T {
   return obj;
 }
 
-export function validateGroupSize(size: number | string, maxAllowed: number = 10): { valid: boolean; error?: string } {
-  const numSize = typeof size === 'string' ? parseInt(size, 10) : size;
-  
-  if (isNaN(numSize) || !Number.isInteger(numSize)) {
-    return { valid: false, error: 'Group size must be a whole number' };
-  }
-  if (numSize < 1) {
-    return { valid: false, error: 'Group size must be at least 1' };
-  }
-  if (numSize > maxAllowed) {
-    return { valid: false, error: `Group size cannot exceed ${maxAllowed}` };
-  }
-  return { valid: true };
-}
+// ============================================================================
+// UI HELPER FUNCTIONS
+// ============================================================================
 
 export function getEcologicalSensitivityColor(level: string): string {
   switch (level) {
@@ -393,6 +562,10 @@ export function getStatusColor(status: string): string {
     default: return 'text-gray-600 bg-gray-50';
   }
 }
+
+// ============================================================================
+// EXPORT FUNCTIONS
+// ============================================================================
 
 export function exportToCSV(data: Record<string, unknown>[], filename: string): void {
   const csvContent = convertToCSV(data);

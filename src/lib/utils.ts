@@ -53,7 +53,7 @@ export function getCapacityStatus(current: number, max: number): {
   color: string;
 } {
   const percentage = (current / max) * 100;
-  
+
   if (percentage >= 100) {
     return { status: 'full', percentage, color: 'red' };
   } else if (percentage >= 80) {
@@ -107,7 +107,7 @@ export function formatPhone(phone: string, countryCode: CountryCode = 'IN'): str
  * @param countryCode - ISO country code (default: 'IN')
  * @returns Normalized phone number (e.g., +919876543210)
  */
-export function normalizePhone(phone: string, countryCode: CountryCode  = 'IN'): string {
+export function normalizePhone(phone: string, countryCode: CountryCode = 'IN'): string {
   try {
     const phoneNumber = parsePhoneNumberWithError(phone, countryCode);
     return phoneNumber.format('E.164');
@@ -121,20 +121,20 @@ export function normalizePhone(phone: string, countryCode: CountryCode  = 'IN'):
  */
 export function validateIdProof(idProof: string): boolean {
   if (!idProof || idProof.length < 8 || idProof.length > 20) return false;
-  
+
   const aadhaarRegex = /^\d{12}$/;
   const panRegex = /^[A-Z]{5}\d{4}[A-Z]$/i;
   const passportRegex = /^[A-Z]{1,2}\d{7}$/i;
   const dlRegex = /^[A-Z]{2}-?\d{2,4}\d{4,11}$/i;
   const voterIdRegex = /^[A-Z]{3}\d{7}$/i;
   const genericRegex = /^[A-Za-z0-9]{8,20}$/;
-  
+
   return aadhaarRegex.test(idProof) ||
-         panRegex.test(idProof) ||
-         passportRegex.test(idProof) ||
-         dlRegex.test(idProof) ||
-         voterIdRegex.test(idProof) ||
-         genericRegex.test(idProof);
+    panRegex.test(idProof) ||
+    passportRegex.test(idProof) ||
+    dlRegex.test(idProof) ||
+    voterIdRegex.test(idProof) ||
+    genericRegex.test(idProof);
 }
 
 /**
@@ -142,7 +142,7 @@ export function validateIdProof(idProof: string): boolean {
  * Includes Aadhaar Verhoeff checksum validation
  */
 export function validateIdProofByType(
-  idProof: string, 
+  idProof: string,
   idType: string
 ): { valid: boolean; error?: string } {
   if (!idProof || idProof.trim().length === 0) {
@@ -155,9 +155,9 @@ export function validateIdProofByType(
     case 'aadhaar': {
       const result = aadhaarSchema.safeParse(idProof);
       if (!result.success) {
-        return { 
-          valid: false, 
-          error: 'Invalid Aadhaar number (must be 12 digits with valid checksum)' 
+        return {
+          valid: false,
+          error: 'Invalid Aadhaar number (must be 12 digits with valid checksum)'
         };
       }
       break;
@@ -165,9 +165,9 @@ export function validateIdProofByType(
     case 'pan': {
       const result = panSchema.safeParse(cleanId);
       if (!result.success) {
-        return { 
-          valid: false, 
-          error: 'PAN must be in format ABCDE1234F' 
+        return {
+          valid: false,
+          error: 'PAN must be in format ABCDE1234F'
         };
       }
       break;
@@ -175,9 +175,9 @@ export function validateIdProofByType(
     case 'passport': {
       const result = passportSchema.safeParse(cleanId);
       if (!result.success) {
-        return { 
-          valid: false, 
-          error: 'Passport must be 1 letter followed by 7 digits (e.g., A1234567)' 
+        return {
+          valid: false,
+          error: 'Passport must be 1 letter followed by 7 digits (e.g., A1234567)'
         };
       }
       break;
@@ -185,9 +185,9 @@ export function validateIdProofByType(
     case 'driving-license': {
       const result = drivingLicenseSchema.safeParse(cleanId);
       if (!result.success) {
-        return { 
-          valid: false, 
-          error: 'Invalid Driving License format (e.g., HR0619850034761)' 
+        return {
+          valid: false,
+          error: 'Invalid Driving License format (e.g., HR0619850034761)'
         };
       }
       break;
@@ -195,9 +195,9 @@ export function validateIdProofByType(
     case 'voter-id': {
       const result = voterIdSchema.safeParse(cleanId);
       if (!result.success) {
-        return { 
-          valid: false, 
-          error: 'Voter ID must be 3 letters followed by 7 digits (e.g., ABC1234567)' 
+        return {
+          valid: false,
+          error: 'Voter ID must be 3 letters followed by 7 digits (e.g., ABC1234567)'
         };
       }
       break;
@@ -217,7 +217,7 @@ export function validateIdProofByType(
 export function formatAadhaarDisplay(aadhaar: string): string {
   const cleaned = aadhaar.replace(/\s/g, '');
   if (cleaned.length !== 12) return aadhaar;
-  
+
   return `XXXX XXXX ${cleaned.slice(-4)}`;
 }
 
@@ -232,7 +232,7 @@ export function formatPAN(pan: string): string {
 
 export function validateAge(age: number | string): { valid: boolean; error?: string } {
   const numAge = typeof age === 'string' ? parseInt(age, 10) : age;
-  
+
   if (isNaN(numAge)) {
     return { valid: false, error: 'Please enter a valid age' };
   }
@@ -252,14 +252,14 @@ export function validatePinCode(pinCode: string): { valid: boolean; error?: stri
   if (!pinCode || pinCode.trim().length === 0) {
     return { valid: false, error: 'PIN code is required' };
   }
-  
+
   const cleanPin = pinCode.trim();
   const pinRegex = /^[1-9]\d{5}$/;
-  
+
   if (!pinRegex.test(cleanPin)) {
     return { valid: false, error: 'PIN code must be 6 digits (e.g., 110001)' };
   }
-  
+
   return { valid: true };
 }
 
@@ -267,20 +267,20 @@ export function validateAddress(address: string): { valid: boolean; error?: stri
   if (!address || address.trim().length === 0) {
     return { valid: false, error: 'Address is required' };
   }
-  
+
   const trimmedAddress = address.trim();
-  
+
   if (trimmedAddress.length < 10) {
     return { valid: false, error: 'Please enter a complete address (at least 10 characters)' };
   }
   if (trimmedAddress.length > 500) {
     return { valid: false, error: 'Address cannot exceed 500 characters' };
   }
-  
+
   if (/<[^>]*>/.test(trimmedAddress)) {
     return { valid: false, error: 'Address contains invalid characters' };
   }
-  
+
   return { valid: true };
 }
 
@@ -318,25 +318,25 @@ export function validateGroupName(groupName: string): { valid: boolean; error?: 
   if (!groupName || groupName.trim().length === 0) {
     return { valid: true };
   }
-  
+
   const trimmedName = groupName.trim();
-  
+
   if (trimmedName.length < 2) {
     return { valid: false, error: 'Group name must be at least 2 characters' };
   }
   if (trimmedName.length > 100) {
     return { valid: false, error: 'Group name cannot exceed 100 characters' };
   }
-  
+
   const groupNameRegex = /^[a-zA-Z0-9\s.'-]+$/;
   if (!groupNameRegex.test(trimmedName)) {
     return { valid: false, error: 'Group name can only contain letters, numbers, spaces, hyphens, apostrophes, and periods' };
   }
-  
+
   if (!/[a-zA-Z]/.test(trimmedName)) {
     return { valid: false, error: 'Group name must contain at least one letter' };
   }
-  
+
   return { valid: true };
 }
 
@@ -344,25 +344,25 @@ export function validateGroupName(groupName: string): { valid: boolean; error?: 
  * Enhanced date range validation with better edge case handling
  */
 export function validateDateRange(
-  checkInDate: string, 
+  checkInDate: string,
   checkOutDate: string,
   options: { minAdvanceDays?: number; maxStayDays?: number; maxAdvanceMonths?: number } = {}
 ): { valid: boolean; error?: string } {
   const { minAdvanceDays = 0, maxStayDays = 30, maxAdvanceMonths = 12 } = options;
-  
+
   if (!checkInDate || !checkOutDate) {
     return { valid: false, error: 'Both check-in and check-out dates are required' };
   }
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-  
+
   const checkIn = new Date(checkInDate);
   checkIn.setHours(0, 0, 0, 0);
-  
+
   const checkOut = new Date(checkOutDate);
   checkOut.setHours(0, 0, 0, 0);
-  
+
   // Check if dates are valid
   if (isNaN(checkIn.getTime()) || isNaN(checkOut.getTime())) {
     return { valid: false, error: 'Invalid date format' };
@@ -372,7 +372,7 @@ export function validateDateRange(
   const minBookingDate = new Date(today);
   minBookingDate.setDate(minBookingDate.getDate() + minAdvanceDays);
   if (checkIn < minBookingDate) {
-    const message = minAdvanceDays === 0 
+    const message = minAdvanceDays === 0
       ? 'Check-in date cannot be in the past'
       : `Check-in date must be at least ${minAdvanceDays} day(s) from today`;
     return { valid: false, error: message };
@@ -388,7 +388,7 @@ export function validateDateRange(
   if (stayDays > maxStayDays) {
     return { valid: false, error: `Maximum stay duration is ${maxStayDays} days` };
   }
-  
+
   // Check maximum advance booking
   const maxFutureDate = new Date(today);
   maxFutureDate.setMonth(maxFutureDate.getMonth() + maxAdvanceMonths);
@@ -403,11 +403,11 @@ export function validateDateRange(
  * Enhanced group size validation
  */
 export function validateGroupSize(
-  size: number | string, 
+  size: number | string,
   maxAllowed: number = 50
 ): { valid: boolean; error?: string } {
   const numSize = typeof size === 'string' ? parseInt(size, 10) : size;
-  
+
   if (isNaN(numSize) || !Number.isInteger(numSize)) {
     return { valid: false, error: 'Group size must be a whole number' };
   }
@@ -448,9 +448,9 @@ export function validateFile(
     const allowedExtensions = allowedTypes
       .map(type => type.split('/')[1].toUpperCase())
       .join(', ');
-    return { 
-      valid: false, 
-      error: `Only ${allowedExtensions} files are allowed` 
+    return {
+      valid: false,
+      error: `Only ${allowedExtensions} files are allowed`
     };
   }
 
@@ -462,11 +462,11 @@ export function validateFile(
  */
 export function formatFileSize(bytes: number): string {
   if (bytes === 0) return '0 Bytes';
-  
+
   const k = 1024;
   const sizes = ['Bytes', 'KB', 'MB', 'GB'];
   const i = Math.floor(Math.log(bytes) / Math.log(k));
-  
+
   return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
 }
 
@@ -480,7 +480,7 @@ export function formatFileSize(bytes: number): string {
 export function sanitizeInput(input: string | null | undefined): string {
   if (!input) return '';
   return input
-    .replace(/<[^>]*>/g, '') 
+    .replace(/<[^>]*>/g, '')
     .replace(/[<>"'&]/g, (char) => {
       const entities: Record<string, string> = {
         '<': '&lt;',
@@ -518,15 +518,15 @@ export function sanitizeSearchTerm(term: string | null | undefined): string {
  */
 export function sanitizeObject<T>(obj: T): T {
   if (obj === null || obj === undefined) return obj;
-  
+
   if (typeof obj === 'string') {
     return sanitizeForDatabase(obj) as unknown as T;
   }
-  
+
   if (Array.isArray(obj)) {
     return obj.map(item => sanitizeObject(item)) as unknown as T;
   }
-  
+
   if (typeof obj === 'object') {
     const sanitized = {} as Record<string, unknown>;
     for (const [key, value] of Object.entries(obj as Record<string, unknown>)) {
@@ -534,7 +534,7 @@ export function sanitizeObject<T>(obj: T): T {
     }
     return sanitized as T;
   }
-  
+
   return obj;
 }
 
@@ -571,7 +571,7 @@ export function exportToCSV(data: Record<string, unknown>[], filename: string): 
   const csvContent = convertToCSV(data);
   const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
   const link = document.createElement('a');
-  
+
   if (link.download !== undefined) {
     const url = URL.createObjectURL(blob);
     link.setAttribute('href', url);
@@ -585,10 +585,10 @@ export function exportToCSV(data: Record<string, unknown>[], filename: string): 
 
 function convertToCSV(data: Record<string, unknown>[]): string {
   if (!data.length) return '';
-  
+
   const headers = Object.keys(data[0]);
   const csvArray = [headers.join(',')];
-  
+
   data.forEach(row => {
     const values = headers.map(header => {
       const value = row[header];
@@ -596,6 +596,23 @@ function convertToCSV(data: Record<string, unknown>[]): string {
     });
     csvArray.push(values.join(','));
   });
-  
+
   return csvArray.join('\n');
+}
+
+/**
+ * Safely parses a string or number into an integer.
+ * Returns a fallback value (default 0) if parsing fails.
+ */
+export function safeParseInt(value: string | number | null | undefined, fallback: number = 0): number {
+  if (value === null || value === undefined) {
+    return fallback;
+  }
+
+  if (typeof value === 'number') {
+    return Number.isInteger(value) ? value : Math.floor(value);
+  }
+
+  const parsed = parseInt(String(value), 10);
+  return isNaN(parsed) ? fallback : parsed;
 }

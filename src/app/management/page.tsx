@@ -19,15 +19,16 @@ import {
   User,
   CalendarDays,
 } from "lucide-react";
+import DOMPurify from "dompurify";
 import { getDbService } from "@/lib/databaseService";
 import { Tourist, Destination } from "@/types";
 import { Database } from "@/types/database";
-import { 
+import {
   sanitizeSearchTerm
 } from "@/lib/utils";
-import { 
-  validateInput, 
-  SearchFilterSchema 
+import {
+  validateInput,
+  SearchFilterSchema
 } from "@/lib/validation";
 import { DataFetchErrorBoundary } from "@/components/errors";
 
@@ -158,9 +159,16 @@ export default function TouristBookingManagement() {
 
       const printContent = await response.text();
 
+      // Sanitize content to prevent XSS attacks via the new window
+      const sanitizedContent = DOMPurify.sanitize(printContent, {
+        WHOLE_DOCUMENT: true,
+        ADD_TAGS: ["style"], // Explicitly allow style tags
+      });
+
       const printWindow = window.open("", "_blank");
       if (printWindow) {
-        printWindow.document.write(printContent);
+        printWindow.document.open();
+        printWindow.document.write(sanitizedContent);
         printWindow.document.close();
         printWindow.focus();
         setTimeout(() => {
@@ -214,17 +222,17 @@ export default function TouristBookingManagement() {
   };
 
   const sanitizedSearch = sanitizeSearchTerm(searchTerm);
-  
+
   const filterValidation = validateInput(SearchFilterSchema, {
     searchTerm: sanitizedSearch,
     status: statusFilter === "all" ? undefined : statusFilter as Tourist["status"],
     destinationId: destinationFilter === "all" ? undefined : destinationFilter,
   });
 
-  const validFilters = filterValidation.success ? filterValidation.data : { 
-    searchTerm: sanitizedSearch, 
-    status: statusFilter === "all" ? undefined : statusFilter as Tourist["status"], 
-    destinationId: destinationFilter === "all" ? undefined : destinationFilter 
+  const validFilters = filterValidation.success ? filterValidation.data : {
+    searchTerm: sanitizedSearch,
+    status: statusFilter === "all" ? undefined : statusFilter as Tourist["status"],
+    destinationId: destinationFilter === "all" ? undefined : destinationFilter
   };
 
   const filteredTourists = tourists.filter((tourist) => {
@@ -396,463 +404,460 @@ export default function TouristBookingManagement() {
       <DataFetchErrorBoundary onRetry={loadData}>
         <div className="space-y-6">
           {/* Stats Grid */}
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6">
-          <div>
-            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">
-              Tourist Management
-            </h1>
-            <p className="text-sm sm:text-base text-gray-600 mt-1">
-              Manage registrations and visitor flow
-            </p>
-          </div>
-          <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
-            <button className="flex-1 sm:flex-none flex items-center justify-center px-4 py-2.5 bg-green-600 text-white rounded-xl hover:bg-green-700 transition-all min-h-[44px] shadow-sm active:scale-[0.98] font-bold text-sm">
-              <Plus className="h-4 w-4 mr-2" aria-hidden="true" />
-              New Registration
-            </button>
-            <button className="flex-1 sm:flex-none flex items-center justify-center px-4 py-2.5 border border-gray-300 rounded-xl hover:bg-gray-50 transition-all min-h-[44px] font-bold text-sm text-gray-700">
-              <Download className="h-4 w-4 mr-2" aria-hidden="true" />
-              Export
-            </button>
-            <button
-              onClick={loadData}
-              className="p-2.5 border border-gray-300 rounded-xl hover:bg-gray-50 transition-all min-h-[44px] min-w-[44px] flex items-center justify-center"
-              title="Refresh Data"
-            >
-              <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} aria-hidden="true" />
-            </button>
-          </div>
-        </div>
-
-        {/* Statistics Dashboard */}
-        <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
-          <StatCard
-            title="Total"
-            value={stats.total}
-            icon={Users}
-            color="bg-blue-100 text-blue-600"
-          />
-          <StatCard
-            title="Approved"
-            value={stats.approved}
-            icon={CheckCircle}
-            color="bg-green-100 text-green-600"
-          />
-          <StatCard
-            title="Pending"
-            value={stats.pending}
-            icon={Clock}
-            color="bg-yellow-100 text-yellow-600"
-          />
-          <StatCard
-            title="Active"
-            value={stats.checkedIn}
-            icon={UserCheck}
-            color="bg-purple-100 text-purple-600"
-          />
-          <StatCard
-            title="Rejected"
-            value={stats.rejected}
-            icon={XCircle}
-            color="bg-red-100 text-red-600"
-          />
-          <StatCard
-            title="Today"
-            value={stats.todayBookings}
-            icon={CalendarDays}
-            color="bg-indigo-100 text-indigo-600"
-          />
-        </div>
-
-        {/* Filters and Search */}
-        <div className="bg-white rounded-2xl border border-gray-200 p-4 sm:p-6 shadow-sm">
-          <div className="flex flex-col lg:flex-row gap-4">
-            <div className="flex-1">
-              <div className="relative">
-                <label htmlFor="search-tourists" className="sr-only">Search tourists</label>
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" aria-hidden="true" />
-                <input
-                  id="search-tourists"
-                  type="text"
-                  placeholder="Search by name, email or phone..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent text-base min-h-[44px]"
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 lg:flex lg:flex-row gap-3">
-              <div className="flex-1 lg:w-44">
-                <label htmlFor="status-filter" className="sr-only">Filter by status</label>
-                <select
-                  id="status-filter"
-                  value={statusFilter}
-                  onChange={(e) => setStatusFilter(e.target.value)}
-                  className="w-full px-3 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent text-sm min-h-[44px] bg-white"
-                >
-                  <option value="all">All Status</option>
-                  <option value="pending">Pending</option>
-                  <option value="approved">Approved</option>
-                  <option value="cancelled">Cancelled</option>
-                  <option value="checked-in">Checked In</option>
-                  <option value="checked-out">Checked Out</option>
-                </select>
-              </div>
-
-              <div className="flex-1 lg:w-44">
-                <label htmlFor="destination-filter" className="sr-only">Filter by destination</label>
-                <select
-                  id="destination-filter"
-                  value={destinationFilter}
-                  onChange={(e) => setDestinationFilter(e.target.value)}
-                  className="w-full px-3 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent text-sm min-h-[44px] bg-white"
-                >
-                  <option value="all">All Destinations</option>
-                  {destinations.map((dest) => (
-                    <option key={dest.id} value={dest.id}>
-                      {dest.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="col-span-2 lg:w-auto flex border border-gray-300 rounded-xl overflow-hidden min-h-[44px]">
-                <button
-                  onClick={() => setViewMode("list")}
-                  className={`flex-1 px-4 py-2 text-sm font-bold transition-all ${
-                    viewMode === "list"
-                      ? "bg-green-600 text-white"
-                      : "text-gray-600 hover:bg-gray-50"
-                  }`}
-                >
-                  List
-                </button>
-                <button
-                  onClick={() => setViewMode("grid")}
-                  className={`flex-1 px-4 py-2 text-sm font-bold transition-all ${
-                    viewMode === "grid"
-                      ? "bg-green-600 text-white"
-                      : "text-gray-600 hover:bg-gray-50"
-                  }`}
-                >
-                  Cards
-                </button>
-              </div>
-            </div>
-          </div>
-
-          {/* Bulk Actions */}
-          {selectedTourists.length > 0 && (
-            <div className="mt-4 p-4 bg-green-50 rounded-lg border border-green-200">
-              <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-                <div className="flex items-center space-x-2">
-                  <CheckSquare className="h-5 w-5 text-green-600" aria-hidden="true" />
-                  <span className="text-sm font-medium text-green-800">
-                    {selectedTourists.length} selected
-                  </span>
-                </div>
-                <div className="flex flex-wrap justify-center gap-2">
-                  <button
-                    onClick={() => handleBulkStatusUpdate("approved")}
-                    className="px-4 py-2.5 bg-green-600 text-white text-xs font-bold rounded-xl hover:bg-green-700 transition-all min-h-[44px] shadow-sm"
-                  >
-                    Approve
-                  </button>
-                  <button
-                    onClick={() => handleBulkStatusUpdate("cancelled")}
-                    className="px-4 py-2.5 bg-red-600 text-white text-xs font-bold rounded-xl hover:bg-red-700 transition-all min-h-[44px] shadow-sm"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={() => setSelectedTourists([])}
-                    className="px-4 py-2.5 border border-gray-300 text-gray-700 text-xs font-bold rounded-xl hover:bg-gray-50 transition-all min-h-[44px] bg-white"
-                  >
-                    Clear
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Results */}
-        <div className="bg-white rounded-lg border border-gray-200">
-          <div className="px-6 py-4 border-b border-gray-200">
-            <div className="flex items-center justify-between">
-              <h3 className="text-lg font-medium text-gray-900">
-                Tourist Records ({filteredTourists.length})
-              </h3>
-              <div className="flex items-center space-x-2">
-                <button
-                  onClick={() => {
-                    const allIds = filteredTourists.map((t) => t.id);
-                    setSelectedTourists(
-                      selectedTourists.length === allIds.length ? [] : allIds
-                    );
-                  }}
-                  className="text-sm text-green-600 hover:text-green-700 font-bold min-h-[44px] px-4 rounded-lg hover:bg-green-50 transition-colors"
-                >
-                  {selectedTourists.length === filteredTourists.length
-                    ? "Deselect All"
-                    : "Select All"}
-                </button>
-              </div>
-            </div>
-          </div>
-
-          {filteredTourists.length === 0 ? (
-            <div className="text-center py-12">
-              <Users className="mx-auto h-12 w-12 text-gray-400" aria-hidden="true" />
-              <h3 className="mt-2 text-sm font-medium text-gray-900">
-                No tourists found
-              </h3>
-              <p className="mt-1 text-sm text-gray-500">
-                Try adjusting your search or filter criteria.
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6">
+            <div>
+              <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">
+                Tourist Management
+              </h1>
+              <p className="text-sm sm:text-base text-gray-600 mt-1">
+                Manage registrations and visitor flow
               </p>
             </div>
-          ) : (
-            <div
-              className={`p-6 ${
-                viewMode === "grid"
+            <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+              <button className="flex-1 sm:flex-none flex items-center justify-center px-4 py-2.5 bg-green-600 text-white rounded-xl hover:bg-green-700 transition-all min-h-[44px] shadow-sm active:scale-[0.98] font-bold text-sm">
+                <Plus className="h-4 w-4 mr-2" aria-hidden="true" />
+                New Registration
+              </button>
+              <button className="flex-1 sm:flex-none flex items-center justify-center px-4 py-2.5 border border-gray-300 rounded-xl hover:bg-gray-50 transition-all min-h-[44px] font-bold text-sm text-gray-700">
+                <Download className="h-4 w-4 mr-2" aria-hidden="true" />
+                Export
+              </button>
+              <button
+                onClick={loadData}
+                className="p-2.5 border border-gray-300 rounded-xl hover:bg-gray-50 transition-all min-h-[44px] min-w-[44px] flex items-center justify-center"
+                title="Refresh Data"
+              >
+                <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} aria-hidden="true" />
+              </button>
+            </div>
+          </div>
+
+          {/* Statistics Dashboard */}
+          <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+            <StatCard
+              title="Total"
+              value={stats.total}
+              icon={Users}
+              color="bg-blue-100 text-blue-600"
+            />
+            <StatCard
+              title="Approved"
+              value={stats.approved}
+              icon={CheckCircle}
+              color="bg-green-100 text-green-600"
+            />
+            <StatCard
+              title="Pending"
+              value={stats.pending}
+              icon={Clock}
+              color="bg-yellow-100 text-yellow-600"
+            />
+            <StatCard
+              title="Active"
+              value={stats.checkedIn}
+              icon={UserCheck}
+              color="bg-purple-100 text-purple-600"
+            />
+            <StatCard
+              title="Rejected"
+              value={stats.rejected}
+              icon={XCircle}
+              color="bg-red-100 text-red-600"
+            />
+            <StatCard
+              title="Today"
+              value={stats.todayBookings}
+              icon={CalendarDays}
+              color="bg-indigo-100 text-indigo-600"
+            />
+          </div>
+
+          {/* Filters and Search */}
+          <div className="bg-white rounded-2xl border border-gray-200 p-4 sm:p-6 shadow-sm">
+            <div className="flex flex-col lg:flex-row gap-4">
+              <div className="flex-1">
+                <div className="relative">
+                  <label htmlFor="search-tourists" className="sr-only">Search tourists</label>
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" aria-hidden="true" />
+                  <input
+                    id="search-tourists"
+                    type="text"
+                    placeholder="Search by name, email or phone..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent text-base min-h-[44px]"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 lg:flex lg:flex-row gap-3">
+                <div className="flex-1 lg:w-44">
+                  <label htmlFor="status-filter" className="sr-only">Filter by status</label>
+                  <select
+                    id="status-filter"
+                    value={statusFilter}
+                    onChange={(e) => setStatusFilter(e.target.value)}
+                    className="w-full px-3 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent text-sm min-h-[44px] bg-white"
+                  >
+                    <option value="all">All Status</option>
+                    <option value="pending">Pending</option>
+                    <option value="approved">Approved</option>
+                    <option value="cancelled">Cancelled</option>
+                    <option value="checked-in">Checked In</option>
+                    <option value="checked-out">Checked Out</option>
+                  </select>
+                </div>
+
+                <div className="flex-1 lg:w-44">
+                  <label htmlFor="destination-filter" className="sr-only">Filter by destination</label>
+                  <select
+                    id="destination-filter"
+                    value={destinationFilter}
+                    onChange={(e) => setDestinationFilter(e.target.value)}
+                    className="w-full px-3 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent text-sm min-h-[44px] bg-white"
+                  >
+                    <option value="all">All Destinations</option>
+                    {destinations.map((dest) => (
+                      <option key={dest.id} value={dest.id}>
+                        {dest.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="col-span-2 lg:w-auto flex border border-gray-300 rounded-xl overflow-hidden min-h-[44px]">
+                  <button
+                    onClick={() => setViewMode("list")}
+                    className={`flex-1 px-4 py-2 text-sm font-bold transition-all ${viewMode === "list"
+                      ? "bg-green-600 text-white"
+                      : "text-gray-600 hover:bg-gray-50"
+                      }`}
+                  >
+                    List
+                  </button>
+                  <button
+                    onClick={() => setViewMode("grid")}
+                    className={`flex-1 px-4 py-2 text-sm font-bold transition-all ${viewMode === "grid"
+                      ? "bg-green-600 text-white"
+                      : "text-gray-600 hover:bg-gray-50"
+                      }`}
+                  >
+                    Cards
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Bulk Actions */}
+            {selectedTourists.length > 0 && (
+              <div className="mt-4 p-4 bg-green-50 rounded-lg border border-green-200">
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+                  <div className="flex items-center space-x-2">
+                    <CheckSquare className="h-5 w-5 text-green-600" aria-hidden="true" />
+                    <span className="text-sm font-medium text-green-800">
+                      {selectedTourists.length} selected
+                    </span>
+                  </div>
+                  <div className="flex flex-wrap justify-center gap-2">
+                    <button
+                      onClick={() => handleBulkStatusUpdate("approved")}
+                      className="px-4 py-2.5 bg-green-600 text-white text-xs font-bold rounded-xl hover:bg-green-700 transition-all min-h-[44px] shadow-sm"
+                    >
+                      Approve
+                    </button>
+                    <button
+                      onClick={() => handleBulkStatusUpdate("cancelled")}
+                      className="px-4 py-2.5 bg-red-600 text-white text-xs font-bold rounded-xl hover:bg-red-700 transition-all min-h-[44px] shadow-sm"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={() => setSelectedTourists([])}
+                      className="px-4 py-2.5 border border-gray-300 text-gray-700 text-xs font-bold rounded-xl hover:bg-gray-50 transition-all min-h-[44px] bg-white"
+                    >
+                      Clear
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Results */}
+          <div className="bg-white rounded-lg border border-gray-200">
+            <div className="px-6 py-4 border-b border-gray-200">
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-medium text-gray-900">
+                  Tourist Records ({filteredTourists.length})
+                </h3>
+                <div className="flex items-center space-x-2">
+                  <button
+                    onClick={() => {
+                      const allIds = filteredTourists.map((t) => t.id);
+                      setSelectedTourists(
+                        selectedTourists.length === allIds.length ? [] : allIds
+                      );
+                    }}
+                    className="text-sm text-green-600 hover:text-green-700 font-bold min-h-[44px] px-4 rounded-lg hover:bg-green-50 transition-colors"
+                  >
+                    {selectedTourists.length === filteredTourists.length
+                      ? "Deselect All"
+                      : "Select All"}
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {filteredTourists.length === 0 ? (
+              <div className="text-center py-12">
+                <Users className="mx-auto h-12 w-12 text-gray-400" aria-hidden="true" />
+                <h3 className="mt-2 text-sm font-medium text-gray-900">
+                  No tourists found
+                </h3>
+                <p className="mt-1 text-sm text-gray-500">
+                  Try adjusting your search or filter criteria.
+                </p>
+              </div>
+            ) : (
+              <div
+                className={`p-6 ${viewMode === "grid"
                   ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
                   : "space-y-4"
-              }`}
-            >
-              {viewMode === "grid" ? (
-                filteredTourists.map((tourist) => (
-                  <TouristCard key={tourist.id} tourist={tourist} />
-                ))
-              ) : (
-                <>
-                  <div className="hidden lg:block overflow-x-auto">
-                    <table className="min-w-full divide-y divide-gray-200">
-                      <thead className="bg-gray-50">
-                        <tr>
-                          <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            <input
-                              type="checkbox"
-                              checked={
-                                selectedTourists.length ===
-                                filteredTourists.length
-                              }
-                              onChange={(e) => {
-                                const allIds = filteredTourists.map((t) => t.id);
-                                setSelectedTourists(
-                                  e.target.checked ? allIds : []
-                                );
-                              }}
-                              className="rounded border-gray-300 text-green-600 focus:ring-green-500"
-                              aria-label="Select all tourists"
-                            />
-                          </th>
-                          <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Tourist
-                          </th>
-                          <th className="hidden md:table-cell px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Destination
-                          </th>
-                          <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Dates
-                          </th>
-                          <th className="hidden sm:table-cell px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Status
-                          </th>
-                          <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Actions
-                          </th>
-                        </tr>
-                      </thead>
-                      <tbody className="bg-white divide-y divide-gray-200">
-                        {filteredTourists.map((tourist) => {
-                          const StatusIcon = getStatusIcon(tourist.status);
-                          return (
-                            <tr key={tourist.id} className="hover:bg-gray-50">
-                              <td className="px-4 sm:px-6 py-4 whitespace-nowrap">
-                                <input
-                                  type="checkbox"
-                                  checked={selectedTourists.includes(tourist.id)}
-                                  onChange={(e) => {
-                                    if (e.target.checked) {
-                                      setSelectedTourists([
-                                        ...selectedTourists,
-                                        tourist.id,
-                                      ]);
-                                    } else {
-                                      setSelectedTourists(
-                                        selectedTourists.filter(
-                                          (id) => id !== tourist.id
-                                        )
-                                      );
-                                    }
-                                  }}
-                                  className="rounded border-gray-300 text-green-600 focus:ring-green-500"
-                                  aria-label={`Select ${tourist.name}`}
-                                />
-                              </td>
-                              <td className="px-4 sm:px-6 py-4 whitespace-nowrap">
-                                <div className="flex items-center">
-                                  <div>
-                                    <div className="text-sm font-medium text-gray-900">
-                                      {tourist.name}
-                                    </div>
-                                    <div className="hidden sm:block text-xs text-gray-500">
-                                      {tourist.email}
-                                    </div>
-                                    <div className="block sm:hidden text-xs font-medium text-green-600">
-                                      {tourist.status}
-                                    </div>
-                                  </div>
-                                </div>
-                              </td>
-                              <td className="hidden md:table-cell px-6 py-4 whitespace-nowrap">
-                                <div className="text-sm text-gray-900">
-                                  {getDestinationName(tourist.destination)}
-                                </div>
-                                <div className="text-sm text-gray-500">
-                                  Group: {tourist.groupSize}
-                                </div>
-                              </td>
-                              <td className="px-4 sm:px-6 py-4 whitespace-nowrap">
-                                <div className="text-xs sm:text-sm text-gray-900">
-                                  <div className="flex items-center">
-                                    <span className="w-8 sm:w-auto text-gray-400 mr-1 sm:mr-0 sm:hidden">In:</span>
-                                    {new Date(
-                                      tourist.checkInDate
-                                    ).toLocaleDateString()}
-                                  </div>
-                                  <div className="flex items-center">
-                                    <span className="w-8 sm:w-auto text-gray-400 mr-1 sm:mr-0 sm:hidden">Out:</span>
-                                    {new Date(
-                                      tourist.checkOutDate
-                                    ).toLocaleDateString()}
-                                  </div>
-                                </div>
-                              </td>
-                              <td className="hidden sm:table-cell px-6 py-4 whitespace-nowrap">
-                                <span
-                                  className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(
-                                    tourist.status
-                                  )}`}
-                                >
-                                  <StatusIcon className="h-3 w-3 mr-1" aria-hidden="true" />
-                                  {tourist.status.charAt(0).toUpperCase() +
-                                    tourist.status.slice(1)}
-                                </span>
-                              </td>
-                              <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-sm font-medium">
-                                <div className="flex items-center space-x-2 sm:space-x-3">
-                                  <button
-                                    onClick={() => {
-                                      setSelectedTourist(tourist);
-                                      setShowDetails(true);
+                  }`}
+              >
+                {viewMode === "grid" ? (
+                  filteredTourists.map((tourist) => (
+                    <TouristCard key={tourist.id} tourist={tourist} />
+                  ))
+                ) : (
+                  <>
+                    <div className="hidden lg:block overflow-x-auto">
+                      <table className="min-w-full divide-y divide-gray-200">
+                        <thead className="bg-gray-50">
+                          <tr>
+                            <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              <input
+                                type="checkbox"
+                                checked={
+                                  selectedTourists.length ===
+                                  filteredTourists.length
+                                }
+                                onChange={(e) => {
+                                  const allIds = filteredTourists.map((t) => t.id);
+                                  setSelectedTourists(
+                                    e.target.checked ? allIds : []
+                                  );
+                                }}
+                                className="rounded border-gray-300 text-green-600 focus:ring-green-500"
+                                aria-label="Select all tourists"
+                              />
+                            </th>
+                            <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              Tourist
+                            </th>
+                            <th className="hidden md:table-cell px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              Destination
+                            </th>
+                            <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              Dates
+                            </th>
+                            <th className="hidden sm:table-cell px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              Status
+                            </th>
+                            <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              Actions
+                            </th>
+                          </tr>
+                        </thead>
+                        <tbody className="bg-white divide-y divide-gray-200">
+                          {filteredTourists.map((tourist) => {
+                            const StatusIcon = getStatusIcon(tourist.status);
+                            return (
+                              <tr key={tourist.id} className="hover:bg-gray-50">
+                                <td className="px-4 sm:px-6 py-4 whitespace-nowrap">
+                                  <input
+                                    type="checkbox"
+                                    checked={selectedTourists.includes(tourist.id)}
+                                    onChange={(e) => {
+                                      if (e.target.checked) {
+                                        setSelectedTourists([
+                                          ...selectedTourists,
+                                          tourist.id,
+                                        ]);
+                                      } else {
+                                        setSelectedTourists(
+                                          selectedTourists.filter(
+                                            (id) => id !== tourist.id
+                                          )
+                                        );
+                                      }
                                     }}
-                                    className="flex items-center justify-center min-h-[44px] min-w-[44px] text-green-600 hover:text-green-900 hover:bg-green-50 rounded-lg transition-colors"
-                                    aria-label={`View details for ${tourist.name}`}
+                                    className="rounded border-gray-300 text-green-600 focus:ring-green-500"
+                                    aria-label={`Select ${tourist.name}`}
+                                  />
+                                </td>
+                                <td className="px-4 sm:px-6 py-4 whitespace-nowrap">
+                                  <div className="flex items-center">
+                                    <div>
+                                      <div className="text-sm font-medium text-gray-900">
+                                        {tourist.name}
+                                      </div>
+                                      <div className="hidden sm:block text-xs text-gray-500">
+                                        {tourist.email}
+                                      </div>
+                                      <div className="block sm:hidden text-xs font-medium text-green-600">
+                                        {tourist.status}
+                                      </div>
+                                    </div>
+                                  </div>
+                                </td>
+                                <td className="hidden md:table-cell px-6 py-4 whitespace-nowrap">
+                                  <div className="text-sm text-gray-900">
+                                    {getDestinationName(tourist.destination)}
+                                  </div>
+                                  <div className="text-sm text-gray-500">
+                                    Group: {tourist.groupSize}
+                                  </div>
+                                </td>
+                                <td className="px-4 sm:px-6 py-4 whitespace-nowrap">
+                                  <div className="text-xs sm:text-sm text-gray-900">
+                                    <div className="flex items-center">
+                                      <span className="w-8 sm:w-auto text-gray-400 mr-1 sm:mr-0 sm:hidden">In:</span>
+                                      {new Date(
+                                        tourist.checkInDate
+                                      ).toLocaleDateString()}
+                                    </div>
+                                    <div className="flex items-center">
+                                      <span className="w-8 sm:w-auto text-gray-400 mr-1 sm:mr-0 sm:hidden">Out:</span>
+                                      {new Date(
+                                        tourist.checkOutDate
+                                      ).toLocaleDateString()}
+                                    </div>
+                                  </div>
+                                </td>
+                                <td className="hidden sm:table-cell px-6 py-4 whitespace-nowrap">
+                                  <span
+                                    className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(
+                                      tourist.status
+                                    )}`}
                                   >
-                                    <Eye className="h-5 w-5" aria-hidden="true" />
-                                  </button>
+                                    <StatusIcon className="h-3 w-3 mr-1" aria-hidden="true" />
+                                    {tourist.status.charAt(0).toUpperCase() +
+                                      tourist.status.slice(1)}
+                                  </span>
+                                </td>
+                                <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                  <div className="flex items-center space-x-2 sm:space-x-3">
+                                    <button
+                                      onClick={() => {
+                                        setSelectedTourist(tourist);
+                                        setShowDetails(true);
+                                      }}
+                                      className="flex items-center justify-center min-h-[44px] min-w-[44px] text-green-600 hover:text-green-900 hover:bg-green-50 rounded-lg transition-colors"
+                                      aria-label={`View details for ${tourist.name}`}
+                                    >
+                                      <Eye className="h-5 w-5" aria-hidden="true" />
+                                    </button>
 
-                                  {tourist.status === "pending" && (
-                                    <>
+                                    {tourist.status === "pending" && (
+                                      <>
+                                        <button
+                                          onClick={() =>
+                                            handleStatusUpdate(tourist.id, "approved")
+                                          }
+                                          className="flex items-center justify-center min-h-[44px] min-w-[44px] text-green-600 hover:text-green-900 hover:bg-green-50 rounded-lg transition-colors"
+                                          title="Approve"
+                                          aria-label={`Approve ${tourist.name}`}
+                                        >
+                                          <CheckCircle className="h-5 w-5" aria-hidden="true" />
+                                        </button>
+                                        <button
+                                          onClick={() =>
+                                            handleStatusUpdate(
+                                              tourist.id,
+                                              "cancelled"
+                                            )
+                                          }
+                                          className="flex items-center justify-center min-h-[44px] min-w-[44px] text-red-600 hover:text-red-900 hover:bg-red-50 rounded-lg transition-colors"
+                                          title="Cancel"
+                                          aria-label={`Reject ${tourist.name}`}
+                                        >
+                                          <XCircle className="h-5 w-5" aria-hidden="true" />
+                                        </button>
+                                      </>
+                                    )}
+
+                                    {tourist.status === "approved" && (
                                       <button
                                         onClick={() =>
-                                          handleStatusUpdate(tourist.id, "approved")
+                                          handleStatusUpdate(tourist.id, "checked-in")
                                         }
-                                        className="flex items-center justify-center min-h-[44px] min-w-[44px] text-green-600 hover:text-green-900 hover:bg-green-50 rounded-lg transition-colors"
-                                        title="Approve"
-                                        aria-label={`Approve ${tourist.name}`}
+                                        className="flex items-center justify-center min-h-[44px] min-w-[44px] text-blue-600 hover:text-blue-900 hover:bg-blue-50 rounded-lg transition-colors"
+                                        title="Check In"
+                                        aria-label={`Check in ${tourist.name}`}
                                       >
-                                        <CheckCircle className="h-5 w-5" aria-hidden="true" />
+                                        <UserCheck className="h-5 w-5" aria-hidden="true" />
                                       </button>
+                                    )}
+
+                                    {tourist.status === "checked-in" && (
                                       <button
                                         onClick={() =>
                                           handleStatusUpdate(
                                             tourist.id,
-                                            "cancelled"
+                                            "checked-out"
                                           )
                                         }
-                                        className="flex items-center justify-center min-h-[44px] min-w-[44px] text-red-600 hover:text-red-900 hover:bg-red-50 rounded-lg transition-colors"
-                                        title="Cancel"
-                                        aria-label={`Reject ${tourist.name}`}
+                                        className="flex items-center justify-center min-h-[44px] min-w-[44px] text-gray-600 hover:text-gray-900 hover:bg-gray-50 rounded-lg transition-colors"
+                                        title="Check Out"
+                                        aria-label={`Check out ${tourist.name}`}
                                       >
-                                        <XCircle className="h-5 w-5" aria-hidden="true" />
+                                        <UserX className="h-5 w-5" aria-hidden="true" />
                                       </button>
-                                    </>
-                                  )}
+                                    )}
+                                  </div>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                    <div className="lg:hidden space-y-4">
+                      {filteredTourists.map((tourist) => (
+                        <TouristCard key={tourist.id} tourist={tourist} />
+                      ))}
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
+          </div>
 
-                                  {tourist.status === "approved" && (
-                                    <button
-                                      onClick={() =>
-                                        handleStatusUpdate(tourist.id, "checked-in")
-                                      }
-                                      className="flex items-center justify-center min-h-[44px] min-w-[44px] text-blue-600 hover:text-blue-900 hover:bg-blue-50 rounded-lg transition-colors"
-                                      title="Check In"
-                                      aria-label={`Check in ${tourist.name}`}
-                                    >
-                                      <UserCheck className="h-5 w-5" aria-hidden="true" />
-                                    </button>
-                                  )}
-
-                                  {tourist.status === "checked-in" && (
-                                    <button
-                                      onClick={() =>
-                                        handleStatusUpdate(
-                                          tourist.id,
-                                          "checked-out"
-                                        )
-                                      }
-                                      className="flex items-center justify-center min-h-[44px] min-w-[44px] text-gray-600 hover:text-gray-900 hover:bg-gray-50 rounded-lg transition-colors"
-                                      title="Check Out"
-                                      aria-label={`Check out ${tourist.name}`}
-                                    >
-                                      <UserX className="h-5 w-5" aria-hidden="true" />
-                                    </button>
-                                  )}
-                                </div>
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
-                  <div className="lg:hidden space-y-4">
-                    {filteredTourists.map((tourist) => (
-                      <TouristCard key={tourist.id} tourist={tourist} />
-                    ))}
-                  </div>
-                </>
-              )}
-            </div>
+          {/* Tourist Details Modal */}
+          {showDetails && selectedTourist && (
+            <TouristDetailsModal
+              selectedTourist={selectedTourist}
+              onClose={() => setShowDetails(false)}
+              getDestinationName={getDestinationName}
+              getStatusColor={getStatusColor}
+              handlePrintReceipt={handlePrintReceipt}
+            />
           )}
         </div>
-
-        {/* Tourist Details Modal */}
-        {showDetails && selectedTourist && (
-          <TouristDetailsModal 
-            selectedTourist={selectedTourist} 
-            onClose={() => setShowDetails(false)} 
-            getDestinationName={getDestinationName}
-            getStatusColor={getStatusColor}
-            handlePrintReceipt={handlePrintReceipt}
-          />
-        )}
-      </div>
       </DataFetchErrorBoundary>
     </Layout>
   );
 }
 
-const TouristDetailsModal = ({ 
-  selectedTourist, 
-  onClose, 
+const TouristDetailsModal = ({
+  selectedTourist,
+  onClose,
   getDestinationName,
   getStatusColor,
   handlePrintReceipt
-}: { 
-  selectedTourist: Tourist; 
+}: {
+  selectedTourist: Tourist;
   onClose: () => void;
   getDestinationName: (id: string) => string;
   getStatusColor: (status: Tourist["status"]) => string;
@@ -862,13 +867,13 @@ const TouristDetailsModal = ({
   useModalAccessibility({ modalRef, isOpen: true, onClose });
 
   return (
-    <div 
+    <div
       className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4 z-[100] print:hidden"
       role="dialog"
       aria-modal="true"
       aria-labelledby="modal-title"
     >
-      <div 
+      <div
         ref={modalRef}
         className="bg-white w-full max-w-2xl rounded-t-[2rem] sm:rounded-2xl overflow-hidden shadow-2xl flex flex-col max-h-[95vh] sm:max-h-[90vh] animate-in slide-in-from-bottom duration-300 print:max-w-none print:rounded-none print:shadow-none print:max-h-none print:overflow-visible"
       >

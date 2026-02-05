@@ -10,7 +10,7 @@ import { getDbService } from '@/lib/databaseService';
 import { getPolicyEngine } from '@/lib/ecologicalPolicyEngine';
 import { getCarbonCalculator } from '@/lib/carbonFootprintCalculator';
 import { logger } from '@/lib/logger'; // ✅ NEW IMPORT
-import { sanitizeObject } from '@/lib/utils';
+import { sanitizeObject, safeParseInt } from '@/lib/utils';
 import {
   calculateSustainabilityScore,
   findLowImpactAlternatives
@@ -233,10 +233,9 @@ function BookDestinationForm() {
     const checked = (e.target as HTMLInputElement).checked;
 
     if (name === 'groupSize') {
-      const numValue = parseInt(value, 10);
       setFormData(prev => ({
         ...prev,
-        [name]: isNaN(numValue) ? 1 : numValue
+        [name]: safeParseInt(value, 1)
       }));
     } else if (name.startsWith('emergencyContact.')) {
       const field = name.split('.')[1];
@@ -357,8 +356,8 @@ function BookDestinationForm() {
       ) : null;
 
       // Validate and convert group size
-      const groupSize = parseInt(String(sanitizedData.groupSize), 10);
-      if (isNaN(groupSize) || groupSize <= 0) {
+      const groupSize = safeParseInt(sanitizedData.groupSize, 0);
+      if (groupSize <= 0) {
         throw new Error('Invalid group size provided');
       }
 

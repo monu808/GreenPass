@@ -135,8 +135,8 @@ export default function WasteTrackingPage() {
         dbService.getCleanupActivities(),
       ]);
 
-      const transformedDestinations = destData.map(d => dbService.transformDbDestinationToDestination(d as DbDestination));
-      setDestinations(transformedDestinations);
+      // The dbService.getDestinations() already returns transformed Destination[] objects
+      setDestinations(destData);
       setWasteRecords(wasteData);
       setCleanupActivities(activitiesData);
 

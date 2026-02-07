@@ -84,45 +84,7 @@ function BookDestinationForm() {
     try {
       const dbService = getDbService();
       const policyEngine = getPolicyEngine();
-      const fetchedDestinations = await dbService.getDestinations();
-
-      const mappedDestinations: Destination[] = fetchedDestinations.map(d => {
-        // Validate ecological sensitivity
-        const ecologicalSensitivity = isValidEcologicalSensitivity(d.ecological_sensitivity)
-          ? d.ecological_sensitivity
-          : 'medium';
-
-        // Normalize sustainability features or use typed object from database
-        let sustainabilityFeatures: SustainabilityFeatures | undefined = undefined;
-
-        if (d.sustainability_features) {
-          // Use type guard for inner enum validation if needed, otherwise trust typed DB row
-          const sf = d.sustainability_features;
-          sustainabilityFeatures = {
-            ...sf,
-            wasteManagementLevel: isValidWasteManagementLevel(sf.wasteManagementLevel)
-              ? sf.wasteManagementLevel
-              : 'basic'
-          };
-        }
-
-        return {
-          id: d.id,
-          name: d.name,
-          location: d.location,
-          maxCapacity: d.max_capacity,
-          currentOccupancy: d.current_occupancy,
-          description: d.description,
-          guidelines: Array.isArray(d.guidelines) ? d.guidelines : [],
-          isActive: d.is_active,
-          ecologicalSensitivity,
-          coordinates: {
-            latitude: d.latitude,
-            longitude: d.longitude
-          },
-          sustainabilityFeatures
-        };
-      });
+      const mappedDestinations = await dbService.getDestinations();
 
       setAllDestinationsState(mappedDestinations);
       const found = mappedDestinations.find(d => d.id === destinationId);
@@ -204,8 +166,8 @@ function BookDestinationForm() {
       formData.groupSize,
       formData.transportType,
       stayNights,
-      destination.coordinates.latitude,
-      destination.coordinates.longitude
+      destination.coordinates?.latitude ?? 0,
+      destination.coordinates?.longitude ?? 0
     );
     setCarbonFootprint(result);
   }, [destination, formData.originLocation, formData.groupSize, formData.transportType, formData.checkInDate, formData.checkOutDate]);

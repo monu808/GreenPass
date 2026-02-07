@@ -27,8 +27,6 @@ import { Database } from "@/types/database";
 import { sanitizeSearchTerm } from "@/lib/utils";
 import { validateInput, AlertFilterSchema } from "@/lib/validation";
 
-type DbDestination = Database["public"]["Tables"]["destinations"]["Row"];
-
 export default function AlertsPage() {
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [destinations, setDestinations] = useState<Destination[]>([]);
@@ -43,26 +41,6 @@ export default function AlertsPage() {
   const [autoRefresh, setAutoRefresh] = useState(true);
   const [weatherResult, setWeatherResult] = useState<WeatherCheckResult | null>(null);
 
-  // Helper function to transform database destination data (snake_case) to frontend Destination type (camelCase)
-  const transformDestinationData = (dest: DbDestination): Destination => {
-    return {
-      id: dest.id,
-      name: dest.name,
-      location: dest.location,
-      maxCapacity: dest.max_capacity,
-      currentOccupancy: dest.current_occupancy,
-      description: dest.description || "",
-      guidelines: dest.guidelines || [],
-      isActive: dest.is_active,
-      ecologicalSensitivity: dest.ecological_sensitivity,
-      coordinates: {
-        latitude: Number(dest.latitude),
-        longitude: Number(dest.longitude),
-      },
-      sustainabilityFeatures: dest.sustainability_features || undefined,
-    };
-  };
-
   const loadData = useCallback(async () => {
     try {
       setLoading(true);
@@ -76,7 +54,7 @@ export default function AlertsPage() {
 
       // Combine regular alerts and weather alerts
       const allAlerts = [...regularAlerts, ...weatherAlerts];
-      setDestinations(destinationsData.map(transformDestinationData));
+      setDestinations(destinationsData);
 
       // Remove duplicate alerts based on title, message, destination, and type
       const uniqueAlerts = allAlerts.filter((alert, index, self) => {

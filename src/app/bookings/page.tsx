@@ -21,8 +21,6 @@ import { sanitizeSearchTerm, formatPhone } from "@/lib/utils";
 import { validateInput, SearchFilterSchema } from "@/lib/validation";
 import { DataFetchErrorBoundary } from "@/components/errors";
 
-type DbDestination = Database['public']['Tables']['destinations']['Row'];
-
 export default function BookingsPage() {
   const router = useRouter();
   const [bookings, setBookings] = useState<Tourist[]>([]);
@@ -41,17 +39,7 @@ export default function BookingsPage() {
         dbService.getDestinations(),
       ]);
       setBookings(touristData);
-      
-      // Transform database properties to component interface
-      const transformedDestinations = destinationData.map((dest: DbDestination) => ({
-        ...dest,
-        maxCapacity: dest.max_capacity,
-        currentOccupancy: dest.current_occupancy,
-        isActive: dest.is_active,
-        ecologicalSensitivity: dest.ecological_sensitivity,
-        coordinates: { latitude: dest.latitude, longitude: dest.longitude },
-      }));
-      setDestinations(transformedDestinations);
+      setDestinations(destinationData);
     } catch (error) {
       console.error("Error loading bookings data:", error);
     } finally {

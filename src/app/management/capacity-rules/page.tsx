@@ -74,21 +74,13 @@ export default function CapacityRulesPage() {
         dbService.getCapacityAdjustmentHistory(undefined, historyDays),
       ]);
 
-      const transformedDestinations = destData.map((dest: DbDestination) => ({
-        ...dest,
-        maxCapacity: dest.max_capacity,
-        currentOccupancy: dest.current_occupancy,
-        isActive: dest.is_active,
-        ecologicalSensitivity: dest.ecological_sensitivity,
-        coordinates: { latitude: dest.latitude, longitude: dest.longitude },
-      }));
-
-      setDestinations(transformedDestinations);
+      // The dbService.getDestinations() already returns transformed Destination[] objects
+      setDestinations(destData);
       setHistory(historyData);
 
       // Calculate results for all destinations
       const results: Record<string, DynamicCapacityResult> = {};
-      for (const dest of transformedDestinations) {
+      for (const dest of destData) {
         results[dest.id] = await policyEngine.getDynamicCapacity(dest);
       }
       setCapacityResults(results);

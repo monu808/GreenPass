@@ -5,9 +5,8 @@ import Layout from '@/components/Layout';
 import { MapPin, AlertTriangle, CheckCircle, XCircle } from 'lucide-react';
 import { getDbService } from '@/lib/databaseService';
 import { getCapacityStatus, getEcologicalSensitivityColor } from '@/lib/utils';
+import { Destination } from '@/types';
 import type { Database } from '@/types/database';
-
-type Destination = Database['public']['Tables']['destinations']['Row'];
 
 export default function Destinations() {
   const [destinations, setDestinations] = useState<Destination[]>([]);
@@ -51,9 +50,9 @@ export default function Destinations() {
           {/* Destinations Grid */}
           <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 sm:gap-8">
             {destinations.map((destination) => {
-              const currentOccupancy = destination.current_occupancy;
-              const availableCapacity = destination.max_capacity - currentOccupancy;
-              const capacity = getCapacityStatus(currentOccupancy, destination.max_capacity);
+              const currentOccupancy = destination.currentOccupancy;
+              const availableCapacity = destination.maxCapacity - currentOccupancy;
+              const capacity = getCapacityStatus(currentOccupancy, destination.maxCapacity);
             
             return (
               <div key={destination.id} className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-xl transition-all duration-300 group">
@@ -63,8 +62,8 @@ export default function Destinations() {
                     <div className="flex-1">
                       <div className="flex flex-wrap items-center gap-3">
                         <h3 className="text-xl sm:text-2xl font-black text-gray-900 tracking-tight">{destination.name}</h3>
-                        <span className={`px-3 py-1 text-[10px] sm:text-xs font-black rounded-xl border-2 uppercase tracking-widest ${getEcologicalSensitivityColor(destination.ecological_sensitivity)}`}>
-                          {destination.ecological_sensitivity} sensitivity
+                        <span className={`px-3 py-1 text-[10px] sm:text-xs font-black rounded-xl border-2 uppercase tracking-widest ${getEcologicalSensitivityColor(destination.ecologicalSensitivity)}`}>
+                          {destination.ecologicalSensitivity} sensitivity
                         </span>
                       </div>
                       <p className="text-gray-500 mt-2 flex items-center text-sm font-bold">
@@ -73,7 +72,7 @@ export default function Destinations() {
                       </p>
                     </div>
                     <div className="flex items-center">
-                      {destination.is_active ? (
+                      {destination.isActive ? (
                         <span className="flex items-center px-3 py-1.5 bg-emerald-50 text-emerald-600 rounded-xl text-xs font-black uppercase tracking-widest border border-emerald-100">
                           <CheckCircle className="h-3.5 w-3.5 mr-1.5" />
                           Active
@@ -97,7 +96,7 @@ export default function Destinations() {
                     <div className="flex items-center justify-between mb-3">
                       <span className="text-xs sm:text-sm font-black text-gray-500 uppercase tracking-widest">Capacity Utilization</span>
                       <span className="text-sm sm:text-base font-black text-gray-900">
-                        {currentOccupancy.toLocaleString()} / {destination.max_capacity.toLocaleString()}
+                        {currentOccupancy.toLocaleString()} / {destination.maxCapacity.toLocaleString()}
                       </span>
                     </div>
                     <div className="w-full bg-gray-100 rounded-2xl h-3.5 overflow-hidden">
@@ -121,7 +120,7 @@ export default function Destinations() {
                       }`}>
                         {capacity.percentage.toFixed(1)}% utilized
                       </span>
-                      <span className="text-gray-400">{destination.max_capacity}</span>
+                      <span className="text-gray-400">{destination.maxCapacity}</span>
                     </div>
                   </div>
 
@@ -136,7 +135,7 @@ export default function Destinations() {
                       <p className="text-[10px] sm:text-xs font-black text-emerald-400 uppercase tracking-widest mt-1">Available</p>
                     </div>
                     <div className="p-4 bg-gray-50 rounded-2xl border border-gray-100 group-hover:scale-105 transition-transform col-span-2 sm:col-auto">
-                      <p className="text-xl sm:text-2xl font-black text-gray-900">{destination.max_capacity}</p>
+                      <p className="text-xl sm:text-2xl font-black text-gray-900">{destination.maxCapacity}</p>
                       <p className="text-[10px] sm:text-xs font-black text-gray-400 uppercase tracking-widest mt-1">Max Capacity</p>
                     </div>
                   </div>
@@ -164,7 +163,7 @@ export default function Destinations() {
                     <div className="flex-1 w-full sm:w-auto">
                       <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-1">Coordinates</span>
                       <p className="text-xs font-mono font-black text-gray-900 bg-gray-50 px-3 py-1.5 rounded-lg border border-gray-100 inline-block tracking-tighter">
-                        {destination.latitude}, {destination.longitude}
+                        {destination.coordinates.latitude}, {destination.coordinates.longitude}
                       </p>
                     </div>
                     <div className="flex items-center gap-3 w-full sm:w-auto">
@@ -205,20 +204,20 @@ export default function Destinations() {
               {[
                 { 
                   label: 'Total Occupancy', 
-                  value: destinations.reduce((sum, dest) => sum + dest.current_occupancy, 0),
+                  value: destinations.reduce((sum, dest) => sum + dest.currentOccupancy, 0),
                   color: 'text-blue-600',
                   bg: 'bg-blue-50'
                 },
                 { 
                   label: 'Total Capacity', 
-                  value: destinations.reduce((sum, dest) => sum + dest.max_capacity, 0),
+                  value: destinations.reduce((sum, dest) => sum + dest.maxCapacity, 0),
                   color: 'text-emerald-600',
                   bg: 'bg-emerald-50'
                 },
                 { 
                   label: 'High Utilization', 
                   value: destinations.filter(dest => {
-                    const capacity = getCapacityStatus(dest.current_occupancy, dest.max_capacity);
+                    const capacity = getCapacityStatus(dest.currentOccupancy, dest.maxCapacity);
                     return capacity.status === 'high' || capacity.status === 'full';
                   }).length,
                   color: 'text-orange-600',
@@ -226,7 +225,7 @@ export default function Destinations() {
                 },
                 { 
                   label: 'Active Sites', 
-                  value: destinations.filter(dest => dest.is_active).length,
+                  value: destinations.filter(dest => dest.isActive).length,
                   color: 'text-indigo-600',
                   bg: 'bg-indigo-50'
                 }

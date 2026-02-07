@@ -6,10 +6,9 @@ import {
   DbTourist,
   DbWeatherData
 } from './types';
-import { Destination, AdjustmentLog, HistoricalOccupancy } from '@/types';
+import { Destination, AdjustmentLog, HistoricalOccupancy, EcologicalDamageIndicators, WeatherConditions } from '@/types';
 import * as mockData from '@/data/mockData';
 import { getPolicyEngine } from '../ecologicalPolicyEngine';
-import { ecologicalService } from './EcologicalService';
 import { format } from 'date-fns';
 
 /**
@@ -41,8 +40,8 @@ export class DestinationService extends BaseService {
           is_active: d.isActive,
           ecological_sensitivity: d.ecologicalSensitivity,
           sustainability_features: d.sustainabilityFeatures,
-          latitude: d.coordinates.latitude,
-          longitude: d.coordinates.longitude,
+          latitude: d.coordinates?.latitude ?? 0,
+          longitude: d.coordinates?.longitude ?? 0,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
         }));
@@ -206,6 +205,7 @@ export class DestinationService extends BaseService {
   async logCapacityAdjustment(log: AdjustmentLog): Promise<void> {
     try {
       if (this.isPlaceholderMode()) {
+        if (typeof window === 'undefined' || !window.localStorage) return;
         const historyKey = 'greenpass_capacity_history';
         const history = JSON.parse(localStorage.getItem(historyKey) || '[]');
         history.push({
@@ -217,10 +217,20 @@ export class DestinationService extends BaseService {
         return;
       }
 
-      const historyKey = 'greenpass_capacity_history';
-      const history = JSON.parse(localStorage.getItem(historyKey) || '[]');
-      history.push(log);
-      localStorage.setItem(historyKey, JSON.stringify(history));
+      // Real persistence in non-placeholder branch
+      const { error } = await (this.db as any)
+        .from('capacity_adjustment_logs')
+        .insert({
+          id: log.id,
+          destination_id: log.destinationId,
+          timestamp: log.timestamp instanceof Date ? log.timestamp.toISOString() : log.timestamp,
+          original_capacity: log.originalCapacity,
+          adjusted_capacity: log.adjustedCapacity,
+          factors: log.factors,
+          reason: log.reason
+        });
+
+      if (error) throw error;
     } catch (error) {
       this.logError('logCapacityAdjustment', error);
     }
@@ -231,56 +241,59 @@ export class DestinationService extends BaseService {
    */
   async getCapacityAdjustmentHistory(destinationId?: string, days: number = 7): Promise<AdjustmentLog[]> {
     try {
-      const historyKey = 'greenpass_capacity_history';
-      const rawHistory = JSON.parse(localStorage.getItem(historyKey) || '[]');
+      if (this.isPlaceholderMode()) {
+        if (typeof window === 'undefined' || !window.localStorage) return [];
+        const historyKey = 'greenpass_capacity_history';
+        const rawHistory = JSON.parse(localStorage.getItem(historyKey) || '[]');
 
-      let history = rawHistory.map((item: { timestamp: string;[key: string]: unknown }) => ({
-        ...item,
-        timestamp: new Date(item.timestamp)
-      } as AdjustmentLog));
+        let history = rawHistory.map((item: { timestamp: string; [key: string]: unknown }) => ({
+          ...item,
+          timestamp: new Date(item.timestamp)
+        } as AdjustmentLog));
 
-      const cutoff = new Date();
-      cutoff.setDate(cutoff.getDate() - days);
-      history = history.filter((item: AdjustmentLog) => item.timestamp >= cutoff);
+        const cutoff = new Date();
+        cutoff.setDate(cutoff.getDate() - days);
+        history = history.filter((item: AdjustmentLog) => item.timestamp >= cutoff);
 
-      if (destinationId) {
-        history = history.filter((item: AdjustmentLog) => item.destinationId === destinationId);
+        if (destinationId) {
+          history = history.filter((item: AdjustmentLog) => item.destinationId === destinationId);
+        }
+
+        return history.sort((a: AdjustmentLog, b: AdjustmentLog) => b.timestamp.getTime() - a.timestamp.getTime());
       }
 
-      return history.sort((a: AdjustmentLog, b: AdjustmentLog) => b.timestamp.getTime() - a.timestamp.getTime());
+      // Real persistence path
+      const cutoff = new Date();
+      cutoff.setDate(cutoff.getDate() - days);
+      const cutoffStr = cutoff.toISOString();
+
+      let query = (this.db as any)
+        .from('capacity_adjustment_logs')
+        .select('*')
+        .gte('timestamp', cutoffStr)
+        .order('timestamp', { ascending: false });
+
+      if (destinationId) {
+        query = query.eq('destination_id', destinationId);
+      }
+
+      const { data, error } = await query;
+
+      if (error) throw error;
+
+      return (data || []).map((row: any) => ({
+        id: row.id,
+        destinationId: row.destination_id,
+        timestamp: new Date(row.timestamp),
+        originalCapacity: row.original_capacity,
+        adjustedCapacity: row.adjusted_capacity,
+        factors: row.factors,
+        reason: row.reason
+      }));
     } catch (error) {
       this.logError('getCapacityAdjustmentHistory', error);
       return [];
     }
-  }
-
-  /**
-   * Fetches historical occupancy trends for a destination.
-   */
-  async getHistoricalOccupancyTrends(destinationId?: string, days: number = 7): Promise<{ date: string, occupancy: number }[]> {
-    return ecologicalService.getHistoricalOccupancyTrends(destinationId, days);
-  }
-
-  /**
-   * Fetches detailed historical occupancy for a destination.
-   */
-  async getHistoricalOccupancy(destinationId: string, days: number = 7): Promise<HistoricalOccupancy[]> {
-    return ecologicalService.getHistoricalOccupancy(destinationId, days);
-  }
-
-  /**
-   * Proxies for ecological/weather methods requested for DestinationService
-   */
-  async getDestinationsWithWeather(): Promise<Destination[]> {
-    return ecologicalService.getDestinationsWithWeather();
-  }
-
-  async getWeatherDataForDestinations(destinationIds: string[]): Promise<Map<string, DbWeatherData>> {
-    return ecologicalService.getWeatherDataForDestinations(destinationIds);
-  }
-
-  async getEcologicalIndicatorsForDestinations(destinationIds: string[]): Promise<Map<string, { soil_compaction: number; vegetation_disturbance: number; wildlife_disturbance: number; water_source_impact: number }>> {
-    return ecologicalService.getEcologicalIndicatorsForDestinations(destinationIds);
   }
 
   /**

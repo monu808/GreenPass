@@ -1,4 +1,5 @@
 import { LRUCache } from 'lru-cache';
+import { EcologicalDamageIndicators } from '@/types';
 
 // Cache configuration constants
 const WEATHER_TTL = 1000 * 60 * 10; // 10 minutes
@@ -21,7 +22,7 @@ export const policyConfigCache = new LRUCache<string, any>({
   ttl: POLICY_CONFIG_TTL,
 });
 
-export const ecologicalIndicatorCache = new LRUCache<string, { soil_compaction: number; vegetation_disturbance: number; wildlife_disturbance: number; water_source_impact: number }>({
+export const ecologicalIndicatorCache = new LRUCache<string, EcologicalDamageIndicators>({
   max: 500,
   ttl: WEATHER_TTL, // Same TTL as weather for now
 });

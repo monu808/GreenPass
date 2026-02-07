@@ -67,7 +67,7 @@ const WeatherCard: React.FC<WeatherCardProps> = ({
         // Calculate adjusted capacity based on weather data
         const alertCheck = weatherService.shouldGenerateAlert(data);
         const result = await getPolicyEngine().getDynamicCapacity(destination, {
-          alert_level: alertCheck.shouldAlert ? "medium" : "none"
+          alertLevel: alertCheck.shouldAlert ? "medium" : "none"
         });
         setAdjustedCapacity(result.adjustedCapacity);
         
@@ -353,12 +353,8 @@ const WeatherDashboard: React.FC = () => {
           throw new Error("Invalid data format received from server");
         }
 
-        // Transform database records to Destination interface
-        const transformedData = rawData.map(item => 
-          dbService.transformDbDestinationToDestination(item)
-        );
-
-        setDestinations(transformedData);
+        // The dbService.getDestinations() already returns transformed Destination[] objects
+        setDestinations(rawData);
       } catch (err) {
         logger.error(
           'Error fetching destinations',

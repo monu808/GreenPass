@@ -53,6 +53,16 @@ export interface SustainabilityFeatures {
   wildlifeProtectionProgram: boolean;
 }
 
+export interface WeatherConditions {
+  alertLevel: 'none' | 'low' | 'medium' | 'high' | 'critical';
+  temperature?: number;
+  humidity?: number;
+  recordedAt?: string;
+  weatherMain?: string;
+  weatherDescription?: string;
+  windSpeed?: number;
+}
+
 export interface Destination {
   id: string;
   name: string;
@@ -68,15 +78,7 @@ export interface Destination {
     longitude: number;
   };
   sustainabilityFeatures?: SustainabilityFeatures;
-  weather?: {
-    temperature: number;
-    humidity: number;
-    weatherMain: string;
-    weatherDescription: string;
-    windSpeed: number;
-    alertLevel: string;
-    recordedAt: string;
-  };
+  weather?: WeatherConditions;
 }
 
 export interface BookingSlot {
@@ -128,11 +130,6 @@ export interface EcologicalDamageIndicators {
   vegetationDisturbance: number;
   wildlifeDisturbance: number;
   waterSourceImpact: number;
-  // Support snake_case from DB
-  soil_compaction?: number;
-  vegetation_disturbance?: number;
-  wildlife_disturbance?: number;
-  water_source_impact?: number;
 }
 
 export interface ComplianceReport {

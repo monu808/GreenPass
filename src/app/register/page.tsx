@@ -18,10 +18,9 @@ import {
   type TouristRegistration,
   type BookingData
 } from '@/lib/validation/schemas';
+import { Destination } from '@/types';
 import type { Database } from '@/types/database';
 import { z } from 'zod';
-
-type Destination = Database['public']['Tables']['destinations']['Row'];
 
 type Gender = 'male' | 'female' | 'other' | 'prefer-not-to-say';
 type IdProofType = 'aadhaar' | 'pan' | 'passport' | 'driving-license' | 'voter-id';
@@ -167,7 +166,7 @@ export default function RegisterTourist() {
       if (sanitizedData.destination && !newErrors.groupSize) {
         const destination = destinations.find(d => d.id === sanitizedData.destination);
         if (destination) {
-          const availableCapacity = destination.max_capacity - destination.current_occupancy;
+          const availableCapacity = destination.maxCapacity - destination.currentOccupancy;
           if (sanitizedData.groupSize > availableCapacity) {
             newErrors.groupSize = `Only ${availableCapacity} slots available for this destination`;
           }
@@ -294,7 +293,7 @@ export default function RegisterTourist() {
 
   const selectedDestination = destinations.find(d => d.id === formData.destination);
   const availableCapacity = formData.destination && selectedDestination ?
-    selectedDestination.max_capacity - selectedDestination.current_occupancy : 0;
+    selectedDestination.maxCapacity - selectedDestination.currentOccupancy : 0;
 
   if (loading) {
     return (
@@ -738,9 +737,9 @@ export default function RegisterTourist() {
                       aria-describedby={errors.destination ? 'destination-error' : undefined}
                     >
                       <option value="">Select a destination</option>
-                      {destinations.filter(d => d.is_active).map(dest => (
+                      {destinations.filter(d => d.isActive).map(dest => (
                         <option key={dest.id} value={dest.id}>
-                          {dest.name}, {dest.location} (Available: {dest.max_capacity - dest.current_occupancy})
+                          {dest.name}, {dest.location} (Available: {dest.maxCapacity - dest.currentOccupancy})
                         </option>
                       ))}
                     </select>
@@ -815,7 +814,7 @@ export default function RegisterTourist() {
                       <p className="text-sm text-gray-700 mb-3">{selectedDestination.description}</p>
                       <div className="flex items-center justify-between mb-3">
                         <span className="text-sm text-gray-700">Available Capacity:</span>
-                        <span className="font-medium text-gray-900">{availableCapacity} / {selectedDestination.max_capacity}</span>
+                        <span className="font-medium text-gray-900">{availableCapacity} / {selectedDestination.maxCapacity}</span>
                       </div>
                       <div className="space-y-1">
                         <p className="text-sm font-medium text-gray-900">Guidelines:</p>

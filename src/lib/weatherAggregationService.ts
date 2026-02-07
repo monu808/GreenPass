@@ -284,18 +284,18 @@ class WeatherAggregator implements WeatherAggregationService {
       const dbService = getDbService();
       const latestWeather = await dbService.getLatestWeatherData(destinationId);
 
-      if (latestWeather && latestWeather.recorded_at) {
+      if (latestWeather && latestWeather.recordedAt) {
         logger.debug(`✅ Database fallback found for ${destinationId}`);
         
         return {
-          temperature: latestWeather.temperature,
-          humidity: latestWeather.humidity,
-          pressure: latestWeather.pressure,
-          weatherMain: latestWeather.weather_main,
-          weatherDescription: latestWeather.weather_description,
-          windSpeed: latestWeather.wind_speed,
-          windDirection: latestWeather.wind_direction,
-          visibility: latestWeather.visibility,
+          temperature: latestWeather.temperature ?? 0,
+          humidity: latestWeather.humidity ?? 0,
+          pressure: (latestWeather as any).pressure ?? 1013,
+          weatherMain: latestWeather.weatherMain ?? 'Clear',
+          weatherDescription: latestWeather.weatherDescription ?? 'clear sky',
+          windSpeed: latestWeather.windSpeed ?? 0,
+          windDirection: (latestWeather as any).windDirection ?? 0,
+          visibility: (latestWeather as any).visibility ?? 10000,
           cityName: destinationId, // Use destinationId as fallback name
           icon: '01d', // Default icon
           uvIndex: undefined,

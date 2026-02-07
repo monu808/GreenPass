@@ -23,7 +23,7 @@ import {
 import { getDbService } from '@/lib/databaseService';
 import { weatherService, destinationCoordinates } from '@/lib/weatherService';
 import { getCapacityStatus, formatDateTime } from '@/lib/utils';
-import { DashboardStats, Destination, Alert } from '@/types';
+import { DashboardStats, Destination, Alert, WeatherConditions } from '@/types';
 import { getPolicyEngine, DEFAULT_POLICIES, SensitivityLevel, EcologicalPolicy } from '@/lib/ecologicalPolicyEngine';
 import EcologicalDashboard from './EcologicalDashboard';
 import { useWeatherDataBatch } from "@/hooks/useWeatherData";
@@ -51,14 +51,7 @@ export default function AdminDashboard() {
   const [destinations, setDestinations] = useState<Destination[]>([]);
   const [adjustedCapacities, setAdjustedCapacities] = useState<Record<string, number>>({});
   const [alerts, setAlerts] = useState<Alert[]>([]);
-  const [weatherMap, setWeatherMap] = useState<Record<string, {
-    temperature: number;
-    humidity: number;
-    weatherMain: string;
-    weatherDescription: string;
-    windSpeed: number;
-    recordedAt: string;
-  }>>({});
+  const [weatherMap, setWeatherMap] = useState<Record<string, WeatherConditions>>({});
   const [policies, setPolicies] = useState<Record<SensitivityLevel, EcologicalPolicy>>(DEFAULT_POLICIES);
   const [loading, setLoading] = useState(true);
   const [editingPolicy, setEditingPolicy] = useState<SensitivityLevel | null>(null);
@@ -80,14 +73,7 @@ export default function AdminDashboard() {
 
   const updateWeatherData = useCallback(async (destinations: Destination[]) => {
     const dbService = getDbService();
-    const newWeatherMap: Record<string, {
-      temperature: number;
-      humidity: number;
-      weatherMain: string;
-      weatherDescription: string;
-      windSpeed: number;
-      recordedAt: string;
-    }> = {};
+    const newWeatherMap: Record<string, WeatherConditions> = {};
     const destinationIds = destinations.map(d => d.id);
 
     try {
@@ -100,25 +86,13 @@ export default function AdminDashboard() {
       for (const destination of destinations) {
         try {
           const latestWeather = latestWeatherBatch.get(destination.id);
-          let weatherDataForMap = null;
-
-          if (latestWeather) {
-            weatherDataForMap = {
-              temperature: latestWeather.temperature,
-              humidity: latestWeather.humidity,
-              weatherMain: latestWeather.weather_main,
-              weatherDescription: latestWeather.weather_description,
-              windSpeed: latestWeather.wind_speed,
-              recordedAt: latestWeather.recorded_at
-            };
-          }
-
+          
           const coordinates = (destinationCoordinates as Record<string, { lat: number; lon: number; name?: string }>)[destination.id] ||
             (destinationCoordinates as Record<string, { lat: number; lon: number; name?: string }>)[destination.name?.toLowerCase().replace(/\s+/g, '')] ||
             (destinationCoordinates as Record<string, { lat: number; lon: number; name?: string }>)[destination.name?.toLowerCase()];
 
-          const isFresh = weatherDataForMap &&
-            (now - new Date(weatherDataForMap.recordedAt).getTime() < sixHoursInMs);
+          const isFresh = latestWeather &&
+            (now - new Date(latestWeather.recordedAt!).getTime() < sixHoursInMs);
 
           if (coordinates && !isFresh) {
             console.log(`🌐 Refreshing weather for ${destination.name}...`);
@@ -135,11 +109,12 @@ export default function AdminDashboard() {
                 weatherMain: weatherData.weatherMain,
                 weatherDescription: weatherData.weatherDescription,
                 windSpeed: weatherData.windSpeed,
-                recordedAt: new Date().toISOString()
+                recordedAt: new Date().toISOString(),
+                alertLevel: 'none' // Default for fresh API data if not provided
               };
             }
-          } else if (weatherDataForMap) {
-            newWeatherMap[destination.id] = weatherDataForMap;
+          } else if (latestWeather) {
+            newWeatherMap[destination.id] = latestWeather;
           }
         } catch (err) {
           logger.error(
@@ -202,39 +177,22 @@ export default function AdminDashboard() {
       const updatedAlerts = await dbService.getAlerts();
       setAlerts(updatedAlerts);
 
-      // Transform destinations data to match interface
-      const transformedDestinations = destinationsData.map((dest) => ({
-        id: dest.id,
-        name: dest.name,
-        location: dest.location,
-        maxCapacity: dest.max_capacity,
-        currentOccupancy: dest.current_occupancy,
-        description: dest.description,
-        guidelines: dest.guidelines,
-        isActive: dest.is_active,
-        ecologicalSensitivity: dest.ecological_sensitivity,
-        coordinates: {
-          latitude: dest.latitude,
-          longitude: dest.longitude,
-        },
-      }));
-
-      setDestinations(transformedDestinations);
+      setDestinations(destinationsData);
 
       // Calculate adjusted capacities in batch
       const policyEngine = getPolicyEngine();
       
       // Batch-fetch weather and indicators for capacity calculations
-      const destinationIds = transformedDestinations.map(d => d.id);
+      const destinationIds = destinationsData.map(d => d.id);
       const [weatherBatch, indicatorsBatch] = await Promise.all([
         dbService.getWeatherDataForDestinations(destinationIds),
         dbService.getEcologicalIndicatorsForDestinations(destinationIds)
       ]);
 
       const batchCapacitiesMap = await policyEngine.getBatchAdjustedCapacities(
-        transformedDestinations as any,
+        destinationsData,
         weatherBatch,
-        indicatorsBatch as any
+        indicatorsBatch
       );
 
       const newAdjustedCapacities: Record<string, number> = {};
@@ -245,7 +203,7 @@ export default function AdminDashboard() {
       setAdjustedCapacities(newAdjustedCapacities);
 
       // Update weather data for all destinations
-      updateWeatherData(transformedDestinations);
+      updateWeatherData(destinationsData);
     } catch (error) {
       logger.error(
         'Error loading dashboard data',
@@ -272,7 +230,8 @@ export default function AdminDashboard() {
               weatherMain: data.weather.weatherMain,
               weatherDescription: data.weather.weatherDescription,
               windSpeed: data.weather.windSpeed,
-              recordedAt: new Date().toISOString()
+              recordedAt: new Date().toISOString(),
+              alertLevel: data.weather.alertLevel || 'none'
             }
           }));
         } else if (data.type !== 'heartbeat') {
@@ -323,7 +282,7 @@ export default function AdminDashboard() {
       const batchCapacitiesMap = await policyEngine.getBatchAdjustedCapacities(
         destinations,
         weatherBatch,
-        indicatorsBatch as any
+        indicatorsBatch
       );
 
       const newAdjustedCapacities: Record<string, number> = {};
@@ -597,7 +556,7 @@ export default function AdminDashboard() {
                               <div className="flex items-center justify-between">
                                 <div className="flex items-center space-x-3">
                                   <span className="text-xl font-bold text-gray-900">
-                                    {Math.round(weather.temperature)}°C
+                                    {Math.round(weather.temperature ?? 0)}°C
                                   </span>
                                   <div className="text-xs text-gray-500">
                                     <p className="font-medium text-gray-700 capitalize">
@@ -608,7 +567,7 @@ export default function AdminDashboard() {
                                 </div>
                                 <div className="text-right text-[10px] text-gray-400">
                                   <p>Wind: {weather.windSpeed}m/s</p>
-                                  <p>Updated: {new Date(weather.recordedAt).toLocaleTimeString()}</p>
+                                  <p>Updated: {new Date(weather.recordedAt ?? Date.now()).toLocaleTimeString()}</p>
                                 </div>
                               </div>
                             ) : (

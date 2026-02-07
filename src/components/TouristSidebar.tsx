@@ -104,9 +104,9 @@ export default function TouristSidebar({ isOpen, setIsOpen }: SidebarProps) {
         const latestWeather = await dbService.getLatestWeatherData(defaultDestId);
         if (latestWeather) {
           setWeather({
-            temperature: latestWeather.temperature,
-            weatherDescription: latestWeather.weather_description,
-            weatherMain: latestWeather.weather_main,
+            temperature: latestWeather.temperature ?? 0,
+            weatherDescription: latestWeather.weatherDescription ?? 'clear sky',
+            weatherMain: latestWeather.weatherMain ?? 'Clear',
           });
           setLoadingWeather(false);
         }

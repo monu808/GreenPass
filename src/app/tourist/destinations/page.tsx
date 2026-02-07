@@ -57,22 +57,7 @@ export default function TouristDestinations() {
   const loadData = useCallback(async (): Promise<void> => {
     try {
       const dbService = getDbService();
-      const data = await dbService.getDestinations();
-      const transformed: Destination[] = data.map((dest) => ({
-        id: dest.id,
-        name: dest.name,
-        location: dest.location,
-        maxCapacity: dest.max_capacity,
-        currentOccupancy: dest.current_occupancy,
-        description: dest.description,
-        guidelines: dest.guidelines || [],
-        isActive: dest.is_active,
-        ecologicalSensitivity: isValidEcologicalSensitivity(dest.ecological_sensitivity) 
-          ? dest.ecological_sensitivity 
-          : 'medium',
-        sustainabilityFeatures: dest.sustainability_features || undefined,
-        coordinates: { latitude: dest.latitude, longitude: dest.longitude },
-      }));
+      const transformed = await dbService.getDestinations();
       const activeDestinations = transformed.filter((dest) => dest.isActive);
       setDestinations(activeDestinations);
 
@@ -153,10 +138,11 @@ export default function TouristDestinations() {
     setFilteredDestinations(result);
   }, [destinations, searchTerm, selectedFilter, capacityResults]);
 
-  useEffect(() => { 
-    loadData(); 
+  useEffect(() => {
+    loadData();
   }, [loadData]);
- useEffect(() => {
+
+  useEffect(() => {
     setIsSearching(true);
     const timer = setTimeout(() => {
       filterData();

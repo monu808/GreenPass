@@ -1,6 +1,7 @@
 import { EcologicalPolicyEngine, DEFAULT_POLICIES } from '@/lib/ecologicalPolicyEngine';
 import { getDbService } from '@/lib/databaseService';
-import { Destination, WeatherData } from '@/types';
+import { Destination } from '@/types';
+import { WeatherData } from '@/lib/weatherService';
 
 // Mock the database service
 jest.mock('@/lib/databaseService', () => ({
@@ -141,7 +142,12 @@ describe('EcologicalPolicyEngine', () => {
       // Medium (0.8) * Override (0.5) = 0.4
       // 100 * 0.4 = 40
       
-      const result = await engine.getDynamicCapacity(mockDestination, { alert_level: 'none' }, { soil_compaction: 0, vegetation_disturbance: 0, wildlife_disturbance: 0, water_source_impact: 0 });
+      const result = await engine.getDynamicCapacity(mockDestination, { alert_level: 'none' }, { 
+        soilCompaction: 0, 
+        vegetationDisturbance: 0, 
+        wildlifeDisturbance: 0, 
+        waterSourceImpact: 0 
+      });
       expect(result.adjustedCapacity).toBe(40);
       expect(result.activeFactorFlags.override).toBe(true);
     });
@@ -195,21 +201,36 @@ describe('EcologicalPolicyEngine', () => {
 
   describe('getEcologicalIndicatorFactor', () => {
     it('should return 1.0 for low strain', async () => {
-      const indicators = { soil_compaction: 10, vegetation_disturbance: 10, wildlife_disturbance: 10, water_source_impact: 10 };
+      const indicators = { 
+        soilCompaction: 10, 
+        vegetationDisturbance: 10, 
+        wildlifeDisturbance: 10, 
+        waterSourceImpact: 10 
+      };
       const factor = await engine.getEcologicalIndicatorFactor('dest-1', indicators);
       expect(factor).toBe(1.0);
     });
 
     it('should return 0.9 for medium strain', async () => {
       // (50 * 4) / 400 = 0.5 (between 0.4 and 0.7)
-      const indicators = { soil_compaction: 50, vegetation_disturbance: 50, wildlife_disturbance: 50, water_source_impact: 50 };
+      const indicators = { 
+        soilCompaction: 50, 
+        vegetationDisturbance: 50, 
+        wildlifeDisturbance: 50, 
+        waterSourceImpact: 50 
+      };
       const factor = await engine.getEcologicalIndicatorFactor('dest-1', indicators);
       expect(factor).toBe(0.9);
     });
 
     it('should return 0.8 for high strain', async () => {
       // (80 * 4) / 400 = 0.8 (> 0.7)
-      const indicators = { soil_compaction: 80, vegetation_disturbance: 80, wildlife_disturbance: 80, water_source_impact: 80 };
+      const indicators = { 
+        soilCompaction: 80, 
+        vegetationDisturbance: 80, 
+        wildlifeDisturbance: 80, 
+        waterSourceImpact: 80 
+      };
       const factor = await engine.getEcologicalIndicatorFactor('dest-1', indicators);
       expect(factor).toBe(0.8);
     });

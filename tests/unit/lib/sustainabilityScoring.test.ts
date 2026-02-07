@@ -13,18 +13,23 @@ describe('Sustainability Scoring System', () => {
     id: 'dest-1',
     name: 'Eco Resort',
     description: 'A beautiful eco resort',
-    location: { lat: 10, lng: 20 },
+    location: '10.0000, 20.0000',
     maxCapacity: 100,
     currentOccupancy: 20,
-    ecologicalSensitivity: 'medium',
+    ecologicalSensitivity: 'medium' as const,
+    isActive: true,
+    guidelines: ['Keep clean'],
+    coordinates: {
+      latitude: 10,
+      longitude: 20
+    },
     sustainabilityFeatures: {
       hasRenewableEnergy: true,
       wasteManagementLevel: 'advanced',
       localEmploymentRatio: 0.7,
       communityFundShare: 0.1,
       wildlifeProtectionProgram: true
-    },
-    images: []
+    }
   };
 
   describe('calculateSustainabilityScore', () => {
@@ -95,9 +100,9 @@ describe('Sustainability Scoring System', () => {
 
   describe('findLowImpactAlternatives', () => {
     const destinations: Destination[] = [
-      { ...mockDestination, id: '1', name: 'D1', ecologicalSensitivity: 'low' }, // High score
-      { ...mockDestination, id: '2', name: 'D2', ecologicalSensitivity: 'critical' }, // Low score
-      { ...mockDestination, id: '3', name: 'D3', ecologicalSensitivity: 'medium' } // Medium score
+      { ...mockDestination, id: '1', name: 'D1', ecologicalSensitivity: 'low' as const }, // High score
+      { ...mockDestination, id: '2', name: 'D2', ecologicalSensitivity: 'critical' as const }, // Low score
+      { ...mockDestination, id: '3', name: 'D3', ecologicalSensitivity: 'medium' as const } // Medium score
     ];
 
     it('should return destinations with higher scores than current', () => {
@@ -109,15 +114,15 @@ describe('Sustainability Scoring System', () => {
 
   describe('Recommendation Engine', () => {
     const destinations: Destination[] = [
-      { ...mockDestination, id: '1', name: 'Low Sens 1', ecologicalSensitivity: 'low', currentOccupancy: 10, isActive: true },
-      { ...mockDestination, id: '2', name: 'Med Sens 1', ecologicalSensitivity: 'medium', currentOccupancy: 10, isActive: true },
-      { ...mockDestination, id: '3', name: 'High Sens 1', ecologicalSensitivity: 'high', currentOccupancy: 10, isActive: true },
-      { ...mockDestination, id: '4', name: 'Low Sens 2', ecologicalSensitivity: 'low', currentOccupancy: 50, isActive: true },
-      { ...mockDestination, id: '5', name: 'Inactive', ecologicalSensitivity: 'low', currentOccupancy: 10, isActive: false },
+      { ...mockDestination, id: '1', name: 'Low Sens 1', ecologicalSensitivity: 'low' as const, currentOccupancy: 10, isActive: true },
+      { ...mockDestination, id: '2', name: 'Med Sens 1', ecologicalSensitivity: 'medium' as const, currentOccupancy: 10, isActive: true },
+      { ...mockDestination, id: '3', name: 'High Sens 1', ecologicalSensitivity: 'high' as const, currentOccupancy: 10, isActive: true },
+      { ...mockDestination, id: '4', name: 'Low Sens 2', ecologicalSensitivity: 'low' as const, currentOccupancy: 50, isActive: true },
+      { ...mockDestination, id: '5', name: 'Inactive', ecologicalSensitivity: 'low' as const, currentOccupancy: 10, isActive: false },
     ];
 
     it('getEcoFriendlyAlternatives should prioritize lower sensitivity', () => {
-      const current = { ...mockDestination, id: 'current', ecologicalSensitivity: 'critical' };
+      const current = { ...mockDestination, id: 'current', ecologicalSensitivity: 'critical' as const };
       const capacities = { '1': 100, '2': 100, '3': 100, '4': 100 };
       const alternatives = getEcoFriendlyAlternatives(current, destinations, capacities);
       
@@ -128,7 +133,7 @@ describe('Sustainability Scoring System', () => {
     });
 
     it('getEcoFriendlyAlternatives should sort by occupancy for same sensitivity', () => {
-      const current = { ...mockDestination, id: 'current', ecologicalSensitivity: 'critical' };
+      const current = { ...mockDestination, id: 'current', ecologicalSensitivity: 'critical' as const };
       const capacities = { '1': 100, '4': 100 };
       const alternatives = getEcoFriendlyAlternatives(current, destinations, capacities);
       

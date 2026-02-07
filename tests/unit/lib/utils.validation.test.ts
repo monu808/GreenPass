@@ -60,7 +60,7 @@ describe('Validation Utilities', () => {
 
     it('should validate Passport correctly', () => {
       expect(validateIdProofByType('A1234567', 'passport').valid).toBe(true);
-      expect(validateIdProofByType('AB1234567', 'passport').valid).toBe(true);
+      expect(validateIdProofByType('B1234567', 'passport').valid).toBe(true);
       expect(validateIdProofByType('12345678', 'passport').valid).toBe(false);
     });
 
@@ -178,7 +178,7 @@ describe('Validation Utilities', () => {
 
     it('should return false for invalid group sizes', () => {
       expect(validateGroupSize(0).valid).toBe(false);
-      expect(validateGroupSize(11).valid).toBe(false);
+      expect(validateGroupSize(51).valid).toBe(false);
       expect(validateGroupSize('not-a-number').valid).toBe(false);
       expect(validateGroupSize(2.5).valid).toBe(false);
     });

@@ -37,9 +37,9 @@ describe('Validation Engine', () => {
         email: 'john@example.com',
         phone: '9876543210',
         age: 25,
-        address: '123 Main St, Anytown, USA',
+        address: '123 Main St, Anytown, India',
         pinCode: '123456',
-        idProof: 'ABCDE1234F',
+        idProof: '123456789012',
         idType: 'aadhaar' as const
       };
 
@@ -66,8 +66,8 @@ describe('Validation Engine', () => {
     describe('BookingDataSchema', () => {
       const validBooking = {
         groupSize: 4,
-        checkInDate: '2024-06-01',
-        checkOutDate: '2024-06-05',
+        checkInDate: '2026-06-01',
+        checkOutDate: '2026-06-05',
         emergencyContact: {
           name: 'Jane Doe',
           phone: '9876543211',

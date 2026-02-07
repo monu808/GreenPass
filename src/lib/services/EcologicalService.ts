@@ -1157,7 +1157,8 @@ export class EcologicalService extends BaseService {
         .from('tourists')
         .select('group_size, check_in_date, check_out_date')
         .eq('destination_id', destinationId)
-        .or(`check_in_date.lte.${endDateStr},check_out_date.gte.${startDateStr}`);
+        .lte('check_in_date', endDateStr)
+        .gte('check_out_date', startDateStr);
 
       if (error) throw error;
 

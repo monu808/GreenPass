@@ -240,25 +240,56 @@ export class DestinationService extends BaseService {
    * Fetches capacity adjustment history.
    */
   async getCapacityAdjustmentHistory(destinationId?: string, days: number = 7): Promise<AdjustmentLog[]> {
-    if (typeof window === 'undefined' || !window.localStorage) return [];
     try {
-      const historyKey = 'greenpass_capacity_history';
-      const rawHistory = JSON.parse(localStorage.getItem(historyKey) || '[]');
+      if (this.isPlaceholderMode()) {
+        if (typeof window === 'undefined' || !window.localStorage) return [];
+        const historyKey = 'greenpass_capacity_history';
+        const rawHistory = JSON.parse(localStorage.getItem(historyKey) || '[]');
 
-      let history = rawHistory.map((item: { timestamp: string;[key: string]: unknown }) => ({
-        ...item,
-        timestamp: new Date(item.timestamp)
-      } as AdjustmentLog));
+        let history = rawHistory.map((item: { timestamp: string; [key: string]: unknown }) => ({
+          ...item,
+          timestamp: new Date(item.timestamp)
+        } as AdjustmentLog));
 
-      const cutoff = new Date();
-      cutoff.setDate(cutoff.getDate() - days);
-      history = history.filter((item: AdjustmentLog) => item.timestamp >= cutoff);
+        const cutoff = new Date();
+        cutoff.setDate(cutoff.getDate() - days);
+        history = history.filter((item: AdjustmentLog) => item.timestamp >= cutoff);
 
-      if (destinationId) {
-        history = history.filter((item: AdjustmentLog) => item.destinationId === destinationId);
+        if (destinationId) {
+          history = history.filter((item: AdjustmentLog) => item.destinationId === destinationId);
+        }
+
+        return history.sort((a: AdjustmentLog, b: AdjustmentLog) => b.timestamp.getTime() - a.timestamp.getTime());
       }
 
-      return history.sort((a: AdjustmentLog, b: AdjustmentLog) => b.timestamp.getTime() - a.timestamp.getTime());
+      // Real persistence path
+      const cutoff = new Date();
+      cutoff.setDate(cutoff.getDate() - days);
+      const cutoffStr = cutoff.toISOString();
+
+      let query = (this.db as any)
+        .from('capacity_adjustment_logs')
+        .select('*')
+        .gte('timestamp', cutoffStr)
+        .order('timestamp', { ascending: false });
+
+      if (destinationId) {
+        query = query.eq('destination_id', destinationId);
+      }
+
+      const { data, error } = await query;
+
+      if (error) throw error;
+
+      return (data || []).map((row: any) => ({
+        id: row.id,
+        destinationId: row.destination_id,
+        timestamp: new Date(row.timestamp),
+        originalCapacity: row.original_capacity,
+        adjustedCapacity: row.adjusted_capacity,
+        factors: row.factors,
+        reason: row.reason
+      }));
     } catch (error) {
       this.logError('getCapacityAdjustmentHistory', error);
       return [];

@@ -4,7 +4,8 @@ import {
   DynamicCapacityResult, 
   DynamicCapacityFactors, 
   CapacityOverride,
-  EcologicalDamageIndicators 
+  EcologicalDamageIndicators,
+  WeatherConditions
 } from '@/types';
 import { getDbService } from './databaseService';
 import { WeatherData } from './weatherService';
@@ -61,12 +62,6 @@ export const DEFAULT_POLICIES: Record<SensitivityLevel, EcologicalPolicy> = {
     bookingRestrictionMessage: 'Access is strictly limited to authorized research and conservation personnel only.',
   },
 };
-
-export interface WeatherConditions {
-  alert_level: 'none' | 'low' | 'medium' | 'high' | 'critical';
-  temperature?: number;
-  humidity?: number;
-}
 
 export class EcologicalPolicyEngine {
   private policies: Record<SensitivityLevel, EcologicalPolicy> = DEFAULT_POLICIES;
@@ -260,21 +255,9 @@ export class EcologicalPolicyEngine {
   }
 
   async getWeatherFactor(destinationId: string, weatherData?: WeatherConditions): Promise<number> {
-    if (weatherData && weatherData.alert_level) {
-      const multipliers: Record<string, number> = {
-        none: 1.0,
-        low: 0.90,
-        medium: 0.85,
-        high: 0.80,
-        critical: 0.75
-      };
-      return multipliers[weatherData.alert_level] || 1.0;
-    }
-
-    const dbService = getDbService();
-    const weather = await dbService.getLatestWeatherData(destinationId);
+    const weather = weatherData || await getDbService().getLatestWeatherData(destinationId);
     
-    if (!weather || !weather.alert_level || weather.alert_level === 'none') {
+    if (!weather || !weather.alertLevel || weather.alertLevel === 'none') {
       return 1.0;
     }
 
@@ -286,7 +269,7 @@ export class EcologicalPolicyEngine {
       critical: 0.75
     };
 
-    return multipliers[weather.alert_level] || 1.0;
+    return multipliers[weather.alertLevel] || 1.0;
   }
 
   getSeasonFactor(date: Date = new Date()): number {
@@ -304,23 +287,18 @@ export class EcologicalPolicyEngine {
   }
 
   async getEcologicalIndicatorFactor(destinationId: string, indicators?: EcologicalDamageIndicators): Promise<number> {
-    if (!indicators) {
-      const dbService = getDbService();
-      indicators = (await dbService.getLatestEcologicalIndicators(destinationId)) as any || undefined;
-    }
-    
-    if (!indicators) return 1.0;
+    const data = indicators || await getDbService().getLatestEcologicalIndicators(destinationId);
+    if (!data) return 1.0;
 
     // Calculate a combined strain factor from 0 to 1
     // Higher values (approaching 1) mean more damage/strain
-    // Handle both snake_case (DB) and camelCase (input)
-    const soil = indicators.soil_compaction ?? indicators.soilCompaction ?? 0;
-    const veg = indicators.vegetation_disturbance ?? indicators.vegetationDisturbance ?? 0;
-    const wildlife = indicators.wildlife_disturbance ?? indicators.wildlifeDisturbance ?? 0;
-    const water = indicators.water_source_impact ?? indicators.waterSourceImpact ?? 0;
+    const soil = data.soilCompaction ?? 0;
+    const veg = data.vegetationDisturbance ?? 0;
+    const wildlife = data.wildlifeDisturbance ?? 0;
+    const water = data.waterSourceImpact ?? 0;
     
     const avgStrain = (soil + veg + wildlife + water) / 400; // Assuming each is 0-100
-
+    
     if (avgStrain > 0.7) return 0.80; // High strain
     if (avgStrain > 0.4) return 0.90; // Medium strain
     return 1.0;
@@ -450,13 +428,7 @@ export class EcologicalPolicyEngine {
       const weather = weatherMap.get(dest.id);
       const indicators = indicatorsMap.get(dest.id);
       
-      const weatherConditions: WeatherConditions | undefined = weather ? {
-        alert_level: weather.alert_level || 'none',
-        temperature: weather.temperature,
-        humidity: weather.humidity
-      } : undefined;
-
-      const capacity = await this.getAdjustedCapacity(dest, weatherConditions, indicators);
+      const capacity = await this.getAdjustedCapacity(dest, weather, indicators);
       return { id: dest.id, capacity };
     }));
 

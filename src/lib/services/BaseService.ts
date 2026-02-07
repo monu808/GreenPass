@@ -21,16 +21,16 @@ export abstract class BaseService {
    */
   public isPlaceholderMode(): boolean {
     const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+    const useMockEnv = process.env.NEXT_PUBLIC_USE_MOCK_DATA;
     
-    // Force mock mode for development/testing
-    // Change this to false when you want to use real database
-    const USE_MOCK_DATA = true;
-
-    if (USE_MOCK_DATA) {
+    // Check if explicitly requested via environment variable
+    if (useMockEnv === 'true' || useMockEnv === '1') {
       return true;
     }
     
-    return !supabase || !url || url.includes('placeholder') || url.includes('your-project');
+    // Check for missing/placeholder Supabase configuration
+    return !supabase || !url || !key || url.includes('placeholder') || url.includes('your-project');
   }
 
   /**

@@ -1,5 +1,4 @@
-import { Destination, DynamicCapacityResult } from '@/types';
-import { WeatherConditions } from '@/lib/ecologicalPolicyEngine';
+import { Destination, DynamicCapacityResult, WeatherConditions } from '@/types';
 
 export type ImpactLevel = 'green' | 'yellow' | 'orange' | 'red';
 
@@ -67,13 +66,13 @@ const getWeatherFactor = (weather?: WeatherConditions): { score: number; reason?
   const reasons: string[] = [];
   let score = 0;
 
-  if (weather.alert_level === 'critical') {
+  if (weather.alertLevel === 'critical') {
     score += 50;
     reasons.push('Critical weather alert in effect');
-  } else if (weather.alert_level === 'high') {
+  } else if (weather.alertLevel === 'high') {
     score += 35;
     reasons.push('Severe weather alert in effect');
-  } else if (weather.alert_level === 'medium') {
+  } else if (weather.alertLevel === 'medium') {
     score += 15;
     reasons.push('Medium weather advisory');
   }

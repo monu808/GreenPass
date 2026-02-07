@@ -15,7 +15,8 @@ import {
   CleanupRegistration,
   EcoPointsTransaction,
   EcoPointsLeaderboardEntry,
-  EcologicalDamageIndicators
+  EcologicalDamageIndicators,
+  WeatherConditions
 } from '@/types';
 import { Database } from '@/types/database';
 import { isWithinInterval, format } from 'date-fns';
@@ -32,57 +33,20 @@ import { destinationService } from './services/DestinationService';
 import { ecologicalService } from './services/EcologicalService';
 import { ecoPointsService } from './services/EcoPointsService';
 
-// Type aliases for database types
-export type DbTourist = Database['public']['Tables']['tourists']['Row'];
-export type DbDestination = Database['public']['Tables']['destinations']['Row'];
-export type DbAlert = Database['public']['Tables']['alerts']['Row'];
-export type DbWeatherData = Database['public']['Tables']['weather_data']['Row'];
-export type DbWasteData = Database['public']['Tables']['waste_data']['Row'];
-export type DbCleanupActivity = Database['public']['Tables']['cleanup_activities']['Row'];
-export type DbCleanupRegistration = Database['public']['Tables']['cleanup_registrations']['Row'];
-export type DbEcoPointsTransaction = Database['public']['Tables']['eco_points_transactions']['Row'];
-export type DbComplianceReport = Database['public']['Tables']['compliance_reports']['Row'];
-export type DbPolicyViolation = Database['public']['Tables']['policy_violations']['Row'];
-
-// Input types for database operations
-export interface WeatherDataInput {
-  destination_id: string;
-  temperature: number;
-  humidity: number;
-  pressure: number;
-  weather_main: string;
-  weather_description: string;
-  wind_speed: number;
-  wind_direction: number;
-  visibility: number;
-  recorded_at: string;
-  alert_level?: 'none' | 'low' | 'medium' | 'high' | 'critical';
-  alert_message?: string | null;
-  alert_reason?: string | null;
-}
-
-export interface ComplianceReportInput {
-  reportPeriod: string;
-  reportType: "monthly" | "quarterly";
-  totalTourists: number;
-  sustainableCapacity: number;
-  complianceScore: number;
-  wasteMetrics: {
-    totalWaste: number;
-    recycledWaste: number;
-    wasteReductionTarget: number;
-  };
-  carbonFootprint: number;
-  ecologicalImpactIndex: number;
-  ecologicalDamageIndicators?: EcologicalDamageIndicators;
-  previousPeriodScore?: number;
-  policyViolationsCount: number;
-  totalFines: number;
-  status?: "pending" | "approved";
-}
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const db = supabase as any;
+import {
+  DbTourist,
+  DbDestination,
+  DbAlert,
+  DbWeatherData,
+  DbWasteData,
+  DbCleanupActivity,
+  DbCleanupRegistration,
+  DbEcoPointsTransaction,
+  DbComplianceReport,
+  DbPolicyViolation,
+  WeatherDataInput,
+  ComplianceReportInput
+} from './services/types';
 
 class DatabaseService {
   constructor() {}
@@ -132,8 +96,9 @@ class DatabaseService {
   }
 
   // Destination operations
-  async getDestinations(page: number = 1, pageSize: number = 20): Promise<Database['public']['Tables']['destinations']['Row'][]> {
-    return destinationService.getDestinations(page, pageSize);
+  async getDestinations(page: number = 1, pageSize: number = 20): Promise<Destination[]> {
+    const dbDestinations = await destinationService.getDestinations(page, pageSize);
+    return dbDestinations.map(d => destinationService.transformDbDestinationToDestination(d));
   }
 
   async getDestinationById(id: string): Promise<Destination | null> {
@@ -280,16 +245,16 @@ class DatabaseService {
     return ecoPointsService.getAggregatedEnvironmentalStats();
   }
 
-  async getLatestEcologicalIndicators(destinationId: string): Promise<{ soil_compaction: number; vegetation_disturbance: number; wildlife_disturbance: number; water_source_impact: number } | null> {
+  async getLatestEcologicalIndicators(destinationId: string): Promise<EcologicalDamageIndicators | undefined> {
     return ecologicalService.getLatestEcologicalIndicators(destinationId);
   }
 
   // Batch query methods for eliminating N+1 queries
-  async getWeatherDataForDestinations(destinationIds: string[]): Promise<Map<string, DbWeatherData>> {
+  async getWeatherDataForDestinations(destinationIds: string[]): Promise<Map<string, WeatherConditions>> {
     return ecologicalService.getWeatherDataForDestinations(destinationIds);
   }
 
-  async getEcologicalIndicatorsForDestinations(destinationIds: string[]): Promise<Map<string, { soil_compaction: number; vegetation_disturbance: number; wildlife_disturbance: number; water_source_impact: number }>> {
+  async getEcologicalIndicatorsForDestinations(destinationIds: string[]): Promise<Map<string, EcologicalDamageIndicators>> {
     return ecologicalService.getEcologicalIndicatorsForDestinations(destinationIds);
   }
 
@@ -311,7 +276,7 @@ class DatabaseService {
         this.getWasteMetricsSummary()
       ]);
 
-      const physicalMaxCapacity = destinations.reduce((sum, dest) => sum + (dest.max_capacity || 0), 0);
+      const physicalMaxCapacity = destinations.reduce((sum, dest) => sum + (dest.maxCapacity || 0), 0);
 
       const policyEngine = getPolicyEngine();
       const destinationIds = destinations.map(d => d.id);
@@ -323,9 +288,9 @@ class DatabaseService {
       ]);
 
       const batchCapacitiesMap = await policyEngine.getBatchAdjustedCapacities(
-        destinations.map(d => destinationService.transformDbDestinationToDestination(d)),
+        destinations,
         weatherBatch,
-        indicatorsBatch as any
+        indicatorsBatch
       );
 
       const adjustedMaxCapacity = Array.from(batchCapacitiesMap.values()).reduce((sum, cap) => sum + cap, 0);
@@ -394,7 +359,7 @@ class DatabaseService {
     return ecologicalService.saveWeatherData(data);
   }
 
-  async getLatestWeatherData(destinationId: string): Promise<DbWeatherData | null> {
+  async getLatestWeatherData(destinationId: string): Promise<WeatherConditions | null> {
     return ecologicalService.getLatestWeatherData(destinationId);
   }
 

@@ -61,9 +61,8 @@ class WeatherMonitor implements WeatherMonitoringService {
       const weatherResults = await weatherAggregationService.getWeatherForMultipleDestinations(destinationIds);
       
       // Process results for each destination
-      for (const dbDestination of destinations) {
+      for (const destination of destinations) {
         try {
-          const destination = dbService.transformDbDestinationToDestination(dbDestination);
           const weatherData = weatherResults.get(destination.id);
 
           if (!weatherData) {
@@ -90,7 +89,7 @@ class WeatherMonitor implements WeatherMonitoringService {
           await this.processWeatherAlerts(destination, weatherData, true);
 
         } catch (error) {
-          logger.error(`❌ Error processing weather for ${dbDestination.name}:`, error);
+          logger.error(`❌ Error processing weather for ${destination.name}:`, error);
         }
       }
 

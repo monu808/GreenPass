@@ -11,7 +11,15 @@ import {
   DbCleanupActivityUpdate,
   DbCleanupRegistration,
   DbCleanupRegistrationInsert,
-  DbCleanupRegistrationUpdate
+  DbCleanupRegistrationUpdate,
+  DbWeatherData, 
+  WeatherDataInput, 
+  ComplianceReportInput, 
+  DbComplianceReport,
+  DbPolicyViolation,
+  DbPolicyViolationInsert,
+  DbDestination,
+  DbTourist
 } from './types';
 import { 
   Alert, 
@@ -23,24 +31,32 @@ import {
   EcologicalMetrics,
   HistoricalOccupancy,
   CleanupActivity,
-  CleanupRegistration
+  CleanupRegistration,
+  Tourist,
+  EcologicalDamageIndicators,
+  WeatherConditions
 } from '@/types';
 import * as mockData from '@/data/mockData';
 import { getPolicyEngine } from '../ecologicalPolicyEngine';
-import { destinationService } from './DestinationService';
-import { bookingService } from './BookingService';
-import { ecoPointsService } from './EcoPointsService';
 import { isWithinInterval, format } from 'date-fns';
 import { weatherCache, ecologicalIndicatorCache, withCache } from '../cache';
-import { 
-  DbWeatherData, 
-  WeatherDataInput, 
-  ComplianceReportInput, 
-  DbComplianceReport,
-  DbPolicyViolation,
-  DbPolicyViolationInsert
-} from './types';
 import { createServerComponentClient } from '@/lib/supabase';
+
+// Lazy accessors to break circular dependencies
+const getDestinationService = () => {
+  const { destinationService } = require('./DestinationService');
+  return destinationService;
+};
+
+const getBookingService = () => {
+  const { bookingService } = require('./BookingService');
+  return bookingService;
+};
+
+const getEcoPointsService = () => {
+  const { ecoPointsService } = require('./EcoPointsService');
+  return ecoPointsService;
+};
 
 /**
  * EcologicalService
@@ -86,14 +102,14 @@ export class EcologicalService extends BaseService {
       const alerts = data.map(this.transformDbAlertToAlert);
 
       // Add ecological alerts from policy engine
-      const destinations = await destinationService.getDestinations();
+      const destinations = await getDestinationService().getDestinations() as DbDestination[];
       const destinationsToProcess = destinationId
-        ? destinations.filter(d => d.id === destinationId)
+        ? destinations.filter((d: DbDestination) => d.id === destinationId)
         : destinations;
 
-      destinationsToProcess.forEach(dest => {
+      destinationsToProcess.forEach((dest: DbDestination) => {
         const policyEngine = getPolicyEngine();
-        const ecoAlert = policyEngine.generateEcologicalAlerts(destinationService.transformDbDestinationToDestination(dest));
+        const ecoAlert = policyEngine.generateEcologicalAlerts(getDestinationService().transformDbDestinationToDestination(dest));
         if (ecoAlert) {
           const alertId = `eco-${dest.id}`;
           if (!alerts.some((a: Alert) => a.id === alertId)) {
@@ -420,11 +436,23 @@ export class EcologicalService extends BaseService {
   }
 
   /**
+   * Transforms database indicators to the application-friendly EcologicalDamageIndicators interface.
+   */
+  private transformDbIndicatorsToIndicators(dbIndicators: any): EcologicalDamageIndicators {
+    return {
+      soilCompaction: dbIndicators.soil_compaction ?? dbIndicators.soilCompaction ?? 0,
+      vegetationDisturbance: dbIndicators.vegetation_disturbance ?? dbIndicators.vegetationDisturbance ?? 0,
+      wildlifeDisturbance: dbIndicators.wildlife_disturbance ?? dbIndicators.wildlifeDisturbance ?? 0,
+      waterSourceImpact: dbIndicators.water_source_impact ?? dbIndicators.waterSourceImpact ?? 0,
+    };
+  }
+
+  /**
    * Fetches latest ecological indicators for a destination.
    */
-  async getLatestEcologicalIndicators(destinationId: string): Promise<{ soil_compaction: number; vegetation_disturbance: number; wildlife_disturbance: number; water_source_impact: number } | null> {
+  async getLatestEcologicalIndicators(destinationId: string): Promise<EcologicalDamageIndicators | undefined> {
     try {
-      if (this.isPlaceholderMode()) return null;
+      if (this.isPlaceholderMode()) return undefined;
 
       const { data, error } = await (this.db as any)
         .from('compliance_reports')
@@ -435,52 +463,44 @@ export class EcologicalService extends BaseService {
         .maybeSingle();
 
       if (error || !data || !data.ecological_damage_indicators) {
-        return null;
+        return undefined;
       }
 
-      return data.ecological_damage_indicators as any;
+      return this.transformDbIndicatorsToIndicators(data.ecological_damage_indicators);
     } catch (error) {
       this.logError('getLatestEcologicalIndicators', error, { destinationId });
-      return null;
+      return undefined;
     }
   }
 
   /**
    * Batch query method for weather data across multiple destinations.
    */
-  async getWeatherDataForDestinations(destinationIds: string[]): Promise<Map<string, DbWeatherData>> {
+  async getWeatherDataForDestinations(destinationIds: string[]): Promise<Map<string, WeatherConditions>> {
     try {
       if (this.isPlaceholderMode()) {
-        const result = new Map<string, DbWeatherData>();
+        const result = new Map<string, WeatherConditions>();
         for (const id of destinationIds) {
           result.set(id, {
-            id: `mock-w-${id}`,
-            destination_id: id,
+            alertLevel: 'none',
             temperature: 22,
             humidity: 60,
-            pressure: 1013,
-            weather_main: 'Clear',
-            weather_description: 'Mock data',
-            wind_speed: 5,
-            wind_direction: 180,
-            visibility: 10000,
-            recorded_at: new Date().toISOString(),
-            alert_level: 'none',
-            alert_message: null,
-            alert_reason: null,
-            created_at: new Date().toISOString()
-          } as DbWeatherData);
+            recordedAt: new Date().toISOString(),
+            weatherMain: 'Clear',
+            weatherDescription: 'Mock data',
+            windSpeed: 5,
+          });
         }
         return result;
       }
 
-      const result = new Map<string, DbWeatherData>();
+      const result = new Map<string, WeatherConditions>();
       const missingIds: string[] = [];
 
       for (const id of destinationIds) {
         const cached = weatherCache.get(id) as DbWeatherData;
         if (cached) {
-          result.set(id, cached);
+          result.set(id, this.transformDbWeatherToWeather(cached));
         } else {
           missingIds.push(id);
         }
@@ -508,7 +528,7 @@ export class EcologicalService extends BaseService {
           if (!processedIds.has(destId)) {
             processedIds.add(destId);
             weatherCache.set(destId, record);
-            result.set(destId, record);
+            result.set(destId, this.transformDbWeatherToWeather(record));
           }
         }
       }
@@ -523,11 +543,11 @@ export class EcologicalService extends BaseService {
   /**
    * Batch query method for ecological indicators across multiple destinations.
    */
-  async getEcologicalIndicatorsForDestinations(destinationIds: string[]): Promise<Map<string, { soil_compaction: number; vegetation_disturbance: number; wildlife_disturbance: number; water_source_impact: number }>> {
+  async getEcologicalIndicatorsForDestinations(destinationIds: string[]): Promise<Map<string, EcologicalDamageIndicators>> {
     try {
       if (this.isPlaceholderMode()) return new Map();
 
-      const result = new Map<string, { soil_compaction: number; vegetation_disturbance: number; wildlife_disturbance: number; water_source_impact: number }>();
+      const result = new Map<string, EcologicalDamageIndicators>();
       const missingIds: string[] = [];
 
       for (const id of destinationIds) {
@@ -560,7 +580,7 @@ export class EcologicalService extends BaseService {
         for (const record of data) {
           if (!processedIds.has(record.destination_id) && record.ecological_damage_indicators) {
             processedIds.add(record.destination_id);
-            const indicators = record.ecological_damage_indicators as any;
+            const indicators = this.transformDbIndicatorsToIndicators(record.ecological_damage_indicators);
             ecologicalIndicatorCache.set(record.destination_id, indicators);
             result.set(record.destination_id, indicators);
           }
@@ -625,27 +645,19 @@ export class EcologicalService extends BaseService {
   /**
    * Fetches latest weather data for a destination.
    */
-  async getLatestWeatherData(destinationId: string): Promise<DbWeatherData | null> {
+  async getLatestWeatherData(destinationId: string): Promise<WeatherConditions | null> {
     return withCache(weatherCache, destinationId, async () => {
       try {
         if (this.isPlaceholderMode()) {
           return {
-            id: 'mock-weather-id',
-            destination_id: destinationId,
+            alertLevel: 'none',
             temperature: 22,
             humidity: 60,
-            pressure: 1013,
-            weather_main: 'Initial',
-            weather_description: 'Initial data (fetching soon...)',
-            wind_speed: 5,
-            wind_direction: 180,
-            visibility: 10000,
-            recorded_at: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
-            alert_level: 'none',
-            alert_message: null,
-            alert_reason: null,
-            created_at: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
-          } as DbWeatherData;
+            recordedAt: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
+            weatherMain: 'Initial',
+            weatherDescription: 'Initial data (fetching soon...)',
+            windSpeed: 5,
+          };
         }
 
         const { data, error } = await (this.db as any)
@@ -657,7 +669,7 @@ export class EcologicalService extends BaseService {
           .maybeSingle();
 
         if (error || !data) return null;
-        return data as DbWeatherData;
+        return this.transformDbWeatherToWeather(data);
       } catch (error) {
         this.logError('getLatestWeatherData', error, { destinationId });
         return null;
@@ -717,26 +729,18 @@ export class EcologicalService extends BaseService {
    */
   async getDestinationsWithWeather(): Promise<Destination[]> {
     try {
-      const destinations = await destinationService.getDestinations();
+      const destinations = await getDestinationService().getDestinations() as DbDestination[];
       if (!destinations.length) return [];
 
-      const destinationIds = destinations.map(d => d.id);
+      const destinationIds = destinations.map((d: DbDestination) => d.id);
       const weatherMap = await this.getWeatherDataForDestinations(destinationIds);
 
-      return destinations.map(dbDest => {
-        const dest = destinationService.transformDbDestinationToDestination(dbDest);
+      return destinations.map((dbDest: DbDestination) => {
+        const dest = getDestinationService().transformDbDestinationToDestination(dbDest);
         const weather = weatherMap.get(dbDest.id);
 
         if (weather) {
-          dest.weather = {
-            temperature: weather.temperature,
-            humidity: weather.humidity,
-            weatherMain: weather.weather_main,
-            weatherDescription: weather.weather_description,
-            windSpeed: weather.wind_speed,
-            alertLevel: (weather.alert_level as any) || 'none',
-            recordedAt: weather.recorded_at
-          };
+          dest.weather = weather;
         }
 
         return dest;
@@ -949,12 +953,12 @@ export class EcologicalService extends BaseService {
    */
   async getComplianceMetrics(period: string, type: 'monthly' | 'quarterly'): Promise<Omit<ComplianceReport, 'id' | 'status' | 'createdAt'>> {
     try {
-      const tourists = await bookingService.getTourists();
-      const destinations = await destinationService.getDestinations();
+      const tourists = await getBookingService().getTourists() as Tourist[];
+      const destinations = await getDestinationService().getDestinations() as DbDestination[];
       const violations = await this.getPolicyViolations();
 
       // Filter by period
-      const filteredTourists = tourists.filter(t => {
+      const filteredTourists = tourists.filter((t: Tourist) => {
         const date = new Date(t.checkInDate);
         const tMonth = date.getMonth();
         const tYear = date.getFullYear();
@@ -988,8 +992,8 @@ export class EcologicalService extends BaseService {
         }
       });
 
-      const totalTourists = filteredTourists.reduce((sum, t) => sum + t.groupSize, 0);
-      const sustainableCapacity = destinations.reduce((sum, d) => sum + d.max_capacity, 0);
+      const totalTourists = filteredTourists.reduce((sum: number, t: Tourist) => sum + t.groupSize, 0);
+      const sustainableCapacity = destinations.reduce((sum: number, d: DbDestination) => sum + d.max_capacity, 0);
 
       // Mock metrics calculation
       const wastePerTourist = 1.5; // kg
@@ -1048,11 +1052,11 @@ export class EcologicalService extends BaseService {
    */
   async getEcologicalImpactData(): Promise<EcologicalMetrics[]> {
     try {
-      const destinations = await destinationService.getDestinations();
+      const destinations = await getDestinationService().getDestinations() as DbDestination[];
       const policyEngine = getPolicyEngine();
 
-      return Promise.all(destinations.map(async (d) => {
-        const destinationObj = destinationService.transformDbDestinationToDestination(d);
+      return Promise.all(destinations.map(async (d: DbDestination) => {
+        const destinationObj = getDestinationService().transformDbDestinationToDestination(d);
         const adjustedCapacity = await policyEngine.getAdjustedCapacity(destinationObj);
         const utilization = adjustedCapacity > 0 ? (d.current_occupancy / adjustedCapacity) * 100 : 0;
 
@@ -1142,8 +1146,20 @@ export class EcologicalService extends BaseService {
       const now = new Date();
       const trends: HistoricalOccupancy[] = [];
 
-      const dbDest = await destinationService.getDestinationById(destinationId);
+      const dbDest = await getDestinationService().getDestinationById(destinationId);
       const maxCapacity = dbDest?.maxCapacity || 100;
+
+      // Single batch query to fetch all potential tourist records for the date window
+      const startDateStr = format(new Date(now.getTime() - (days - 1) * 24 * 60 * 60 * 1000), 'yyyy-MM-dd');
+      const endDateStr = format(now, 'yyyy-MM-dd');
+
+      const { data: tourists, error } = await (this.db as any)
+        .from('tourists')
+        .select('group_size, check_in_date, check_out_date')
+        .eq('destination_id', destinationId)
+        .or(`check_in_date.lte.${endDateStr},check_out_date.gte.${startDateStr}`);
+
+      if (error) throw error;
 
       for (let i = days - 1; i >= 0; i--) {
         const date = new Date(now);
@@ -1152,16 +1168,16 @@ export class EcologicalService extends BaseService {
         const displayDate = format(date, 'MMM dd');
         const isoDate = date.toISOString();
 
-        const { data, error } = await (this.db as any)
-          .from('tourists')
-          .select('group_size')
-          .eq('destination_id', destinationId)
-          .lte('check_in_date', dateStr)
-          .gte('check_out_date', dateStr);
-
-        if (error) throw error;
-
-        const occupancy = data?.reduce((sum: number, t: { group_size: number }) => sum + (Number(t.group_size) || 0), 0) || 0;
+        // Calculate occupancy from in-memory records
+        const occupancy = tourists?.reduce((sum: number, t: any) => {
+          const checkIn = t.check_in_date;
+          const checkOut = t.check_out_date;
+          // Check if the current dateStr falls within the tourist's stay
+          if (dateStr >= checkIn && dateStr <= checkOut) {
+            return sum + (Number(t.group_size) || 0);
+          }
+          return sum;
+        }, 0) || 0;
 
         trends.push({
           date: displayDate,
@@ -1216,6 +1232,21 @@ export class EcologicalService extends BaseService {
       totalFines: db.total_fines,
       status: db.status as 'pending' | 'approved',
       createdAt: new Date(db.created_at)
+    };
+  }
+
+  /**
+   * Helper: Transforms a database row to a WeatherConditions model.
+   */
+  public transformDbWeatherToWeather(dbWeather: DbWeatherData): WeatherConditions {
+    return {
+      alertLevel: (dbWeather.alert_level as any) || 'none',
+      temperature: dbWeather.temperature,
+      humidity: dbWeather.humidity,
+      recordedAt: dbWeather.recorded_at,
+      weatherMain: dbWeather.weather_main,
+      weatherDescription: dbWeather.weather_description,
+      windSpeed: dbWeather.wind_speed,
     };
   }
 
@@ -1573,7 +1604,7 @@ export class EcologicalService extends BaseService {
       const activity = await this.getCleanupActivityById(activityId);
       if (activity && activity.ecoPointsReward > 0) {
         const userId = reg.user_id;
-        await ecoPointsService.awardEcoPoints(userId, activity.ecoPointsReward, `Participated in ${activity.title}`);
+        await getEcoPointsService().awardEcoPoints(userId, activity.ecoPointsReward, `Participated in ${activity.title}`);
       }
 
       return true;

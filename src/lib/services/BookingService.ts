@@ -2,8 +2,7 @@ import { BaseService } from './BaseService';
 import { 
   DbTourist, 
   DbTouristInsert, 
-  DbTouristUpdate, 
-  ServiceResult 
+  DbTouristUpdate 
 } from './types';
 import { Tourist } from '@/types';
 import * as mockData from '@/data/mockData';
@@ -26,8 +25,21 @@ export class BookingService extends BaseService {
     try {
       if (this.isPlaceholderMode()) {
         this.logInfo('Using mock tourists data');
+
+        // Filter by userId if provided
+        let filteredTourists = userId
+          ? mockData.tourists.filter((t) => t.userId === userId)
+          : [...mockData.tourists];
+
+        // Sort by registration date descending to match DB behavior (created_at DESC)
+        filteredTourists.sort(
+          (a, b) =>
+            new Date(b.registrationDate).getTime() -
+            new Date(a.registrationDate).getTime()
+        );
+
         const start = (page - 1) * pageSize;
-        return mockData.tourists.slice(start, start + pageSize);
+        return filteredTourists.slice(start, start + pageSize);
       }
 
       const from = (page - 1) * pageSize;
@@ -162,7 +174,11 @@ export class BookingService extends BaseService {
       return rpcResult.data as DbTourist;
 
     } catch (error) {
-      this.logError('addTourist', error, { touristData: tourist });
+      this.logError('addTourist', error, { 
+        destinationId: tourist.destination_id,
+        userId: tourist.user_id,
+        groupSize: tourist.group_size
+      });
       return null;
     }
   }
@@ -181,25 +197,23 @@ export class BookingService extends BaseService {
         return results;
       }
 
-      // Basic enrichment for batch insert
-      const validatedTourists = tourists.map(t => ({
-        ...t,
-        created_at: (t as any).created_at || new Date().toISOString(),
-        updated_at: (t as any).updated_at || new Date().toISOString(),
-        status: t.status || 'pending'
-      }));
-
-      const { data, error } = await (this.db as any)
-        .from('tourists')
-        .insert(validatedTourists)
-        .select();
-
-      if (error) {
-        this.logError('batchAddTourists', error, { touristCount: tourists.length });
-        return null;
+      // In real DB mode, call addTourist(t) for each tourist to ensure 
+      // each insert goes through the create_tourist_booking RPC and preserves 
+      // server-side validation and atomicity.
+      const results: DbTourist[] = [];
+      for (const t of tourists) {
+        const res = await this.addTourist(t);
+        if (res) {
+          results.push(res);
+        } else {
+          this.logError('batchAddTourists', 'Failed to add tourist in batch', { 
+            destinationId: t.destination_id,
+            userId: t.user_id 
+          });
+        }
       }
 
-      return data as DbTourist[];
+      return results.length > 0 ? results : null;
     } catch (error) {
       this.logError('batchAddTourists', error, { touristCount: tourists.length });
       return null;

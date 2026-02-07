@@ -1,21 +1,9 @@
 import { Database } from '@/types/database';
+import { EcologicalDamageIndicators } from '@/types';
 
 /**
- * Standardized result wrapper for service operations.
- * Helps maintain consistency in how services return data and errors.
- */
-export interface ServiceResult<T> {
-  success: boolean;
-  data?: T;
-  error?: {
-    message: string;
-    code?: string;
-    details?: unknown;
-  };
-}
-
-/**
- * Convenience type aliases for database table rows, inserts, and updates.
+ * Standardized database type aliases for all domain services.
+ * These are re-exported canonical types to ensure a single source of truth.
  */
 export type DbTourist = Database['public']['Tables']['tourists']['Row'];
 export type DbTouristInsert = Database['public']['Tables']['tourists']['Insert'];
@@ -51,23 +39,11 @@ export type DbPolicyViolation = Database['public']['Tables']['policy_violations'
 export type DbPolicyViolationInsert = Database['public']['Tables']['policy_violations']['Insert'];
 export type DbPolicyViolationUpdate = Database['public']['Tables']['policy_violations']['Update'];
 
+export type DbWeatherData = Database['public']['Tables']['weather_data']['Row'];
+
 /**
  * Common input interfaces used across multiple services.
  */
-export interface PaginationParams {
-  page?: number;
-  pageSize?: number;
-}
-
-export interface DateRangeParams {
-  startDate: Date;
-  endDate: Date;
-}
-
-export interface SearchParams extends PaginationParams {
-  searchTerm?: string;
-}
-
 export interface WeatherDataInput {
   destination_id: string;
   temperature: number;
@@ -98,11 +74,10 @@ export interface ComplianceReportInput {
   };
   carbonFootprint: number;
   ecologicalImpactIndex: number;
-  ecologicalDamageIndicators?: any;
+  ecologicalDamageIndicators?: EcologicalDamageIndicators;
   previousPeriodScore?: number;
   policyViolationsCount: number;
   totalFines: number;
   status?: "pending" | "approved";
 }
 
-export type DbWeatherData = Database['public']['Tables']['weather_data']['Row'];

@@ -6,17 +6,17 @@ const DESTINATION_TTL = 1000 * 60 * 60; // 1 hour
 const POLICY_CONFIG_TTL = 1000 * 60 * 60 * 24; // 24 hours
 
 // Typed Cache Instances
-export const weatherCache = new LRUCache<string, Record<string, unknown>>({
+export const weatherCache = new LRUCache<string, any>({
   max: 500,
   ttl: WEATHER_TTL,
 });
 
-export const destinationCache = new LRUCache<string, Record<string, unknown>>({
+export const destinationCache = new LRUCache<string, any>({
   max: 100,
   ttl: DESTINATION_TTL,
 });
 
-export const policyConfigCache = new LRUCache<string, Record<string, unknown>>({
+export const policyConfigCache = new LRUCache<string, any>({
   max: 50,
   ttl: POLICY_CONFIG_TTL,
 });
@@ -29,7 +29,7 @@ export const ecologicalIndicatorCache = new LRUCache<string, { soil_compaction: 
 /**
  * Cache-aware wrapper for fetching data
  */
-export async function withCache<T extends object>(
+export async function withCache<T extends {}>(
   cache: LRUCache<string, T>,
   key: string,
   fetchFn: () => Promise<T | null>

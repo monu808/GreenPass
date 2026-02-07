@@ -124,10 +124,10 @@ export interface DashboardStats {
 }
 
 export interface EcologicalDamageIndicators {
-  soilCompaction?: number;
-  vegetationDisturbance?: number;
-  wildlifeDisturbance?: number;
-  waterSourceImpact?: number;
+  soilCompaction: number;
+  vegetationDisturbance: number;
+  wildlifeDisturbance: number;
+  waterSourceImpact: number;
   // Support snake_case from DB
   soil_compaction?: number;
   vegetation_disturbance?: number;
@@ -137,6 +137,7 @@ export interface EcologicalDamageIndicators {
 
 export interface ComplianceReport {
   id: string;
+  destinationId: string;
   reportPeriod: string;
   reportType: 'monthly' | 'quarterly';
   totalTourists: number;
@@ -157,12 +158,6 @@ export interface ComplianceReport {
   approvedBy?: string | null;
   approvedAt?: Date | null;
   createdAt: Date;
-}
-export interface EcologicalDamageIndicators {
-  soilCompaction: number;
-  vegetationDisturbance: number;
-  wildlifeDisturbance: number;
-  waterSourceImpact: number;
 }
 
 export interface HistoricalOccupancy {

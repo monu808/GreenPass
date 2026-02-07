@@ -306,7 +306,7 @@ export class EcologicalPolicyEngine {
   async getEcologicalIndicatorFactor(destinationId: string, indicators?: EcologicalDamageIndicators): Promise<number> {
     if (!indicators) {
       const dbService = getDbService();
-      indicators = (await dbService.getLatestEcologicalIndicators(destinationId)) || undefined;
+      indicators = (await dbService.getLatestEcologicalIndicators(destinationId)) as any || undefined;
     }
     
     if (!indicators) return 1.0;

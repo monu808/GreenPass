@@ -232,9 +232,9 @@ export default function AdminDashboard() {
       ]);
 
       const batchCapacitiesMap = await policyEngine.getBatchAdjustedCapacities(
-        transformedDestinations,
+        transformedDestinations as any,
         weatherBatch,
-        indicatorsBatch
+        indicatorsBatch as any
       );
 
       const newAdjustedCapacities: Record<string, number> = {};
@@ -323,7 +323,7 @@ export default function AdminDashboard() {
       const batchCapacitiesMap = await policyEngine.getBatchAdjustedCapacities(
         destinations,
         weatherBatch,
-        indicatorsBatch
+        indicatorsBatch as any
       );
 
       const newAdjustedCapacities: Record<string, number> = {};

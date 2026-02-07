@@ -64,7 +64,7 @@ export default function TouristDashboard() {
       const batchCapacitiesMap = await policyEngine.getBatchAdjustedCapacities(
         destinationsData,
         weatherInputMap,
-        indicatorsMap
+        indicatorsMap as any
       );
 
       const calculatedAdjustedCapacities: Record<string, number> = {};

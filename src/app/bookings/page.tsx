@@ -17,7 +17,7 @@ import {
 import { getDbService } from "@/lib/databaseService";
 import { Tourist, Destination } from "@/types";
 import type { Database } from "@/types/database";
-import { sanitizeSearchTerm } from "@/lib/utils";
+import { sanitizeSearchTerm, formatPhone } from "@/lib/utils";
 import { validateInput, SearchFilterSchema } from "@/lib/validation";
 import { DataFetchErrorBoundary } from "@/components/errors";
 
@@ -126,7 +126,7 @@ export default function BookingsPage() {
     // Sanitize search term
     const sanitizedSearch = sanitizeSearchTerm(searchTerm);
     
-    const filterValidation = validateInput(SearchFilterSchema, {
+    const filterData = {
       searchTerm: sanitizedSearch,
       status: statusFilter === "all" ? undefined : statusFilter as Tourist["status"],
       destinationId: destinationFilter === "all" ? undefined : destinationFilter,

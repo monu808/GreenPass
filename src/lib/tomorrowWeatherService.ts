@@ -185,14 +185,21 @@ class TomorrowWeatherService {
 
       // Check rate limit before making API call
       const rateLimitKey = cacheKey || `${lat.toFixed(4)}_${lon.toFixed(4)}`;
-      const { success, limit, remaining, reset } = await weatherRatelimit.limit(rateLimitKey);
       
-      if (!success) {
-        logger.warn(`⚠️ Rate limit exceeded for ${cityName} (${remaining}/${limit} requests remaining). Reset at ${new Date(reset).toLocaleTimeString()}`);
-        return null; // Let aggregation layer handle fallback
-      }
+      // Handle cases where redis/ratelimit is not available
+      if (!weatherRatelimit) {
+        logger.debug(`Redis not available - skipping rate limit check for ${cityName}`);
+      } else {
+        const result = await (weatherRatelimit as any).limit(rateLimitKey);
+        const { success, limit, remaining, reset } = result;
+        
+        if (!success) {
+          logger.warn(`⚠️ Rate limit exceeded for ${cityName} (${remaining}/${limit} requests remaining). Reset at ${new Date(reset).toLocaleTimeString()}`);
+          return null; // Let aggregation layer handle fallback
+        }
 
-      logger.debug(`✅ Rate limit check passed for ${cityName} (${remaining}/${limit} requests remaining)`);
+        logger.debug(`✅ Rate limit check passed for ${cityName} (${remaining}/${limit} requests remaining)`);
+      }
 
       // Proceed with API call
       const fields = [

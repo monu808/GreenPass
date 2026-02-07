@@ -107,6 +107,7 @@ export const ecoPointsTransactions: EcoPointsTransaction[] = [
 export const complianceReports: ComplianceReport[] = [
   {
     id: 'report-1',
+    destinationId: 'dest-1',
     reportPeriod: '2025-12',
     reportType: 'monthly',
     totalTourists: 5240,
@@ -128,6 +129,7 @@ export const complianceReports: ComplianceReport[] = [
   },
   {
     id: 'report-2',
+    destinationId: 'dest-2',
     reportPeriod: '2026-01',
     reportType: 'monthly',
     totalTourists: 4120,
